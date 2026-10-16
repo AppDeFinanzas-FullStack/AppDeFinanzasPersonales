@@ -1,6 +1,6 @@
 # Constitución — App de Finanzas Personales
 
-**Versión:** 1.0.0 · **Ratificada:** 2026-10-15
+**Versión:** 1.1.0 · **Ratificada:** 2026-10-15
 
 Principios innegociables del proyecto. Los DEBEN respetar todas las personas y agentes de IA que trabajen en él. El *qué* se define en cada especificación y el *cómo* en cada plan; este documento fija solo lo que no cambia.
 
@@ -9,8 +9,9 @@ Principios innegociables del proyecto. Los DEBEN respetar todas las personas y a
 - **Principio rector:** registrar un movimiento DEBE ser siempre rápido y simple. Ninguna funcionalidad puede volver más lento ni más complicado ese flujo.
 - **Privacidad:** cada usuario ve y modifica SOLO sus propios datos, y puede exportarlos o borrarlos cuando quiera.
 - **Plataforma:** aplicación web responsive y accesible, en español de Bolivia, con los textos preparados para traducirse.
-- **Entregas incrementales:** V1.0 (núcleo) → V1.1 (presupuestos, metas y deudas) → V1.2 (recurrentes y recordatorios). Cada entrega DEBE quedar usable antes de empezar la siguiente.
-- **Fuera de alcance:** reportes, inteligencia artificial, conexión con bancos, cuentas compartidas o roles, app nativa, notificaciones push y modo sin conexión.
+- **Entregas incrementales:** V1.0 (núcleo) → V1.1 (presupuestos, metas, deudas y bandeja básica de avisos) → V1.2 (recurrentes y recordatorios completos). Cada entrega DEBE quedar usable antes de empezar la siguiente.
+- **Avisos:** todos los avisos llegan solo dentro de la app. El correo se usa únicamente para la cuenta del usuario (confirmación, recuperación y seguridad).
+- **Fuera de alcance:** reportes, inteligencia artificial, conexión con bancos, cuentas compartidas o roles, app nativa, notificaciones push, avisos por correo y modo sin conexión.
 
 ## 2. Stack tecnológico
 - **Lenguaje:** TypeScript en todo el proyecto, organizado como monorepo.
@@ -19,7 +20,7 @@ Principios innegociables del proyecto. Los DEBEN respetar todas las personas y a
 - **Base de datos:** PostgreSQL.
 - **Autenticación:** Better Auth.
 - **Dinero:** decimal.js.
-- **Correo:** Resend.
+- **Correo (solo de cuenta):** Resend.
 - **Tests:** Vitest y Playwright.
 - **Despliegue:** Railway o Render (backend), Neon (base de datos), Vercel o Netlify (frontend).
 
@@ -27,9 +28,10 @@ Agregar una tecnología que reemplace o duplique alguna de estas requiere el acu
 
 ## 3. Datos y dinero
 - El dinero se calcula SIEMPRE con precisión decimal exacta, NUNCA con punto flotante. Los montos se redondean a dos decimales, con la mitad hacia arriba.
-- La historia no se reescribe: un movimiento conserva el tipo de cambio con el que se registró.
+- La historia no se reescribe: un movimiento conserva el tipo de cambio con el que se registró, y los valores históricos no cambian por movimientos del dólar ni por cambios de configuración.
 - Los saldos se calculan a partir de los movimientos y NUNCA se editan a mano.
-- Lo que tiene historial se archiva, no se borra.
+- Las cuentas y categorías con movimientos se archivan, no se borran.
+- Una misma acción repetida NUNCA genera registros duplicados, y un mismo evento NUNCA genera dos avisos.
 
 ## 4. Seguridad
 - Toda entrada al sistema DEBE validarse. NUNCA se confía en lo que envía el cliente.
@@ -44,6 +46,7 @@ Agregar una tecnología que reemplace o duplique alguna de estas requiere el acu
 
 ## 6. Desarrollo guiado por especificaciones (SDD)
 - Toda funcionalidad sigue este orden: **especificación → plan → tareas → implementación**.
+- Cada funcionalidad vive en una carpeta `NNN-nombre/` en la raíz del proyecto, al mismo nivel que `docs/`, con su `spec.md`, `plan.md` y `tasks.md`.
 - No se implementa nada sin una especificación aprobada por el equipo.
 - Ante una ambigüedad, se pregunta. NUNCA se inventan reglas de negocio.
 - Si un cambio contradice la especificación, primero se actualiza la especificación.
