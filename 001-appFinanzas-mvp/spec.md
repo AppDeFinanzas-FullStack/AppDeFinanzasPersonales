@@ -1,7 +1,7 @@
 # Especificación Funcional — App de Finanzas Personales
 
 **Versión:** 1.3 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
-**Estado:** V1.0 Borrador · V1.1 Borrador · V1.2 Borrador
+**Estado:** V1.0 Aprobada · V1.1 Aprobada · V1.2 Aprobada (2026-10-16)
 **Documentos relacionados:** `docs/constitution.md` (principios innegociables) · `plan.md` y `tasks.md` (en esta misma carpeta)
 
 Este documento define el **qué** y el **porqué**. No define el cómo técnico.
