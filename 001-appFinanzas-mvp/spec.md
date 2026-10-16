@@ -1,6 +1,6 @@
 # Especificación Funcional — App de Finanzas Personales
 
-**Versión:** 1.2 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
+**Versión:** 1.3 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
 **Estado:** V1.0 Borrador · V1.1 Borrador · V1.2 Borrador
 **Documentos relacionados:** `docs/constitution.md` (principios innegociables) · `plan.md` y `tasks.md` (en esta misma carpeta)
 
@@ -154,7 +154,7 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 | — | Sin confirmar | Registro |
 | Sin confirmar | Sin confirmar | Nuevo registro con el mismo correo: reemplaza nombre y contraseña, y envía un enlace nuevo |
 | Sin confirmar | Activa | Abre un enlace de confirmación vigente, o recupera su contraseña |
-| Sin confirmar | Descartada | Pasan 7 días sin confirmar. El correo queda libre |
+| Sin confirmar | Descartada | Pasan 7 días desde el último registro sin confirmar. El correo queda libre |
 | Activa | Eliminada | Eliminación confirmada |
 
 - Prohibido: cualquier transición desde Descartada o Eliminada. Una cuenta Sin confirmar no tiene sesión ni accede a ningún dato.
@@ -177,7 +177,7 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 - **RF-M1-03:** El sistema DEBE responder con el mismo mensaje neutro al registrarse o pedir la recuperación, exista o no el correo.
 - **RF-M1-04:** El sistema DEBE impedir todo acceso a los datos hasta que el correo esté confirmado. Registrarse o iniciar sesión sin haber confirmado NO abre sesión.
 - **RF-M1-05:** El sistema DEBE permitir reenviar la confirmación una vez cada 60 segundos y como máximo 5 veces por hora. Cada reenvío invalida el enlace anterior.
-- **RF-M1-06:** El sistema DEBE descartar los registros sin confirmar a los 7 días.
+- **RF-M1-06:** El sistema DEBE descartar los registros sin confirmar a los 7 días del último registro con ese correo. Un nuevo registro reinicia el plazo.
 - **RF-M1-07:** El sistema DEBE mantener la sesión durante 30 días desde la última acción del usuario (las peticiones en segundo plano no cuentan) y permitir sesiones simultáneas en varios dispositivos.
 - **RF-M1-08:** El sistema DEBE contar los intentos fallidos por correo, exista o no una cuenta con ese correo. Tras 5 fallos seguidos exige 1 minuto de espera; tras 10, 15 minutos, y desde ahí cada nuevo fallo vuelve a exigir 15 minutos. El contador se reinicia con un inicio de sesión exitoso o tras 1 hora sin intentos. Debe mostrar el tiempo restante. Si el correo tiene cuenta, envía un correo de aviso al dueño, como máximo uno por hora. El sistema NUNCA bloquea la cuenta de forma permanente.
 - **RF-M1-09:** El enlace de recuperación DEBE vencer en 1 hora y servir una sola vez. Pedir uno nuevo invalida el anterior.
@@ -199,7 +199,7 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 - **EC-M1-06:** Se elimina la cuenta en A mientras B está abierto. B pierde la sesión en su siguiente acción.
 - **EC-M1-07:** El servicio de correo falla. El registro o la recuperación muestran el mismo mensaje neutro, y el usuario puede reenviar respetando los límites.
 - **EC-M1-08:** La contraseña de la eliminación es incorrecta, o la palabra no es exactamente ELIMINAR. No se elimina nada y se explica el motivo.
-- **EC-M1-09:** Alguien se registra con un correo que tiene un registro Sin confirmar (aún no descartado). Se reemplazan el nombre y la contraseña, se invalida el enlace anterior y se envía uno nuevo.
+- **EC-M1-09:** Alguien se registra con un correo que tiene un registro Sin confirmar (aún no descartado). Se reemplazan el nombre y la contraseña, se invalida el enlace anterior, se envía uno nuevo y el plazo de 7 días vuelve a empezar.
 - **EC-M1-10:** Se recupera la contraseña de una cuenta Sin confirmar. Al definir la contraseña nueva, la cuenta queda Activa.
 - **EC-M1-11:** Se abre el enlace de confirmación de A en un dispositivo con la sesión de B. Se cierra la sesión de B, su borrador se descarta y se inicia la de A.
 - **EC-M1-12:** Hay intentos fallidos con un correo sin cuenta. Se aplica la misma espera que a uno con cuenta, para no revelar si existe.
@@ -324,7 +324,7 @@ Escenario: Bloqueo sin conexión conserva el borrador
 **Cargar un valor manual**
 1. El usuario escribe un valor (por ejemplo, Bs 10,10 por dólar) y lo activa.
 2. Ese valor tiene prioridad sobre cualquier referencia automática hasta que el usuario lo desactive.
-3. Mientras está activo, se ve un aviso fijo: "Usando tu valor manual (Bs 10,10) desde hace N días".
+3. Mientras está activo, el panel de Tipo de cambio muestra un aviso fijo: "Usando tu valor manual (Bs 10,10) desde hace N días", y la ficha del dólar de la cabecera lleva un distintivo.
 
 **Agregar una moneda**
 1. El usuario agrega una moneda con su código de 3 letras, su símbolo y su valor en bolivianos (por ejemplo, 1 EUR = Bs 11,20).
@@ -368,17 +368,20 @@ Escenario: Bloqueo sin conexión conserva el borrador
   Las tasas automáticas son las mismas para todos los usuarios. El valor manual y las tasas de las monedas agregadas son de cada usuario.
 
 - **RF-M3-05:** El sistema DEBE mostrar junto a toda tasa "actualizado hace X" y su fuente. NO muestra avisos de desactualización.
-- **RF-M3-06:** Todo movimiento, esté o no en la moneda base, DEBE guardar al guardarse la tasa de su moneda frente al boliviano y la tasa boliviano-dólar de la referencia en uso (el valor manual, si está activo). Si la fecha es hoy, guarda las vigentes en ese momento. Si es pasada, las del historial en esa fecha (RF-M3-13). La tasa guardada nunca se actualiza sola: solo el usuario puede editarla a mano (RF-M3-10).
+- **RF-M3-06:** Todo movimiento, esté o no en la moneda base, DEBE guardar al guardarse la tasa de su moneda frente al boliviano y la tasa boliviano-dólar. Si la fecha es hoy, guarda las vigentes en ese momento, con la referencia en uso (el valor manual, si está activo). Si es pasada, guarda las del historial en esa fecha, con la referencia y el valor manual que el usuario tenía en uso ese día (RF-M3-13). La tasa guardada nunca se actualiza sola: solo el usuario puede editarla a mano (RF-M3-10).
 - **RF-M3-07:** En una transferencia entre monedas distintas, el sistema DEBE precargar el campo "Tipo de cambio usado":
   - con el valor manual del dólar, si está activo;
   - si no, con el paralelo según la dirección: venta si el usuario compra dólares, compra si los vende;
   - si no interviene el dólar, con la tasa manual de la moneda agregada o, entre dos monedas agregadas, con la tasa cruzada a través de BOB.
+
+  Para una fecha pasada se precargan los valores de ese día: el valor manual si estaba activo, o el paralelo de ese día (RF-M3-06, RF-M3-13).
+
 - **RF-M3-08:** En esa transferencia, el sistema DEBE calcular el monto que llega a partir del monto que sale y la tasa. Si el usuario edita el monto que llega, la tasa se recalcula. Ese monto manda y se guarda tal cual; como la tasa tiene 2 decimales, puede no reproducirlo exactamente (diferencia máxima de 0,01).
 - **RF-M3-09:** La tasa declarada en una transferencia DEBE ser la tasa histórica de ese movimiento.
 - **RF-M3-10:** Al editar un movimiento, la tasa guardada DEBE conservarse siempre, aunque cambien su fecha o su cuenta. Solo cambia si el usuario la edita a mano desde el detalle del movimiento. En una transferencia, la tasa declarada solo cambia si el usuario la edita.
 - **RF-M3-11:** Cambiar la referencia o la moneda base DEBE recalcular los saldos y totales actuales sin modificar los movimientos registrados.
 - **RF-M3-12:** La brecha DEBE calcularse como (paralelo − oficial) ÷ oficial, en % y en Bs, comparando con el oficial (TCO) la referencia del paralelo en uso o el valor manual. Si la referencia en uso es el oficial, se muestra la mediana del paralelo contra el oficial.
-- **RF-M3-13:** El sistema DEBE guardar un historial diario de tasas por moneda: las referencias automáticas del dólar, el valor manual y las tasas de las monedas agregadas (cada cambio del usuario). La tasa de un día es la última vigente ese día. Para un día sin compra o venta del paralelo se usa la mediana de ese día. Para un día sin dato se usa la del día anterior más cercano y, antes del primer dato, el primer valor conocido.
+- **RF-M3-13:** El sistema DEBE guardar un historial diario de tasas por moneda: las referencias automáticas del dólar, el valor manual, las tasas de las monedas agregadas y la referencia elegida por el usuario (cada cambio del usuario). El día de una tasa de mercado es el día calendario de Bolivia. La tasa de un día es la última vigente ese día. Para un día sin compra o venta del paralelo se usa la mediana de ese día. Para un día sin dato se usa la del día anterior más cercano y, antes del primer dato, el primer valor conocido.
 
 #### 2.3.4 Casos borde y excepciones
 - **EC-M3-01:** La fuente no responde. Se usa el último valor guardado y la app sigue funcionando.
@@ -410,7 +413,7 @@ Escenario: Valor manual con prioridad
   Dado que el usuario activó un valor manual de Bs 10,00
   Cuando el paralelo cambia a Bs 10,40
   Entonces los totales siguen convirtiéndose con Bs 10,00
-  Y se ve "Usando tu valor manual (Bs 10,00) desde hace N días"
+  Y el panel de Tipo de cambio muestra "Usando tu valor manual (Bs 10,00) desde hace N días"
 
 Escenario: Sin ninguna tasa disponible
   Dado un usuario nuevo y la fuente del dólar no responde
@@ -443,8 +446,7 @@ Escenario: Sin ninguna tasa disponible
 - La lista muestra el total neto y su desglose, con las cuentas agrupadas por tipo en el orden del usuario.
 - El detalle muestra:
   - el saldo y su equivalente en la otra moneda;
-  - un gráfico del saldo día a día;
-  - los movimientos agrupados por día, con filtro de fechas;
+  - un gráfico del saldo día a día y los movimientos agrupados por día, los dos con el mismo filtro de fechas (por defecto, el mes actual);
   - en una tarjeta, además, el límite, el crédito disponible y los días de corte y de pago;
   - en una cuenta con apartados, el saldo apartado y el saldo libre.
 
@@ -466,12 +468,12 @@ Escenario: Sin ninguna tasa disponible
   - tarjeta, se ingresa como deuda actual (se registra como saldo negativo) o como saldo a favor (se registra como saldo positivo);
   - banco, ahorro y otro, cualquier valor.
 
-  Por defecto es 0.
+  Por defecto es 0. En valor absoluto llega hasta 999.999.999,99, con 2 decimales como máximo.
 - **RF-M4-03:** El saldo DEBE calcularse según RN-01. Un movimiento con fecha anterior a la del saldo inicial se permite, aparece en la historia con el aviso "anterior al saldo inicial" y no altera el saldo, pero sí cuenta como ingreso o gasto (RN-12).
 - **RF-M4-04:** En efectivo y billetera, el sistema DEBE rechazar toda acción que deje el saldo actual en negativo, y explicar cuál sería el saldo resultante. Incluye gastos, transferencias salientes (monto y comisión juntos), ediciones, eliminaciones de ingresos, deshacer y ajustes. Los saldos de días pasados no se validan.
 - **RF-M4-05:** Un ajuste NO cuenta como ingreso ni como gasto. Se puede editar y eliminar. Si la diferencia es 0, no se crea. En una cuenta dedicada a una meta, el ajuste cambia el progreso y queda en la historia de la meta con el origen "ajuste".
 - **RF-M4-06:** La moneda de una cuenta solo DEBE poder cambiarse si no tiene movimientos.
-- **RF-M4-07:** El saldo inicial y su fecha NO DEBEN editarse después de crear la cuenta: cualquier diferencia se corrige con "Ajustar saldo". El nombre, el tipo, el color y el ícono se editan siempre, respetando RF-M4-02.
+- **RF-M4-07:** El saldo inicial y su fecha NO DEBEN editarse después de crear la cuenta: cualquier diferencia se corrige con "Ajustar saldo". El nombre, el color y el ícono se editan siempre. El tipo se puede cambiar si el saldo inicial cumple RF-M4-02 para el nuevo tipo, si el saldo actual no queda negativo en efectivo o billetera (RF-M4-04) y si no se convierte en tarjeta una cuenta dedicada o con apartados. Al dejar de ser tarjeta, se borran el día de corte, el día de pago y el límite.
 - **RF-M4-08:** En una tarjeta:
   - el saldo DEBE mostrarse como "Debes X" o "A favor X";
   - con límite, se muestra el crédito disponible (límite − deuda), y al superarlo aparece un aviso sin bloquear;
@@ -481,7 +483,7 @@ Escenario: Sin ninguna tasa disponible
 - **RF-M4-10:** El total neto DEBE ser la suma de las cuentas activas (la deuda de tarjetas resta), en moneda base y su equivalente en la otra moneda, con la referencia vigente. El desglose incluye:
   - Líquido (efectivo, banco, billetera, otro);
   - Ahorro;
-  - Deuda en tarjetas;
+  - Deuda en tarjetas: la suma de los saldos de todas las tarjetas (un saldo a favor reduce la deuda);
   - Apartado para metas (V1.1): los apartados más el saldo positivo de las cuentas dedicadas. No altera el total.
 - **RF-M4-11:** Las cuentas DEBEN poder reordenarse. La lista agrupa por tipo y respeta ese orden.
 - **RF-M4-12:** Si se archiva la cuenta por defecto o la última usada en Registrar, Registrar DEBE pasar a la cuenta que indica RF-M7-03.
@@ -555,7 +557,7 @@ Escenario: Pago de tarjeta no es gasto
 | — | Activa | Creación o precarga |
 | Activa | Archivada | Si es padre, sus subcategorías se archivan también, con una confirmación que las lista |
 | Archivada | Activa | Restauración. Si es padre, el usuario elige qué subcategorías vuelven. Si es una subcategoría con el padre archivado, hay que restaurar el padre o moverla a otro padre activo |
-| Activa | Eliminada | Solo sin movimientos, o como origen de una fusión |
+| Activa | Eliminada | Solo sin movimientos y sin presupuesto ni regla recurrente que la use (si no, se pide archivarla); sus atajos se borran con ella. También como origen de una fusión |
 
 - Prohibido: eliminar una categoría con movimientos; cambiar su tipo; convertir en subcategoría una categoría que tiene subcategorías; mover una subcategoría a un padre archivado; renombrar, archivar, eliminar o fusionar (como origen o como destino) la categoría del sistema.
 
@@ -586,6 +588,7 @@ Escenario: Pago de tarjeta no es gasto
 - **EC-M5-04:** Al restaurar una categoría, su nombre ya está en uso en el mismo nivel. Se pide renombrarla.
 - **EC-M5-05:** Se convierte una subcategoría en principal y ya existe una principal con ese nombre. Se pide renombrarla antes.
 - **EC-M5-06:** Se restaura una subcategoría cuyo padre está archivado. Se pide restaurar el padre o elegir otro padre activo.
+- **EC-M5-07:** Se intenta eliminar una categoría sin movimientos que usa un presupuesto o una regla recurrente. Se rechaza y se sugiere archivarla.
 
 #### 2.5.5 Criterios de aceptación
 ```gherkin
@@ -660,7 +663,7 @@ Escenario: Categoría del sistema protegida
   - a otra de distinta moneda: el monto en la nueva moneda se precarga convertido con la tasa guardada (o, si el movimiento no guardó la tasa de esa moneda, con el historial en su fecha), y el usuario lo confirma o edita la tasa a mano (RF-M3-10). Si la conversión supera el máximo de RF-M6-01, se rechaza con la explicación.
 - **RF-M6-08:** Toda edición, eliminación o deshacer DEBE respetar el bloqueo de negativos (M4), la protección de apartados (M12) y las reglas de tasa (M3).
 - **RF-M6-09:** En los movimientos vinculados (glosario), el monto, la cuenta y la fecha DEBEN editarse solo desde su origen, y el detalle ofrece "Ir a…". La nota y la categoría se editan desde la lista, salvo la categoría del sistema.
-- **RF-M6-10:** Los movimientos creados por un recurrente DEBEN ser movimientos normales, editables y eliminables, con el distintivo "De recurrente: X".
+- **RF-M6-10:** Los movimientos creados por un recurrente DEBEN ser movimientos normales, editables y eliminables, con el distintivo "De recurrente: X", donde X es el nombre de la regla.
 - **RF-M6-11:** Los pendientes NO DEBEN aparecer en la lista de movimientos ni contar en saldos o totales.
 - **RF-M6-12:** El neto diario y los totales de la lista DEBEN excluir los movimientos que indica RN-02.
 - **RF-M6-13:** Las acciones en lote DEBEN omitir los movimientos que violarían el bloqueo de negativos o de apartados. Al eliminar, omiten además todos los vinculados; al recategorizar, las transferencias, los ajustes y los vinculados con la categoría del sistema. Deben avisar cuántos quedaron fuera.
@@ -755,7 +758,7 @@ Escenario: Vinculado solo se edita en su origen
 - **RF-M7-06:** "Guardar" DEBE habilitarse con monto mayor que 0 y categoría (gasto o ingreso), o con origen y destino distintos (transferencia).
 - **RF-M7-07:** Al guardar, el sistema DEBE limpiar el formulario y permanecer en Registrar. Debe mostrar "Deshacer" durante 10 segundos, que elimina el movimiento recién creado con las mismas validaciones que una eliminación y sigue disponible al cambiar de pestaña hasta cumplir los 10 segundos. Debe mostrar también los últimos 3 movimientos creados hoy, sea cual sea su fecha.
 - **RF-M7-08:** El borrador DEBE conservarse según RF-M2-10, también tras volver a iniciar sesión el mismo usuario.
-- **RF-M7-09:** Los atajos DEBEN guardar nombre, tipo (gasto, ingreso o transferencia), monto (opcional), cuenta (o par origen-destino en una transferencia), categoría (salvo en una transferencia) y nota. Son como máximo 12 en total, contando los ocultos, y aparecen como fichas del tipo correspondiente. Al tocarlos rellenan el formulario y no guardan directamente.
+- **RF-M7-09:** Los atajos DEBEN guardar nombre (de 1 a 30 caracteres), tipo (gasto, ingreso o transferencia), monto (opcional), cuenta (o par origen-destino en una transferencia), categoría (salvo en una transferencia) y nota. Son como máximo 12 en total, contando los ocultos, y aparecen como fichas del tipo correspondiente. Al tocarlos rellenan el formulario y no guardan directamente.
 - **RF-M7-10:** Los atajos se crean con "Guardar como atajo" y se editan, reordenan y eliminan en Ajustes › Registrar.
 - **RF-M7-11:** La ficha de cuenta DEBE mostrar el saldo libre de la cuenta. En una tarjeta, muestra el crédito disponible (si tiene límite) o la deuda.
 - **RF-M7-12:** En escritorio, el formulario DEBE poder usarse completo con Tab y Enter. No hay atajos de teclado propios.
@@ -1231,7 +1234,7 @@ Escenario: Salida de la cuenta dedicada sin confirmación
 
    En "Debo" son gastos; en "Me deben", ingresos.
 
-**Eliminar el último pago:** desde la deuda, el usuario puede eliminar solo el último pago, salvo en una deuda Condonada. El capital se restablece y, desde ese momento, el interés corre sobre el capital restablecido. Lo ya acumulado no se recalcula (RF-M13-04). De los pagos solo se edita la nota.
+**Eliminar el último pago:** desde la deuda, el usuario puede eliminar solo el último pago, salvo en una deuda Condonada. El capital y el interés que cubría ese pago se restablecen y, desde ese momento, el interés corre sobre el capital restablecido. Lo ya acumulado no se recalcula (RF-M13-04). De los pagos solo se edita la nota.
 
 **Condonar:** el usuario toca "Condonar saldo" y la deuda pasa a Condonada sin mover dinero.
 
@@ -1258,7 +1261,7 @@ Escenario: Salida de la cuenta dedicada sin confirmación
 - **RF-M13-01:** La persona DEBE tener de 1 a 40 caracteres, con autocompletado sobre las personas ya usadas. El monto es mayor que 0. La fecha de inicio es hoy o anterior. El interés, si existe, va de 0,01 % a 100 %.
 - **RF-M13-02:** El interés simple DEBE acumularse día a día sobre el capital pendiente, desde la fecha de inicio (aunque sea pasada), y seguir corriendo después de la fecha límite hasta que el capital llegue a 0. La tasa diaria es la mensual ÷ 30 o la anual ÷ 365. Se acumula con precisión exacta y solo se redondea a 2 decimales al mostrarlo o al pagarlo. Se muestra aparte del capital.
 - **RF-M13-03:** La tasa y el período de interés DEBEN quedar fijos al crear la deuda.
-- **RF-M13-04:** El interés ya acumulado NUNCA DEBE recalcularse: ni por pagos con fecha pasada, ni por eliminar un pago, ni por el tipo de cambio o la configuración. Un pago, aunque tenga fecha pasada, reduce el capital desde el momento en que se registra. Eliminar el último pago restablece el capital desde el momento de la eliminación.
+- **RF-M13-04:** El interés ya acumulado NUNCA DEBE recalcularse: ni por pagos con fecha pasada, ni por eliminar un pago, ni por el tipo de cambio o la configuración. Un pago, aunque tenga fecha pasada, reduce el capital desde el momento en que se registra. Eliminar el último pago restablece, desde el momento de la eliminación, el capital y el interés que ese pago había cubierto: ese interés vuelve a quedar sin pagar, sin recalcularse.
 - **RF-M13-05:** En cada pago, el desglose DEBE venir precargado (interés primero) y ser editable, cumpliendo:
   - interés ≤ interés acumulado;
   - capital ≤ capital pendiente;
@@ -1316,6 +1319,7 @@ Escenario: Condonar
 **Crear una regla**
 1. En Recurrentes, el usuario toca "Nueva regla" y elige el tipo: gasto, ingreso o transferencia.
 2. Define:
+   - el nombre (de 1 a 40 caracteres, por ejemplo "Netflix");
    - el monto (opcional solo en modo confirmación), la cuenta (o el origen y el destino), la categoría y la nota;
    - la frecuencia: diaria, semanal (eligiendo un solo día), mensual (día fijo) o anual (fecha fija);
    - la fecha de inicio (hoy o futura);
@@ -1368,6 +1372,7 @@ Escenario: Condonar
   - "Próximos vencimientos" de 30 días;
   - por regla, las siguientes 3 fechas y "Cuota X de N" si el fin es por cantidad.
 - **RF-M14-14:** El monto DEBE ser obligatorio en modo automático y opcional en modo confirmación. Una regla sin monto se muestra como "monto por definir".
+- **RF-M14-15:** Cada regla DEBE tener un nombre de 1 a 40 caracteres, que se usa en la etiqueta "De recurrente: X", en la lista y en los avisos.
 
 #### 2.14.4 Casos borde y excepciones
 - **EC-M14-01:** Una regla mensual con el día 31 en noviembre. La ocurrencia cae el 30 de noviembre.
@@ -1535,3 +1540,4 @@ Escenario: Sin duplicados
 | 1.0 | 2026-10-15 | Versión inicial. |
 | 1.1 | 2026-10-16 | Resuelve la revisión QA de 127 hallazgos: historial diario de tasas por moneda, tasa guardada al guardar y con 2 decimales, prioridad del valor manual, moneda base libre y "otra moneda" definida; alcance de comparativos y proyecciones; cambios que pueden alterar la historia (RN-11); borradores en todos los formularios; arrastre que se reemplaza en cada cierre y movimientos tardíos según la decisión; interés desde la fecha de inicio que nunca se recalcula, con eliminación solo del último pago; recurrentes que empiezan hoy, que cuentan toda ocurrencia y con monto variable; protección de apartados ampliada; sin sesión hasta confirmar el correo; exportación completa; formato "Bs 1.234,56"; límites por usuario; saldo inicial fijo (se corrige con un ajuste); tasa guardada que solo cambia a mano; tarjetas con saldo inicial a favor; cuentas dedicadas en "Apartado para metas". |
 | 1.2 | 2026-10-16 | Ajustes por las fuentes reales de tasas (revisión técnica del plan): el oficial del BCB es un solo valor (TCO); en el paralelo, "venta" es el mayor de los dos valores publicados y "compra" el menor; los días sin compra o venta usan la mediana de ese día; la tasa mínima de una moneda agregada es Bs 0,01. |
+| 1.3 | 2026-10-16 | Un nuevo registro con un correo Sin confirmar reinicia el plazo de 7 días para descartarlo. Un movimiento con fecha pasada guarda la tasa de la referencia y del valor manual que el usuario tenía en uso ese día (el historial guarda también los cambios de referencia). El día de una tasa de mercado es el día calendario de Bolivia. El aviso del valor manual se muestra en el panel de Tipo de cambio y como distintivo en la ficha del dólar. Una transferencia con fecha pasada precarga los valores de ese día. Cuentas: el gráfico de saldo usa el filtro de fechas del detalle; el saldo inicial tiene los límites de RF-M6-01; un saldo a favor de tarjeta reduce la deuda en tarjetas; reglas para cambiar el tipo de una cuenta. Una categoría usada por un presupuesto o una regla no se elimina (se archiva). Nombre de atajo de 1 a 30 caracteres. Eliminar el último pago de una deuda restablece también su interés. Las reglas recurrentes tienen nombre (1 a 40). |
