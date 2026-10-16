@@ -1,6 +1,6 @@
 # Especificación Funcional — App de Finanzas Personales
 
-**Versión:** 1.1 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
+**Versión:** 1.2 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
 **Estado:** V1.0 Borrador · V1.1 Borrador · V1.2 Borrador
 **Documentos relacionados:** `docs/constitution.md` (principios innegociables) · `plan.md` y `tasks.md` (en esta misma carpeta)
 
@@ -64,7 +64,7 @@ Aplicación web responsive para que una persona en Bolivia lleve sus finanzas pe
 ### 1.5 Glosario
 - **Moneda base:** moneda en la que se expresan los totales. BOB por defecto. Puede ser cualquier moneda activa.
 - **Otra moneda:** la de BOB y USD que no es la base. Si la base es otra moneda, BOB. Es la moneda de los equivalentes (total neto, detalle de cuenta).
-- **Referencia del dólar:** cotización que la app usa para convertir. Opciones: paralelo (compra, venta, mediana), oficial del BCB (compra, venta, promedio) o valor manual.
+- **Referencia del dólar:** cotización que la app usa para convertir. Opciones: paralelo (compra, venta o mediana), oficial del BCB (TCO, un solo valor) o valor manual. En el paralelo, "venta" es el mayor de los dos valores publicados (lo que paga quien compra dólares) y "compra" el menor, sin importar cómo los nombre la fuente.
 - **Tasa guardada:** tipo de cambio que un movimiento guarda al guardarse. NUNCA cambia por movimientos del mercado ni al editar la fecha o la cuenta del movimiento. Solo cambia si el usuario la edita a mano (RF-M3-10).
 - **Historial de tasas:** una tasa por moneda y por día: las referencias automáticas del dólar, el valor manual y las tasas de las monedas agregadas (RF-M3-13).
 - **Movimiento:** gasto, ingreso, transferencia o ajuste.
@@ -318,7 +318,7 @@ Escenario: Bloqueo sin conexión conserva el borrador
 
 #### 2.3.1 Flujos de usuario
 **Elegir la referencia del dólar**
-1. En el panel de Tipo de cambio (o en Ajustes), el usuario elige la referencia: paralelo (compra, venta o mediana), oficial (compra, venta o promedio) o valor manual.
+1. En el panel de Tipo de cambio (o en Ajustes), el usuario elige la referencia: paralelo (compra, venta o mediana), oficial (TCO) o valor manual.
 2. Al guardar, los saldos y totales actuales se recalculan. Los movimientos registrados no cambian.
 
 **Cargar un valor manual**
@@ -358,7 +358,7 @@ Escenario: Bloqueo sin conexión conserva el borrador
 
 #### 2.3.3 Requerimientos funcionales
 - **RF-M3-01:** BOB y USD DEBEN estar siempre activas. Toda moneda usa 2 decimales, y las tasas de cambio también se guardan con 2 decimales.
-- **RF-M3-02:** El código de una moneda DEBE tener 3 letras y ser único para el usuario. Las monedas agregadas DEBEN tener una tasa manual en bolivianos.
+- **RF-M3-02:** El código de una moneda DEBE tener 3 letras y ser único para el usuario. Las monedas agregadas DEBEN tener una tasa manual en bolivianos, de Bs 0,01 como mínimo: no se admiten monedas que valgan menos.
 - **RF-M3-03:** La referencia por defecto DEBE ser la mediana del paralelo, tal como la publica paralelo.bo. El valor manual activo tiene prioridad sobre cualquier referencia, también en las precargas de transferencias y pagos de deuda.
 - **RF-M3-04:** El sistema DEBE actualizar las tasas automáticas:
   - al abrir la app, si el valor guardado tiene más de 1 minuto;
@@ -377,8 +377,8 @@ Escenario: Bloqueo sin conexión conserva el borrador
 - **RF-M3-09:** La tasa declarada en una transferencia DEBE ser la tasa histórica de ese movimiento.
 - **RF-M3-10:** Al editar un movimiento, la tasa guardada DEBE conservarse siempre, aunque cambien su fecha o su cuenta. Solo cambia si el usuario la edita a mano desde el detalle del movimiento. En una transferencia, la tasa declarada solo cambia si el usuario la edita.
 - **RF-M3-11:** Cambiar la referencia o la moneda base DEBE recalcular los saldos y totales actuales sin modificar los movimientos registrados.
-- **RF-M3-12:** La brecha DEBE calcularse como (paralelo − oficial) ÷ oficial, en % y en Bs, comparando cada lado con su par: compra con compra y venta con venta; la mediana del paralelo y el valor manual, con el promedio oficial. Si la referencia en uso es un oficial, se muestra la mediana del paralelo contra ese oficial.
-- **RF-M3-13:** El sistema DEBE guardar un historial diario de tasas por moneda: las referencias automáticas del dólar, el valor manual y las tasas de las monedas agregadas (cada cambio del usuario). La tasa de un día es la última vigente ese día. Para un día sin dato se usa la del día anterior más cercano y, antes del primer dato, el primer valor conocido.
+- **RF-M3-12:** La brecha DEBE calcularse como (paralelo − oficial) ÷ oficial, en % y en Bs, comparando con el oficial (TCO) la referencia del paralelo en uso o el valor manual. Si la referencia en uso es el oficial, se muestra la mediana del paralelo contra el oficial.
+- **RF-M3-13:** El sistema DEBE guardar un historial diario de tasas por moneda: las referencias automáticas del dólar, el valor manual y las tasas de las monedas agregadas (cada cambio del usuario). La tasa de un día es la última vigente ese día. Para un día sin compra o venta del paralelo se usa la mediana de ese día. Para un día sin dato se usa la del día anterior más cercano y, antes del primer dato, el primer valor conocido.
 
 #### 2.3.4 Casos borde y excepciones
 - **EC-M3-01:** La fuente no responde. Se usa el último valor guardado y la app sigue funcionando.
@@ -389,6 +389,7 @@ Escenario: Bloqueo sin conexión conserva el borrador
 - **EC-M3-03:** Se registra un movimiento con fecha de un día sin registro de tasas. Se usa la del día anterior más cercano y, si es anterior al primer dato, el primer valor conocido (RF-M3-13).
 - **EC-M3-04:** La fuente devuelve un valor inválido (cero, negativo o vacío). Se descarta y se conserva el último valor válido. Cualquier valor positivo se acepta, aunque sea un salto grande.
 - **EC-M3-05:** El usuario intenta desactivar una moneda en uso. Se rechaza y se indica qué la usa (cuentas, metas, presupuestos, deudas o reglas).
+- **EC-M3-07:** Se agrega una moneda con una tasa menor a Bs 0,01 (por ejemplo, el peso argentino o el chileno). Se rechaza explicando que no se admiten monedas de valor tan bajo.
 - **EC-M3-06:** Con el valor manual activo, se transfiere de una cuenta en Bs a una en $. Se precarga el valor manual, no el paralelo.
 
 #### 2.3.5 Criterios de aceptación
@@ -1533,3 +1534,4 @@ Escenario: Sin duplicados
 |---|---|---|
 | 1.0 | 2026-10-15 | Versión inicial. |
 | 1.1 | 2026-10-16 | Resuelve la revisión QA de 127 hallazgos: historial diario de tasas por moneda, tasa guardada al guardar y con 2 decimales, prioridad del valor manual, moneda base libre y "otra moneda" definida; alcance de comparativos y proyecciones; cambios que pueden alterar la historia (RN-11); borradores en todos los formularios; arrastre que se reemplaza en cada cierre y movimientos tardíos según la decisión; interés desde la fecha de inicio que nunca se recalcula, con eliminación solo del último pago; recurrentes que empiezan hoy, que cuentan toda ocurrencia y con monto variable; protección de apartados ampliada; sin sesión hasta confirmar el correo; exportación completa; formato "Bs 1.234,56"; límites por usuario; saldo inicial fijo (se corrige con un ajuste); tasa guardada que solo cambia a mano; tarjetas con saldo inicial a favor; cuentas dedicadas en "Apartado para metas". |
+| 1.2 | 2026-10-16 | Ajustes por las fuentes reales de tasas (revisión técnica del plan): el oficial del BCB es un solo valor (TCO); en el paralelo, "venta" es el mayor de los dos valores publicados y "compra" el menor; los días sin compra o venta usan la mediana de ese día; la tasa mínima de una moneda agregada es Bs 0,01. |
