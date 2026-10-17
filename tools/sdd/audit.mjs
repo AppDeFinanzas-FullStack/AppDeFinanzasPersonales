@@ -3,7 +3,7 @@
 // Valida el formato del veredicto (protocolo §3.1) y lo agrega a .claude/run/TASK-NNN/audit.md.
 import { readFileSync, existsSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadState, saveState, taskDir, verdicts } from './lib/state.mjs';
+import { loadState, saveState, bumpEpoch, taskDir, verdicts } from './lib/state.mjs';
 import { fail, printJson } from './lib/repo.mjs';
 
 const [cmd, file] = process.argv.slice(2);
@@ -28,6 +28,7 @@ appendFileSync(join(taskDir(state.task), 'audit.md'), `## Ronda ${round} — ${v
 if (verdict === 'NEEDS_CLARIFICATION') {
   state.status = 'blocked';
   state.blockedReason = 'La auditoría pide una aclaración de negocio (ver audit.md).';
+  bumpEpoch(state);
   saveState(state);
 }
 printJson({ task: state.task, round, verdict, status: state.status });

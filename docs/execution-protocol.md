@@ -133,6 +133,8 @@ Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea
 
 **Límites:** cada gate bloquea como máximo 3 veces por tarea. A la cuarta falla deja cerrar al subagente, marca `status = blocked` con la salida en `gate.log`, y el orquestador le pregunta al usuario.
 
+**Resultados obsoletos:** los controles tardan, y mientras corren el orquestador puede cambiar de fase (un subagente puede terminar tarde). Cada cambio de fase, `block` y `unblock` incrementa `epoch` en `active-task.json`. Antes de guardar, el gate relee el estado: si la tarea, la fase, `epoch` o `status` ya no son los que vio al empezar, descarta su resultado, lo anota en `gate.log` y deja terminar al subagente sin tocar el estado.
+
 ### 4.2 `pre-push` → `tools/sdd/pre-push.mjs`
 
 Revisa los commits que se van a subir (los que no están en el remoto) y su diff. Si alguno de estos controles falla, el push se rechaza:

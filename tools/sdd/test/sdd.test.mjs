@@ -5,6 +5,10 @@ import { parseTasks, phaseBranch, setDone, allTasks } from '../lib/tasks.mjs';
 import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow } from '../lib/context.mjs';
 import { readText } from '../lib/repo.mjs';
+import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const SAMPLE = `# Tareas
 
@@ -120,4 +124,78 @@ test('extrae secciones del plan, reglas y escenarios de la spec', () => {
   assert.match(specItem(spec, 'RN-02'), /Intereses/);
   assert.match(scenario(spec, 'Doble toque no duplica'), /se crea un solo movimiento/);
   assert.equal(specItem(spec, 'RF-M99-01'), null);
+});
+
+const baseState = () => ({
+  task: 'TASK-002',
+  startedAt: '2026-10-17T21:22:19.780Z',
+  phase: 'implement',
+  status: 'running',
+  epoch: 3,
+  gates: { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } },
+});
+
+test('estado vigente: misma tarea, fase, época y en curso', () => {
+  const seen = baseState();
+  assert.equal(isCurrent(seen, baseState()), true);
+  assert.equal(isCurrent(seen, null), false);
+  assert.equal(isCurrent(seen, { ...baseState(), phase: 'audit' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), status: 'blocked' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), task: 'TASK-003' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), startedAt: 'otra' }), false);
+  const roundTrip = baseState();
+  bumpEpoch(roundTrip); // implement → audit → implement vuelve a la misma fase, pero en otra época
+  assert.equal(isCurrent(seen, roundTrip), false);
+  // Un estado anterior a la época cuenta como época 0.
+  const { epoch: _a, ...legacy } = baseState();
+  assert.equal(isCurrent(legacy, { ...legacy }), true);
+});
+
+test('un gate tardío no pisa el cambio de fase que ocurrió mientras corría', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sdd-state-'));
+  const file = join(dir, 'active-task.json');
+  try {
+    saveState(baseState(), file);
+    const seenByGate = loadState(file);
+
+    // Mientras el gate corre, el orquestador pasa a audit y guarda la huella.
+    const moved = loadState(file);
+    moved.phase = 'audit';
+    moved.auditFingerprint = 'abc';
+    bumpEpoch(moved);
+    saveState(moved, file);
+
+    const result = updateState(seenByGate, (s) => {
+      s.gates.B.passed = true;
+    }, file);
+    assert.equal(result, null);
+    const now = loadState(file);
+    assert.equal(now.phase, 'audit');
+    assert.equal(now.auditFingerprint, 'abc');
+    assert.equal(now.gates.B.passed, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('un gate vigente guarda sobre el estado más reciente sin perder otros campos', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sdd-state-'));
+  const file = join(dir, 'active-task.json');
+  try {
+    saveState(baseState(), file);
+    const seenByGate = loadState(file);
+
+    // Otro gate de la misma fase falló entretanto: su intento no se pierde.
+    const other = loadState(file);
+    other.gates.B.attempts = 1;
+    saveState(other, file);
+
+    const saved = updateState(seenByGate, (s) => {
+      s.gates.B.attempts += 1;
+    }, file);
+    assert.equal(saved.gates.B.attempts, 2);
+    assert.equal(loadState(file).gates.B.attempts, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

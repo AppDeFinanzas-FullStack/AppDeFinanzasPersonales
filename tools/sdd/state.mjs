@@ -5,7 +5,7 @@
 //   node tools/sdd/state.mjs block "<motivo>"
 //   node tools/sdd/state.mjs unblock
 //   node tools/sdd/state.mjs abort        (abandona la tarea activa; no toca los archivos)
-import { loadState, saveState, clearState, verdicts, worktreeFingerprint, MAX_AUDIT_ROUNDS } from './lib/state.mjs';
+import { loadState, saveState, clearState, bumpEpoch, verdicts, worktreeFingerprint, MAX_AUDIT_ROUNDS } from './lib/state.mjs';
 import { findTask } from './lib/tasks.mjs';
 import { buildContext } from './lib/context.mjs';
 import { fail, printJson } from './lib/repo.mjs';
@@ -55,6 +55,7 @@ function toPhase(next) {
   }
 
   state.phase = next;
+  bumpEpoch(state);
   saveState(state);
   if (next === 'implement' && from === 'audit') buildContext(findTask(state.task), { round: state.auditRounds });
   printJson({ task: state.task, phase: state.phase, auditRounds: state.auditRounds });
@@ -71,6 +72,7 @@ switch (cmd) {
     if (!arg) fail('Indica el motivo: state.mjs block "<motivo>"');
     state.status = 'blocked';
     state.blockedReason = arg;
+    bumpEpoch(state);
     saveState(state);
     printJson({ task: state.task, status: 'blocked', blockedReason: arg });
     break;
@@ -79,6 +81,7 @@ switch (cmd) {
     state.blockedReason = null;
     if (state.phase === 'tests') state.gates.A.attempts = 0;
     if (state.phase === 'implement') state.gates.B.attempts = 0;
+    bumpEpoch(state);
     saveState(state);
     printJson({ task: state.task, status: 'running', phase: state.phase });
     break;
