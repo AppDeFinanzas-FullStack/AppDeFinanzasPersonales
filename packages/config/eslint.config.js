@@ -11,6 +11,13 @@ const FOCUS_OR_SKIP_MESSAGE =
 const PARSE_FLOAT_MESSAGE =
   'Money and rates must use exact decimals (decimal.js), never floating point (constitution §3).';
 
+/** Node globals available to plain JS tooling config files. */
+const NODE_GLOBALS = Object.fromEntries(
+  ['process', 'console', 'Buffer', 'URL', 'URLSearchParams', 'setTimeout', 'clearTimeout'].map(
+    (name) => [name, 'readonly'],
+  ),
+);
+
 /** Folders whose code handles money and rates: floating point parsing is forbidden there. */
 const MONEY_PATHS = ['packages/domain/**', 'packages/contracts/**', 'apps/api/src/**'];
 
@@ -45,6 +52,21 @@ export function createConfig({ tsconfigRootDir }) {
           },
         ],
       },
+    },
+    {
+      // Plain JS is only tooling config (eslint, commitlint, dependency-cruiser, postcss...): it is
+      // linted without type information, so it does not have to be listed in any tsconfig.json.
+      files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
+      extends: [tseslint.configs.disableTypeChecked],
+      languageOptions: { globals: NODE_GLOBALS },
+    },
+    {
+      files: ['**/*.cjs'],
+      languageOptions: {
+        sourceType: 'commonjs',
+        globals: { __dirname: 'readonly', __filename: 'readonly' },
+      },
+      rules: { '@typescript-eslint/no-require-imports': 'off' },
     },
     {
       files: MONEY_PATHS,
