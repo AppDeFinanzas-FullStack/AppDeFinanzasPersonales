@@ -157,7 +157,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm --filter api typecheck`
     - `package.json` declara todas las librerías del API de plan §1.3.
 
-- [ ] **`TASK-008`: Andamiaje de `apps/web` con Vite, React, Tailwind y shadcn/ui**
+- [x] **`TASK-008`: Andamiaje de `apps/web` con Vite, React, Tailwind y shadcn/ui**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §1.1 (capa Cliente), plan §2 (`apps/web`); constitución §2; RNF-07
   - **Archivos en Alcance:**
