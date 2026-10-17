@@ -149,9 +149,10 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/vitest.config.ts`
     - `apps/api/src/domain/index.ts`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Paquete `api` con Express, Zod, Prisma (vía `@finanzas/db`), Better Auth, `uuidv7`, `archiver` y `supertest` (dev). `vitest.config.ts` define los proyectos `unit`, `integration` y `http`. `src/domain/index.ts` reexporta `@finanzas/domain`. Scripts `build`, `start`, `dev`, `test:unit`, `test:integration`.
+  - **Especificación de Implementación:** Paquete `api` que declara desde el inicio **todas** las dependencias del API (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: Express, Zod, `@finanzas/db` (Prisma), `@finanzas/contracts`, `@finanzas/domain`, Better Auth, decimal.js, `uuidv7` y `archiver`; de desarrollo, Vitest, `supertest` y los tipos de Express, supertest y archiver. `vitest.config.ts` define los proyectos `unit`, `integration` y `http`. `src/domain/index.ts` reexporta `@finanzas/domain`. Scripts `build`, `start`, `dev`, `typecheck`, `test:unit` y `test:integration`.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter api typecheck`
+    - `package.json` declara todas las librerías del API de plan §1.3.
 
 - [ ] **`TASK-008`: Andamiaje de `apps/web` con Vite, React, Tailwind y shadcn/ui**
   - **Dependencias:** Requiere TASK-006
@@ -169,11 +170,33 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/main.tsx`
     - `apps/web/src/App.tsx`
     - `apps/web/src/index.css`
+    - `apps/web/src/lib/utils.ts`
+    - `apps/web/src/components/ui/button.tsx`
+    - `apps/web/src/components/ui/input.tsx`
+    - `apps/web/src/components/ui/label.tsx`
+    - `apps/web/src/components/ui/card.tsx`
+    - `apps/web/src/components/ui/badge.tsx`
+    - `apps/web/src/components/ui/separator.tsx`
+    - `apps/web/src/components/ui/skeleton.tsx`
+    - `apps/web/src/components/ui/progress.tsx`
+    - `apps/web/src/components/ui/dialog.tsx`
+    - `apps/web/src/components/ui/alert-dialog.tsx`
+    - `apps/web/src/components/ui/sheet.tsx`
+    - `apps/web/src/components/ui/dropdown-menu.tsx`
+    - `apps/web/src/components/ui/select.tsx`
+    - `apps/web/src/components/ui/switch.tsx`
+    - `apps/web/src/components/ui/checkbox.tsx`
+    - `apps/web/src/components/ui/tooltip.tsx`
+    - `apps/web/src/components/ui/tabs.tsx`
+    - `apps/web/src/components/ui/popover.tsx`
+    - `apps/web/src/components/ui/calendar.tsx`
+    - `apps/web/src/components/ui/sonner.tsx`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** React + Vite + TypeScript. Tailwind con tema claro y oscuro por clase, y los tokens de color que usa shadcn/ui. Proxy de desarrollo `/api` → `http://localhost:3000`. ESLint de la web con `eslint-plugin-i18next` (`no-literal-string` en JSX). Vitest en entorno `node` para la lógica sin DOM.
+  - **Especificación de Implementación:** React + Vite + TypeScript. Declara desde el inicio **todas** las dependencias de la web (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: React, react-router, TanStack Query, react-hook-form + `@hookform/resolvers`, Zod, recharts, i18next + react-i18next, lucide-react, `@dnd-kit/core` y `@dnd-kit/sortable`, decimal.js, `uuidv7`, `@finanzas/contracts` y `@finanzas/domain`; de desarrollo, Vitest y `eslint-plugin-i18next`. Tailwind con tema claro y oscuro por clase y los tokens de color de shadcn/ui. Incluye `lib/utils.ts` (`cn`) y los componentes base de shadcn/ui que usan las pantallas del plan, generados con su CLI junto con sus dependencias (primitivos de Radix y, para el calendario, react-day-picker). Proxy de desarrollo `/api` → `http://localhost:3000`. ESLint de la web con `no-literal-string` en JSX. Vitest en entorno `node` para la lógica sin DOM.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
+    - `package.json` declara todas las librerías de la web de plan §1.3, y existen los 20 componentes base de shadcn/ui del alcance.
 
 - [ ] **`TASK-009`: Reglas de capas del backend con dependency-cruiser**
   - **Dependencias:** Requiere TASK-007
