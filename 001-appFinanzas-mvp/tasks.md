@@ -79,7 +79,9 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/config/vitest.base.ts`
     - `eslint.config.js`
     - `tsconfig.json`
-  - **Especificación de Implementación:** `tsconfig.base.json` con `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride` y `verbatimModuleSyntax`. ESLint en formato *flat* con typescript-eslint (type-checked) y estas reglas: prohíbe `it.only`, `describe.only`, `test.only` y `.skip`; prohíbe `parseFloat` y `Number.parseFloat` en `packages/domain`, `packages/contracts` y `apps/api/src` (constitución §3). `vitest.base.ts` con `passWithNoTests` y reporte por defecto.
+    - `package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** `tsconfig.base.json` con `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride` y `verbatimModuleSyntax`. ESLint en formato *flat* con typescript-eslint (type-checked) y estas reglas: prohíbe `it.only`, `describe.only`, `test.only` y `.skip`; prohíbe `parseFloat` y `Number.parseFloat` en `packages/domain`, `packages/contracts` y `apps/api/src` (constitución §3). `vitest.base.ts` con `passWithNoTests` y reporte por defecto. ESLint, typescript-eslint, TypeScript y Vitest se instalan como dependencias de desarrollo de la raíz, y los scripts raíz `lint` y `typecheck` pasan a usarlos.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm lint`
     - Comando: `pnpm typecheck`
