@@ -52,7 +52,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 0 — Cimientos, configuración e infraestructura base
 
-- [ ] **`TASK-001`: Crear el monorepo pnpm y la configuración raíz**
+- [x] **`TASK-001`: Crear el monorepo pnpm y la configuración raíz**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §2, plan §1.5 (configuración versionada); constitución §2
   - **Archivos en Alcance:**

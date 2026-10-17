@@ -1,3 +1,24 @@
 # Estado local del pipeline de tareas (docs/execution-protocol.md)
 .claude/run/
 .claude/settings.local.json
+
+# Dependencias
+node_modules/
+
+# Compilados y cobertura
+dist/
+coverage/
+*.tsbuildinfo
+
+# Variables de entorno: solo se versiona el ejemplo
+.env*
+!.env.example
+
+# Playwright
+playwright-report/
+test-results/
+
+# Logs y sistema
+*.log
+.DS_Store
+Thumbs.db
