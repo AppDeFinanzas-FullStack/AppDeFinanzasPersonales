@@ -120,7 +120,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/db/test/global-setup.ts`
     - `packages/db/test/helpers.ts`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Paquete `@finanzas/db`. `schema.prisma` con el *generator* del cliente y el *datasource* PostgreSQL (`DATABASE_URL` y `directUrl = DATABASE_URL_DIRECT`). Scripts `generate`, `migrate:dev`, `migrate:deploy` y `test:integration`. El *global setup* aplica las migraciones sobre `TEST_DATABASE_URL`. `helpers.ts` expone un cliente SQL crudo y la creación de un usuario mínimo por test.
+  - **Especificación de Implementación:** Paquete `@finanzas/db`. `schema.prisma` con el *generator* del cliente y el *datasource* PostgreSQL (`DATABASE_URL` y `directUrl = DATABASE_URL_DIRECT`). Scripts `generate`, `migrate:dev`, `migrate:deploy` y `test:integration`. El *global setup* aplica las migraciones sobre `TEST_DATABASE_URL`. `helpers.ts` expone un cliente SQL crudo y la creación de un usuario mínimo por test. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/`, `seed/`, `scripts/` y los `*.config.ts`), sin listar archivos sueltos.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter @finanzas/db exec prisma validate`
 
@@ -137,7 +137,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/domain/vitest.config.ts`
     - `packages/domain/src/index.ts`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** `@finanzas/contracts` depende de `zod` y `decimal.js`. `@finanzas/domain` depende solo de `decimal.js`, `date-fns` y `@date-fns/tz`. Los dos se compilan y se consumen como ESM.
+  - **Especificación de Implementación:** `@finanzas/contracts` depende de `zod` y `decimal.js`. `@finanzas/domain` depende solo de `decimal.js`, `date-fns` y `@date-fns/tz`. Los dos se compilan y se consumen como ESM. El `tsconfig.json` de cada uno cubre todos sus archivos TypeScript, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`), sin listar archivos sueltos.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter @finanzas/contracts typecheck`
     - Comando: `pnpm --filter @finanzas/domain typecheck`
@@ -151,7 +151,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/vitest.config.ts`
     - `apps/api/src/domain/index.ts`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Paquete `api` que declara desde el inicio **todas** las dependencias del API (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: Express, Zod, `@finanzas/db` (Prisma), `@finanzas/contracts`, `@finanzas/domain`, Better Auth, decimal.js, `uuidv7` y `archiver`; de desarrollo, Vitest, `supertest` y los tipos de Express, supertest y archiver. `vitest.config.ts` define los proyectos `unit`, `integration` y `http`. `src/domain/index.ts` reexporta `@finanzas/domain`. Scripts `build`, `start`, `dev`, `typecheck`, `test:unit` y `test:integration`.
+  - **Especificación de Implementación:** Paquete `api` que declara desde el inicio **todas** las dependencias del API (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: Express, Zod, `@finanzas/db` (Prisma), `@finanzas/contracts`, `@finanzas/domain`, Better Auth, decimal.js, `uuidv7` y `archiver`; de desarrollo, Vitest, `supertest` y los tipos de Express, supertest y archiver. `vitest.config.ts` define los proyectos `unit`, `integration` y `http`. `src/domain/index.ts` reexporta `@finanzas/domain`. Scripts `build`, `start`, `dev`, `typecheck`, `test:unit` y `test:integration`. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`), sin listar archivos sueltos.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter api typecheck`
     - `package.json` declara todas las librerías del API de plan §1.3.
@@ -194,7 +194,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/components/ui/calendar.tsx`
     - `apps/web/src/components/ui/sonner.tsx`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** React + Vite + TypeScript. Declara desde el inicio **todas** las dependencias de la web (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: React, react-router, TanStack Query, react-hook-form + `@hookform/resolvers`, Zod, recharts, i18next + react-i18next, lucide-react, `@dnd-kit/core` y `@dnd-kit/sortable`, decimal.js, `uuidv7`, `@finanzas/contracts` y `@finanzas/domain`; de desarrollo, Vitest y `eslint-plugin-i18next`. Tailwind con tema claro y oscuro por clase y los tokens de color de shadcn/ui. Incluye `lib/utils.ts` (`cn`) y los componentes base de shadcn/ui que usan las pantallas del plan, generados con su CLI junto con sus dependencias (primitivos de Radix y, para el calendario, react-day-picker). Proxy de desarrollo `/api` → `http://localhost:3000`. ESLint de la web con `no-literal-string` en JSX. Vitest en entorno `node` para la lógica sin DOM.
+  - **Especificación de Implementación:** React + Vite + TypeScript. Declara desde el inicio **todas** las dependencias de la web (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: React, react-router, TanStack Query, react-hook-form + `@hookform/resolvers`, Zod, recharts, i18next + react-i18next, lucide-react, `@dnd-kit/core` y `@dnd-kit/sortable`, decimal.js, `uuidv7`, `@finanzas/contracts` y `@finanzas/domain`; de desarrollo, Vitest y `eslint-plugin-i18next`. Tailwind con tema claro y oscuro por clase y los tokens de color de shadcn/ui. Incluye `lib/utils.ts` (`cn`) y los componentes base de shadcn/ui que usan las pantallas del plan, generados con su CLI junto con sus dependencias (primitivos de Radix y, para el calendario, react-day-picker). Proxy de desarrollo `/api` → `http://localhost:3000`. ESLint de la web con `no-literal-string` en JSX. Vitest en entorno `node` para la lógica sin DOM. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`, con `.ts` y `.tsx`), sin listar archivos sueltos.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
@@ -701,12 +701,13 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §1.5 (entorno efímero); RNF-05, RNF-06
   - **Archivos en Alcance:**
     - `e2e/package.json`
+    - `e2e/tsconfig.json`
     - `e2e/playwright.config.ts`
     - `e2e/fixtures/base.ts`
     - `e2e/support/axe.ts`
     - `e2e/smoke.spec.ts`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Proyectos `chromium-360`, `chromium-1280`, `webkit-360`, `webkit-1280`, `firefox-360` y `firefox-1280`. `webServer` levanta el API con `INTEGRATIONS=fake` y `RELEASE=${E2E_RELEASE:-1.2}` sobre la base de test migrada, y la web con `vite build` + `vite preview` (proxy `/api`). Helper de axe que falla ante violaciones serias o críticas. Script `e2e:release-1.0` que corre las pruebas etiquetadas `@release-1.0` con `E2E_RELEASE=1.0`.
+  - **Especificación de Implementación:** Proyectos `chromium-360`, `chromium-1280`, `webkit-360`, `webkit-1280`, `firefox-360` y `firefox-1280`. `webServer` levanta el API con `INTEGRATIONS=fake` y `RELEASE=${E2E_RELEASE:-1.2}` sobre la base de test migrada, y la web con `vite build` + `vite preview` (proxy `/api`). Helper de axe que falla ante violaciones serias o críticas. `e2e/tsconfig.json` cubre todos los `.ts` de `e2e/`, también las *specs* y *fixtures* que agregarán tareas posteriores. Script `e2e:release-1.0` que corre las pruebas etiquetadas `@release-1.0` con `E2E_RELEASE=1.0`.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-046`: la prueba de humo comprueba que `/api/health` responde 204 y que la web carga sin violaciones de axe.
     - Comando: `pnpm --filter e2e exec playwright test smoke.spec.ts --project=chromium-1280`
@@ -1369,6 +1370,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Archivos en Alcance:**
     - `packages/db/scripts/fx-backfill.ts`
     - `packages/db/package.json`
+    - `pnpm-lock.yaml`
     - `packages/db/test/fx-backfill.test.ts`
   - **Especificación de Implementación:** Carga la mediana diaria del paralelo desde el 01/01/2024 (una consulta por segundo) y el oficial: 6,96 hasta el 26/06/2026 y la serie del BCB desde el 27/06/2026. Es idempotente, gracias a `upsertIfNewer`, y recibe el cliente de tasas por inyección.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2509,6 +2511,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Archivos en Alcance:**
     - `packages/db/seed/e2e.ts`
     - `packages/db/package.json`
+    - `pnpm-lock.yaml`
     - `packages/db/test/seed-e2e.test.ts`
   - **Especificación de Implementación:** Crea usuarios de prueba conocidos, tasas fijas en `market_rate` para 13 meses y, para el usuario de rendimiento, 5.000 movimientos repartidos en 12 meses y varias cuentas y categorías. Es determinista e idempotente.
   - **Criterios de Verificación (Tests & DoD):**
