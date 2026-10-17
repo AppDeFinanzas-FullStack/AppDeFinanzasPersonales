@@ -98,7 +98,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `echo "feat(db): TASK-003 prueba" | pnpm exec commitlint`
     - Un mensaje sin tipo es rechazado por commitlint.
 
-- [ ] **`TASK-004`: Docker Compose de Postgres y variables de ejemplo**
+- [x] **`TASK-004`: Docker Compose de Postgres y variables de ejemplo**
   - **Dependencias:** Requiere TASK-001
   - **Trazabilidad SDD:** plan §2 (`docker-compose.yml`), plan §1.4 (tests por capa), plan §3.9 (secretos)
   - **Archivos en Alcance:**
