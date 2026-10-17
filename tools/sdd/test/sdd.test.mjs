@@ -240,6 +240,5 @@ test('los comandos de tasks.md corren en un shell POSIX, no en cmd.exe', () => {
   const shell = posixShell();
   assert.ok(shell, 'no se encontró un shell POSIX');
   // cmd.exe pasaría '"a b" ' (con comillas y espacio final) al pipe.
-  assert.equal(sh('echo "a b" | cat', { shell }).output, 'a b
-');
+  assert.equal(sh('echo "a b" | cat', { shell }).output, 'a b\n');
 });
