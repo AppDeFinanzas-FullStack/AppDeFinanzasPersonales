@@ -1,6 +1,6 @@
 # Constitución — App de Finanzas Personales
 
-**Versión:** 1.1.0 · **Ratificada:** 2026-10-15
+**Versión:** 1.2.0 · **Ratificada:** 2026-10-15 · **Última enmienda:** 2026-10-16
 
 Principios innegociables del proyecto. Los DEBEN respetar todas las personas y agentes de IA que trabajen en él. El *qué* se define en cada especificación y el *cómo* en cada plan; este documento fija solo lo que no cambia.
 
@@ -61,5 +61,14 @@ Agregar una tecnología que reemplace o duplique alguna de estas requiere el acu
 - **`hotfix/*`:** sale de `main` y se integra en `main`, `qa` y `develop`.
 - Los commits siguen Conventional Commits.
 
-## 8. Enmiendas
+## 8. Ejecución de tareas con agentes
+- La unidad de trabajo es una tarea de `tasks.md`. Se implementa una tarea a la vez y solo dentro de los archivos que declara.
+- Cada tarea pasa por el mismo pipeline: **pruebas primero → implementación → auditoría** contra esta Constitución, la especificación y el plan. Cada etapa la hace un agente distinto, con el contexto mínimo de la tarea.
+- Lo que una máquina puede verificar lo verifican hooks deterministas, no un agente: alcance de archivos, lint, tipos, reglas de capas y tests.
+- Una tarea se cierra solo con todas las verificaciones en verde y la auditoría aprobada, y queda en un commit propio que la referencia.
+- Si un agente encuentra una ambigüedad o necesita salir del alcance, se detiene y pregunta (§6). Nunca se cambian el alcance ni las pruebas para que algo pase.
+- Ningún guardarraíl se salta.
+- El detalle operativo vive en `docs/execution-protocol.md`.
+
+## 9. Enmiendas
 Esta Constitución solo cambia con el acuerdo de todo el equipo. Cada cambio sube su número de versión.
