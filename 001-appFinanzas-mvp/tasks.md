@@ -119,8 +119,9 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/db/vitest.config.ts`
     - `packages/db/test/global-setup.ts`
     - `packages/db/test/helpers.ts`
+    - `packages/db/.env`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Paquete `@finanzas/db`. `schema.prisma` con el *generator* del cliente y el *datasource* PostgreSQL (`DATABASE_URL` y `directUrl = DATABASE_URL_DIRECT`). Scripts `generate`, `migrate:dev`, `migrate:deploy` y `test:integration`. El *global setup* aplica las migraciones sobre `TEST_DATABASE_URL`. `helpers.ts` expone un cliente SQL crudo y la creación de un usuario mínimo por test. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/`, `seed/`, `scripts/` y los `*.config.ts`), sin listar archivos sueltos.
+  - **Especificación de Implementación:** Paquete `@finanzas/db`. `schema.prisma` con el *generator* del cliente y el *datasource* PostgreSQL (`DATABASE_URL` y `directUrl = DATABASE_URL_DIRECT`). Scripts `generate`, `migrate:dev`, `migrate:deploy` y `test:integration`. El *global setup* aplica las migraciones sobre `TEST_DATABASE_URL`. `helpers.ts` expone un cliente SQL crudo y la creación de un usuario mínimo por test. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/`, `seed/`, `scripts/` y los `*.config.ts`), sin listar archivos sueltos. `packages/db/.env` (ignorado por git) define `DATABASE_URL` y `DATABASE_URL_DIRECT` con URLs ficticias de desarrollo para que `prisma validate` corra sin entorno externo.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter @finanzas/db exec prisma validate`
 
