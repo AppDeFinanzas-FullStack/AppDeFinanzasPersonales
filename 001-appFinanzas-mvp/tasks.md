@@ -86,7 +86,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm lint`
     - Comando: `pnpm typecheck`
 
-- [ ] **`TASK-003`: Configurar commitlint con Conventional Commits**
+- [x] **`TASK-003`: Configurar commitlint con Conventional Commits**
   - **Dependencias:** Requiere TASK-001
   - **Trazabilidad SDD:** plan §1.3 (librerías de desarrollo), plan §1.5; constitución §7
   - **Archivos en Alcance:**

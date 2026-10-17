@@ -17,6 +17,8 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
     "@eslint/js": "10.0.1",
     "@finanzas/config": "workspace:*",
     "@types/node": "22.20.5",
