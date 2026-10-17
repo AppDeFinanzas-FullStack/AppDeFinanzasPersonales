@@ -1,7 +1,7 @@
 # Plan de Diseño Técnico — App de Finanzas Personales
 
-**Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Aprobado (2026-10-16)
-**Insumos:** `docs/constitution.md` v1.1.0 · `001-appFinanzas-mvp/spec.md` v1.3
+**Versión:** 1.1 · **Fecha:** 2026-10-16 · **Estado:** Aprobado (2026-10-16)
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4
 **Alcance:** V1 completa (V1.0, V1.1, V1.2). Este documento define el **cómo**. Las tareas se definen en `tasks.md`.
 
 Convenciones de este documento:
@@ -1829,7 +1829,7 @@ RecurringOverviewDto = { rules: RuleDto[] /* nextDate, next3, "Cuota X de N" */,
 - **La hora local se compara como fecha, no como instante.** Así el horario de verano o un cambio de zona no repiten ni pierden fechas (RF-M14-04).
 - **Job `recurring.expirePending`:** un pendiente con `pending_since < now() − 30 d` pasa a `omitted` + aviso `recurring_omitted:{occurrenceId}` (RF-M14-07). Para los recuperados tras una caída, los 30 días cuentan desde `pending_since`. Las ocurrencias siguientes se generan aunque haya pendientes.
 - **Regla:**
-  - activa ⇄ pausada (manual, o automática al archivarse su cuenta o categoría, con aviso; EC-M14-02);
+  - activa ⇄ pausada (manual, o automática al archivarse su cuenta o categoría, con un aviso `recurring_pending` de clave `rule:{id}:paused:{fecha}`; EC-M14-02);
   - activa o pausada → finalizada;
   - finalizada → activa si se extiende el fin;
   - eliminada es final.
@@ -1863,7 +1863,7 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 | `payment_upcoming` | Sí | Recurrentes de gasto y transferencia semanales o de frecuencia mayor: 1 día antes. Tarjetas: el día de corte y 3 días antes del pago. Deudas, en ambas direcciones: d-3, d0 y d+1. |
 | `budget_alert` | Sí | — |
 | `period_close` | Sí | — |
-| `recurring_pending` | Sí | — |
+| `recurring_pending` | Sí | Pendientes, pendientes omitidos y reglas pausadas al archivar o eliminar su cuenta o al archivar su categoría. |
 | `log_day` | No | 21:00, todos los días. |
 | `goal_progress` | No | — |
 

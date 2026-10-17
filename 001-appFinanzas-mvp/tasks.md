@@ -1,7 +1,7 @@
 # Tareas — App de Finanzas Personales (MVP)
 
 **Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Borrador para aprobación
-**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.3 · `001-appFinanzas-mvp/plan.md` v1.0
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.1
 
 ## 1. Mapa de fases y orden de ejecución
 
@@ -3443,7 +3443,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 - [ ] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
   - **Dependencias:** Requiere TASK-104, TASK-112, TASK-227
-  - **Trazabilidad SDD:** plan §4.4.2 (archivar: pausar reglas con aviso), plan §4.5.2 (archivar), plan §4.14.3 (activa ⇄ pausada); EC-M14-02, RF-M4-13, RF-M5-07
+  - **Trazabilidad SDD:** plan §4.4.2 (archivar: pausar reglas con aviso), plan §4.5.2 (archivar), plan §4.14.3 (activa ⇄ pausada), plan §4.15.1 (`recurring_pending`); EC-M14-02, RF-M4-13, RF-M5-07, RF-M15-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/services/categories.service.ts`
