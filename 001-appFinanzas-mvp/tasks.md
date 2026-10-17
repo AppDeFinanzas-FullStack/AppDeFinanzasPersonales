@@ -125,7 +125,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter @finanzas/db exec prisma validate`
 
-- [ ] **`TASK-006`: Andamiaje de `packages/contracts` y `packages/domain`**
+- [x] **`TASK-006`: Andamiaje de `packages/contracts` y `packages/domain`**
   - **Dependencias:** Requiere TASK-002
   - **Trazabilidad SDD:** plan §1.1 (capas Contratos y Dominio), plan §2
   - **Archivos en Alcance:**
