@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { RUN_DIR, ROOT, abs, writeText, changedFiles, gitOut } from './repo.mjs';
-import { isTestFile } from './scope.mjs';
+import { splitScope } from './scope.mjs';
 
 export const STATE_FILE = join(RUN_DIR, 'active-task.json');
 export const MAX_GATE_ATTEMPTS = 3;
@@ -58,7 +58,7 @@ export function clearState() {
 }
 
 export function newState(task, branch) {
-  const testFiles = task.scope.filter((p) => isTestFile(p));
+  const { testFiles, implFiles } = splitScope(task.scope);
   return {
     task: task.id,
     feature: task.feature,
@@ -69,7 +69,7 @@ export function newState(task, branch) {
     blockedReason: null,
     scope: task.scope,
     testFiles,
-    implFiles: task.scope.filter((p) => !isTestFile(p)),
+    implFiles,
     commands: task.commands,
     verificationOnly: testFiles.length > 0 && testFiles.length === task.scope.length,
     gates: { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } },

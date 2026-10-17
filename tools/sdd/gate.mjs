@@ -9,7 +9,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { loadState, updateState, log, hashFile, lockPath, worktreeFingerprint, MAX_GATE_ATTEMPTS } from './lib/state.mjs';
 import { findTask } from './lib/tasks.mjs';
-import { isTestFile, isTestCaseFile, outOfScope, testCaseNames, NAME_ID } from './lib/scope.mjs';
+import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID } from './lib/scope.mjs';
 import { runTests, typecheck, lint, depcruise, commands } from './lib/runner.mjs';
 import { changedFiles, abs, writeText, tail, sh } from './lib/repo.mjs';
 
@@ -146,7 +146,8 @@ function gateB() {
   const lockFile = lockPath(state.task);
   const lock = existsSync(lockFile) ? JSON.parse(readFileSync(lockFile, 'utf8')) : {};
   const tampered = Object.entries(lock).filter(([f, h]) => hashFile(f) !== h).map(([f]) => f);
-  const newTests = changes.filter((f) => isTestFile(f) && !(f in lock));
+  // Los harness que la tarea asigna al implementer (scope.mjs → splitScope) sí se pueden escribir aquí.
+  const newTests = changes.filter((f) => isTestFile(f) && !matchesScope(f, state.implFiles) && !(f in lock));
   if (tampered.length || newTests.length) {
     problems.push({
       title: 'Pruebas modificadas',

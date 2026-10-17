@@ -186,6 +186,12 @@ Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los 
 
 Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/test/**` o `e2e/**`. Las fases se marcan con encabezados `### Fase N — <nombre>` y definen la rama (§5).
 
+**Reparto del alcance** (`splitScope` en `tools/sdd/lib/scope.mjs`): test-author escribe los archivos de test, salvo los manifiestos y las configuraciones (`package.json`, `tsconfig.json`, `*.config.*`), que siempre escribe el implementer porque es quien instala. Si la tarea no tiene ningún archivo con casos de prueba (`*.test.*`, `*.spec.*`), sus archivos de test son solo harness y también los escribe el implementer: la tarea no pasa por la etapa de pruebas.
+
+**Huecos de alcance** (`scopeProblems` en `tools/sdd/lib/tasks.mjs`): `preflight.mjs` no arranca una tarea con un hueco que haría fallar un gate sin que el subagente pueda corregirlo, y `sdd.test.mjs` revisa todas las tareas abiertas:
+- Si una tarea toca un `package.json`, también tiene `pnpm-lock.yaml` en su alcance.
+- Cada `.ts` o `.tsx` del alcance cae en el `tsconfig.json` de su paquete (`apps/*`, `packages/*` o `e2e`), creado en esa tarea o en una anterior. Por eso cada `tsconfig.json` de paquete cubre todas sus carpetas, también las que agregarán tareas posteriores. El JS de configuración (`*.js`, `*.cjs`, `*.mjs`) se revisa con ESLint sin información de tipos, así que no necesita un tsconfig.
+
 ---
 
 ## 7. Arranque

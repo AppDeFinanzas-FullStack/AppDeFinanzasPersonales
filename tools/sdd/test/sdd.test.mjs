@@ -1,8 +1,8 @@
 // Pruebas de tools/sdd. Uso: node --test tools/sdd/test/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTasks, phaseBranch, setDone, allTasks } from '../lib/tasks.mjs';
-import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID } from '../lib/scope.mjs';
+import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf } from '../lib/tasks.mjs';
+import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow } from '../lib/context.mjs';
 import { readText } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
@@ -198,4 +198,40 @@ test('un gate vigente guarda sobre el estado más reciente sin perder otros camp
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('el harness sin casos de prueba lo escribe el implementer', () => {
+  const harnessOnly = ['packages/db/package.json', 'packages/db/test/global-setup.ts', 'packages/db/test/helpers.ts'];
+  assert.deepEqual(splitScope(harnessOnly), { testFiles: [], implFiles: harnessOnly });
+  const withCases = ['e2e/package.json', 'e2e/fixtures/base.ts', 'e2e/smoke.spec.ts', 'pnpm-lock.yaml'];
+  assert.deepEqual(splitScope(withCases), {
+    testFiles: ['e2e/fixtures/base.ts', 'e2e/smoke.spec.ts'],
+    implFiles: ['e2e/package.json', 'pnpm-lock.yaml'],
+  });
+  const e2eHarness = ['e2e/tsconfig.json', 'e2e/playwright.config.ts', 'e2e/support/axe.ts', 'e2e/smoke.spec.ts'];
+  assert.deepEqual(splitScope(e2eHarness).testFiles, ['e2e/support/axe.ts', 'e2e/smoke.spec.ts']);
+});
+
+test('huecos de alcance: lockfile y tsconfig del paquete', () => {
+  const t = (id, scope) => ({ id, scope });
+  const tasks = [
+    t('TASK-001', ['packages/db/tsconfig.json', 'packages/db/package.json', 'pnpm-lock.yaml']),
+    t('TASK-002', ['packages/db/package.json', 'packages/db/scripts/a.ts']),
+    t('TASK-003', ['e2e/smoke.spec.ts']),
+    t('TASK-004', ['e2e/tsconfig.json', 'e2e/a.spec.ts']),
+    t('TASK-005', ['commitlint.config.cjs', 'apps/web/postcss.config.js']),
+  ];
+  assert.deepEqual(scopeProblems(tasks[0], tasks), []);
+  assert.deepEqual(scopeProblems(tasks[1], tasks), ['toca un package.json pero no tiene pnpm-lock.yaml en su alcance.']);
+  assert.match(scopeProblems(tasks[2], tasks)[0], /e2e.*e2e\/tsconfig\.json/);
+  assert.deepEqual(scopeProblems(tasks[3], tasks), []);
+  assert.deepEqual(scopeProblems(tasks[4], tasks), []); // el JS de configuración se revisa sin tipos
+  assert.equal(workspaceOf('apps/web/src/a.tsx'), 'apps/web');
+  assert.equal(workspaceOf('eslint.config.js'), '');
+});
+
+test('ninguna tarea abierta del tasks.md real tiene huecos de alcance', () => {
+  const tasks = allTasks();
+  const gaps = tasks.filter((t) => !t.done).flatMap((t) => scopeProblems(t, tasks).map((p) => `${t.id} ${p}`));
+  assert.deepEqual(gaps, []);
 });

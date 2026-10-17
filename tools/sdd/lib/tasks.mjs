@@ -133,3 +133,34 @@ export function setDone(text, id, done) {
   if (!re.test(text)) throw new Error(`No se encontró la línea de ${id}.`);
   return text.replace(re, `- [${done ? 'x' : ' '}] **\`${id}\``);
 }
+
+/** Paquete del workspace al que pertenece una ruta ('' para la raíz del repositorio). */
+export function workspaceOf(path) {
+  const parts = path.split('/');
+  if ((parts[0] === 'apps' || parts[0] === 'packages') && parts.length > 2) return `${parts[0]}/${parts[1]}`;
+  if (parts[0] === 'e2e' && parts.length > 1) return 'e2e';
+  return '';
+}
+
+/**
+ * Huecos de alcance que harían fallar los gates sin que la tarea pueda corregirlos (protocolo §6):
+ *  - quien toca un package.json reescribe pnpm-lock.yaml al instalar, así que debe tenerlo en alcance;
+ *  - ESLint revisa TypeScript con tipos: cada .ts/.tsx debe caer en el tsconfig.json de su paquete,
+ *    creado en esta tarea o en una anterior.
+ * `tasks` es la lista completa, en orden, para saber qué tsconfig existen antes de la tarea.
+ */
+export function scopeProblems(task, tasks) {
+  const problems = [];
+  if (task.scope.some((p) => p.endsWith('package.json')) && !task.scope.includes('pnpm-lock.yaml')) {
+    problems.push('toca un package.json pero no tiene pnpm-lock.yaml en su alcance.');
+  }
+  const upToHere = tasks.filter((t) => t.id <= task.id);
+  const tsconfigs = new Set(upToHere.flatMap((t) => t.scope.filter((p) => p.endsWith('tsconfig.json')).map(workspaceOf)));
+  const uncovered = [...new Set(task.scope.filter((p) => /\.(ts|tsx|mts|cts)$/.test(p)).map(workspaceOf))].filter(
+    (w) => !tsconfigs.has(w),
+  );
+  for (const w of uncovered) {
+    problems.push(`tiene archivos TypeScript en ${w || 'la raíz'}, pero ninguna tarea hasta esta crea ${w ? `${w}/` : ''}tsconfig.json.`);
+  }
+  return problems;
+}

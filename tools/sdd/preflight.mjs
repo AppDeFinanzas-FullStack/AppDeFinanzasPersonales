@@ -2,7 +2,7 @@
 // Uso: node tools/sdd/preflight.mjs TASK-NNN [--dry-run]
 // Valida que la tarea se pueda empezar (o retomar), ubica la rama de su fase,
 // arma el paquete de contexto y escribe .claude/run/active-task.json (protocolo §2.1).
-import { allTasks, phaseBranch } from './lib/tasks.mjs';
+import { allTasks, phaseBranch, scopeProblems } from './lib/tasks.mjs';
 import { buildContext } from './lib/context.mjs';
 import { loadState, saveState, newState } from './lib/state.mjs';
 import { outOfScope } from './lib/scope.mjs';
@@ -22,6 +22,12 @@ if (state && state.task !== id) {
 }
 const resume = state?.task === id;
 if (task.done) fail(`${id} ya está cerrada ([x]) en tasks.md.`);
+
+// Un hueco de alcance haría fallar un gate sin que el subagente pueda corregirlo: se corrige antes en tasks.md.
+const gaps = scopeProblems(task, tasks);
+if (gaps.length) {
+  fail(`${id} tiene huecos de alcance en tasks.md (protocolo §6). Corrígelos en un commit docs: aparte:\n  - ${gaps.join('\n  - ')}`);
+}
 
 const pending = task.dependencies.filter((d) => !tasks.find((t) => t.id === d)?.done);
 if (pending.length) fail(`${id} depende de tareas abiertas: ${pending.join(', ')}.`);

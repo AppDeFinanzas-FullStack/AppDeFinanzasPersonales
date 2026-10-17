@@ -2,7 +2,7 @@
 import { join } from 'node:path';
 import { readText, exists, writeText } from './repo.mjs';
 import { taskDir, lastFindings } from './state.mjs';
-import { isTestFile } from './scope.mjs';
+import { splitScope } from './scope.mjs';
 
 /** Extrae una sección numerada del plan ("4.6.2") con sus subsecciones. */
 export function planSection(planText, number) {
@@ -76,8 +76,7 @@ export function buildContext(task, { round = 0 } = {}) {
   const adrs = task.adrs.map((a) => adrRow(plan, a) ?? `> ${a}: no se encontró.`);
   const rules = task.specIds.map((id) => specItem(spec, id) ?? `> ${id}: no se encontró en la spec.`).join('\n\n');
   const scenarios = task.scenarios.map((t) => scenario(spec, t) ?? `> Escenario "${t}": no se encontró en la spec.`);
-  const testFiles = task.scope.filter(isTestFile);
-  const implFiles = task.scope.filter((p) => !isTestFile(p));
+  const { testFiles, implFiles } = splitScope(task.scope);
 
   const parts = [
     `# Paquete de contexto — ${task.id}: ${task.title}`,
