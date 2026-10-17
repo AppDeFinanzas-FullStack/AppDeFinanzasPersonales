@@ -69,7 +69,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm install --frozen-lockfile`
     - Los scripts raíz existen aunque todavía no haya paquetes que los implementen (`pnpm -r` sin paquetes no falla).
 
-- [ ] **`TASK-002`: Configuración compartida de TypeScript, ESLint y Vitest**
+- [x] **`TASK-002`: Configuración compartida de TypeScript, ESLint y Vitest**
   - **Dependencias:** Requiere TASK-001
   - **Trazabilidad SDD:** plan §2 (`packages/config`), plan §5.1 (calidad en CI); constitución §3, §5
   - **Archivos en Alcance:**

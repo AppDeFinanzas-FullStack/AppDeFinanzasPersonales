@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "lint": "pnpm -r --if-present run lint",
-    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "eslint --max-warnings=0 .",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r --if-present run typecheck",
     "test:unit": "pnpm -r --if-present run test:unit",
     "test:integration": "pnpm -r --if-present run test:integration",
     "depcruise": "pnpm -r --if-present run depcruise",
@@ -17,6 +17,13 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "prettier": "3.9.10"
+    "@eslint/js": "10.0.1",
+    "@finanzas/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "eslint": "10.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vitest": "5.0.5"
   }
 }
