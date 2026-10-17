@@ -1,6 +1,6 @@
 # Protocolo de Ejecución de Tareas con Agentes
 
-**Versión:** 1.0 · **Fecha:** 2026-10-16
+**Versión:** 1.1 · **Fecha:** 2026-10-17
 **Deriva de:** `docs/constitution.md` §8 · **Aplica a:** toda feature `NNN-nombre/`
 
 Este documento es el detalle operativo de la constitución §8: cómo se implementa una tarea de `tasks.md` con la skill orquestadora, sus subagentes y sus hooks. `tasks.md` no menciona nada de esto; solo lista tareas.
@@ -15,7 +15,7 @@ Este documento es el detalle operativo de la constitución §8: cómo se impleme
 | Subagentes | `.claude/agents/test-author.md` · `implementer.md` · `sdd-auditor.md` | Una etapa del pipeline cada uno (§3). |
 | Hook de agente | `.claude/settings.json` → `SubagentStop` | Ejecuta `tools/sdd/gate.mjs` (§4.1). |
 | Hook de git | `.githooks/pre-push` | Ejecuta `tools/sdd/pre-push.mjs` (§4.2). Se activa con `git config core.hooksPath .githooks`. |
-| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `gate`, `pre-push`. Los usan los dos hooks y la skill. |
+| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `close` (marca `[x]` y hace el commit) y `pre-push`. Los usan los dos hooks y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
 | Estado de ejecución | `.claude/run/` (ignorado por git) | `active-task.json` y una carpeta por tarea (§2.2). |
 
 ---
@@ -35,8 +35,8 @@ Este documento es el detalle operativo de la constitución §8: cómo se impleme
 | 0 · Preflight | `tools/sdd/preflight.mjs` | Verifica que la tarea exista y esté `[ ]`, que sus dependencias estén `[x]`, que el árbol de trabajo esté limpio y que no haya otra tarea activa sin cerrar. Ubica la rama (§5). Arma el paquete de contexto (§2.3) y escribe `active-task.json`. |
 | 1 · Pruebas | Subagente `test-author` | Con `phase = tests`. Se salta si el alcance no tiene archivos de test (§6). |
 | 2 · Implementación | Subagente `implementer` | Con `phase = implement`. Se salta en una **tarea de verificación**: aquella cuyo alcance solo tiene archivos de test (regresión, RNF, harness). |
-| 3 · Auditoría | Subagente `sdd-auditor` | Con `phase = audit`. El orquestador guarda su veredicto en `audit.md`. Si es `CHANGES_REQUIRED`, vuelve al paso 2 con los hallazgos agregados al contexto. |
-| 4 · Cierre | Orquestador | Con `phase = commit`: marca `[x]` en `tasks.md`, hace el commit (§5) y borra `active-task.json`. Si la tarea es la última de su fase, ofrece abrir el PR. |
+| 3 · Auditoría | Subagente `sdd-auditor` | Con `phase = audit`. El orquestador registra su veredicto con `audit.mjs`, que valida el formato y lo agrega a `audit.md`. Si es `CHANGES_REQUIRED`, vuelve al paso 2 con los hallazgos agregados al contexto. |
+| 4 · Cierre | Orquestador | Con `phase = commit`, ejecuta `close.mjs`: marca `[x]` en `tasks.md`, hace el commit (§5) y borra `active-task.json`. Si la tarea es la última de su fase, ofrece abrir el PR. |
 
 Volver a invocar la skill sobre una tarea `blocked` la retoma desde la fase en la que se detuvo.
 
@@ -47,26 +47,33 @@ Volver a invocar la skill sobre una tarea `blocked` la retoma desde la fase en l
 ```json
 {
   "task": "TASK-031",
-  "phase": "tests | implement | audit | commit",
+  "feature": "001-appFinanzas-mvp",
+  "branch": "feature/09-m4-cuentas",
+  "phase": "preflight | tests | implement | audit | commit",
   "status": "running | blocked",
   "blockedReason": null,
-  "scope": ["apps/api/src/application/services/accounts.service.ts", "apps/api/test/unit/accounts.service.test.ts"],
-  "testFiles": ["apps/api/test/unit/accounts.service.test.ts"],
+  "scope": ["apps/api/src/application/services/accounts.service.ts", "apps/api/test/integration/accounts-create-list.test.ts"],
+  "testFiles": ["apps/api/test/integration/accounts-create-list.test.ts"],
+  "implFiles": ["apps/api/src/application/services/accounts.service.ts"],
   "commands": [],
-  "attempts": { "gateA": 0, "gateB": 0 },
-  "auditRounds": 0
+  "verificationOnly": false,
+  "gates": { "A": { "attempts": 0, "passed": false }, "B": { "attempts": 0, "passed": false } },
+  "auditRounds": 0,
+  "auditFingerprint": null
 }
 ```
 
-`.claude/run/TASK-XXX/`: `context.md` (paquete de contexto), `tests.lock` (hash de las pruebas), `audit.md` (veredictos) y `gate.log` (salida de cada gate).
+El estado solo cambia con `tools/sdd/state.mjs` (`phase`, `block`, `unblock`, `abort`), que valida cada transición: por ejemplo, no se pasa a `audit` sin el Gate B aprobado ni a `commit` sin un veredicto `APPROVED`.
+
+`.claude/run/TASK-XXX/`: `context.md` (paquete de contexto), `tests.lock` (hash de las pruebas), `verdict.md` (última respuesta del auditor), `audit.md` (veredictos de todas las rondas), `gate.log` (salida de cada gate) y `commit-msg.txt`.
 
 ### 2.3 Paquete de contexto
 
 Cada subagente recibe solo `context.md`, armado por `tools/sdd/context.mjs`:
 1. el bloque completo de la tarea en `tasks.md`;
 2. `docs/constitution.md` completa (es corta);
-3. las secciones de `plan.md` citadas en su Trazabilidad, completas;
-4. el texto literal de cada RN, RF, EC y RNF citado, tomado de `spec.md`;
+3. las convenciones del plan, las filas de los ADR citados y las secciones de `plan.md` citadas en su Trazabilidad, completas;
+4. el texto literal de cada RN, RF, EC y RNF citado, y de cada escenario Gherkin citado en sus criterios, tomado de `spec.md`;
 5. en una segunda ronda, los hallazgos de la auditoría anterior.
 
 Si un subagente necesita leer otro archivo del repositorio (por ejemplo, un puerto que ya existe), puede hacerlo; lo que no puede es escribir fuera del alcance.
@@ -102,13 +109,18 @@ Cualquier subagente puede terminar su trabajo con una de estas líneas, y el pip
 
 ### 4.1 `SubagentStop` → `tools/sdd/gate.mjs`
 
-Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea el cierre del subagente y le devuelve el error como motivo, para que siga trabajando. Con `phase = audit` o sin tarea activa, no hace nada.
+Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea el cierre del subagente y le devuelve el error como motivo, para que siga trabajando. Sin tarea activa, o con la tarea bloqueada, no hace nada.
 
 **Gate A (`phase = tests`):**
 1. Los archivos cambiados o nuevos (`git status --porcelain`) son solo archivos de test del alcance.
-2. Existe al menos un caso de prueba nuevo, y cada caso lleva un ID `RN-`, `RF-`, `EC-`, `RNF-` o `TASK-` en su nombre.
-3. Las pruebas corren y **fallan**. Un error de sintaxis en el propio archivo de test no cuenta como rojo. En una tarea de verificación (§2.1), las pruebas deben **pasar**, porque verifican algo que ya existe; si fallan, el pipeline se detiene y pregunta, ya que el defecto está fuera del alcance de la tarea.
-4. Si todo pasa, guarda el hash SHA-256 de cada archivo de test en `tests.lock`.
+2. Existe al menos un caso de prueba, y cada caso lleva un ID `RN-`, `RF-`, `EC-`, `RNF-` o `TASK-` en su nombre.
+3. Cada RF y EC citado en la Trazabilidad de la tarea tiene al menos un caso con su ID en el nombre, en la tarea o en el repositorio (adelanta el control 4 del `pre-push`).
+4. Las pruebas corren y **fallan**. Un error de sintaxis en el propio archivo de test no cuenta como rojo. En una tarea de verificación (§2.1), las pruebas deben **pasar**, porque verifican algo que ya existe; si siguen fallando después de los intentos, el pipeline se detiene y pregunta, ya que el defecto puede estar fuera del alcance de la tarea.
+5. Si todo pasa, guarda el hash SHA-256 de cada archivo de test en `tests.lock`.
+
+**Auditoría (`phase = audit`):** al pasar a esta fase, `state.mjs` guarda una huella del árbol de trabajo. Cuando el auditor termina, el gate la compara: si algo cambió, deja terminar al auditor, marca la tarea `blocked` y el orquestador le pregunta al usuario.
+
+**Error interno del gate:** si el propio script falla, deja terminar al subagente y marca la tarea `blocked` con el error.
 
 **Gate B (`phase = implement`):**
 1. Los archivos cambiados o nuevos están dentro del alcance.

@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/sdd/gate.mjs\"",
+            "timeout": 1800
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(node tools/sdd/preflight.mjs:*)",
+      "Bash(node tools/sdd/state.mjs:*)",
+      "Bash(node tools/sdd/context.mjs:*)",
+      "Bash(node tools/sdd/task-parse.mjs:*)",
+      "Bash(node tools/sdd/audit.mjs:*)"
+    ]
+  }
+}
