@@ -2,7 +2,7 @@
 // el control se salta con aviso (docs/execution-protocol.md §7).
 import { existsSync, readFileSync } from 'node:fs';
 import { posix } from 'node:path';
-import { abs, sh, exists } from './repo.mjs';
+import { abs, sh, exists, posixShell } from './repo.mjs';
 
 /** Resultado de un control: ok, skipped (con motivo) o falla con salida. */
 const ok = (name, output = '') => ({ name, status: 'ok', output });
@@ -129,9 +129,12 @@ export function depcruise(files) {
 }
 
 /** Comandos `Comando:` de la tarea. */
+/** Comandos de la tarea (`Comando:` en tasks.md), con sintaxis POSIX: corren en sh/bash, no en cmd.exe. */
 export function commands(list) {
+  const shell = list.length ? posixShell() : null;
   return list.map((cmd) => {
-    const r = sh(cmd);
+    if (!shell) return bad(`comando: ${cmd}`, 'No se encontró un shell POSIX (en Windows, el bash de Git). Define CLAUDE_CODE_GIT_BASH_PATH.');
+    const r = sh(cmd, { shell });
     return r.code === 0 ? ok(`comando: ${cmd}`) : bad(`comando: ${cmd}`, r.output);
   });
 }

@@ -182,7 +182,7 @@ Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los 
 - **Dependencias:** `Ninguna` o los IDs `TASK-NNN` separados por comas.
 - **Trazabilidad SDD:** cita `plan §x.y.z` y los IDs exactos de la spec (`RF-M4-04`, `EC-M4-01`, `RNF-10`, `RN-06`).
 - **Archivos en Alcance:** una ruta entre backticks por viñeta, relativa a la raíz. Solo se admiten globs en `packages/db/prisma/migrations/`.
-- **Criterios de Verificación:** las líneas `` Comando: `…` `` son comandos que el Gate B ejecuta y que deben terminar con 0.
+- **Criterios de Verificación:** las líneas `` Comando: `…` `` son comandos que el Gate B ejecuta y que deben terminar con 0. Se escriben con sintaxis POSIX y corren en `sh` (en Windows, el bash de Git; nunca `cmd.exe`).
 
 Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/test/**` o `e2e/**`. Las fases se marcan con encabezados `### Fase N — <nombre>` y definen la rama (§5).
 

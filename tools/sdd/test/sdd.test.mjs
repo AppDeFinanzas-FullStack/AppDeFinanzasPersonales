@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf } from '../lib/tasks.mjs';
 import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow } from '../lib/context.mjs';
-import { readText } from '../lib/repo.mjs';
+import { readText, sh, posixShell } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -234,4 +234,12 @@ test('ninguna tarea abierta del tasks.md real tiene huecos de alcance', () => {
   const tasks = allTasks();
   const gaps = tasks.filter((t) => !t.done).flatMap((t) => scopeProblems(t, tasks).map((p) => `${t.id} ${p}`));
   assert.deepEqual(gaps, []);
+});
+
+test('los comandos de tasks.md corren en un shell POSIX, no en cmd.exe', () => {
+  const shell = posixShell();
+  assert.ok(shell, 'no se encontró un shell POSIX');
+  // cmd.exe pasaría '"a b" ' (con comillas y espacio final) al pipe.
+  assert.equal(sh('echo "a b" | cat', { shell }).output, 'a b
+');
 });
