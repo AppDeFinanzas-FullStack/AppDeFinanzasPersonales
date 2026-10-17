@@ -143,7 +143,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm --filter @finanzas/contracts typecheck`
     - Comando: `pnpm --filter @finanzas/domain typecheck`
 
-- [ ] **`TASK-007`: Andamiaje de `apps/api`**
+- [x] **`TASK-007`: Andamiaje de `apps/api`**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §1.4 (capas del backend), plan §2 (`apps/api`), ADR-19
   - **Archivos en Alcance:**
