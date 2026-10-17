@@ -109,7 +109,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `docker compose config -q`
 
-- [ ] **`TASK-005`: Paquete `packages/db` con Prisma y harness de pruebas de esquema**
+- [x] **`TASK-005`: Paquete `packages/db` con Prisma y harness de pruebas de esquema**
   - **Dependencias:** Requiere TASK-002, TASK-004
   - **Trazabilidad SDD:** plan §2 (`packages/db`), ADR-10
   - **Archivos en Alcance:**
