@@ -213,7 +213,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm depcruise`
     - Las seis reglas del plan existen con severidad `error`.
 
-- [ ] **`TASK-010`: Workflow de integración continua `ci.yml`**
+- [x] **`TASK-010`: Workflow de integración continua `ci.yml`**
   - **Dependencias:** Requiere TASK-003, TASK-005, TASK-009
   - **Trazabilidad SDD:** plan §1.5 (workflows, protección de ramas), ADR-20; constitución §5, §7
   - **Archivos en Alcance:**

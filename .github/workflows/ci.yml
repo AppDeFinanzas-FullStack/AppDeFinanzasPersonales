@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [develop, qa, main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_call' }}
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-ephemeral
+          POSTGRES_DB: finanzas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d finanzas_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test
+      DATABASE_URL_DIRECT: postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test
+      TEST_DATABASE_URL: postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test
+      INTEGRATIONS: fake
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: 1. Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 2. Commitlint (pull request commits)
+        if: github.event_name == 'pull_request'
+        run: >-
+          pnpm exec commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose
+
+      - name: 3. Lint
+        run: pnpm lint
+
+      - name: 4. Typecheck
+        run: pnpm typecheck
+
+      - name: 5. Dependency rules (dependency-cruiser)
+        run: pnpm depcruise
+
+      - name: 6. Unit tests
+        run: pnpm test:unit
+
+      - name: 7. Integration tests (Postgres 16)
+        run: |
+          pnpm --filter @finanzas/db generate
+          pnpm --filter @finanzas/db migrate:deploy
+          pnpm test:integration
+
+      - name: 8. Build api and web
+        run: pnpm build
