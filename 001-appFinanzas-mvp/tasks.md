@@ -208,7 +208,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `.dependency-cruiser.cjs`
     - `package.json`
     - `pnpm-lock.yaml`
-  - **Especificación de Implementación:** Reglas con los nombres exactos del plan: `presentation-not-to-infrastructure`, `application-not-to-presentation`, `application-not-to-infrastructure`, `application-no-framework` (sin `express`, `@prisma/client` ni `better-auth`), `domain-pure` e `infrastructure-not-to-presentation`, más `no-circular`. Script raíz `depcruise` sobre `apps/api/src`.
+  - **Especificación de Implementación:** Reglas con los nombres exactos del plan: `presentation-not-to-infrastructure`, `application-not-to-presentation`, `application-not-to-infrastructure`, `application-no-framework` (sin `express`, `@prisma/client` ni `better-auth`), `domain-pure` e `infrastructure-not-to-presentation`, más `no-circular`. Script raíz `depcruise` sobre `apps/api/src`. Fijar `dependency-cruiser` en `17.3.10`: la 18.x solo admite Node `^22||^24||>=26` y aborta en Node 23 o 25, mientras que la 17.3.10 admite `^20.12||^22||>=24`.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm depcruise`
     - Las seis reglas del plan existen con severidad `error`.
