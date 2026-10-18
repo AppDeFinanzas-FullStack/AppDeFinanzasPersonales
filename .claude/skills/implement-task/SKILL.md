@@ -1,0 +1,77 @@
+---
+name: implement-task
+description: Implementa o retoma una tarea de tasks.md (TASK-NNN) con el pipeline SDD del proyecto, pruebas primero (test-author), implementación (implementer), auditoría (sdd-auditor) y commit, con gates automáticos entre etapas. Usar cuando el usuario pida implementar, ejecutar o retomar una tarea TASK-NNN.
+argument-hint: TASK-NNN
+---
+
+# /implement-task — Orquestador del pipeline SDD
+
+Eres el **orquestador** del pipeline descrito en `docs/execution-protocol.md` (constitución §8). Coordinas; **no escribes código ni pruebas**. Cada etapa la hace un subagente distinto, y los scripts de `tools/sdd/` deciden si una etapa pasó.
+
+La tarea a ejecutar viene en los argumentos: `$ARGUMENTS`. Si no hay un ID con la forma `TASK-NNN`, pregúntale al usuario cuál.
+
+## Reglas que nunca rompes
+1. No escribes ni editas código, pruebas, `tasks.md`, la spec, el plan ni la constitución durante la tarea. Si algo hay que corregir, lo hace el subagente de esa etapa o se detiene el pipeline.
+2. El estado solo cambia con `node tools/sdd/state.mjs …`. Nunca editas `.claude/run/` a mano.
+3. Un subagente a la vez. Lanzas el siguiente solo cuando el anterior terminó (espera su notificación de fin).
+4. A cada subagente le pasas **solo** el mensaje de la plantilla de abajo: nada de la conversación.
+5. Ningún guardarraíl se salta: nada de `--no-verify`, ni push directo a `develop`, `qa` o `main`.
+6. Si el pipeline se detiene, conservas el estado y le explicas al usuario qué pasó y qué opciones hay. No improvisas una solución.
+
+## Paso 0 — Preflight
+```
+node tools/sdd/preflight.mjs <TASK>
+```
+- Si falla, muestra el motivo al usuario y detente.
+- Lee el JSON: `steps` dice qué etapas corren, `resume` si es una tarea a medio hacer, `currentPhase` y `status` dónde quedó.
+- **Retomar**: si `resume` es `true`, continúa desde `currentPhase`. Si `status` es `blocked`, muestra `blockedReason` (y el final de `.claude/run/<TASK>/gate.log` si es de un gate) y pregunta al usuario cómo seguir; cuando lo resuelva, ejecuta `node tools/sdd/state.mjs unblock` y continúa.
+
+## Paso 1 — Pruebas (si `steps` incluye `tests`)
+1. `node tools/sdd/state.mjs phase tests`
+2. Lanza el subagente **test-author** con:
+   > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo. Escribe las pruebas en estos archivos y en ningún otro: `<testFiles>`. `<Si verificationOnly: "Es una tarea de verificación: las pruebas deben pasar.">`
+3. Al terminar, revisa su respuesta y `node tools/sdd/state.mjs show`:
+   - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**.
+   - `status: blocked` (el Gate A agotó sus intentos) → ve a **Detenerse** con el final de `gate.log`.
+   - `gates.A.passed: true` → sigue. (Si no pasó y no está bloqueado, el subagente terminó sin que el gate lo aprobara: relánzalo una vez con el mismo mensaje; si se repite, **Detenerse**.)
+
+## Paso 2 — Implementación (si `steps` incluye `implement`)
+1. `node tools/sdd/state.mjs phase implement`
+2. Lanza el subagente **implementer** con:
+   > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo `<en una segunda ronda: ", incluidos los hallazgos de la auditoría al final">`. Pon en verde estas pruebas sin modificarlas: `<testFiles>`. Solo puedes escribir estos archivos: `<implFiles>`.
+3. Al terminar, igual que en el paso 1, pero con `gates.B.passed`.
+
+## Paso 3 — Auditoría
+1. `node tools/sdd/state.mjs phase audit`
+2. Lanza el subagente **sdd-auditor** con:
+   > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo y audita el cambio del árbol de trabajo (`git status --porcelain -uall` y `git diff HEAD`). No modifiques nada.
+3. Guarda su respuesta **textual y completa** en `.claude/run/<TASK>/verdict.md` (es el único archivo que escribes, y está fuera del repositorio versionado) y regístrala:
+   ```
+   node tools/sdd/audit.mjs record .claude/run/<TASK>/verdict.md
+   ```
+4. Según el veredicto:
+   - `APPROVED` → paso 4.
+   - `CHANGES_REQUIRED` → `node tools/sdd/state.mjs phase implement` (regenera el contexto con los hallazgos) y vuelve al paso 2, segunda ronda. Si el script responde que se agotaron las rondas → **Detenerse** con los hallazgos.
+   - `NEEDS_CLARIFICATION` → **Detenerse** con la pregunta del auditor.
+   - Si `state.mjs show` dice `blocked` porque el árbol cambió durante la auditoría → **Detenerse**.
+
+## Paso 4 — Cierre
+1. `node tools/sdd/state.mjs phase commit`
+2. Elige el tipo de commit (`feat` para funcionalidad, `test` para tareas de verificación, `build`/`chore`/`ci` para configuración, `fix` para correcciones), el *scope* (el módulo o paquete, en minúsculas: `transactions`, `db`, `web`…) y un resumen corto en inglés, en imperativo (el código y los commits van en inglés).
+3. Cierra:
+   ```
+   node tools/sdd/close.mjs --type <tipo> --scope <scope> --summary "<resumen>" --body "<2-4 líneas de lo implementado>" --trailer "<línea de atribución de commits de esta sesión, si la hay>"
+   ```
+   El script marca `[x]` en `tasks.md`, hace el commit con los trailers `Task:` y `Audit: approved` y limpia el estado.
+4. Informa al usuario en pocas líneas: tarea, commit, archivos, pruebas y cuántas rondas de corrección hubo.
+5. Si la respuesta trae `lastOfPhase: true`, ofrece (sin hacerlo todavía) subir la rama y abrir el PR hacia `develop`:
+   `git push -u origin <branch>` (corre el hook `pre-push`) y `gh pr create --base develop`, con la lista de tareas de la fase y los IDs cubiertos en la descripción. Hazlo solo si el usuario lo confirma.
+
+## Detenerse
+1. Si el estado no está bloqueado todavía: `node tools/sdd/state.mjs block "<motivo en una línea>"`.
+2. Explica al usuario, en pocas líneas: la etapa, qué pasó, la evidencia (respuesta del subagente, final de `gate.log` o hallazgos de `audit.md`) y las opciones:
+   - **NEEDS_CLARIFICATION**: la pregunta y las opciones del subagente, con tu recomendación. Una regla de negocio se resuelve primero en la spec (constitución §6), en un commit `docs:` aparte, y después se retoma con `/implement-task <TASK>`.
+   - **SCOPE_CHANGE_REQUEST**: qué archivo y por qué; si el usuario acepta, se corrige el alcance de la tarea en `tasks.md` en un commit `docs:` aparte y se retoma.
+   - **Gate agotado o rondas agotadas**: el error, tu diagnóstico y si conviene reintentar (`state.mjs unblock`) o ajustar la tarea.
+   - **Abandonar la tarea**: `node tools/sdd/state.mjs abort` (deja los archivos como están para revisarlos con `git status`).
+3. No sigas hasta que el usuario decida.

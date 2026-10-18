@@ -1,0 +1,3687 @@
+# Tareas — App de Finanzas Personales (MVP)
+
+**Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Borrador para aprobación
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.1
+
+## 1. Mapa de fases y orden de ejecución
+
+Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dependencias están cerradas. Cada entrega (V1.0, V1.1, V1.2) queda usable y desplegable antes de empezar la siguiente (constitución §1).
+
+| Fase | Contenido | Entrega | Tareas |
+|---|---|---|---|
+| **0** | Cimientos: monorepo, configuración compartida, Postgres local, andamiaje de paquetes y apps, reglas de capas y CI | Base | TASK-001 a TASK-010 |
+| **1** | Esquema de datos completo (plan §3), con sus restricciones, triggers y cascadas | Base | TASK-011 a TASK-020 |
+| **2** | Contratos compartidos: primitivas, catálogo de errores, entregas, colores, íconos y categorías precargadas | Base | TASK-021 a TASK-025 |
+| **3** | Dominio transversal: dinero, fechas y formatos | Base | TASK-026 a TASK-029 |
+| **4** | Base del API: entorno, puertos, aislamiento, transacciones, middlewares, composición, límites y tick de jobs | Base | TASK-030 a TASK-038 |
+| **5** | Base de la web: i18n, estado, sin conexión, cliente HTTP, borradores, router y harness E2E | Base | TASK-039 a TASK-046 |
+| **6** | M1 Acceso y cuenta | V1.0 | TASK-047 a TASK-067 |
+| **7** | M2 Navegación y estructura, perfil y ajustes base | V1.0 | TASK-068 a TASK-076 |
+| **8** | M3 Monedas y tipo de cambio | V1.0 | TASK-077 a TASK-095 |
+| **9** | M4 Cuentas | V1.0 | TASK-096 a TASK-108 |
+| **10** | M5 Categorías | V1.0 | TASK-109 a TASK-117 |
+| **11** | M6 Transacciones | V1.0 | TASK-118 a TASK-133 |
+| **12** | M7 Registrar | V1.0 | TASK-134 a TASK-142 |
+| **13** | M8 Inicio | V1.0 | TASK-143 a TASK-148 |
+| **14** | M9 Ajustes y personalización | V1.0 | TASK-149 a TASK-154 |
+| **15** | M10 Onboarding | V1.0 | TASK-155 a TASK-162 |
+| **16** | Exportación de datos (M1) | V1.0 | TASK-163 a TASK-165 |
+| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 |
+| **18** | M15 Bandeja de avisos | V1.1 | TASK-175 a TASK-179 |
+| **19** | M12 Metas de ahorro | V1.1 | TASK-180 a TASK-192 |
+| **20** | M11 Presupuestos | V1.1 | TASK-193 a TASK-207 |
+| **21** | M13 Deudas y préstamos | V1.1 | TASK-208 a TASK-218 |
+| **22** | Cierre de V1.1: bloques del Inicio, exportación y regresión | V1.1 | TASK-219 a TASK-222 |
+| **23** | M14 Recurrentes | V1.2 | TASK-223 a TASK-236 |
+| **24** | M15 Recordatorios y avisos completos | V1.2 | TASK-237 a TASK-242 |
+| **25** | **Final:** cobertura de escenarios Gherkin, jobs interrumpidos, zonas horarias, concurrencia y validación de RNF | V1.2 | TASK-243 a TASK-247 |
+
+**Orden dentro de cada fase de módulo:** contratos → dominio → repositorios → servicios y jobs → rutas HTTP con su test de aislamiento → interfaz y estado → E2E de sus escenarios.
+
+**Decisiones de orden:**
+- El esquema completo, incluidas las tablas de V1.1 y V1.2, se crea en la Fase 1, como la migración inicial de plan §3. Los módulos no liberados responden 404 por `RELEASE` (ADR-18).
+- M12 Metas va antes que M11 Presupuestos, porque la decisión de cierre "Enviar a meta" usa los apartados.
+- La bandeja de avisos (M15 básico) va al inicio de V1.1, porque la usan los umbrales y cierres de presupuestos y los vencimientos de deudas.
+- Los servicios compartidos crecen por entrega: `BalanceGuard` (negativos en TASK-100, apartados en TASK-183), `CurrencyUsage` (cada módulo registra su uso), `LedgerHooks` (presupuestos en TASK-199, hitos de metas en TASK-240) y la exportación (TASK-164, TASK-221 y TASK-242).
+
+**Convenciones de las pruebas (plan §5.4):** el nombre de cada test incluye el ID que verifica (`it('RF-M4-04 …')`), o el de la tarea si no hay un ID de la spec. Las pruebas E2E se ejecutan con el harness de TASK-046. Las que verifican la entrega 1.0 llevan la etiqueta `@release-1.0`.
+
+---
+
+## 2. Backlog de tareas atómicas
+
+### Fase 0 — Cimientos, configuración e infraestructura base
+
+- [x] **`TASK-001`: Crear el monorepo pnpm y la configuración raíz**
+  - **Dependencias:** Ninguna
+  - **Trazabilidad SDD:** plan §2, plan §1.5 (configuración versionada); constitución §2
+  - **Archivos en Alcance:**
+    - `package.json`
+    - `pnpm-workspace.yaml`
+    - `pnpm-lock.yaml`
+    - `.gitignore`
+    - `.editorconfig`
+    - `.prettierrc.json`
+    - `.npmrc`
+    - `.nvmrc`
+  - **Especificación de Implementación:** Workspaces `apps/*`, `packages/*` y `e2e`. Node 22 LTS y `packageManager` pnpm. Scripts raíz: `lint`, `typecheck`, `test:unit`, `test:integration`, `depcruise`, `build`, `format` y `prepare` (`git config core.hooksPath .githooks`). `.gitignore` excluye `node_modules`, `dist`, `coverage`, `.env*` (salvo `.env.example`), `playwright-report` y `test-results`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm install --frozen-lockfile`
+    - Los scripts raíz existen aunque todavía no haya paquetes que los implementen (`pnpm -r` sin paquetes no falla).
+
+- [x] **`TASK-002`: Configuración compartida de TypeScript, ESLint y Vitest**
+  - **Dependencias:** Requiere TASK-001
+  - **Trazabilidad SDD:** plan §2 (`packages/config`), plan §5.1 (calidad en CI); constitución §3, §5
+  - **Archivos en Alcance:**
+    - `packages/config/package.json`
+    - `packages/config/tsconfig.base.json`
+    - `packages/config/eslint.config.js`
+    - `packages/config/vitest.base.ts`
+    - `eslint.config.js`
+    - `tsconfig.json`
+    - `package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** `tsconfig.base.json` con `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride` y `verbatimModuleSyntax`. ESLint en formato *flat* con typescript-eslint (type-checked) y estas reglas: prohíbe `it.only`, `describe.only`, `test.only` y `.skip`; prohíbe `parseFloat` y `Number.parseFloat` en `packages/domain`, `packages/contracts` y `apps/api/src` (constitución §3). `vitest.base.ts` con `passWithNoTests` y reporte por defecto. ESLint, typescript-eslint, TypeScript y Vitest se instalan como dependencias de desarrollo de la raíz, y los scripts raíz `lint` y `typecheck` pasan a usarlos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm lint`
+    - Comando: `pnpm typecheck`
+
+- [x] **`TASK-003`: Configurar commitlint con Conventional Commits**
+  - **Dependencias:** Requiere TASK-001
+  - **Trazabilidad SDD:** plan §1.3 (librerías de desarrollo), plan §1.5; constitución §7
+  - **Archivos en Alcance:**
+    - `commitlint.config.cjs`
+    - `package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** `@commitlint/cli` + `@commitlint/config-conventional`. Tipos permitidos: `feat`, `fix`, `docs`, `test`, `chore`, `build`, `ci`, `refactor`, `perf`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `echo "feat(db): TASK-003 prueba" | pnpm exec commitlint`
+    - Un mensaje sin tipo es rechazado por commitlint.
+
+- [x] **`TASK-004`: Docker Compose de Postgres y variables de ejemplo**
+  - **Dependencias:** Requiere TASK-001
+  - **Trazabilidad SDD:** plan §2 (`docker-compose.yml`), plan §1.4 (tests por capa), plan §3.9 (secretos)
+  - **Archivos en Alcance:**
+    - `docker-compose.yml`
+    - `docker/postgres/init.sql`
+    - `.env.example`
+  - **Especificación de Implementación:** Servicio `db` con `postgres:16`, puerto 5432, volumen y *healthcheck*. `init.sql` crea las bases `finanzas_dev` y `finanzas_test`. `.env.example` lista todas las variables del API y de los tests (`DATABASE_URL`, `DATABASE_URL_DIRECT`, `TEST_DATABASE_URL`, `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN`, `INTEGRATIONS`, `PORT`) sin valores reales.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `docker compose config -q`
+
+- [x] **`TASK-005`: Paquete `packages/db` con Prisma y harness de pruebas de esquema**
+  - **Dependencias:** Requiere TASK-002, TASK-004
+  - **Trazabilidad SDD:** plan §2 (`packages/db`), ADR-10
+  - **Archivos en Alcance:**
+    - `packages/db/package.json`
+    - `packages/db/tsconfig.json`
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/vitest.config.ts`
+    - `packages/db/test/global-setup.ts`
+    - `packages/db/test/helpers.ts`
+    - `packages/db/.env`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Paquete `@finanzas/db`. `schema.prisma` con el *generator* del cliente y el *datasource* PostgreSQL (`DATABASE_URL` y `directUrl = DATABASE_URL_DIRECT`). Scripts `generate`, `migrate:dev`, `migrate:deploy` y `test:integration`. El *global setup* aplica las migraciones sobre `TEST_DATABASE_URL`. `helpers.ts` expone un cliente SQL crudo y la creación de un usuario mínimo por test. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/`, `seed/`, `scripts/` y los `*.config.ts`), sin listar archivos sueltos. `packages/db/.env` (ignorado por git) define `DATABASE_URL` y `DATABASE_URL_DIRECT` con URLs ficticias de desarrollo para que `prisma validate` corra sin entorno externo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm --filter @finanzas/db exec prisma validate`
+
+- [x] **`TASK-006`: Andamiaje de `packages/contracts` y `packages/domain`**
+  - **Dependencias:** Requiere TASK-002
+  - **Trazabilidad SDD:** plan §1.1 (capas Contratos y Dominio), plan §2
+  - **Archivos en Alcance:**
+    - `packages/contracts/package.json`
+    - `packages/contracts/tsconfig.json`
+    - `packages/contracts/vitest.config.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/domain/package.json`
+    - `packages/domain/tsconfig.json`
+    - `packages/domain/vitest.config.ts`
+    - `packages/domain/src/index.ts`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** `@finanzas/contracts` depende de `zod` y `decimal.js`. `@finanzas/domain` depende solo de `decimal.js`, `date-fns` y `@date-fns/tz`. Los dos se compilan y se consumen como ESM. El `tsconfig.json` de cada uno cubre todos sus archivos TypeScript, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`), sin listar archivos sueltos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm --filter @finanzas/contracts typecheck`
+    - Comando: `pnpm --filter @finanzas/domain typecheck`
+
+- [x] **`TASK-007`: Andamiaje de `apps/api`**
+  - **Dependencias:** Requiere TASK-006
+  - **Trazabilidad SDD:** plan §1.4 (capas del backend), plan §2 (`apps/api`), ADR-19
+  - **Archivos en Alcance:**
+    - `apps/api/package.json`
+    - `apps/api/tsconfig.json`
+    - `apps/api/vitest.config.ts`
+    - `apps/api/src/domain/index.ts`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Paquete `api` que declara desde el inicio **todas** las dependencias del API (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: Express, Zod, `@finanzas/db` (Prisma), `@finanzas/contracts`, `@finanzas/domain`, Better Auth, decimal.js, `uuidv7` y `archiver`; de desarrollo, Vitest, `supertest` y los tipos de Express, supertest y archiver. `vitest.config.ts` define los proyectos `unit`, `integration` y `http`. `src/domain/index.ts` reexporta `@finanzas/domain`. Scripts `build`, `start`, `dev`, `typecheck`, `test:unit` y `test:integration`. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`), sin listar archivos sueltos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm --filter api typecheck`
+    - `package.json` declara todas las librerías del API de plan §1.3.
+
+- [x] **`TASK-008`: Andamiaje de `apps/web` con Vite, React, Tailwind y shadcn/ui**
+  - **Dependencias:** Requiere TASK-006
+  - **Trazabilidad SDD:** plan §1.1 (capa Cliente), plan §2 (`apps/web`); constitución §2; RNF-07
+  - **Archivos en Alcance:**
+    - `apps/web/package.json`
+    - `apps/web/tsconfig.json`
+    - `apps/web/vite.config.ts`
+    - `apps/web/vitest.config.ts`
+    - `apps/web/eslint.config.js`
+    - `apps/web/index.html`
+    - `apps/web/tailwind.config.ts`
+    - `apps/web/postcss.config.js`
+    - `apps/web/components.json`
+    - `apps/web/src/main.tsx`
+    - `apps/web/src/App.tsx`
+    - `apps/web/src/index.css`
+    - `apps/web/src/lib/utils.ts`
+    - `apps/web/src/components/ui/button.tsx`
+    - `apps/web/src/components/ui/input.tsx`
+    - `apps/web/src/components/ui/label.tsx`
+    - `apps/web/src/components/ui/card.tsx`
+    - `apps/web/src/components/ui/badge.tsx`
+    - `apps/web/src/components/ui/separator.tsx`
+    - `apps/web/src/components/ui/skeleton.tsx`
+    - `apps/web/src/components/ui/progress.tsx`
+    - `apps/web/src/components/ui/dialog.tsx`
+    - `apps/web/src/components/ui/alert-dialog.tsx`
+    - `apps/web/src/components/ui/sheet.tsx`
+    - `apps/web/src/components/ui/dropdown-menu.tsx`
+    - `apps/web/src/components/ui/select.tsx`
+    - `apps/web/src/components/ui/switch.tsx`
+    - `apps/web/src/components/ui/checkbox.tsx`
+    - `apps/web/src/components/ui/tooltip.tsx`
+    - `apps/web/src/components/ui/tabs.tsx`
+    - `apps/web/src/components/ui/popover.tsx`
+    - `apps/web/src/components/ui/calendar.tsx`
+    - `apps/web/src/components/ui/sonner.tsx`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** React + Vite + TypeScript. Declara desde el inicio **todas** las dependencias de la web (plan §1.3), para que ninguna tarea posterior tenga que modificar su `package.json`: React, react-router, TanStack Query, react-hook-form + `@hookform/resolvers`, Zod, recharts, i18next + react-i18next, lucide-react, `@dnd-kit/core` y `@dnd-kit/sortable`, decimal.js, `uuidv7`, `@finanzas/contracts` y `@finanzas/domain`; de desarrollo, Vitest y `eslint-plugin-i18next`. Tailwind con tema claro y oscuro por clase y los tokens de color de shadcn/ui. Incluye `lib/utils.ts` (`cn`) y los componentes base de shadcn/ui que usan las pantallas del plan, generados con su CLI junto con sus dependencias (primitivos de Radix y, para el calendario, react-day-picker). Proxy de desarrollo `/api` → `http://localhost:3000`. ESLint de la web con `no-literal-string` en JSX. Vitest en entorno `node` para la lógica sin DOM. Su `tsconfig.json` cubre todos los archivos TypeScript del paquete, también los que agregarán tareas posteriores (`src/`, `test/` y los `*.config.ts`, con `.ts` y `.tsx`), sin listar archivos sueltos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm --filter web build`
+    - Comando: `pnpm --filter web lint`
+    - `package.json` declara todas las librerías de la web de plan §1.3, y existen los 20 componentes base de shadcn/ui del alcance.
+
+- [x] **`TASK-009`: Reglas de capas del backend con dependency-cruiser**
+  - **Dependencias:** Requiere TASK-007
+  - **Trazabilidad SDD:** plan §1.4 (cumplimiento automático), ADR-19
+  - **Archivos en Alcance:**
+    - `.dependency-cruiser.cjs`
+    - `package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Reglas con los nombres exactos del plan: `presentation-not-to-infrastructure`, `application-not-to-presentation`, `application-not-to-infrastructure`, `application-no-framework` (sin `express`, `@prisma/client` ni `better-auth`), `domain-pure` e `infrastructure-not-to-presentation`, más `no-circular`. Script raíz `depcruise` sobre `apps/api/src`. Fijar `dependency-cruiser` en `17.3.10`: la 18.x solo admite Node `^22||^24||>=26` y aborta en Node 23 o 25, mientras que la 17.3.10 admite `^20.12||^22||>=24`. Los patrones de ruta se escriben como literales de cadena: el punto del regex se escapa con doble barra (`\\.`), porque `\.` dentro de una cadena falla `no-useless-escape` en el lint raíz.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm depcruise`
+    - Las seis reglas del plan existen con severidad `error`.
+
+- [x] **`TASK-010`: Workflow de integración continua `ci.yml`**
+  - **Dependencias:** Requiere TASK-003, TASK-005, TASK-009
+  - **Trazabilidad SDD:** plan §1.5 (workflows, protección de ramas), ADR-20; constitución §5, §7
+  - **Archivos en Alcance:**
+    - `.github/workflows/ci.yml`
+  - **Especificación de Implementación:** Disparadores `push` a cualquier rama, `pull_request` hacia `develop`, `qa` y `main`, y `workflow_call`. Los 8 pasos del plan en orden: instalación con caché, commitlint de los commits del PR, lint, typecheck, dependency-cruiser, unitarios, integración con Postgres 16 como *service* (`prisma migrate deploy` + Vitest) y build de `api` y `web`. Nombre del check: `ci`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - El workflow contiene los 8 pasos en el orden de plan §1.5, `workflow_call` y Postgres 16 como *service*.
+    - Ningún secreto aparece en texto plano.
+
+### Fase 1 — Esquema de datos
+
+- [ ] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
+  - **Dependencias:** Requiere TASK-005
+  - **Trazabilidad SDD:** plan §3.1, plan §3.2, ADR-10
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0001_base/migration.sql`
+    - `packages/db/test/schema-base.test.ts`
+  - **Especificación de Implementación:** Todos los enums de plan §3.2 como enums de Prisma con `@@map` al nombre SQL. `CREATE EXTENSION unaccent` y la función de trigger `set_updated_at()`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Existen todos los tipos de plan §3.2, con sus valores exactos y en el mismo orden.
+    - Existen la extensión `unaccent` y la función `set_updated_at`.
+
+- [ ] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
+  - **Dependencias:** Requiere TASK-011
+  - **Trazabilidad SDD:** plan §3.3; RF-M1-02, RF-M1-05, RF-M1-16, RN-13
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0002_auth/migration.sql`
+    - `packages/db/test/schema-auth.test.ts`
+  - **Especificación de Implementación:** `auth_user`, `auth_session`, `auth_account`, `auth_verification`, `email_link`, `login_throttle`, `email_outbox` y `email_send_log`, con sus CHECK, índices (incluido `email_link_one_active`) y triggers `updated_at`, tal como plan §3.3.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-02`: un correo con mayúsculas o espacios viola el CHECK.
+    - `RN-13`: un nombre con espacios al inicio o al final viola el CHECK.
+    - `RF-M1-05`: no pueden coexistir dos enlaces vigentes del mismo usuario y propósito.
+    - `RF-M1-16`: `email_kind` tiene exactamente los 6 correos de la cuenta.
+
+- [ ] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
+  - **Dependencias:** Requiere TASK-012
+  - **Trazabilidad SDD:** plan §3.4, plan §3.1 (orden de la migración), ADR-12; RF-M3-01, RF-M3-02, RF-M3-13
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0003_fx_settings/migration.sql`
+    - `packages/db/test/schema-fx-settings.test.ts`
+  - **Especificación de Implementación:** `market_rate` (global, sin `user_id`), `currency`, `user_fx_event`, `user_settings` (sin la clave foránea a `account`, que se crea en TASK-020), `favorite_category` (sin la clave foránea a `category`) y la función `user_rate_on`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-01`: una moneda de sistema no puede quedar inactiva.
+    - `RF-M3-02`: una tasa menor que 0,01 viola el CHECK.
+    - Los CHECK de `user_fx_event` rechazan cada combinación inválida de `kind`.
+    - `RF-M3-13`: `user_rate_on` devuelve la última tasa del día en la zona del usuario y, antes del primer dato, el primer valor conocido.
+
+- [ ] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
+  - **Dependencias:** Requiere TASK-013
+  - **Trazabilidad SDD:** plan §3.5; RF-M4-01, RF-M4-02, RF-M4-07, EC-M4-02
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0004_account/migration.sql`
+    - `packages/db/test/schema-account.test.ts`
+  - **Especificación de Implementación:** Tabla `account` con sus CHECK, el índice `account_active_name`, el índice de orden y el trigger `BEFORE UPDATE` que impide cambiar `initial_balance` e `initial_balance_date`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-01`: dos cuentas activas con el mismo nombre (sin distinguir mayúsculas) violan el índice; una archivada no.
+    - `RF-M4-02`: efectivo o billetera con saldo inicial negativo violan el CHECK.
+    - `RF-M4-07` / `EC-M4-02`: un UPDATE del saldo inicial o de su fecha falla.
+    - Los campos de tarjeta solo se aceptan en `credit_card`.
+
+- [ ] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
+  - **Dependencias:** Requiere TASK-014
+  - **Trazabilidad SDD:** plan §3.5, plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-05, EC-M5-01
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0005_category/migration.sql`
+    - `packages/db/test/schema-category.test.ts`
+  - **Especificación de Implementación:** Tabla `category`, índices `category_active_name` (`NULLS NOT DISTINCT`) y `category_system_key`, y el trigger `category_guard` con las reglas de plan §3.5.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M5-01`: "comida" y "Comida" activas en el mismo tipo y padre violan el índice.
+    - `RF-M5-01`: cambiar el `kind` falla.
+    - El trigger rechaza un segundo nivel, un padre de otro tipo o archivado, y que una categoría con hijas pase a ser hija.
+    - `RF-M5-05`: en la categoría del sistema solo se pueden cambiar el color y el ícono.
+
+- [ ] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
+  - **Dependencias:** Requiere TASK-015
+  - **Trazabilidad SDD:** plan §3.5, ADR-04, ADR-07, ADR-15; RF-M6-01, RF-M6-03, RF-M7-09, RN-09
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0006_ledger/migration.sql`
+    - `packages/db/test/schema-ledger.test.ts`
+  - **Especificación de Implementación:** `ledger_transaction` (sin la clave foránea a `recurring_rule`, que se crea en TASK-020), `ledger_entry`, `undo_action` y `shortcut`, con los índices `ledger_tx_list` y `ledger_entry_balance` y los demás de plan §3.5.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Un gasto o ingreso sin categoría viola el CHECK; una transferencia con categoría también.
+    - `declared_rate` solo se acepta en transferencias, y `origin = 'fee'` exige `parent_transaction_id`.
+    - `RN-09`: un asiento que apunta a la cuenta de otro usuario viola la clave foránea compuesta.
+    - `RF-M7-09`: los CHECK de `shortcut` exigen destino solo en transferencias y categoría en los demás tipos.
+
+- [ ] **`TASK-017`: Tablas de presupuestos (M11)**
+  - **Dependencias:** Requiere TASK-016
+  - **Trazabilidad SDD:** plan §3.6; RF-M11-01, RF-M11-04, RF-M11-13, RNF-12
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0007_budgets/migration.sql`
+    - `packages/db/test/schema-budgets.test.ts`
+  - **Especificación de Implementación:** `budget`, `budget_period`, `budget_late_adjustment` y `budget_threshold_hit`, con los índices únicos parciales de plan §3.6.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-01`: no pueden coexistir dos presupuestos activos o pausados de la misma categoría, ni dos generales; uno `finalized` no cuenta.
+    - `RF-M11-04`: un `start_day` fuera de 1–28 viola el CHECK.
+    - `RF-M11-13`: más de 3 umbrales, o un umbral fuera de 1–150, viola el CHECK.
+    - `RNF-12`: un mismo umbral no se registra dos veces por período.
+
+- [ ] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
+  - **Dependencias:** Requiere TASK-017
+  - **Trazabilidad SDD:** plan §3.6, ADR-14; RF-M12-01, RF-M12-03, RF-M13-01, RF-M13-05
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0008_goals_debts/migration.sql`
+    - `packages/db/test/schema-goals-debts.test.ts`
+  - **Especificación de Implementación:** `goal`, `goal_allocation_event`, `debt` (`interest_unpaid numeric(24,10)`) y `debt_payment`, con sus índices y CHECK.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M12-03`: una cuenta no puede estar dedicada a dos metas, y una meta archivada no puede tener cuenta dedicada.
+    - `RF-M13-01`: una tasa de interés fuera de 0,01–100 viola el CHECK.
+    - `RF-M13-05`: un pago con `amount ≠ interest_part + capital_part` viola el CHECK.
+    - `interest_unpaid` conserva 10 decimales.
+
+- [ ] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
+  - **Dependencias:** Requiere TASK-018
+  - **Trazabilidad SDD:** plan §3.6, plan §3.7; RF-M14-12, RF-M14-14, RF-M14-15, RN-10
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0009_recurring_notifications/migration.sql`
+    - `packages/db/test/schema-recurring-notifications.test.ts`
+  - **Especificación de Implementación:** `recurring_rule`, `recurring_occurrence`, `notification`, `notification_preference` y `job_run`, con sus CHECK e índices.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M14-12`: dos ocurrencias de la misma regla y fecha violan la restricción única.
+    - `RF-M14-14`: una regla automática sin monto viola el CHECK.
+    - `RF-M14-15`: un nombre vacío o de más de 40 caracteres viola el CHECK.
+    - `RN-10`: dos avisos con el mismo `event_key` para el mismo usuario violan la restricción única.
+
+- [ ] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
+  - **Dependencias:** Requiere TASK-019
+  - **Trazabilidad SDD:** plan §3.1 (orden de la migración), plan §3.8, plan §3.9; RN-08, RN-09, RF-M1-15, RF-M4-13, RF-M6-05, RF-M14-11
+  - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0010_deferred_fks/migration.sql`
+    - `packages/db/test/schema-integrity.test.ts`
+  - **Especificación de Implementación:** Crea las claves foráneas hacia tablas definidas después: `user_settings → account` (`SET NULL`), `favorite_category → category` (`CASCADE`) y `ledger_transaction → recurring_rule` (`SET NULL`). Las migraciones de la Fase 1 forman juntas la migración inicial de plan §3.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-15`: borrar `auth_user` deja 0 filas del usuario en todas las tablas de negocio.
+    - `RN-08`: no se puede borrar una cuenta con asientos ni una categoría con movimientos.
+    - `RF-M4-13`: los atajos caen en cascada con su cuenta.
+    - `RF-M6-05`: la comisión cae en cascada con su transferencia.
+    - `RF-M14-11`: al borrar una regla, sus movimientos quedan con `recurring_rule_id = NULL` y conservan `recurring_label`.
+    - `RN-09`: ninguna clave foránea compuesta acepta un recurso de otro usuario.
+
+### Fase 2 — Contratos y catálogos compartidos
+
+- [ ] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
+  - **Dependencias:** Requiere TASK-006
+  - **Trazabilidad SDD:** plan §4.3.1, plan §4.4.1, plan §4.6.1, ADR-03; RF-M6-01, RF-M6-03, RF-M3-02, RN-13
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/common.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/common.test.ts`
+  - **Especificación de Implementación:** `Money`, `Rate` (≥ 0,01), `Amount` (0,01 a 999.999.999,99), `AmountAbs`, `Note` (recortada, ≤ 140), `LocalDate`, `CurrencyCode`, `Uuid`, `Cursor` y un constructor `TrimmedName(min, max)`. Todos los montos son texto decimal (ADR-03).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-01`: "0.00" y "1000000000.00" son inválidos; "0.01" y "999999999.99" son válidos.
+    - `RF-M6-03`: una nota de 141 caracteres es inválida.
+    - `RF-M3-02`: "0.009" no es una `Rate` válida.
+    - `RN-13`: un nombre se valida después de recortar sus espacios.
+    - Ningún schema acepta `number` para montos.
+
+- [ ] **`TASK-022`: Catálogo de errores y formato problem+json**
+  - **Dependencias:** Requiere TASK-021
+  - **Trazabilidad SDD:** plan §4.0 (catálogo común), plan §4.1.2 a §4.15.2 (errores por módulo), ADR-09; RNF-17
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/errors.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/errors.test.ts`
+  - **Especificación de Implementación:** `ErrorCode` con todos los códigos que aparecen en las tablas de endpoints del plan, cada uno con su estado HTTP. `ProblemSchema` (`type`, `title`, `status`, `code`, `data`, `traceId`).
+  - **Criterios de Verificación (Tests & DoD):**
+    - Una tabla de pruebas verifica el estado HTTP de cada código según el plan.
+    - `RNF-17`: `INTERNAL_ERROR` no admite `data`.
+
+- [ ] **`TASK-023`: Mapa de entregas por módulo**
+  - **Dependencias:** Requiere TASK-021
+  - **Trazabilidad SDD:** plan §4.2.1 (`ModuleRelease`), plan §4.15.3 (entrega), ADR-18; RF-M2-03, spec §1.2
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/releases.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/releases.test.ts`
+  - **Especificación de Implementación:** `Release` (`'1.0' | '1.1' | '1.2'`), `ModuleKey`, `MODULE_RELEASE` según spec §1.2 (la bandeja de M15 en 1.1, la configuración y los demás tipos en 1.2), `isReleased(module, release)` y los tipos de aviso liberados por entrega.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-03`: con 1.0 no están liberados M11 a M15.
+    - Con 1.1 se liberan M11, M12, M13 y la bandeja, con los tipos `budget_alert`, `period_close` y los avisos de deuda.
+    - Con 1.2 está todo liberado.
+
+- [ ] **`TASK-024`: Catálogos de colores e íconos**
+  - **Dependencias:** Requiere TASK-021
+  - **Trazabilidad SDD:** plan §4.5.1 (catálogos fijos); RF-M5-04, RNF-06
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/catalogs.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/catalogs.test.ts`
+  - **Especificación de Implementación:** `PaletteKey` con 12 colores, cada uno con su valor para tema claro y oscuro. `IconKey` con unos 60 nombres de íconos de lucide-react en kebab-case.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M5-04`: hay exactamente 12 colores, y cada uno tiene un contraste ≥ 4,5:1 contra el fondo de su tema.
+    - Los nombres de íconos son únicos y hay entre 55 y 65.
+
+- [ ] **`TASK-025`: Definición de las categorías precargadas**
+  - **Dependencias:** Requiere TASK-024
+  - **Trazabilidad SDD:** plan §2 (`packages/db/seed`), plan §4.5.3 (seed); spec §2.5.1; RF-M5-05, RF-M6-05
+  - **Archivos en Alcance:**
+    - `packages/db/seed/preset-categories.ts`
+    - `packages/db/test/preset-categories.test.ts`
+  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo. Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses").
+  - **Criterios de Verificación (Tests & DoD):**
+    - La lista coincide exactamente con spec §2.5.1, en el mismo orden.
+    - `RF-M5-05`: "Deudas y préstamos" existe en gasto y en ingreso con "Intereses", marcadas como del sistema.
+    - `RF-M6-05`: existe "Servicios › Comisiones bancarias".
+
+### Fase 3 — Dominio transversal
+
+- [ ] **`TASK-026`: Dominio `money`: redondeo y aritmética decimal**
+  - **Dependencias:** Requiere TASK-006
+  - **Trazabilidad SDD:** ADR-03, plan §5.1 (tests de propiedades); RN-06, RNF-18; constitución §3
+  - **Archivos en Alcance:**
+    - `packages/domain/src/money.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/money.test.ts`
+  - **Especificación de Implementación:** Configuración de decimal.js, `round2` (mitad alejándose del cero), `parseMoney` y `toMoneyString` ("1234.56"), `sumRounded` (suma de valores ya redondeados) y comparaciones. Ninguna función acepta ni devuelve `number`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-06`: 0,005 → 0,01; −0,005 → −0,01; 2,345 → 2,35.
+    - `RNF-18`: una prueba de propiedad con 1.000 casos aleatorios verifica que `sumRounded` no acumula diferencias.
+
+- [ ] **`TASK-027`: Dominio `dates`: día local, meses y zona horaria**
+  - **Dependencias:** Requiere TASK-006
+  - **Trazabilidad SDD:** plan §4.0 (`Clock`), plan §5.1; RN-07, RNF-20, RF-M3-13, RF-M14-02
+  - **Archivos en Alcance:**
+    - `packages/domain/src/dates.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/dates.test.ts`
+  - **Especificación de Implementación:** Tipo `LocalDate`, `todayFor(tz, now)`, `isFutureFor(date, tz, now)`, `boliviaDay(instant)` (America/La_Paz), `monthRange(yyyy-mm)`, `clampDay(year, month, day)`, `addMonths`, `daysBetween` y `startOfDayInstant(date, tz)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-07`: detecta una fecha futura en America/La_Paz, Europe/Madrid y America/Santiago, en los cruces de medianoche.
+    - `RNF-20`: `startOfDayInstant` es correcto en los días de cambio de horario de verano.
+    - `RF-M14-02`: `clampDay(2027, 2, 29)` da el 28 y `clampDay(2026, 11, 31)` da el 30.
+    - `RF-M3-13`: `boliviaDay` usa el calendario de Bolivia.
+
+- [ ] **`TASK-028`: Dominio `format`: montos y parseo de lo que escribe el usuario**
+  - **Dependencias:** Requiere TASK-026
+  - **Trazabilidad SDD:** plan §4.9.1, plan §4.7.1 (`parseAmountInput`); RF-M9-02, RF-M7-02
+  - **Archivos en Alcance:**
+    - `packages/domain/src/format.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/format-money.test.ts`
+  - **Especificación de Implementación:** `formatMoney(amount, symbol, numberFormat)` → "Bs 1.234,56" o "Bs 1,234.56", con el símbolo antes y un espacio, y el signo menos tipográfico en los negativos. `parseAmountInput(raw)`: solo dígitos y, al final, un punto o una coma seguidos de 1 o 2 dígitos como decimal; sin separador de miles ni operaciones.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M9-02`: "Bs 1.234,56" y "Bs 1,234.56" según el formato elegido.
+    - `RF-M7-02`: "35.50" y "35,50" dan 35,50 con los dos formatos (escenarios "Formato de números" y "Punto decimal con el formato por defecto").
+    - `RF-M7-02`: "35,5" da 35,50, mientras que "1.234", "3+4" y "1,234.56" dan `null`.
+
+- [ ] **`TASK-029`: Dominio `format`: fechas y días relativos**
+  - **Dependencias:** Requiere TASK-027, TASK-028
+  - **Trazabilidad SDD:** plan §4.9.1; RF-M9-03, RF-M9-04
+  - **Archivos en Alcance:**
+    - `packages/domain/src/format.ts`
+    - `packages/domain/test/format-date.test.ts`
+  - **Especificación de Implementación:** `formatDate(date, dateFormat)` en `dmy` (15/10/2026), `iso` (2026-10-15) y `short_text` (15 oct 2026). `relativeDay(date, today, weekStart)` devuelve "Hoy", "Ayer" o "Lun 13" dentro de la semana, y la fecha formateada fuera de ella. `weekDays(weekStart)` da el orden de los días del calendario.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M9-03`: los tres formatos de fecha y "Hoy", "Ayer" y "Lun 13".
+    - `RF-M9-04`: `weekDays('sunday')` empieza en domingo.
+
+### Fase 4 — Base del API
+
+- [ ] **`TASK-030`: Variables de entorno validadas**
+  - **Dependencias:** Requiere TASK-007
+  - **Trazabilidad SDD:** plan §2 (`config/env.ts`), plan §1.4 (*fakes*), plan §3.9 (secretos); constitución §4
+  - **Archivos en Alcance:**
+    - `apps/api/src/infrastructure/config/env.ts`
+    - `apps/api/test/unit/env.test.ts`
+  - **Especificación de Implementación:** Schema Zod de `NODE_ENV`, `PORT`, `DATABASE_URL`, `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS` (`real` | `fake`).
+  - **Criterios de Verificación (Tests & DoD):**
+    - Si falta una variable, el error la nombra sin mostrar ningún valor.
+    - `INTEGRATIONS=fake` con `NODE_ENV=production` falla.
+    - `RELEASE` solo admite `1.0`, `1.1` o `1.2`.
+
+- [ ] **`TASK-031`: `AppError` y puertos de la capa de aplicación**
+  - **Dependencias:** Requiere TASK-022, TASK-030
+  - **Trazabilidad SDD:** plan §1.4 (reglas de diseño), plan §4.0 (`UnitOfWork`, `Clock`), ADR-09, ADR-19
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/errors.ts`
+    - `apps/api/src/application/ports/clock.ts`
+    - `apps/api/src/application/ports/id-generator.ts`
+    - `apps/api/src/application/ports/unit-of-work.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/application/ports/rates-gateway.ts`
+    - `apps/api/src/application/ports/email-gateway.ts`
+    - `apps/api/src/application/ports/auth-gateway.ts`
+    - `apps/api/test/unit/errors.test.ts`
+  - **Especificación de Implementación:** `AppError(code, data?)` toma su estado de `ErrorCode`. Interfaces: `Clock` (`now`, `todayFor`), `IdGenerator`, `UnitOfWork.run(fn, { userLock?, readOnly? })` y `Repositories` (se completa en cada módulo), además de `RatesGateway`, `EmailGateway` y `AuthGateway`. Ningún import de framework.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `AppError` expone `code`, `status` y `data`.
+    - Comando: `pnpm depcruise`
+
+- [ ] **`TASK-032`: Cliente Prisma con la extensión de aislamiento por usuario**
+  - **Dependencias:** Requiere TASK-020, TASK-031
+  - **Trazabilidad SDD:** ADR-05, ADR-12, plan §3.9; RN-09, RNF-14
+  - **Archivos en Alcance:**
+    - `packages/db/src/client.ts`
+    - `packages/db/src/index.ts`
+    - `packages/db/test/isolation-extension.test.ts`
+    - `apps/api/src/infrastructure/persistence/prisma-client.ts`
+  - **Especificación de Implementación:** `forUser(prisma, userId)` agrega `where: { userId }` a todo `find*`, `update*`, `delete*` y `count`, y verifica `data.userId === userId` en todo `create`. Quedan exentos los modelos globales: `market_rate`, `job_run`, `email_outbox`, `login_throttle` y `email_send_log`. El API crea un único cliente a partir del `env`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-09`: `findMany` con la extensión devuelve solo las filas del usuario.
+    - `RNF-14`: crear con otro `userId` lanza un error, y actualizar un id ajeno afecta 0 filas.
+
+- [ ] **`TASK-033`: `UnitOfWork` con transacción y bloqueo por usuario, más el harness de integración**
+  - **Dependencias:** Requiere TASK-032
+  - **Trazabilidad SDD:** plan §4.0, plan §1.4 (transacciones solo en aplicación), plan §5.1 (datos de prueba); RNF-10
+  - **Archivos en Alcance:**
+    - `apps/api/src/infrastructure/persistence/unit-of-work.ts`
+    - `apps/api/test/integration/setup/global-setup.ts`
+    - `apps/api/test/integration/setup/db.ts`
+    - `apps/api/test/factories/user.factory.ts`
+    - `apps/api/test/integration/unit-of-work.test.ts`
+  - **Especificación de Implementación:** `run(fn, opts)` abre la transacción. Con `userLock`, toma `pg_advisory_xact_lock(hashtext('user:' || id))`. Con `readOnly`, usa `SET TRANSACTION READ ONLY`. Los repositorios quedan ligados a la transacción y al usuario. El *global setup* migra la base de test. `user.factory` crea un usuario confirmado con sus filas iniciales por SQL; desde TASK-053 usa `user-bootstrap`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-10`: dos `run` concurrentes con el mismo `userLock` se serializan, y con usuarios distintos corren en paralelo.
+    - Un error dentro de `fn` revierte todo, y `readOnly` rechaza las escrituras.
+
+- [ ] **`TASK-034`: Aplicación Express, middlewares base y `/api/health`**
+  - **Dependencias:** Requiere TASK-031
+  - **Trazabilidad SDD:** plan §1.4 (presentación), plan §3.9 (CSRF y logs), plan §4.2.2 (health), ADR-02, ADR-09; RNF-17
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
+    - `apps/api/src/presentation/middlewares/check-origin.ts`
+    - `apps/api/src/presentation/middlewares/validate.ts`
+    - `apps/api/src/presentation/middlewares/error-handler.ts`
+    - `apps/api/src/presentation/routes/health.routes.ts`
+    - `apps/api/test/http/app.test.ts`
+  - **Especificación de Implementación:** `createApp(deps)` monta el parser JSON, `requireJson` (mutaciones), `checkOrigin` (contra `WEB_ORIGIN`), un `traceId` por petición, un log de ruta, código y duración sin cuerpos, y el `errorHandler` (`AppError` → problem+json; cualquier otro error → `INTERNAL_ERROR` 500 con `traceId`). `validate(schema)` responde `VALIDATION_ERROR` con detalles seguros.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `GET /api/health` responde 204 sin sesión.
+    - Una mutación sin JSON responde 415, y un `Origin` ajeno, 403.
+    - `RNF-17`: un error inesperado devuelve solo `INTERNAL_ERROR` y `traceId`, sin *stack*.
+    - El log de una petición no contiene su cuerpo.
+
+- [ ] **`TASK-035`: Middleware `releaseGate`**
+  - **Dependencias:** Requiere TASK-023, TASK-034
+  - **Trazabilidad SDD:** ADR-18, plan §4.2.2; RF-M2-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/middlewares/release-gate.ts`
+    - `apps/api/test/http/release-gate.test.ts`
+  - **Especificación de Implementación:** `releaseGate(module)` responde `RELEASE_NOT_AVAILABLE 404` si el módulo no está liberado según `RELEASE` (TASK-023).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-03`: con `RELEASE=1.0`, una ruta de M11 responde 404 `RELEASE_NOT_AVAILABLE`; con `1.1` pasa.
+
+- [ ] **`TASK-036`: Raíz de composición y arranque del API**
+  - **Dependencias:** Requiere TASK-033, TASK-034, TASK-035
+  - **Trazabilidad SDD:** plan §1.4 (composición), ADR-19
+  - **Archivos en Alcance:**
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/src/main.ts`
+    - `apps/api/test/http/bootstrap.test.ts`
+  - **Especificación de Implementación:** `buildContainer(env)` crea Prisma, `UnitOfWork`, `Clock` del sistema, `IdGenerator` (uuidv7) y las integraciones según `INTEGRATIONS`. Expone `createApp(container)`. `main.ts` valida el `env`, arma el contenedor y escucha en `PORT`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Con `INTEGRATIONS=fake`, el contenedor arma la app y `/api/health` responde 204.
+    - Comando: `pnpm --filter api build`
+
+- [ ] **`TASK-037`: Límites por usuario (`assertLimit`)**
+  - **Dependencias:** Requiere TASK-031
+  - **Trazabilidad SDD:** plan §4.0 (`assertLimit`); RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/limits.ts`
+    - `apps/api/test/unit/limits.test.ts`
+  - **Especificación de Implementación:** Constante `LIMITS` (cuentas 50, categorías 300, metas 50, deudas 200, presupuestos 100, reglas recurrentes 100, atajos 12) y `assertLimit(currentCount, entity)`, que lanza `LIMIT_REACHED {entity, max}`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-28`: con 49 cuentas pasa; con 50 lanza `LIMIT_REACHED`. Lo mismo para cada entidad.
+
+- [ ] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
+  - **Dependencias:** Requiere TASK-036
+  - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs), ADR-18; RNF-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/tick.ts`
+    - `apps/api/src/presentation/internal/jobs.controller.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/tick.test.ts`
+  - **Especificación de Implementación:** Registro de jobs con el orden fijo de plan §4.0. Cada job toma `pg_try_advisory_lock(job)` y, si está tomado, se salta. Registra inicio, fin y error en `job_run`. El tick deja de iniciar jobs al pasar los 25 s. Sin el encabezado `x-jobs-secret` correcto, responde 404. Los jobs de módulos no liberados no corren. Expone `registerJob(name, run)` para los módulos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-13`: un job que falla registra `last_error` y no detiene los siguientes.
+    - Los jobs corren en el orden del plan, y uno con el *lock* tomado se salta.
+    - Sin secreto, la respuesta es 404.
+
+### Fase 5 — Base de la web y harness E2E
+
+- [ ] **`TASK-039`: i18n y textos de errores**
+  - **Dependencias:** Requiere TASK-008, TASK-022
+  - **Trazabilidad SDD:** plan §1.3 (librerías de interfaz), ADR-09, plan §5.3 (RNF-07); RNF-07, RNF-17
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/providers/i18n.ts`
+    - `apps/web/src/locales/es-BO/common.json`
+    - `apps/web/src/locales/es-BO/errors.json`
+    - `apps/web/src/lib/i18n-errors.ts`
+    - `apps/web/test/i18n-errors.test.ts`
+  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-07`: cada código de `ErrorCode` tiene su texto en `errors.json`.
+    - `RNF-17`: un código desconocido muestra el texto genérico, sin detalles.
+
+- [ ] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
+  - **Dependencias:** Requiere TASK-008
+  - **Trazabilidad SDD:** ADR-17, plan §4.2.3, plan §4.2.4; RF-M2-04, RF-M2-05
+  - **Archivos en Alcance:**
+    - `apps/web/src/lib/ui-store.ts`
+    - `apps/web/test/ui-store.test.ts`
+  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-04`: `tabMemory` sobrevive a recrear el store sobre el mismo storage.
+    - `RF-M2-05`: `rootFor(moduleKey)` devuelve la raíz del módulo.
+
+- [ ] **`TASK-041`: Detección sin conexión (`online`)**
+  - **Dependencias:** Requiere TASK-040
+  - **Trazabilidad SDD:** plan §4.2.3 (normal ↔ sin conexión); RF-M2-07, EC-M2-02, RNF-23
+  - **Archivos en Alcance:**
+    - `apps/web/src/lib/online.ts`
+    - `apps/web/test/online.test.ts`
+  - **Especificación de Implementación:** `setOffline()` pausa TanStack Query (`onlineManager.setOnline(false)`), marca `offline` y consulta `GET /api/health` cada 5 s. Con un 204 o el evento `online`, reactiva todo, invalida las consultas y reenvía una vez, con el mismo `id`, la mutación que estaba en vuelo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-07`: con temporizadores falsos, un 204 de health vuelve a `online` e invalida las consultas.
+    - `EC-M2-02`: la mutación en vuelo se reenvía una sola vez y con el mismo `id`.
+
+- [ ] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
+  - **Dependencias:** Requiere TASK-039, TASK-041
+  - **Trazabilidad SDD:** plan §4.0 (cliente fetch tipado), ADR-09, ADR-11; RF-M1-07, RF-M2-07, RF-M2-08
+  - **Archivos en Alcance:**
+    - `apps/web/src/lib/api-client.ts`
+    - `apps/web/test/api-client.test.ts`
+  - **Especificación de Implementación:** `call(endpoint, input, { background?, signal? })` con `fetch` inyectable. Valida la salida con el schema del endpoint. Un problem+json lanza `ApiError { code, status, data, traceId }`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-07`: con `background: true` envía `X-Background: 1`.
+    - `RF-M2-08`: `SESSION_EXPIRED` abre el diálogo de sesión vencida sin navegar.
+    - `RF-M2-07`: un `TypeError` de red marca la app sin conexión.
+    - Una respuesta que no cumple el schema de salida lanza un error.
+
+- [ ] **`TASK-043`: Borradores de formularios (`useDraft`)**
+  - **Dependencias:** Requiere TASK-008
+  - **Trazabilidad SDD:** ADR-17, plan §4.2.3 (borradores); RF-M2-10, RF-M2-11, EC-M2-01, RF-M7-08
+  - **Archivos en Alcance:**
+    - `apps/web/src/lib/drafts.ts`
+    - `apps/web/test/drafts.test.ts`
+  - **Especificación de Implementación:** Funciones puras `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts(userId)` sobre un storage inyectable, con la clave `draft:{userId}:{formKey}`. Al restaurar, valida con el schema y aplica `validateRefs`. El hook `useDraft(formKey, form, opts)` guarda 300 ms después del último cambio y expone `clear` y `restoredWithIssues`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-10`: lo guardado se restaura igual, y un borrador inválido se descarta.
+    - `RF-M2-11`: una cuenta que ya no está activa se vacía y se marca para elegir otra.
+    - `EC-M2-01`: `clearAllDrafts` borra los borradores del usuario anterior.
+    - `RF-M7-08`: el borrador sobrevive a un nuevo inicio de sesión del mismo usuario.
+
+- [ ] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
+  - **Dependencias:** Requiere TASK-008
+  - **Trazabilidad SDD:** ADR-16; RF-M2-04, RF-M2-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/lib/search-params.ts`
+    - `apps/web/test/search-params.test.ts`
+  - **Especificación de Implementación:** `parseSearch(schema, URLSearchParams)` y `serializeSearch(values)` puros, y el hook `useValidatedSearch(schema)` sobre React Router. Un parámetro inválido cae a su valor por defecto.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-06`: parsear y serializar es estable (ida y vuelta), así el botón Atrás restaura el mismo estado.
+    - Un mes con formato inválido cae al valor por defecto sin lanzar errores.
+
+- [ ] **`TASK-045`: Proveedores de la app y router base**
+  - **Dependencias:** Requiere TASK-039, TASK-042
+  - **Trazabilidad SDD:** plan §2 (`app/providers`, `app/router.tsx`), ADR-16, plan §4.9.3 (primer pintado del tema)
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/providers/query-client.ts`
+    - `apps/web/src/app/providers/theme.tsx`
+    - `apps/web/src/app/providers/index.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/main.tsx`
+    - `apps/web/src/App.tsx`
+  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones. `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Comando: `pnpm --filter web build`
+    - Comando: `pnpm --filter web lint`
+
+- [ ] **`TASK-046`: Harness E2E con Playwright**
+  - **Dependencias:** Requiere TASK-036, TASK-045
+  - **Trazabilidad SDD:** plan §5.1 (E2E), plan §1.5 (entorno efímero); RNF-05, RNF-06
+  - **Archivos en Alcance:**
+    - `e2e/package.json`
+    - `e2e/tsconfig.json`
+    - `e2e/playwright.config.ts`
+    - `e2e/fixtures/base.ts`
+    - `e2e/support/axe.ts`
+    - `e2e/smoke.spec.ts`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Proyectos `chromium-360`, `chromium-1280`, `webkit-360`, `webkit-1280`, `firefox-360` y `firefox-1280`. `webServer` levanta el API con `INTEGRATIONS=fake` y `RELEASE=${E2E_RELEASE:-1.2}` sobre la base de test migrada, y la web con `vite build` + `vite preview` (proxy `/api`). Helper de axe que falla ante violaciones serias o críticas. `e2e/tsconfig.json` cubre todos los `.ts` de `e2e/`, también las *specs* y *fixtures* que agregarán tareas posteriores. Script `e2e:release-1.0` que corre las pruebas etiquetadas `@release-1.0` con `E2E_RELEASE=1.0`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-046`: la prueba de humo comprueba que `/api/health` responde 204 y que la web carga sin violaciones de axe.
+    - Comando: `pnpm --filter e2e exec playwright test smoke.spec.ts --project=chromium-1280`
+
+### Fase 6 — M1 Acceso y cuenta de usuario (V1.0)
+
+- [ ] **`TASK-047`: Contratos de M1**
+  - **Dependencias:** Requiere TASK-021, TASK-023
+  - **Trazabilidad SDD:** plan §4.1.1; RF-M1-01, RF-M1-02, RF-M1-11, RF-M1-13, EC-M1-08
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/auth.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/auth.test.ts`
+  - **Especificación de Implementación:** `SignUpInput`, `SignInInput`, `ResendInput`, `ConfirmInput`, `ForgotInput`, `ResetInput`, `ChangePwdInput`, `UpdateMeInput`, `DeleteAccountInput` y `MeDto`, exactamente como plan §4.1.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-01`: nombre de 1 a 60, contraseña de 8 a 128 y `acceptTerms` obligatorio.
+    - `RF-M1-02`: " ANA@mail.com " se normaliza a "ana@mail.com".
+    - `RF-M1-11`: una zona horaria inválida cae a America/La_Paz.
+    - `RF-M1-13`: `UpdateMeInput` rechaza el campo `email`.
+    - `EC-M1-08`: `DeleteAccountInput` solo acepta exactamente "ELIMINAR".
+
+- [ ] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
+  - **Dependencias:** Requiere TASK-031
+  - **Trazabilidad SDD:** plan §1.4 (*fakes* de integraciones), plan §1.5 (buzón de prueba), ADR-08; RF-M1-16, RNF-25
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/email-gateway.ts`
+    - `apps/api/src/infrastructure/integrations/resend.ts`
+    - `apps/api/src/infrastructure/integrations/resend.fake.ts`
+    - `apps/api/src/infrastructure/integrations/email-templates.ts`
+    - `apps/api/test/unit/email-templates.test.ts`
+  - **Especificación de Implementación:** `EmailGateway.send({ to, kind, payload })`. El adaptador real usa la API de Resend. El *fake* guarda los correos en memoria y permite leerlos por destinatario. Plantillas en español para los 6 tipos de `email_kind`: llevan solo el enlace o los datos imprescindibles, nunca contraseñas ni montos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-16`: hay exactamente una plantilla por cada tipo de `email_kind`.
+    - `RNF-25`: existen las plantillas de intentos fallidos, cambio de contraseña y eliminación de la cuenta.
+    - Ninguna plantilla incluye la contraseña ni el token en texto, fuera del enlace.
+
+- [ ] **`TASK-049`: Bandeja de salida de correos y job `outbox.send`**
+  - **Dependencias:** Requiere TASK-038, TASK-048
+  - **Trazabilidad SDD:** plan §3.3 (`email_outbox`), plan §4.1.3 (correo caído), plan §4.0 (tick); EC-M1-07, RNF-22
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/email-outbox.repository.ts`
+    - `apps/api/src/application/jobs/outbox.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/outbox.test.ts`
+  - **Especificación de Implementación:** `enqueue(tx, email)` inserta una fila en `email_outbox`. El job `outbox.send` toma las filas pendientes vencidas, las envía y borra cada fila enviada. Si falla, reintenta a 1, 5, 15 y 60 minutos y después marca la fila `failed`. Se registra en el tick.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M1-07`: con el *fake* fallando y un `Clock` falso, los reintentos siguen la secuencia 1, 5, 15 y 60 minutos.
+    - `RNF-22`: un correo enviado borra su fila; uno pendiente sigue reintentándose.
+
+- [ ] **`TASK-050`: `AuthGateway` sobre Better Auth (prueba técnica S-1)**
+  - **Dependencias:** Requiere TASK-033
+  - **Trazabilidad SDD:** ADR-08, ADR-02, plan §1.3 (S-1), plan §3.3; RF-M1-07
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/auth-gateway.ts`
+    - `apps/api/src/infrastructure/auth/better-auth.ts`
+    - `apps/api/test/integration/auth-gateway.test.ts`
+  - **Especificación de Implementación:** Implementa con la API de servidor de Better Auth: `hashPassword`, `verifyPassword` (scrypt), `createUserCredential`, `setPassword`, `markEmailVerified`, `createSession(userId)` (devuelve la cookie `HttpOnly; Secure; SameSite=Lax`), `getSession(token)`, `deleteSession(id)` y `revokeSessions(userId, exceptSessionId?)`. El manejador HTTP genérico de Better Auth no se monta.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-050` (S-1): se crea una sesión y su cookie desde código propio, y `getSession` la reconoce.
+    - `RF-M1-07`: dos sesiones del mismo usuario coexisten.
+    - `revokeSessions` con `exceptSessionId` conserva solo esa sesión.
+
+- [ ] **`TASK-051`: Enlaces de confirmación y recuperación (`email-links`)**
+  - **Dependencias:** Requiere TASK-033
+  - **Trazabilidad SDD:** plan §4.1.3 (enlace de un solo uso), plan §3.9 (tokens como SHA-256); RF-M1-05, RF-M1-09, EC-M1-01, EC-M1-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/email-link.repository.ts`
+    - `apps/api/src/application/shared/email-links.ts`
+    - `apps/api/test/integration/email-links.test.ts`
+  - **Especificación de Implementación:** `create(tx, userId, purpose)` invalida el enlace vigente, genera un token aleatorio de 32 bytes y guarda solo su SHA-256, con 24 h de vigencia para la confirmación y 1 h para la recuperación. `consume(tx, token, purpose)` hace el `UPDATE … RETURNING` condicionado de plan §4.1.3; si no actualiza ninguna fila, devuelve el motivo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-09`: un enlace sirve una sola vez; dos consumos simultáneos dan un solo éxito.
+    - `RF-M1-05`: crear un enlace nuevo invalida el anterior.
+    - `EC-M1-01`: un enlace vencido o invalidado da `LINK_INVALID`.
+    - `EC-M1-02`: un enlace ya usado da `LINK_ALREADY_USED`.
+
+- [ ] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
+  - **Dependencias:** Requiere TASK-033
+  - **Trazabilidad SDD:** plan §4.1.3 (espera tras intentos fallidos), plan §3.9 (HMAC); RF-M1-08, EC-M1-04, EC-M1-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/login-throttle.repository.ts`
+    - `apps/api/src/application/shared/login-throttle.ts`
+    - `apps/api/test/integration/login-throttle.test.ts`
+  - **Especificación de Implementación:** Clave HMAC-SHA256 del correo normalizado. `check(email)` devuelve los segundos que faltan. `fail(email)` hace el `INSERT … ON CONFLICT` atómico de plan §4.1.3 y fija `locked_until`. `reset(email)`. `shouldAlert(email)` permite como máximo una alerta por hora.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-08`: 5 fallos dan 60 s de espera, 10 fallos dan 15 min, y cada fallo posterior vuelve a dar 15 min.
+    - `RF-M1-08`: el contador se reinicia con un éxito o tras 1 h sin intentos, y la alerta sale como máximo una vez por hora.
+    - `EC-M1-04`: durante la espera, `check` informa el tiempo restante.
+    - `EC-M1-12`: un correo sin cuenta recibe la misma espera.
+
+- [ ] **`TASK-053`: Datos iniciales de un usuario nuevo (`user-bootstrap`)**
+  - **Dependencias:** Requiere TASK-025, TASK-033
+  - **Trazabilidad SDD:** plan §4.5.3 (seed), plan §4.15.1 (valores por defecto), plan §3.4; RF-M3-01, RF-M5-05, RF-M15-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/user-bootstrap.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/test/factories/user.factory.ts`
+    - `apps/api/test/integration/user-bootstrap.test.ts`
+  - **Especificación de Implementación:** Dentro de la transacción del registro crea: las monedas BOB y USD de sistema, `user_settings` con sus valores por defecto (`dashboard_blocks` en el orden de spec §2.8.1), las categorías precargadas y las del sistema, y las preferencias de avisos por defecto de plan §4.15.1. `user.factory` pasa a usar este servicio.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-01`: BOB y USD quedan activas y marcadas de sistema.
+    - `RF-M5-05`: se crean todas las categorías precargadas y las del sistema.
+    - `RF-M15-02`: las preferencias quedan activas salvo `log_day` (21:00) y `goal_progress`.
+
+- [ ] **`TASK-054`: Registro de usuario (`signUp`)**
+  - **Dependencias:** Requiere TASK-047, TASK-049, TASK-050, TASK-051, TASK-053
+  - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/auth/sign-up`), plan §4.1.3; RF-M1-01, RF-M1-03, RF-M1-06, RF-M1-17, EC-M1-03, EC-M1-09, RNF-15
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/test/integration/auth-signup.test.ts`
+  - **Especificación de Implementación:** Con un correo nuevo, crea el usuario sin confirmar, su credencial, los datos iniciales, el enlace (24 h) y el correo `confirm`. Con un correo Sin confirmar, reemplaza el nombre y la contraseña, fija `registered_at = now()`, invalida el enlace y envía uno nuevo. Con un correo Activo, encola `register_attempt` (como máximo uno por hora). Siempre devuelve `{ status: 'check_email' }` en un tiempo igualado. Si dos registros del mismo correo chocan en el índice único, el perdedor se reintenta por la rama Sin confirmar.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Registro con correo ya existente no revela la cuenta": la respuesta es la misma, se encola `register_attempt` y sigue habiendo un solo `auth_user`.
+    - `RF-M1-17`: dos intentos en menos de 1 h encolan un solo aviso.
+    - `EC-M1-09`: un registro repetido Sin confirmar reemplaza los datos, invalida el enlace anterior y reinicia el plazo de 7 días (`RF-M1-06`).
+    - `RF-M1-03`: la respuesta es idéntica en los tres casos.
+
+- [ ] **`TASK-055`: Reenvío y confirmación del correo**
+  - **Dependencias:** Requiere TASK-054
+  - **Trazabilidad SDD:** plan §4.1.2 (`confirmation/resend`, `confirm`); RF-M1-04, RF-M1-05, EC-M1-01, EC-M1-02, EC-M1-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/email-send-log.repository.ts`
+    - `apps/api/test/integration/auth-confirm.test.ts`
+  - **Especificación de Implementación:** `resendConfirmation` acepta el correo o un token (lo busca por hash aunque esté vencido), aplica los límites de 60 s y 5 por hora con `email_send_log` e invalida el enlace anterior; siempre responde 202. `confirm(token, currentSessionId?)` consume el enlace, marca el correo como verificado, cierra la sesión de otro usuario en el dispositivo y crea la sesión nueva.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-05`: un reenvío a los 30 s no envía nada; tras 5 reenvíos en una hora, el sexto tampoco.
+    - `RF-M1-04`: la cuenta queda Activa solo al confirmar.
+    - `EC-M1-01` / `EC-M1-02`: los enlaces vencidos, invalidados o usados dan su error.
+    - `EC-M1-11`: confirmar con la sesión de otro usuario abierta la cierra y abre la nueva.
+
+- [ ] **`TASK-056`: Inicio y cierre de sesión**
+  - **Dependencias:** Requiere TASK-052, TASK-055
+  - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/test/integration/auth-signin.test.ts`
+  - **Especificación de Implementación:** Con una espera vigente → `LOGIN_LOCKED {retryAfterSeconds}`. Verifica la contraseña; si el correo no existe, usa un hash de prueba para igualar el tiempo. Ante un fallo, registra el intento y, como máximo una vez por hora, encola `login_alert` si el correo tiene cuenta. Ante un éxito, reinicia el contador; si el correo no está confirmado, responde `EMAIL_NOT_CONFIRMED` sin crear sesión. `signOut` cierra la sesión actual y `signOutAll`, todas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Usuario sin confirmar no accede": `EMAIL_NOT_CONFIRMED` y ninguna fila en `auth_session`.
+    - Escenario "Espera progresiva tras intentos fallidos": tras 5 fallos, `LOGIN_LOCKED` con unos 60 s y un solo `login_alert` (`RNF-25`).
+    - `EC-M1-04`: la contraseña correcta se rechaza durante la espera.
+    - `RNF-15`: correo inexistente y contraseña incorrecta dan el mismo error.
+    - `RF-M1-07`: `signOutAll` deja 0 sesiones.
+
+- [ ] **`TASK-057`: Recuperar y cambiar la contraseña**
+  - **Dependencias:** Requiere TASK-056
+  - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/test/integration/auth-password.test.ts`
+  - **Especificación de Implementación:** `forgot` crea un enlace de 1 h y siempre responde 202. `reset` consume el enlace, cambia el hash, borra todas las sesiones, crea una nueva, confirma el correo si no lo estaba y encola `password_changed`. `change` verifica la contraseña actual (si falla, `INVALID_CURRENT_PASSWORD`), cambia el hash, revoca las demás sesiones y encola `password_changed`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Recuperar la contraseña cierra las demás sesiones": queda 1 sesión nueva, 0 anteriores y un `password_changed`.
+    - `EC-M1-10`: recuperar la contraseña de una cuenta Sin confirmar la deja Activa.
+    - `EC-M1-05`: tras `change`, la otra sesión deja de existir.
+    - `RF-M1-09`: el enlace vence a la hora.
+
+- [ ] **`TASK-058`: Middlewares de sesión `requireSession` y `trackActivity`**
+  - **Dependencias:** Requiere TASK-050
+  - **Trazabilidad SDD:** plan §4.1.2 (middlewares); RF-M1-07, RF-M2-08, EC-M1-05, EC-M1-06
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/middlewares/require-session.ts`
+    - `apps/api/src/presentation/middlewares/track-activity.ts`
+    - `apps/api/test/http/session-middlewares.test.ts`
+  - **Especificación de Implementación:** `requireSession` valida la cookie, rechaza con `SESSION_EXPIRED` si `last_activity_at` tiene más de 30 días o si la sesión ya no existe, y deja en la petición `{ userId, sessionId, timezone }`. `trackActivity` actualiza `last_activity_at` como máximo cada 5 minutos y nunca en las peticiones con `X-Background`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-07`: una petición con `X-Background` no renueva la sesión; una normal sí, como máximo cada 5 minutos.
+    - `RF-M2-08`: una sesión de más de 30 días sin actividad da `SESSION_EXPIRED 401`.
+    - `EC-M1-05` / `EC-M1-06`: una sesión revocada da `SESSION_EXPIRED` en su siguiente acción.
+
+- [ ] **`TASK-059`: Rutas HTTP de autenticación**
+  - **Dependencias:** Requiere TASK-057, TASK-058
+  - **Trazabilidad SDD:** plan §4.1.2 (tabla de endpoints de auth); RF-M1-03, RNF-15
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/auth.routes.ts`
+    - `apps/api/src/presentation/controllers/auth.controller.ts`
+    - `apps/api/src/presentation/presenters/me.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/auth.test.ts`
+  - **Especificación de Implementación:** Monta `/api/auth/*` según plan §4.1.2, con validación por `contracts`, la cookie en las respuestas que abren sesión y `MePresenter.toDto`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint de plan §4.1.2 responde con sus estados y códigos de error.
+    - `RNF-15`: `sign-up` y `password/forgot` dan el mismo cuerpo y estado con correos existentes e inexistentes, con una diferencia de tiempo p95 < 50 ms sobre 50 muestras.
+    - La cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`.
+
+- [ ] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
+  - **Dependencias:** Requiere TASK-059
+  - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: buzón de prueba y usuarios de prueba), plan §1.4 (*fakes*)
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/test/http/test-support.test.ts`
+  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `GET /internal/test/mailbox?to=` devuelve los correos del *fake*, y `POST /internal/test/users` crea un usuario confirmado, con el Onboarding terminado, y devuelve sus credenciales. Con `INTEGRATIONS=real`, estas rutas no se montan.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-060`: con `INTEGRATIONS=real`, las dos rutas responden 404.
+    - Con `fake`, el buzón devuelve el enlace de confirmación de un registro.
+
+- [ ] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
+  - **Dependencias:** Requiere TASK-059
+  - **Trazabilidad SDD:** plan §4.1.2 (`/api/me`); RF-M1-11, RF-M1-12, RF-M1-13, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/me.service.ts`
+    - `apps/api/src/presentation/routes/me.routes.ts`
+    - `apps/api/src/presentation/controllers/me.controller.ts`
+    - `apps/api/src/presentation/presenters/me.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/me.test.ts`
+  - **Especificación de Implementación:** `GET` devuelve `MeDto` con `release` y el estado del Onboarding. `PATCH` cambia el nombre y la zona horaria.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-12`: cambiar la zona horaria no altera la fecha de un movimiento ya guardado.
+    - `RF-M1-13`: enviar `email` da `VALIDATION_ERROR`.
+    - `RF-M1-11`: la zona horaria se puede cambiar.
+    - `RN-09`: la respuesta usa solo la sesión, nunca un id del cliente.
+
+- [ ] **`TASK-062`: Eliminar la cuenta**
+  - **Dependencias:** Requiere TASK-061
+  - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/me/delete`), plan §4.1.3 (eliminación), plan §3.8; RF-M1-15, EC-M1-06, EC-M1-08, RNF-16, RNF-25
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/me.service.ts`
+    - `apps/api/src/presentation/routes/me.routes.ts`
+    - `apps/api/src/presentation/controllers/me.controller.ts`
+    - `apps/api/test/http/me-delete.test.ts`
+  - **Especificación de Implementación:** Verifica la contraseña (si falla, `INVALID_PASSWORD`) y la palabra (si no coincide, `CONFIRMATION_MISMATCH`). Con `withUserLock`, encola `account_deleted` y borra `auth_user` en cascada.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Eliminar la cuenta": 0 filas del usuario en todas las tablas, `account_deleted` encolado y las sesiones cerradas.
+    - `EC-M1-08`: con una contraseña incorrecta o una palabra distinta de ELIMINAR, no se borra nada.
+    - `EC-M1-06`: la sesión de otro dispositivo recibe `SESSION_EXPIRED`.
+    - `RF-M1-15`: un job que toma el bloqueo del usuario no crea datos después de la eliminación.
+
+- [ ] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
+  - **Dependencias:** Requiere TASK-055
+  - **Trazabilidad SDD:** plan §4.1.3 (descarte), plan §3.9 (retención); RF-M1-06, EC-M1-03, RNF-26
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/maintenance-auth.test.ts`
+  - **Especificación de Implementación:** Borra los `auth_user` sin confirmar con `registered_at` de hace más de 7 días, los `email_send_log` de más de 24 h y los `login_throttle` sin actividad desde hace más de 1 h. Se registra en el tick con el nombre `maintenance`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-06`: un usuario sin confirmar de hace 7 días y 1 minuto se borra; uno de hace 6 días, no.
+    - `EC-M1-03`: después del descarte, el mismo correo se registra como nuevo.
+    - `RNF-26`: las purgas respetan 24 h y 1 h.
+
+- [ ] **`TASK-064`: Puesta al día por usuario (`catchUpUser`)**
+  - **Dependencias:** Requiere TASK-058, TASK-063
+  - **Trazabilidad SDD:** ADR-01 (respaldo con la primera petición del usuario), plan §4.0; RNF-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/tick.ts`
+    - `apps/api/src/presentation/middlewares/catch-up.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/test/integration/catch-up.test.ts`
+  - **Especificación de Implementación:** La primera petición autenticada de cada usuario en su día local ejecuta `catchUpUser(userId)`: los jobs registrados que tienen alcance por usuario, sin bloquear la respuesta. La marca de "ya corrió hoy" vive en memoria (los jobs son idempotentes).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-13`: dos peticiones el mismo día disparan una sola puesta al día, y un día nuevo la vuelve a disparar.
+    - Un error en la puesta al día no cambia la respuesta de la petición.
+
+- [ ] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
+  - **Dependencias:** Requiere TASK-046, TASK-060
+  - **Trazabilidad SDD:** plan §4.1.4 (rutas públicas), plan §4.2.4 (guardas); RF-M1-01, RF-M1-03, RF-M1-05, RF-M1-11, EC-M1-01, EC-M1-02
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/auth/api.ts`
+    - `apps/web/src/features/auth/hooks/use-me.ts`
+    - `apps/web/src/features/auth/components/sign-up-form.tsx`
+    - `apps/web/src/features/auth/components/check-email.tsx`
+    - `apps/web/src/features/auth/components/confirm-link.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/auth.json`
+    - `e2e/fixtures/mailbox.ts`
+    - `e2e/m1-sign-up.spec.ts`
+  - **Especificación de Implementación:** `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-03`: el registro muestra el mensaje neutro y lleva a "Revisa tu correo".
+    - `RF-M1-11`: el usuario creado tiene la zona horaria del navegador.
+    - `EC-M1-01`: un enlace inválido muestra "Este enlace ya no es válido" y ofrece reenviar.
+    - `EC-M1-02`: un enlace ya usado lleva al inicio de sesión.
+    - `RF-M1-05`: el reenvío queda deshabilitado durante 60 s.
+
+- [ ] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
+  - **Dependencias:** Requiere TASK-065
+  - **Trazabilidad SDD:** plan §4.1.4 (`/entrar`); RF-M1-04, RF-M1-08, EC-M1-04, RNF-15
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/auth/components/sign-in-form.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/locales/es-BO/auth.json`
+    - `e2e/fixtures/auth.ts`
+    - `e2e/m1-sign-in.spec.ts`
+  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` e inicia sesión.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-15`: con credenciales incorrectas se muestra "Correo o contraseña incorrectos", sin decir cuál falló.
+    - `RF-M1-04`: un usuario sin confirmar ve "Revisa tu correo".
+    - `EC-M1-04`: tras 5 fallos se ve el tiempo restante.
+
+- [ ] **`TASK-067`: Web: recuperar la contraseña**
+  - **Dependencias:** Requiere TASK-066
+  - **Trazabilidad SDD:** plan §4.1.4 (`/olvide-mi-contrasena`, `/restablecer`); RF-M1-09, RF-M1-10, RNF-15
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/auth/components/forgot-password-form.tsx`
+    - `apps/web/src/features/auth/components/reset-password-form.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/locales/es-BO/auth.json`
+    - `e2e/m1-password-reset.spec.ts`
+  - **Especificación de Implementación:** Pedir el enlace (mensaje neutro) y definir la contraseña nueva con el token de la URL. Al terminar, la sesión queda iniciada y se navega a la app.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-10`: tras restablecer, otro contexto del navegador con sesión previa la pierde en su siguiente acción.
+    - `RF-M1-09`: reabrir el mismo enlace muestra que ya no es válido.
+
+### Fase 7 — M2 Navegación y estructura, perfil y ajustes base (V1.0)
+
+- [ ] **`TASK-068`: Contratos de ajustes (M9)**
+  - **Dependencias:** Requiere TASK-021
+  - **Trazabilidad SDD:** plan §4.9.1, plan §4.2.1; RF-M9-01, RF-M2-09, RF-M8-10
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/settings.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/settings.test.ts`
+  - **Especificación de Implementación:** `UpdateSettingsInput` (parcial y estricto), `ResetSettingsInput`, `SettingsDto` y `DEFAULT_DASHBOARD_BLOCKS` (bloques 3 a 8 de spec §2.8.1).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-10`: `dashboardBlocks` exige exactamente 6 bloques con claves válidas.
+    - `favoriteCategories` admite como máximo 8 ids.
+    - `RF-M2-09`: `{ sidebarCollapsed: true }` es una entrada válida; un campo desconocido no.
+
+- [ ] **`TASK-069`: Servicio y rutas de ajustes generales**
+  - **Dependencias:** Requiere TASK-059, TASK-068
+  - **Trazabilidad SDD:** plan §4.9.2 (`GET` y `PATCH /api/settings`), plan §4.2.2, plan §4.9.3; RF-M9-01, RF-M2-09, EC-M9-01, RNF-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/settings.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+    - `apps/api/src/presentation/routes/settings.routes.ts`
+    - `apps/api/src/presentation/controllers/settings.controller.ts`
+    - `apps/api/src/presentation/presenters/settings.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/settings.test.ts`
+  - **Especificación de Implementación:** `GET /api/settings` y `PATCH /api/settings` con `numberFormat`, `dateFormat`, `weekStart`, `theme`, `sidebarCollapsed`, `alwaysShowNote` y `dashboardBlocks`. `defaultAccountId` y `favoriteCategories` se agregan en TASK-149. Gana la última escritura.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M9-01`: un cambio guardado se lee igual desde otra sesión del mismo usuario.
+    - `RF-M2-09`: `sidebarCollapsed` se guarda en la cuenta.
+    - `EC-M9-01` / `RNF-08`: con dos `PATCH` seguidos gana el último.
+    - Hay un test de aislamiento entre usuarios.
+
+- [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
+  - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
+  - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/api.ts`
+    - `apps/web/src/features/settings/hooks/use-settings.ts`
+    - `apps/web/src/lib/formatters.ts`
+    - `apps/web/src/app/providers/theme.tsx`
+    - `apps/web/test/formatters.test.ts`
+  - **Especificación de Implementación:** `useSettings()` usa la clave `['settings']`. `useFormatters()` expone `money`, `date` y `relativeDay` según los ajustes, y todas las pantallas lo usan para mostrar montos y fechas. `ThemeProvider` aplica el tema del servidor y actualiza la copia en localStorage. `buildFormatters(settings)` es puro.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
+    - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
+
+- [ ] **`TASK-071`: Web: guardas de rutas**
+  - **Dependencias:** Requiere TASK-065
+  - **Trazabilidad SDD:** plan §4.2.4 (guardas), ADR-18; RF-M2-03, RF-M1-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/guards.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `e2e/m2-guards.spec.ts`
+  - **Especificación de Implementación:** `RequireSession` (sin sesión lleva a `/entrar`), `RequireOnboardingDone` (lleva a `/bienvenida` mientras el Onboarding no termine) y `ReleaseGate(module)` (un módulo no liberado muestra la página 404), según `me.release` y `isReleased`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-04`: sin sesión, una ruta privada lleva a `/entrar`.
+    - `RF-M2-03` (`@release-1.0`): `/presupuestos` muestra la página 404 con `RELEASE=1.0`.
+
+- [ ] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
+  - **Dependencias:** Requiere TASK-070, TASK-071
+  - **Trazabilidad SDD:** plan §4.2.3 (disposición), plan §4.2.4 (árbol); RF-M2-01, RF-M2-02, RF-M2-03, RF-M2-09, RF-M7-01, EC-M2-03, RNF-05, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/layout/app-shell.tsx`
+    - `apps/web/src/app/layout/header.tsx`
+    - `apps/web/src/app/layout/bottom-tab-bar.tsx`
+    - `apps/web/src/app/layout/sidebar.tsx`
+    - `apps/web/src/app/layout/nav-items.ts`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/m2-navigation.spec.ts`
+  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Registrar en el centro de la barra en el celular" (360 px): las 5 pestañas en orden y Registrar en el centro (`RF-M2-01`, `RF-M7-01`).
+    - Escenario «Sin "Más" en escritorio» (1280 px) (`RF-M2-02`).
+    - `RF-M2-09`: contraer la barra en un contexto se refleja en otro contexto del mismo usuario.
+    - `EC-M2-03`: cambiar el tamaño de 360 a 1280 px no pierde el estado.
+    - `RNF-06`: sin violaciones de axe.
+
+- [ ] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
+  - **Dependencias:** Requiere TASK-044, TASK-072
+  - **Trazabilidad SDD:** plan §4.2.3 (memoria por módulo, botón Atrás), plan §4.2.4; RF-M2-04, RF-M2-05, RF-M2-06, RF-M2-12
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/layout/more-menu.tsx`
+    - `apps/web/src/app/layout/bottom-tab-bar.tsx`
+    - `apps/web/src/app/layout/sidebar.tsx`
+    - `apps/web/src/lib/use-back-to-close.ts`
+    - `apps/web/src/app/router.tsx`
+    - `e2e/m2-more-menu.spec.ts`
+  - **Especificación de Implementación:** `/mas` con las secciones PLANIFICAR, ORGANIZAR y CUENTA, que se ocultan si no tienen módulos liberados. Cada pestaña guarda y restaura su URL y su *scroll*. Tocar la pestaña activa lleva a la raíz del módulo, y "Más" recuerda el último módulo abierto desde él. `useBackToClose` cierra los diálogos con el botón Atrás.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-12` (`@release-1.0`): con `RELEASE=1.0`, PLANIFICAR no aparece.
+    - `RF-M2-04`: al cambiar de pestaña y volver, se restauran la URL y la posición.
+    - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
+    - `RF-M2-06`: el botón Atrás cierra un diálogo abierto sin salir de la pantalla.
+
+- [ ] **`TASK-074`: Web: pantalla de perfil**
+  - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073
+  - **Trazabilidad SDD:** plan §4.1.4 (`/perfil`); RF-M1-07, RF-M1-10, RF-M1-11, RF-M1-13, EC-M1-05
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/profile/api.ts`
+    - `apps/web/src/features/profile/components/profile-form.tsx`
+    - `apps/web/src/features/profile/components/change-password-form.tsx`
+    - `apps/web/src/features/profile/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/profile.json`
+    - `e2e/m1-profile.spec.ts`
+  - **Especificación de Implementación:** Nombre y zona horaria editables (con borrador `profile`), idioma fijo "Español (Bolivia)", correo en solo lectura con la explicación de cómo cambiarlo, cambio de contraseña, "Cerrar sesión" y "Cerrar sesión en todos los dispositivos".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-13`: el correo no es editable y se ve su explicación.
+    - `EC-M1-05`: tras cambiar la contraseña en un contexto, el otro pierde la sesión en su siguiente acción.
+    - `RF-M1-07`: "Cerrar sesión en todos los dispositivos" cierra el otro contexto.
+    - `RF-M1-11`: el cambio de zona horaria se guarda.
+
+- [ ] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
+  - **Dependencias:** Requiere TASK-041, TASK-074
+  - **Trazabilidad SDD:** plan §4.2.3 (estados de la app); RF-M2-07, RF-M2-08, RF-M2-10, EC-M2-01, RNF-23
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/layout/offline-overlay.tsx`
+    - `apps/web/src/app/layout/session-expired-dialog.tsx`
+    - `apps/web/src/app/layout/app-shell.tsx`
+    - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/m2-offline-session.spec.ts`
+  - **Especificación de Implementación:** `OfflineOverlay` tapa toda la app sin desmontarla. `SessionExpiredDialog` muestra el inicio de sesión encima de la pantalla: con el mismo usuario se cierra y se reintentan las consultas; con otro usuario se borran los borradores y la caché y se navega a `/`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-07` / `RNF-23`: con `context.setOffline(true)` aparece el bloqueo, y al reconectar desaparece solo.
+    - `RF-M2-10`: el borrador del perfil sigue ahí al reconectar.
+    - `RF-M2-08`: con la sesión vencida, iniciar sesión con el mismo usuario vuelve a la misma pantalla con el borrador.
+    - `EC-M2-01`: si entra otro usuario, el borrador anterior se descarta.
+
+- [ ] **`TASK-076`: Web: eliminar la cuenta**
+  - **Dependencias:** Requiere TASK-062, TASK-074
+  - **Trazabilidad SDD:** plan §4.1.4 (`/perfil/eliminar`); RF-M1-15, EC-M1-08
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/profile/components/delete-account.tsx`
+    - `apps/web/src/features/profile/routes.tsx`
+    - `apps/web/src/locales/es-BO/profile.json`
+    - `e2e/m1-delete-account.spec.ts`
+  - **Especificación de Implementación:** Una pantalla explica qué se borra y pide la contraseña y la palabra ELIMINAR. El botón "Exportar antes" se agrega en TASK-165. Al terminar, se cierra la sesión y se navega a `/entrar`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Eliminar la cuenta": con la contraseña y "ELIMINAR", la sesión se cierra y el correo `account_deleted` aparece en el buzón de prueba.
+    - `EC-M1-08`: con una palabra distinta, se muestra el motivo y no se elimina nada.
+
+### Fase 8 — M3 Monedas y tipo de cambio (V1.0)
+
+- [ ] **`TASK-077`: Contratos de M3**
+  - **Dependencias:** Requiere TASK-021
+  - **Trazabilidad SDD:** plan §4.3.1; RF-M3-02, RF-M3-12, RF-M3-05
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/fx.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/fx.test.ts`
+  - **Especificación de Implementación:** `UsdReference`, `RatesCurrentDto`, `RateHistoryQuery`, `FxSettingsInput`, `ManualUsdInput`, `CreateCurrencyInput`, `UpdateCurrencyInput` y `CurrencyDto`, como plan §4.3.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-02`: el código exige 3 letras mayúsculas y la tasa, ≥ 0,01.
+    - `RateHistoryQuery` solo admite los rangos 7d, 30d, 90d y 1y.
+    - `RF-M3-05`: cada referencia de `RatesCurrentDto` trae `observedAt` y `source`.
+
+- [ ] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
+  - **Dependencias:** Requiere TASK-026
+  - **Trazabilidad SDD:** plan §4.3.1 (`classifyBidAsk`, `gap`), ADR-06; RF-M3-12, spec §1.5 (referencia del dólar)
+  - **Archivos en Alcance:**
+    - `packages/domain/src/fx.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/fx-gap.test.ts`
+  - **Especificación de Implementación:** `classifyBidAsk(a, b)`: compra es el menor de los dos valores y venta el mayor, sin importar cómo los nombre la fuente. `gap(parallel, official)` = (paralelo − oficial) ÷ oficial, en % y en Bs, redondeado según RN-06.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-078`: `classifyBidAsk(10.30, 10.10)` da compra 10,10 y venta 10,30.
+    - `RF-M3-12`: con paralelo 10,25 y oficial 6,96, la brecha es 47,27 % y Bs 3,29.
+
+- [ ] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
+  - **Dependencias:** Requiere TASK-027, TASK-078
+  - **Trazabilidad SDD:** plan §4.3.1 (`resolveUsdRate`); RF-M3-03, RF-M3-06, RF-M3-13, EC-M3-03, RN-04
+  - **Archivos en Alcance:**
+    - `packages/domain/src/fx.ts`
+    - `packages/domain/test/fx-resolve.test.ts`
+  - **Especificación de Implementación:** Para hoy, usa el valor manual si está activo y, si no, la referencia en uso. Para una fecha pasada, usa el estado del usuario al final de ese día (el valor manual si estaba activo; si no, la referencia de ese día) y toma el valor de ese día del calendario de Bolivia. Si falta compra o venta, usa la mediana del día; si el día no tiene datos, el día anterior más cercano; antes del primer dato, el primer valor conocido. Sin ninguna tasa, devuelve `null`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-03`: el valor manual activo tiene prioridad sobre cualquier referencia.
+    - `RF-M3-06`: con una fecha pasada se usan la referencia y el valor manual que tenía el usuario ese día.
+    - `RF-M3-13`: un día sin compra usa la mediana de ese día.
+    - `EC-M3-03`: un día sin datos usa el anterior más cercano y, antes del primer dato, el primero.
+    - Sin ninguna tasa, devuelve `null`.
+
+- [ ] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
+  - **Dependencias:** Requiere TASK-079
+  - **Trazabilidad SDD:** plan §4.3.1 (`convert`, `transferPrefill`), plan §4.6.1 (convención de la tasa declarada); RF-M3-07, RF-M3-08, EC-M3-06, RN-05, RN-06
+  - **Archivos en Alcance:**
+    - `packages/domain/src/fx.ts`
+    - `packages/domain/test/fx-convert.test.ts`
+  - **Especificación de Implementación:** `convert(amount, rateCurBob, rateBaseBob)` con redondeo RN-06. `customRateOn(events, code, date, tz)`, equivalente en dominio a `user_rate_on`. `transferPrefill({ from, to, date, manual, parallel, customRates })` según RF-M3-07: valor manual → venta si se compran dólares, compra si se venden → tasa manual de la moneda agregada → tasa cruzada a través de BOB. `amountInFrom(amountOut, rate)` y `rateFromAmounts(amountOut, amountIn)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Tasa precargada según la dirección" (`RF-M3-07`): con compra 10,10 y venta 10,30, de Bs a $ se precarga 10,30 y Bs 1.000,00 dan $ 97,09.
+    - `EC-M3-06`: con el valor manual activo se precarga el valor manual.
+    - `RF-M3-08`: editar el monto que llega recalcula la tasa, con una diferencia máxima de 0,01.
+    - Entre dos monedas agregadas se usa la tasa cruzada a través de BOB.
+
+- [ ] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
+  - **Dependencias:** Requiere TASK-031, TASK-078
+  - **Trazabilidad SDD:** ADR-06, plan §1.3 (S-2), plan §4.3.2 (jobs); EC-M3-04, RF-M3-04
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/rates-gateway.ts`
+    - `apps/api/src/infrastructure/integrations/paralelo-bo.ts`
+    - `apps/api/src/infrastructure/integrations/paralelo-bo.fake.ts`
+    - `apps/api/test/unit/paralelo-bo.test.ts`
+  - **Especificación de Implementación:** Cliente de `https://paralelo.bo/mcp` con `get_current_rate`, `get_historical_rate` y `convert_currency` (oficial), con *timeout* y validación de la respuesta. Descarta los valores ≤ 0, vacíos o con más de 2 decimales. El *fake* devuelve valores configurables y puede simular errores y lentitud.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M3-04`: un valor 0, negativo o vacío se descarta.
+    - Las respuestas se clasifican en compra y venta con `classifyBidAsk`.
+    - Un *timeout* se informa como un fallo de la fuente, sin lanzar errores internos.
+
+- [ ] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
+  - **Dependencias:** Requiere TASK-081
+  - **Trazabilidad SDD:** ADR-06 (TCO con respaldo en el BCB), plan §4.3.2 (`fx.fetchOfficial`)
+  - **Archivos en Alcance:**
+    - `apps/api/src/infrastructure/integrations/bcb.ts`
+    - `apps/api/src/infrastructure/integrations/bcb.fake.ts`
+    - `apps/api/test/unit/bcb.test.ts`
+  - **Especificación de Implementación:** Lee el TCO del widget público del BCB, con su fecha de vigencia, y valida el valor como en TASK-081.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-082`: con una respuesta de ejemplo, devuelve el valor y su fecha de vigencia; con HTML inesperado, informa el fallo.
+
+- [ ] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
+  - **Dependencias:** Requiere TASK-033
+  - **Trazabilidad SDD:** plan §3.4, ADR-12; RF-M3-13, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/market-rate.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-fx-event.repository.ts`
+    - `apps/api/test/integration/fx-repositories.test.ts`
+  - **Especificación de Implementación:** `market_rate`: `upsertIfNewer`, `latest(kind)` y `series(kind, from, to)`. `currency`: `list`, `get`, `lockForUpdate`, `lockForShare` e `insert`. `user_fx_event`: `insert` y `eventsUntil(instant)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-13`: `upsertIfNewer` solo reemplaza el valor del día si la observación es más reciente.
+    - `RN-09`: las monedas y los eventos de un usuario no son visibles para otro.
+
+- [ ] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
+  - **Dependencias:** Requiere TASK-038, TASK-082, TASK-083
+  - **Trazabilidad SDD:** plan §4.3.2 (jobs), plan §4.3.3 (una sola actualización a la vez); RF-M3-04, EC-M3-01, EC-M3-04, RNF-21
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/fx.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/fx-jobs.test.ts`
+  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Usa `pg_try_advisory_lock(hashtext('fx_refresh'))`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-04`: con una captura de hace 30 minutos no consulta; con una de hace 61, sí.
+    - `EC-M3-01` / `RNF-21`: si la fuente falla, el último valor queda intacto.
+    - `EC-M3-04`: un valor inválido no se guarda.
+    - Si paralelo.bo falla para el oficial, se usa el BCB.
+
+- [ ] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
+  - **Dependencias:** Requiere TASK-080, TASK-083, TASK-069
+  - **Trazabilidad SDD:** plan §4.3.1, plan §4.3.3; RF-M3-03, RF-M3-05, RF-M3-06, RF-M3-12, EC-M3-02, RN-04, RN-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/rates.service.ts`
+    - `apps/api/test/integration/rates-service.test.ts`
+  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05).
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Valor manual con prioridad" (parte de M3): con el valor manual en 10,00 y el paralelo en 10,40, `inUse` vale 10,00 y trae `since`.
+    - `RF-M3-12`: con el oficial en uso, la brecha compara la mediana del paralelo contra el oficial.
+    - `EC-M3-02`: sin ninguna tasa, `rateUsdBob` es `null` y `inUse.value` es `null`.
+    - `RF-M3-06`: un movimiento en BOB guarda igualmente la tasa boliviano-dólar.
+
+- [ ] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
+  - **Dependencias:** Requiere TASK-084, TASK-085
+  - **Trazabilidad SDD:** plan §4.3.2; RF-M3-04, RF-M3-05, RNF-04, RNF-27
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/fx.routes.ts`
+    - `apps/api/src/presentation/controllers/fx.controller.ts`
+    - `apps/api/src/presentation/presenters/fx.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/rates.test.ts`
+  - **Especificación de Implementación:** `GET /api/rates/current` responde al instante con lo guardado y, si la última captura del paralelo tiene más de 1 minuto, dispara `fx.fetchParallel` en segundo plano. `GET /api/rates/history?kind&range` devuelve un punto por día.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-04`: con la fuente simulada lenta (5 s), `current` responde en menos de 100 ms.
+    - `RF-M3-04`: una captura de hace más de 1 minuto dispara la actualización una sola vez.
+    - `RNF-27` / `RF-M3-05`: cada valor incluye su fuente y su `observedAt`.
+    - `history` con `range=30d` devuelve como máximo 30 puntos.
+
+- [ ] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
+  - **Dependencias:** Requiere TASK-086
+  - **Trazabilidad SDD:** plan §4.3.2 (`PATCH /api/fx-settings`, `/api/fx/manual`), plan §4.3.3; RF-M3-03, RF-M3-11, RF-M3-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/fx-settings.service.ts`
+    - `apps/api/src/presentation/routes/fx.routes.ts`
+    - `apps/api/src/presentation/controllers/fx.controller.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/fx-settings.test.ts`
+  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-11`: cambiar la referencia o la base no modifica ninguna fila de `ledger_transaction`.
+    - `RF-M3-13`: cada cambio de referencia queda en `user_fx_event`.
+    - `RF-M3-03`: el valor manual activo no vence solo.
+    - Una base inactiva da `CURRENCY_INACTIVE`.
+
+- [ ] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
+  - **Dependencias:** Requiere TASK-086
+  - **Trazabilidad SDD:** plan §4.3.2 (`/api/currencies`), plan §4.3.3; RF-M3-01, RF-M3-02, EC-M3-07, RF-M3-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/currencies.service.ts`
+    - `apps/api/src/presentation/routes/currencies.routes.ts`
+    - `apps/api/src/presentation/controllers/currencies.controller.ts`
+    - `apps/api/src/presentation/presenters/currencies.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/currencies.test.ts`
+  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-02`: un código repetido da `CURRENCY_CODE_TAKEN`.
+    - `EC-M3-07`: una tasa menor que Bs 0,01 da `RATE_BELOW_MINIMUM`.
+    - `RF-M3-13`: cada cambio de tasa queda en el historial.
+    - `RF-M3-01`: cambiar la tasa de USD da `SYSTEM_CURRENCY`.
+    - Hay un test de aislamiento entre usuarios.
+
+- [ ] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
+  - **Dependencias:** Requiere TASK-088
+  - **Trazabilidad SDD:** plan §4.3.3 (Activa → Inactiva), plan §4.0 (servicios compartidos); RF-M3-01, EC-M3-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/src/application/services/currencies.service.ts`
+    - `apps/api/src/presentation/routes/currencies.routes.ts`
+    - `apps/api/src/presentation/controllers/currencies.controller.ts`
+    - `apps/api/test/http/currencies-deactivate.test.ts`
+  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-01`: desactivar BOB o USD da `SYSTEM_CURRENCY`, y desactivar la base, `BASE_CURRENCY`.
+    - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
+    - Reactivar exige una tasa nueva.
+
+- [ ] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
+  - **Dependencias:** Requiere TASK-060, TASK-084
+  - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: tasas fijas), plan §1.4 (*fakes*)
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/test/http/test-support.test.ts`
+  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
+
+- [ ] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
+  - **Dependencias:** Requiere TASK-083
+  - **Trazabilidad SDD:** ADR-06, plan §4.3.2 (script `fx-backfill`)
+  - **Archivos en Alcance:**
+    - `packages/db/scripts/fx-backfill.ts`
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+    - `packages/db/test/fx-backfill.test.ts`
+  - **Especificación de Implementación:** Carga la mediana diaria del paralelo desde el 01/01/2024 (una consulta por segundo) y el oficial: 6,96 hasta el 26/06/2026 y la serie del BCB desde el 27/06/2026. Es idempotente, gracias a `upsertIfNewer`, y recibe el cliente de tasas por inyección.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-091`: con un cliente simulado de 10 días, inserta 10 medianas y el oficial correcto a cada lado del 27/06/2026; correrlo dos veces no duplica nada.
+
+- [ ] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
+  - **Dependencias:** Requiere TASK-072, TASK-086, TASK-090
+  - **Trazabilidad SDD:** plan §4.3.4 (`RateChip`, estado), plan §4.2.4; spec §2.2.1 (cabecera); RF-M3-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/fx/api.ts`
+    - `apps/web/src/features/fx/hooks/use-current-rate.ts`
+    - `apps/web/src/features/fx/components/rate-chip.tsx`
+    - `apps/web/src/app/layout/header.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
+    - `e2e/m3-rate-chip.spec.ts`
+  - **Especificación de Implementación:** `useCurrentRate()` con la clave `['rates','current']`, refrescada cada 60 s con `background: true`. `RateChip` muestra "$ 10,25" con la referencia en uso, un distintivo si es el valor manual o "$ —" si no hay tasa, y lleva a `/tipo-de-cambio`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Con las tasas del *fake* fijadas, la ficha muestra el valor de la mediana.
+    - Con la fuente caída y sin datos, muestra "$ —".
+    - Con el valor manual activo, muestra el distintivo.
+
+- [ ] **`TASK-093`: Web: panel de Tipo de cambio**
+  - **Dependencias:** Requiere TASK-087, TASK-092
+  - **Trazabilidad SDD:** plan §4.3.4 (`/tipo-de-cambio`); RF-M3-03, RF-M3-05, RF-M3-11, RF-M3-12, RNF-27
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/fx/components/current-rates-card.tsx`
+    - `apps/web/src/features/fx/components/gap-card.tsx`
+    - `apps/web/src/features/fx/components/reference-selector.tsx`
+    - `apps/web/src/features/fx/components/manual-value-card.tsx`
+    - `apps/web/src/features/fx/components/manual-value-banner.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
+    - `e2e/m3-fx-panel.spec.ts`
+  - **Especificación de Implementación:** Las 4 referencias con "actualizado hace X" y la fuente enlazada; la brecha en % y en Bs; el selector de referencia; el valor manual con el aviso fijo "Usando tu valor manual (Bs X) desde hace N días". Toda mutación invalida todas las consultas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Valor manual con prioridad" (UI): activar Bs 10,00 muestra el aviso y la ficha con su distintivo.
+    - `RNF-27`: el enlace a paralelo.bo se ve junto a cada tasa del paralelo.
+    - `RF-M3-05`: cada tasa muestra "actualizado hace X".
+    - Sin violaciones de axe.
+
+- [ ] **`TASK-094`: Web: gráfico de evolución de las tasas**
+  - **Dependencias:** Requiere TASK-093
+  - **Trazabilidad SDD:** plan §4.3.4 (`RateHistoryChart`), ADR-03 (solo los gráficos usan `number`); spec §2.3.1 (consultar el panel)
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/fx/hooks/use-rate-history.ts`
+    - `apps/web/src/features/fx/components/rate-history-chart.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `e2e/m3-rate-history.spec.ts`
+  - **Especificación de Implementación:** Gráfico de Recharts con pestañas 7d, 30d, 90d y 1a, con un punto por día. La conversión a `number` ocurre solo dentro del gráfico. Tiene un texto alternativo con el último valor.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cambiar de pestaña pide el rango correcto y el gráfico se dibuja.
+    - Las pestañas se manejan con el teclado.
+
+- [ ] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
+  - **Dependencias:** Requiere TASK-089, TASK-093
+  - **Trazabilidad SDD:** plan §4.3.4 (`CurrenciesList`, `AddCurrencyDialog`); RF-M3-02, EC-M3-05, EC-M3-07
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/fx/components/currencies-list.tsx`
+    - `apps/web/src/features/fx/components/add-currency-dialog.tsx`
+    - `apps/web/src/features/fx/components/edit-currency-rate-dialog.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
+    - `e2e/m3-currencies.spec.ts`
+  - **Especificación de Implementación:** Agregar una moneda con código, símbolo y valor en Bs; editar su tasa; desactivarla y reactivarla. Los errores se traducen con el catálogo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Agregar EUR a 11,20 la muestra en la lista.
+    - `EC-M3-07`: una tasa de 0,001 muestra la explicación de valor demasiado bajo.
+    - `EC-M3-05`: desactivar una moneda en uso muestra qué la usa (cubierto cuando existan cuentas, TASK-101).
+
+### Fase 9 — M4 Cuentas (V1.0)
+
+- [ ] **`TASK-096`: Contratos de M4**
+  - **Dependencias:** Requiere TASK-024, TASK-077
+  - **Trazabilidad SDD:** plan §4.4.1; RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/accounts.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/accounts.test.ts`
+  - **Especificación de Implementación:** `AccountType`, `CreateAccountInput` (la tarjeta usa la forma `{ kind: 'debt' | 'credit', amount }`), `UpdateAccountInput` (estricto y sin saldo inicial), `AdjustInput`, `ArchiveInput`, `RestoreInput`, `ReorderInput`, `AccountDto` y `AccountsSummaryDto`, como plan §4.4.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-01`: un nombre de 41 caracteres es inválido.
+    - `RF-M4-02`: un saldo inicial de 1.000.000.000,00 es inválido.
+    - `RF-M4-07`: `UpdateAccountInput` rechaza `initialBalance` e `initialBalanceDate`.
+    - `RF-M4-08`: el día de corte o de pago fuera de 1–31 es inválido.
+
+- [ ] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
+  - **Dependencias:** Requiere TASK-026
+  - **Trazabilidad SDD:** plan §4.4.2 (cambio de tipo), plan §4.4.3; RN-01, RN-12, RF-M4-02, RF-M4-07, RF-M4-08
+  - **Archivos en Alcance:**
+    - `packages/domain/src/balance.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/balance.test.ts`
+  - **Especificación de Implementación:** `balanceFrom(initial, initialDate, entries)`, que solo cuenta los asientos con fecha ≥ la del saldo inicial. `validateInitialBalance(type, value)`. `cardView(balance, limit)` → "Debes X" o "A favor X", crédito disponible y límite superado. `validateTypeChange({ from, to, initialBalance, currentBalance, dedicated, hasEarmarks })` devuelve el motivo del rechazo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-01` / `RN-12`: un asiento anterior al saldo inicial no suma.
+    - `RF-M4-02`: efectivo con −1 se rechaza; banco con −1 se acepta.
+    - `RF-M4-08`: con límite 5.000 y deuda 5.200, el crédito disponible es −200 y está superado.
+    - `RF-M4-07`: no se puede pasar a efectivo una cuenta con saldo inicial negativo, ni a tarjeta una cuenta dedicada.
+
+- [ ] **`TASK-098`: Dominio `balance`: total neto y desglose**
+  - **Dependencias:** Requiere TASK-080, TASK-097
+  - **Trazabilidad SDD:** plan §4.4.2 (`GET /api/accounts`); RF-M4-10, RN-05, RN-06
+  - **Archivos en Alcance:**
+    - `packages/domain/src/balance.ts`
+    - `packages/domain/test/net-worth.test.ts`
+  - **Especificación de Implementación:** `netWorth(accounts, rates)` convierte cada saldo a la base con la tasa vigente, redondea por cuenta y suma. El desglose da Líquido (efectivo, banco, billetera y otro), Ahorro, Deuda en tarjetas (la suma de todas las tarjetas; un saldo a favor la reduce) y Apartado para metas (0 hasta V1.1). También devuelve el equivalente en la otra moneda, o `null` sin tasa.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-10`: una tarjeta con deuda resta del total, y un saldo a favor reduce la deuda en tarjetas.
+    - `RN-06`: el total es la suma de las conversiones redondeadas de cada cuenta.
+    - Sin tasa, el equivalente es `null`.
+
+- [ ] **`TASK-099`: Repositorios de cuentas y del libro contable (base)**
+  - **Dependencias:** Requiere TASK-083
+  - **Trazabilidad SDD:** plan §3.5, ADR-04, plan §4.4.2 (`balance-series`); RN-01, RN-09, RNF-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `apps/api/test/factories/account.factory.ts`
+    - `apps/api/test/factories/ledger.factory.ts`
+    - `apps/api/test/integration/account-ledger-repositories.test.ts`
+  - **Especificación de Implementación:** Cuentas: `insert`, `get`, `list(status)`, `lockForUpdate(ids)` (ordenadas por id), `update`, `setOrder`, `count` y `hasEntries`. Libro: `insertTransaction(tx, header, entries)` con `ON CONFLICT (id) DO NOTHING`, `balances(accountIds)` (un `SUM` agrupado que respeta RN-01 y excluye las eliminadas) y `balanceSeries(accountId, from, to)` (suma acumulada por día).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-01`: `balances` ignora los asientos anteriores al saldo inicial y las transacciones con `deleted_at`.
+    - `balanceSeries` devuelve el saldo de cada día del rango.
+    - `RN-09`: no se pueden leer ni bloquear cuentas de otro usuario.
+
+- [ ] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`), plan §4.4.3; RF-M4-04, EC-M4-01, EC-M4-06, RNF-10
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/balance-guard.ts`
+    - `apps/api/test/integration/balance-guard.test.ts`
+  - **Especificación de Implementación:** `apply(tx, userId, deltas, { mode })` bloquea las cuentas con `FOR UPDATE` (ordenadas por id), calcula el saldo vigente más los deltas y, si un efectivo o una billetera quedaría en negativo, lanza `NEGATIVE_BALANCE {accountId, resultingBalance}` (en modo `batch` devuelve `skip`). Los saldos de días pasados no se validan. La protección de apartados se agrega en TASK-183.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-04`: efectivo con 30 y un delta de −35 da `NEGATIVE_BALANCE` con `resultingBalance` "-5.00".
+    - `EC-M4-06`: un banco puede quedar en negativo.
+    - `RNF-10`: dos aplicaciones concurrentes de −20 sobre 30 dan un éxito y un error.
+    - `EC-M4-01`: quitar un ingreso que deja el efectivo en −50 se rechaza.
+
+- [ ] **`TASK-101`: `AccountsService`: crear, listar y resumen**
+  - **Dependencias:** Requiere TASK-037, TASK-085, TASK-089, TASK-096, TASK-098, TASK-100
+  - **Trazabilidad SDD:** plan §4.4.2 (`GET` y `POST /api/accounts`), ADR-11; RF-M4-01, RF-M4-02, RF-M4-09, RF-M4-10, RNF-28, RN-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/test/integration/accounts-create-list.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente (ADR-11), usa `withUserLock`, `assertLimit(50)` y `FOR SHARE` sobre la moneda (que debe estar activa), y guarda la deuda de la tarjeta como negativa. `list(status)` trae los saldos, sus equivalentes y los datos de tarjeta. `summary` da el total neto y el desglose con la tasa vigente. Registra en `CurrencyUsage` el uso por cuentas activas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-01`: un nombre repetido entre las activas da `NAME_TAKEN`.
+    - `RNF-28`: la cuenta 51 da `LIMIT_REACHED`.
+    - Repetir el mismo `id` devuelve la cuenta existente; con datos distintos, `IDEMPOTENCY_CONFLICT`.
+    - Escenario "Valor manual con prioridad" (totales): con el manual en 10,00 y el paralelo en 10,40, el total de una cuenta en $ se convierte con 10,00.
+    - `RF-M4-09`: las archivadas no suman en el total.
+    - `EC-M3-05`: desactivar una moneda usada por una cuenta activa da `CURRENCY_IN_USE` con "accounts".
+
+- [ ] **`TASK-102`: `AccountsService`: editar y reordenar**
+  - **Dependencias:** Requiere TASK-101
+  - **Trazabilidad SDD:** plan §4.4.2 (`PATCH /api/accounts/:id`, `PUT /api/accounts/order`); RF-M4-06, RF-M4-07, RF-M4-11, EC-M4-02, RNF-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/test/integration/accounts-update.test.ts`
+  - **Especificación de Implementación:** Edita el nombre, el color, el ícono y los campos de tarjeta. El cambio de tipo sigue `validateTypeChange` y, al dejar de ser tarjeta, borra sus campos. La moneda solo cambia si la cuenta no tiene asientos (si los tiene, `CURRENCY_LOCKED`). `reorder(ids)` exige exactamente las cuentas del usuario.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-06`: cambiar la moneda con movimientos da `CURRENCY_LOCKED`.
+    - `RF-M4-07`: un cambio de tipo inválido da `TYPE_CHANGE_INVALID {reason}`, y de tarjeta a banco se borran el corte, el pago y el límite.
+    - `RF-M4-11`: el orden se guarda y `list` lo respeta.
+    - `EC-M4-02`: enviar el saldo inicial da `VALIDATION_ERROR`.
+
+- [ ] **`TASK-103`: Ajustar el saldo de una cuenta**
+  - **Dependencias:** Requiere TASK-101
+  - **Trazabilidad SDD:** plan §4.4.2 (`POST /api/accounts/:id/adjust`); RF-M4-05, EC-M4-08, RN-02, RN-01
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/test/integration/accounts-adjust.test.ts`
+  - **Especificación de Implementación:** Con la cuenta bajo `FOR UPDATE`, delta = saldo real − saldo actual. Si el delta es 0, devuelve `{ created: false }`. Si no, crea `ledger_transaction(kind = adjustment, date = hoy)` con un asiento, pasando por `BalanceGuard`, con las tasas de RN-04 y una nota opcional. En una tarjeta, el usuario indica su deuda real.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Ajuste de saldo": con un saldo de 1.200 y un real de 1.250, se crea un ajuste de +50 y los ingresos del mes no cambian (`RN-02`).
+    - `EC-M4-08`: con el mismo saldo no se crea nada.
+    - Un ajuste que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
+
+- [ ] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
+  - **Dependencias:** Requiere TASK-102
+  - **Trazabilidad SDD:** plan §4.4.2 (`archive`, `restore`, `DELETE`), plan §4.7.3 (cuenta por defecto archivada); RF-M4-09, RF-M4-12, RF-M4-13, EC-M4-04, EC-M4-05, EC-M4-07, EC-M7-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/test/integration/accounts-lifecycle.test.ts`
+  - **Especificación de Implementación:** Archivar es un `UPDATE … WHERE status = 'active'`; con un saldo distinto de 0 exige `confirmNonZero` (si no, `ARCHIVE_CONFIRMATION_REQUIRED {balance}`) y pone `default_account_id = NULL` si era la cuenta por defecto. Restaurar exige un nombre libre (`NAME_TAKEN`; acepta `newName`) y la moneda activa (`CURRENCY_INACTIVE`). Eliminar solo procede sin asientos, incluidos los que están dentro de la ventana de deshacer (si no, `ACCOUNT_HAS_MOVEMENTS`), quita la cuenta por defecto y borra sus atajos. Las reglas de apartados, cuenta dedicada y recurrentes se agregan en TASK-188 y TASK-232.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-12` / `EC-M7-05`: archivar la cuenta por defecto deja `default_account_id` en NULL.
+    - `EC-M4-04`: restaurar con un nombre en uso da `NAME_TAKEN`; con `newName`, restaura.
+    - `EC-M4-07`: restaurar con la moneda inactiva da `CURRENCY_INACTIVE`.
+    - `RF-M4-13`: eliminar una cuenta sin movimientos borra sus atajos.
+    - `RF-M4-09`: una archivada no aparece en `list('active')` y conserva su historia.
+
+- [ ] **`TASK-105`: Rutas HTTP de cuentas**
+  - **Dependencias:** Requiere TASK-103, TASK-104
+  - **Trazabilidad SDD:** plan §4.4.2 (tabla de endpoints); RN-09, RNF-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/accounts.routes.ts`
+    - `apps/api/src/presentation/controllers/accounts.controller.ts`
+    - `apps/api/src/presentation/presenters/accounts.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/accounts.test.ts`
+    - `apps/api/test/http/accounts.isolation.test.ts`
+  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.4.2, incluido `GET /api/accounts/:id/balance-series?from&to`. Los montos viajan como texto.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-14`: el usuario B recibe 404 al leer, editar, ajustar, archivar o eliminar una cuenta de A.
+
+- [ ] **`TASK-106`: Web: lista de cuentas y total neto**
+  - **Dependencias:** Requiere TASK-073, TASK-105
+  - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas`); RF-M4-08, RF-M4-10, RF-M4-11, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/accounts/api.ts`
+    - `apps/web/src/features/accounts/hooks/use-accounts.ts`
+    - `apps/web/src/features/accounts/components/net-worth-summary.tsx`
+    - `apps/web/src/features/accounts/components/account-groups.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/accounts.json`
+    - `e2e/m4-accounts-list.spec.ts`
+  - **Especificación de Implementación:** Total neto en la base y en la otra moneda, el desglose, y las cuentas agrupadas por tipo y ordenadas por `sort_order`, reordenables con @dnd-kit y con botones Subir y Bajar. Enlace a `/cuentas?archivadas=1`. Las tarjetas muestran "Debes X" o "A favor X".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-11`: reordenar con los botones Subir y Bajar, solo con teclado, persiste al recargar (`RNF-06`).
+    - `RF-M4-10`: se ven el total neto y su desglose.
+    - `RF-M4-08`: una tarjeta muestra "Debes".
+
+- [ ] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
+  - **Dependencias:** Requiere TASK-043, TASK-106
+  - **Trazabilidad SDD:** plan §4.4.4 (formularios), plan §4.4.3 (sin cuentas activas); RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08, EC-M4-05, EC-M7-01
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/accounts/components/account-form.tsx`
+    - `apps/web/src/features/accounts/components/card-fields.tsx`
+    - `apps/web/src/features/accounts/components/quick-account-form.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/locales/es-BO/accounts.json`
+    - `e2e/m4-account-form.spec.ts`
+  - **Especificación de Implementación:** `AccountForm` para crear y editar, con borrador. Tipo, nombre, moneda, saldo inicial y su fecha (no editables después), color e ícono del catálogo, y el subformulario de tarjeta (deuda actual o saldo a favor, corte, pago y límite). `QuickAccountForm` pide nombre, tipo, moneda y saldo, y se reutiliza en Registrar y en el Inicio.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-02`: un efectivo con saldo negativo muestra el error.
+    - `RF-M4-01`: un nombre repetido muestra el error de duplicado.
+    - `RF-M4-07`: al editar, el saldo inicial no es editable y se ofrece "Ajustar saldo" (`EC-M4-02`).
+    - `RF-M4-08`: una tarjeta se crea con deuda actual.
+
+- [ ] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
+  - **Dependencias:** Requiere TASK-107
+  - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas/:id`); RF-M4-05, RF-M4-08, RF-M4-09, EC-M4-04, EC-M4-08
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/accounts/components/account-header.tsx`
+    - `apps/web/src/features/accounts/components/balance-chart.tsx`
+    - `apps/web/src/features/accounts/components/adjust-balance-dialog.tsx`
+    - `apps/web/src/features/accounts/components/account-actions.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/locales/es-BO/accounts.json`
+    - `e2e/m4-account-detail.spec.ts`
+  - **Especificación de Implementación:** Cabecera con el saldo y su equivalente; en las tarjetas, el límite, el crédito disponible y el aviso de límite superado. Gráfico del saldo con `?from&to` (por defecto, el mes actual). Acciones Ajustar, Editar, Archivar (con confirmación si el saldo no es 0), Restaurar (pide renombrar si hace falta) y Eliminar. La lista de movimientos del detalle se agrega en TASK-133.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M4-05`: ajustar a un saldo distinto muestra el nuevo saldo.
+    - `EC-M4-08`: con el mismo saldo se ve "El saldo ya coincide".
+    - `EC-M4-04`: restaurar con un nombre en uso pide un nombre nuevo.
+    - `RF-M4-08`: una tarjeta muestra el crédito disponible.
+
+### Fase 10 — M5 Categorías (V1.0)
+
+- [ ] **`TASK-109`: Contratos de M5**
+  - **Dependencias:** Requiere TASK-024
+  - **Trazabilidad SDD:** plan §4.5.1; RF-M5-01, RF-M5-02, RF-M5-04
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/categories.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/categories.test.ts`
+  - **Especificación de Implementación:** `CreateCategoryInput`, `UpdateCategoryInput` (estricto y sin `kind`), `ReorderCategoriesInput`, `RestoreCategoryInput`, `MergeInput`, `CategoryNode`, `ArchiveImpactDto` y `MergePreviewDto`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M5-02`: un nombre de 31 caracteres es inválido.
+    - `RF-M5-01`: `UpdateCategoryInput` rechaza `kind`.
+    - `RF-M5-04`: `color` es opcional al crear e `icon` es obligatorio.
+
+- [ ] **`TASK-110`: Repositorio de categorías**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §3.5, plan §4.5.2; RF-M5-03, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
+    - `apps/api/test/factories/category.factory.ts`
+    - `apps/api/test/integration/category-repository.test.ts`
+  - **Especificación de Implementación:** `tree(kind, status)` (dos niveles, en orden), `get`, `insert`, `update`, `setOrder`, `count`, `hasMovements` (incluye las eliminadas que siguen en la ventana de deshacer), `usage(id)` (presupuestos, reglas y atajos) y `idsWithChildren(id)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M5-03`: `idsWithChildren` devuelve el padre y sus hijas.
+    - `hasMovements` cuenta una transacción eliminada que todavía puede deshacerse.
+    - `RN-09`: un usuario no ve las categorías de otro.
+
+- [ ] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
+  - **Dependencias:** Requiere TASK-037, TASK-109, TASK-110
+  - **Trazabilidad SDD:** plan §4.5.2 (`POST`, `PATCH`, `PUT /order`), plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-04, RF-M5-05, EC-M5-01, EC-M5-03, EC-M5-05, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/categories-crud.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente con un tope de 300; una subcategoría sin color hereda el del padre. `update` renombra, cambia el ícono o el color, mueve a otro padre del mismo tipo o pasa a principal. Traduce los errores del trigger a `HIERARCHY_INVALID`, `PARENT_ARCHIVED`, `NAME_TAKEN` y `SYSTEM_CATEGORY`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M5-01`: "comida" con "Comida" existente da `NAME_TAKEN`.
+    - `RF-M5-04`: una hija sin color hereda el del padre.
+    - `RF-M5-05`: renombrar la categoría del sistema da `SYSTEM_CATEGORY`; cambiarle el color, no.
+    - `EC-M5-05`: pasar a principal con un nombre en uso da `NAME_TAKEN`.
+    - `EC-M5-03`: mover una hija cambia el total del padre anterior desde ese momento.
+    - `RNF-28`: la categoría 301 da `LIMIT_REACHED`.
+
+- [ ] **`TASK-112`: Archivar y restaurar categorías**
+  - **Dependencias:** Requiere TASK-111
+  - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/categories-archive.test.ts`
+  - **Especificación de Implementación:** `archiveImpact` lista las hijas, los presupuestos, las reglas y los atajos afectados. `archive` archiva el padre y sus hijas (los atajos se ocultan al leer; los efectos sobre presupuestos y reglas se agregan en TASK-203 y TASK-232). `restore(childIds, newName?)` restaura las hijas elegidas; una hija con el padre archivado exige restaurar el padre (`PARENT_ARCHIVED`).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M5-07`: el impacto lista las hijas y los atajos afectados.
+    - `RF-M5-06`: una archivada no aparece en el árbol de activas y conserva sus movimientos.
+    - `EC-M5-04`: restaurar con un nombre en uso da `NAME_TAKEN`.
+    - `EC-M5-06`: restaurar una hija con el padre archivado da `PARENT_ARCHIVED`.
+
+- [ ] **`TASK-113`: Eliminar categorías**
+  - **Dependencias:** Requiere TASK-111
+  - **Trazabilidad SDD:** plan §4.5.2 (`DELETE /api/categories/:id`), plan §3.8; EC-M5-07, RN-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/categories-delete.test.ts`
+  - **Especificación de Implementación:** Solo procede sin movimientos (incluidos los que están en la ventana de deshacer) y sin presupuesto ni regla que la use; sus atajos caen en cascada.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-08`: con movimientos, da `CATEGORY_HAS_MOVEMENTS`.
+    - `EC-M5-07`: usada por un presupuesto o una regla (insertados en la prueba), da `CATEGORY_IN_USE {budgets, recurring}`.
+    - Sin uso, se elimina con sus atajos.
+
+- [ ] **`TASK-114`: Fusionar categorías**
+  - **Dependencias:** Requiere TASK-112
+  - **Trazabilidad SDD:** plan §4.5.2 (`merge-preview`, `merge`), plan §4.5.3 (fusión); RF-M5-08, RF-M5-09, EC-M5-02, RN-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/categories-merge.test.ts`
+  - **Especificación de Implementación:** Con `withUserLock`, valida que sean del mismo tipo, que A no tenga hijas, que B esté activa y que ninguna sea del sistema (si no, `MERGE_INVALID {reason}`). Mueve a B los movimientos, las reglas y los atajos de A y elimina A. Repetir la fusión da `CATEGORY_NOT_FOUND`. La resolución de presupuestos y `MERGE_PENDING_CLOSE` se agregan en TASK-203.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Fusionar duplicados": "Taxis" (12) en "Taxi/Apps" (40) deja 52 y A deja de existir.
+    - `EC-M5-02`: fusionar una categoría con hijas da `MERGE_INVALID`.
+    - `RF-M5-09` / `RN-11`: el gasto por categoría de un mes pasado cambia tras la fusión.
+    - Repetir la fusión da `CATEGORY_NOT_FOUND`.
+
+- [ ] **`TASK-115`: Rutas HTTP de categorías**
+  - **Dependencias:** Requiere TASK-113, TASK-114
+  - **Trazabilidad SDD:** plan §4.5.2 (tabla de endpoints); RF-M5-05, RNF-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/categories.routes.ts`
+    - `apps/api/src/presentation/controllers/categories.controller.ts`
+    - `apps/api/src/presentation/presenters/categories.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/categories.test.ts`
+    - `apps/api/test/http/categories.isolation.test.ts`
+  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.5.2.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Categoría del sistema protegida": `archive` sobre "Deudas y préstamos" da `SYSTEM_CATEGORY`, y un UPDATE directo por SQL también falla.
+    - `RNF-14`: el usuario B recibe 404 en cada endpoint con un recurso de A.
+
+- [ ] **`TASK-116`: Web: árbol de categorías**
+  - **Dependencias:** Requiere TASK-073, TASK-115
+  - **Trazabilidad SDD:** plan §4.5.4 (`/categorias`); RF-M5-01, RF-M5-05, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/categories/api.ts`
+    - `apps/web/src/features/categories/hooks/use-categories.ts`
+    - `apps/web/src/features/categories/components/category-tree.tsx`
+    - `apps/web/src/features/categories/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/categories.json`
+    - `e2e/m5-categories.spec.ts`
+  - **Especificación de Implementación:** Pestañas Gastos e Ingresos; padres desplegables; reordenar arrastrando y con Subir y Bajar; distintivo "del sistema"; enlace a las archivadas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Categoría del sistema protegida" (UI): "Deudas y préstamos" no ofrece Archivar.
+    - `RNF-06`: reordenar con el teclado persiste.
+
+- [ ] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
+  - **Dependencias:** Requiere TASK-116
+  - **Trazabilidad SDD:** plan §4.5.4 (formularios y diálogos); RF-M5-04, RF-M5-07, RF-M5-08, EC-M5-02, EC-M5-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/categories/components/category-form.tsx`
+    - `apps/web/src/features/categories/components/icon-gallery.tsx`
+    - `apps/web/src/features/categories/components/color-palette.tsx`
+    - `apps/web/src/features/categories/components/archive-category-dialog.tsx`
+    - `apps/web/src/features/categories/components/restore-category-dialog.tsx`
+    - `apps/web/src/features/categories/components/merge-dialog.tsx`
+    - `apps/web/src/features/categories/routes.tsx`
+    - `apps/web/src/locales/es-BO/categories.json`
+    - `e2e/m5-category-dialogs.spec.ts`
+  - **Especificación de Implementación:** `CategoryForm` (con borrador) con `IconGallery`, `ColorPalette` y el selector de padre. El diálogo de archivar lista el impacto. El de restaurar permite elegir las hijas. El de fusionar muestra la vista previa. Archivar, fusionar o mover invalida `['categories']`, `['transactions']`, `['dashboard']` y `['budgets']`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M5-07`: archivar un padre lista sus hijas antes de confirmar.
+    - `RF-M5-08`: la vista previa muestra cuántos movimientos se moverán.
+    - `EC-M5-02`: una categoría con hijas no se ofrece como origen de una fusión.
+    - `RF-M5-04`: la paleta tiene 12 colores y es navegable con el teclado.
+
+### Fase 11 — M6 Transacciones (V1.0)
+
+- [ ] **`TASK-118`: Contratos de M6**
+  - **Dependencias:** Requiere TASK-077
+  - **Trazabilidad SDD:** plan §4.6.1; RF-M6-01, RF-M6-03, RF-M6-04, RF-M6-06
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/transactions.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/transactions.test.ts`
+  - **Especificación de Implementación:** `CreateTransactionInput` (unión discriminada por tipo, con `earmarkWithdrawals` y `manualUsdRate` opcionales), `UpdateTransactionInput`, `ListQuery`, `BatchDeleteInput`, `BatchRecategorizeInput`, `UndoInput` y `TransactionDto`, como plan §4.6.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-04`: una transferencia con el mismo origen y destino es inválida.
+    - `RF-M6-06`: `UpdateTransactionInput` rechaza `kind`.
+    - `RF-M6-01` / `RF-M6-03`: los límites de monto y nota.
+    - `ListQuery.limit` va de 1 a 100.
+
+- [ ] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
+  - **Dependencias:** Requiere TASK-099, TASK-110
+  - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`, `:id`); RF-M6-02, RF-M6-11, RF-M6-12, RN-02, RN-05, RF-M5-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/test/integration/ledger-list.test.ts`
+  - **Especificación de Implementación:** `list(filters, cursor)` pagina por `(date, created_at, id)` de forma descendente. `q` busca por nota (`unaccent(lower())`) o, si es un monto, por monto exacto en la moneda original. `categoryId` incluye las hijas. Devuelve `dayNets` de la página. `summary(filters, base)` devuelve ingresos, gastos y neto en la base, con las tasas guardadas y sin lo que excluye RN-02. `get(id)` trae la comisión y el origen.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-02`: dentro de un día, ordena del más reciente al más antiguo.
+    - `RN-02` / `RF-M6-12`: `summary` y `dayNets` excluyen transferencias, ajustes y "Deudas y préstamos" salvo "Intereses".
+    - "35" encuentra 35,00 pero no 135; "cafe" encuentra "Café".
+    - `RF-M5-03`: filtrar por un padre incluye sus hijas.
+
+- [ ] **`TASK-120`: `LedgerHooks` y registro de deshacer**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §4.0 (`LedgerHooks.afterChange`), ADR-07, plan §3.5 (`undo_action`)
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/ledger-hooks.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/undo-action.repository.ts`
+    - `apps/api/test/integration/ledger-hooks-undo.test.ts`
+  - **Especificación de Implementación:** `LedgerHooks.register(handler)` y `afterChange(tx, userId, { dates, categoryIds, accountIds })`, que llama a cada *handler* en la misma transacción (V1.0 no tiene *handlers*). El repositorio `undo_action` ofrece `create(kind, payload)` (vence a los 12 s) y `consume(id)` con un `UPDATE … WHERE consumed_at IS NULL AND expires_at > now() RETURNING`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-120`: un *handler* registrado recibe el cambio; si lanza un error, la transacción se revierte.
+    - `consume` solo funciona una vez y dentro de los 12 s.
+
+- [ ] **`TASK-121`: `TransactionsService.create`: gastos e ingresos**
+  - **Dependencias:** Requiere TASK-085, TASK-100, TASK-118, TASK-120
+  - **Trazabilidad SDD:** plan §4.6.2 (`POST /api/transactions`), plan §4.3.3 (sin ninguna tasa), ADR-11; RF-M6-01, RF-M6-14, RF-M3-06, RN-03, RN-04, RN-07, RN-12, EC-M3-02, RF-M4-03, RF-M4-04
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/factories/transaction.factory.ts`
+    - `apps/api/test/integration/transactions-create.test.ts`
+  - **Especificación de Implementación:** Valida la cuenta activa (`ACCOUNT_ARCHIVED`), la categoría activa y del mismo tipo (`CATEGORY_ARCHIVED`, `CATEGORY_KIND_MISMATCH`) y la fecha ≤ hoy en la zona del usuario (`FUTURE_DATE`). Toma las tasas con `RatesService.ratesForMovement`: si la cuenta no es BOB y no hay tasa, `RATE_REQUIRED`; con `manualUsdRate`, activa el valor manual en la misma transacción. Crea la transacción y su asiento (la moneda es la de la cuenta) con `BalanceGuard`, `LedgerHooks.afterChange` y un `undo_action(create)`. Es idempotente según ADR-11.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-14` (escenario "Doble toque no duplica"): dos POST con el mismo id dejan 1 fila; la primera respuesta es 201 y la segunda, 200.
+    - Escenario "Sin ninguna tasa disponible" (`EC-M3-02`): da `RATE_REQUIRED`; al reenviar con `manualUsdRate`, esa tasa queda en el gasto y el valor manual queda activo.
+    - Escenario "Movimiento anterior al saldo inicial no altera el saldo" (`RF-M4-03`, `RN-12`).
+    - Escenario "Bloqueo de negativo en efectivo" (`RF-M4-04`): 35 sobre 30 da `NEGATIVE_BALANCE` y no se guarda nada.
+    - `RN-07`: la fecha de mañana en la zona del usuario da `FUTURE_DATE`.
+    - `RF-M3-06`: un gasto en BOB guarda `rate_usd_bob`.
+
+- [ ] **`TASK-122`: `TransactionsService.create`: transferencias y comisión**
+  - **Dependencias:** Requiere TASK-121
+  - **Trazabilidad SDD:** plan §4.6.2, plan §4.6.1 (convención de la tasa declarada), plan §4.6.3 (comisión); RF-M6-04, RF-M6-05, RF-M3-07, RF-M3-08, RF-M3-09, EC-M6-08, RN-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/integration/transactions-transfer.test.ts`
+  - **Especificación de Implementación:** El origen y el destino deben ser cuentas activas y distintas. Entre monedas distintas: si no llega `declaredRate`, se usa la precarga de RF-M3-07; `amountIn` se calcula, o, si llega, manda y la tasa se recalcula. La comisión es una `ledger_transaction(kind = expense, origin = fee)` en "Servicios › Comisiones bancarias"; si esa categoría no existe o está archivada y no llega `fee.categoryId`, da `FEE_CATEGORY_REQUIRED`. El monto y la comisión pasan juntos por `BalanceGuard`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Transferencia con comisión": el Banco baja 505, el Efectivo sube 500, se crea un gasto de 5 en "Comisiones bancarias" y la transferencia no cuenta como ingreso ni gasto.
+    - Escenario "Pago de tarjeta no es gasto": la tarjeta queda en "Debes Bs 0,00" y los gastos del mes no cambian.
+    - `RF-M3-09`: la tasa declarada queda como tasa histórica (`rate_usd_bob`) en BOB↔USD.
+    - `EC-M6-08`: sin "Comisiones bancarias" da `FEE_CATEGORY_REQUIRED`.
+    - `RF-M6-05`: la comisión puede ser mayor que el monto.
+
+- [ ] **`TASK-123`: `TransactionsService.update`: editar movimientos**
+  - **Dependencias:** Requiere TASK-122
+  - **Trazabilidad SDD:** plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/integration/transactions-update.test.ts`
+  - **Especificación de Implementación:** Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M6-04` / `RF-M3-10`: cambiar la fecha de un gasto en $ conserva su tasa.
+    - `EC-M6-02` / `RNF-09`: editar un movimiento eliminado da `NOT_FOUND`.
+    - `EC-M6-07`: una conversión mayor que 999.999.999,99 da `AMOUNT_OUT_OF_RANGE`.
+    - `RF-M6-09`: editar el monto de un vinculado da `LINKED_FIELD_LOCKED`; su nota sí se puede editar.
+    - `RF-M6-08`: bajar un ingreso que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
+    - `EC-M6-01` / `RNF-08`: con dos PATCH seguidos gana el último.
+    - `RNF-24`: no existe ninguna tabla ni columna de historial de ediciones.
+
+- [ ] **`TASK-124`: Eliminar y deshacer movimientos**
+  - **Dependencias:** Requiere TASK-123
+  - **Trazabilidad SDD:** plan §4.6.2 (`DELETE`, `undo`), plan §4.6.3; RF-M6-08, RF-M7-07, EC-M6-03, EC-M6-05, EC-M4-01
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/integration/transactions-delete-undo.test.ts`
+  - **Especificación de Implementación:** `delete` pone `deleted_at` en la transacción y su comisión, pasa por `BalanceGuard` y los *hooks* y crea un `undo_action(delete)`. Un vinculado de deuda o de meta da `LINKED_DELETE_FORBIDDEN`. `undo(token)` consume el token y revierte según el tipo: `delete` → restaura; `create` → elimina; `recategorize` → restaura las categorías. Pasa por `BalanceGuard`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Eliminar y deshacer": el saldo sube 35 al eliminar y el `undo` antes de 10 s lo restaura.
+    - Un `undo` a los 13 s da `UNDO_EXPIRED`.
+    - `EC-M6-05`: eliminar una transferencia elimina también su comisión, y un solo `undo` restaura las dos.
+    - `EC-M6-03`: un `undo` que dejaría el efectivo en negativo da `NEGATIVE_BALANCE`.
+    - `RF-M7-07`: el `undo` de una creación elimina el movimiento con las mismas validaciones.
+
+- [ ] **`TASK-125`: Acciones en lote: eliminar y recategorizar**
+  - **Dependencias:** Requiere TASK-124
+  - **Trazabilidad SDD:** plan §4.6.2 (`batch-delete`, `batch-recategorize`); RF-M6-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/integration/transactions-batch.test.ts`
+  - **Especificación de Implementación:** Por cada id: al eliminar, omite los vinculados; al recategorizar, omite las transferencias, los ajustes y los de la categoría del sistema; en los dos casos, omite los que violarían el bloqueo de negativos (`BalanceGuard` en modo `batch`). Responde con la cantidad procesada y la omitida, y crea un único `undo_action`. Mezclar gastos e ingresos al recategorizar da `MIXED_KINDS`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-13`: de 5 seleccionados, con 1 vinculado y 1 que violaría un negativo, se eliminan 3 y se informan 2 omitidos.
+    - Un solo `undo` revierte el lote completo.
+    - `MIXED_KINDS` al recategorizar gastos e ingresos juntos.
+
+- [ ] **`TASK-126`: Servicio de lista y totales de movimientos**
+  - **Dependencias:** Requiere TASK-119, TASK-121
+  - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`); RF-M6-11, RF-M6-12, RF-M3-11, RN-04, RN-05, RNF-19
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/test/integration/transactions-list.test.ts`
+  - **Especificación de Implementación:** `list(ctx, query)` y `summary(ctx, query)` en la moneda base, usando las tasas guardadas en cada movimiento y, para una moneda no guardada, el historial en su fecha. Marca `beforeInitialBalance`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "La historia no se reescribe al cambiar la base" (`RF-M3-11`, `RNF-19`): un gasto de $ 10 al 10,00 vale Bs 100,00 antes y después de pasar a USD y volver, aunque el dólar suba a 11,00.
+    - `RF-M6-11`: los pendientes no aparecen (no existen en `ledger_transaction`).
+    - `RF-M6-12`: los totales excluyen lo de RN-02.
+
+- [ ] **`TASK-127`: Rutas HTTP de movimientos**
+  - **Dependencias:** Requiere TASK-125, TASK-126
+  - **Trazabilidad SDD:** plan §4.6.2 (tabla de endpoints), ADR-11; RNF-14, RNF-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/transactions.routes.ts`
+    - `apps/api/src/presentation/controllers/transactions.controller.ts`
+    - `apps/api/src/presentation/presenters/transactions.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/transactions.test.ts`
+    - `apps/api/test/http/transactions.isolation.test.ts`
+  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-11`: un reintento con el mismo id responde 200 sin crear una fila.
+    - `RNF-14`: el usuario B recibe 404 en cada endpoint con un movimiento de A, también como `accountId` o `categoryId` de una creación.
+
+- [ ] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
+  - **Dependencias:** Requiere TASK-063, TASK-124
+  - **Trazabilidad SDD:** plan §4.6.3 (eliminado definitivo), ADR-07; EC-M6-06
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/test/integration/maintenance-ledger.test.ts`
+  - **Especificación de Implementación:** Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
+    - Los `undo_action` vencidos desaparecen.
+
+- [ ] **`TASK-129`: Web: lista de movimientos**
+  - **Dependencias:** Requiere TASK-073, TASK-127
+  - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos`), ADR-16; RF-M6-02, RF-M6-10, RF-M6-12, RF-M4-03, RF-M9-03, RF-M2-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/transactions/api.ts`
+    - `apps/web/src/features/transactions/hooks/use-transactions.ts`
+    - `apps/web/src/features/transactions/components/month-selector.tsx`
+    - `apps/web/src/features/transactions/components/filters-bar.tsx`
+    - `apps/web/src/features/transactions/components/totals-bar.tsx`
+    - `apps/web/src/features/transactions/components/day-groups.tsx`
+    - `apps/web/src/features/transactions/components/transaction-row.tsx`
+    - `apps/web/src/features/transactions/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/transactions.json`
+    - `e2e/m6-transactions-list.spec.ts`
+  - **Especificación de Implementación:** Mes y filtros en la URL. Totales del filtro. Grupos por día con su neto y fecha relativa. Filas con los distintivos "anterior al saldo inicial" y "De recurrente: X". *Scroll* infinito con `useInfiniteQuery`. Búsqueda por nota o monto.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-12`: el neto del día excluye las transferencias.
+    - `RF-M4-03`: un movimiento anterior al saldo inicial muestra su distintivo.
+    - `RF-M2-04`: volver a Movimientos conserva el mes y los filtros.
+    - Buscar "35" filtra la lista.
+
+- [ ] **`TASK-130`: Web: selección y acciones en lote**
+  - **Dependencias:** Requiere TASK-129
+  - **Trazabilidad SDD:** plan §4.6.4 (`BatchToolbar`); RF-M6-13, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/transactions/components/batch-toolbar.tsx`
+    - `apps/web/src/features/transactions/components/transaction-row.tsx`
+    - `apps/web/src/features/transactions/components/day-groups.tsx`
+    - `apps/web/src/locales/es-BO/transactions.json`
+    - `e2e/m6-batch.spec.ts`
+  - **Especificación de Implementación:** Pulsación larga en el celular y casillas en el escritorio, con la tecla espacio para seleccionar. Solo se seleccionan los movimientos ya cargados. Eliminar o recategorizar muestra cuántos quedaron fuera y ofrece un solo "Deshacer".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-13`: eliminar 3 seleccionados con 1 vinculado informa "1 quedó fuera".
+    - `RNF-06`: la selección funciona solo con el teclado.
+
+- [ ] **`TASK-131`: Web: detalle y edición de un movimiento**
+  - **Dependencias:** Requiere TASK-129
+  - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos/:id`); RF-M6-07, RF-M6-09, RF-M3-10, EC-M6-02, EC-M6-07
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/features/transactions/components/transaction-edit-form.tsx`
+    - `apps/web/src/features/transactions/components/currency-change-confirm.tsx`
+    - `apps/web/src/features/transactions/routes.tsx`
+    - `apps/web/src/locales/es-BO/transactions.json`
+    - `e2e/m6-transaction-edit.spec.ts`
+  - **Especificación de Implementación:** Detalle con "Ir a…" en los vinculados. Edición con el borrador `transaction-edit:{id}`; la tasa se edita a mano. Al pasar a una cuenta de otra moneda, `CurrencyChangeConfirm` precarga el monto convertido con la tasa guardada. En los vinculados, el monto, la cuenta y la fecha se muestran bloqueados.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M6-07`: pasar un gasto de Bs a una cuenta en $ precarga el monto convertido.
+    - `EC-M6-02`: editar algo eliminado en otro contexto muestra "Este movimiento ya no existe".
+    - `RF-M3-10`: cambiar la fecha no cambia la tasa mostrada.
+
+- [ ] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
+  - **Dependencias:** Requiere TASK-131
+  - **Trazabilidad SDD:** plan §4.6.4 (global, optimismo), plan §4.6.3; RF-M7-07, EC-M6-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/layout/undo-toast.tsx`
+    - `apps/web/src/app/layout/app-shell.tsx`
+    - `apps/web/src/features/transactions/hooks/use-delete-transaction.ts`
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/locales/es-BO/transactions.json`
+    - `e2e/m6-delete-undo.spec.ts`
+  - **Especificación de Implementación:** `UndoToast` con 10 s de cuenta regresiva, que vive en `ui-store`. Eliminar es optimista: la fila desaparece al instante y vuelve si hay error. Al cambiar de pantalla en Movimientos, el aviso se oculta y la eliminación queda definitiva.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Eliminar y deshacer" (E2E): el saldo sube Bs 35,00 al instante, se ve "Movimiento eliminado · Deshacer" y, al tocarlo, el gasto vuelve.
+    - `EC-M6-06`: cambiar de pantalla oculta el "Deshacer".
+
+- [ ] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
+  - **Dependencias:** Requiere TASK-108, TASK-129
+  - **Trazabilidad SDD:** plan §4.4.4 (`MovementsByDay`, filtro compartido); spec §2.4.1 (consultar)
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/accounts/components/movements-by-day.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `e2e/m4-account-movements.spec.ts`
+  - **Especificación de Implementación:** Reutiliza `DayGroups` de M6 con `accountId` y el mismo `?from&to` que el gráfico del saldo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-133`: cambiar el rango de fechas actualiza el gráfico y la lista a la vez.
+
+### Fase 12 — M7 Registrar (V1.0)
+
+- [ ] **`TASK-134`: Contratos de M7**
+  - **Dependencias:** Requiere TASK-096, TASK-118
+  - **Trazabilidad SDD:** plan §4.7.1; RF-M7-04, RF-M7-07, RF-M7-09
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/register.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/register.test.ts`
+  - **Especificación de Implementación:** `RegisterContextDto`, `ShortcutDto`, `CreateShortcutInput`, `UpdateShortcutInput` y `ReorderShortcutsInput`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-09`: el nombre de un atajo va de 1 a 30 caracteres; una transferencia exige destino y no admite categoría; el monto es opcional.
+    - `RF-M7-04`: `grid` tiene como máximo 8 categorías por tipo.
+
+- [ ] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
+  - **Dependencias:** Requiere TASK-127, TASK-134
+  - **Trazabilidad SDD:** plan §4.7.2 (`GET /api/register/context`, `POST /api/transactions`), plan §1.2 (camino crítico); RF-M7-03, RF-M7-04, RF-M7-07, RF-M7-11, RF-M5-06, RF-M4-12, EC-M7-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/register.service.ts`
+    - `apps/api/src/presentation/routes/register.routes.ts`
+    - `apps/api/src/presentation/controllers/register.controller.ts`
+    - `apps/api/src/presentation/presenters/register.presenter.ts`
+    - `apps/api/src/presentation/controllers/transactions.controller.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/register.test.ts`
+  - **Especificación de Implementación:** Una sola consulta compuesta. La grilla toma las favoritas en su orden, después las más usadas en 60 días por categoría exacta (con empate por el uso más reciente) y después las precargadas por `seed_order`, sin archivadas. La última cuenta usada es la del último movimiento creado de ese tipo, si sigue activa; si no hay, la primera activa por `sort_order`. Agrega el último par de transferencia, los atajos visibles, los 3 últimos creados hoy y las cuentas con su saldo libre y sus datos de tarjeta. `POST /api/transactions` incluye además `todayRecent`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-04`: con 2 favoritas y 10 categorías usadas, la grilla muestra las 2 favoritas y luego las 6 más usadas; usar una hija no suma al padre.
+    - `RF-M5-06`: una categoría archivada nunca aparece en la grilla.
+    - `RF-M7-03` / `RF-M4-12` / `EC-M7-05`: sin cuenta por defecto, la última usada; si se archiva, la primera activa.
+    - `RF-M7-07`: `todayRecent` trae los 3 últimos creados hoy, aunque su fecha sea pasada.
+
+- [ ] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
+  - **Dependencias:** Requiere TASK-037, TASK-134
+  - **Trazabilidad SDD:** plan §4.7.2 (`/api/shortcuts`), plan §4.7.3 (atajo visible ⇄ oculto); RF-M7-09, RF-M7-10, EC-M7-06, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/shortcuts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/shortcut.repository.ts`
+    - `apps/api/src/presentation/routes/shortcuts.routes.ts`
+    - `apps/api/src/presentation/controllers/shortcuts.controller.ts`
+    - `apps/api/src/presentation/presenters/shortcuts.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/shortcuts.test.ts`
+  - **Especificación de Implementación:** CRUD de atajos con un tope de 12 que cuenta también los ocultos. Un atajo está visible si su cuenta (y su destino, o su categoría) están activos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M7-06` / `RNF-28`: el atajo 13 da `LIMIT_REACHED`, aunque haya atajos ocultos.
+    - `RF-M7-10`: editar, reordenar y eliminar funcionan.
+    - Un atajo con la categoría archivada no aparece en `register/context`.
+    - Hay un test de aislamiento entre usuarios.
+
+- [ ] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
+  - **Dependencias:** Requiere TASK-028, TASK-043, TASK-070, TASK-135
+  - **Trazabilidad SDD:** plan §4.7.3 (formulario), plan §4.7.4 (`/registrar`, teclado, rendimiento); RF-M7-01, RF-M7-02, RF-M7-03, RF-M7-04, RF-M7-05, RF-M7-06, RF-M7-08, RF-M7-11, RF-M7-12, RF-M9-04, RNF-01
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/api.ts`
+    - `apps/web/src/features/register/hooks/use-register-context.ts`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/features/register/components/kind-toggle.tsx`
+    - `apps/web/src/features/register/components/amount-input.tsx`
+    - `apps/web/src/features/register/components/account-chip.tsx`
+    - `apps/web/src/features/register/components/category-grid.tsx`
+    - `apps/web/src/features/register/components/all-categories-sheet.tsx`
+    - `apps/web/src/features/register/components/date-chips.tsx`
+    - `apps/web/src/features/register/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/app/guards.tsx`
+    - `apps/web/src/locales/es-BO/register.json`
+    - `e2e/m7-register-expense.spec.ts`
+  - **Especificación de Implementación:** Entra con el tipo Gasto y el foco en el monto (`inputMode="decimal"`), o restaura el borrador `register` con su tipo. El monto se interpreta con `parseAmountInput`. La cuenta viene preseleccionada y su ficha muestra el saldo libre (en tarjetas, el crédito disponible o la deuda). Grilla de 8 categorías y "Ver todas". Fichas Hoy, Ayer y Calendario, sin fechas futuras y respetando el primer día de la semana. "Guardar" se habilita según RF-M7-06; Enter en el monto equivale a guardar. El contexto se precarga en cuanto la sesión está lista, y la pantalla no hace peticiones antes de que el usuario escriba. Al guardar se genera un `id` UUID v7 nuevo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-02`: al entrar, el tipo es Gasto y el foco está en el monto.
+    - Escenario "Borrador al cambiar de pestaña": "120" sigue en el monto al volver desde Cuentas (`RF-M7-08`).
+    - Escenario "El borrador conserva su tipo": se restaura un ingreso de "500".
+    - `RF-M7-05`: el calendario no permite fechas futuras, y `RF-M9-04`: empieza en el día configurado.
+    - `RF-M7-12`: el formulario se completa y se guarda solo con Tab y Enter.
+    - `RF-M7-06`: "Guardar" está deshabilitado sin categoría.
+
+- [ ] **`TASK-138`: Web: transferencias en Registrar**
+  - **Dependencias:** Requiere TASK-137
+  - **Trazabilidad SDD:** plan §4.7.3, plan §4.6.1 (convención de la tasa declarada); RF-M7-03, RF-M7-06, RF-M3-07, RF-M3-08, RF-M6-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/components/transfer-fields.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/locales/es-BO/register.json`
+    - `e2e/m7-register-transfer.spec.ts`
+  - **Especificación de Implementación:** Origen y destino, con el último par usado. Si las monedas difieren: monto que sale, "Tipo de cambio usado" precargado con `transferPrefill` y monto que llega. Editar el monto que llega recalcula la tasa. Con una fecha pasada se precargan los valores de ese día.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Tasa precargada según la dirección" (E2E): con 10,10 y 10,30, de Bs a $ se precarga 10,30 y Bs 1.000,00 dan $ 97,09.
+    - `RF-M6-04`: con el mismo origen y destino, "Guardar" está deshabilitado.
+    - `RF-M3-08`: editar el monto que llega cambia la tasa mostrada.
+
+- [ ] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
+  - **Dependencias:** Requiere TASK-136, TASK-138
+  - **Trazabilidad SDD:** plan §4.7.4 (`SecondLevel`); RF-M7-10, RF-M7-13, RF-M6-05, EC-M6-08, EC-M7-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/components/second-level.tsx`
+    - `apps/web/src/features/register/components/fee-field.tsx`
+    - `apps/web/src/features/register/components/save-as-shortcut-dialog.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/locales/es-BO/register.json`
+    - `e2e/m7-register-second-level.spec.ts`
+  - **Especificación de Implementación:** Nota (en el primer nivel si `always_show_note`), otra cuenta, otra fecha, comisión (solo en transferencias; si falta la categoría, pide elegir otra) y "Guardar como atajo".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-13`: con "Mostrar la nota siempre", la nota está en el primer nivel.
+    - `RF-M7-10`: "Guardar como atajo" crea un atajo que aparece como ficha.
+    - `EC-M7-06`: con 12 atajos, informa el límite y ofrece ir a gestionarlos.
+    - `EC-M6-08`: sin "Comisiones bancarias", pide elegir otra categoría.
+
+- [ ] **`TASK-140`: Web: fichas de atajos**
+  - **Dependencias:** Requiere TASK-139
+  - **Trazabilidad SDD:** plan §4.7.4 (`ShortcutChips`); RF-M7-09, RF-M2-11
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/components/shortcut-chips.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `e2e/m7-register-shortcuts.spec.ts`
+  - **Especificación de Implementación:** Fichas del tipo actual. Tocar una rellena el formulario sin guardar; sin monto, el foco queda en el monto.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Atajo rellena sin guardar": el formulario queda completo y no hay ningún POST hasta tocar "Guardar".
+    - `RF-M7-09`: un atajo sin monto deja el foco en el monto.
+
+- [ ] **`TASK-141`: Web: errores y estados vacíos de Registrar**
+  - **Dependencias:** Requiere TASK-107, TASK-137
+  - **Trazabilidad SDD:** plan §4.7.3 (errores, sin tasa), plan §4.4.3 (sin cuentas activas); EC-M7-01, EC-M7-02, EC-M7-04, EC-M7-07, EC-M7-08, EC-M3-02, EC-M10-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/components/ask-rate-dialog.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/features/register/components/all-categories-sheet.tsx`
+    - `apps/web/src/locales/es-BO/register.json`
+    - `e2e/m7-register-errors.spec.ts`
+  - **Especificación de Implementación:** `NEGATIVE_BALANCE` muestra el error sin limpiar el formulario. `RATE_REQUIRED` abre `AskRateDialog` ("No pudimos obtener el dólar. ¿A cuánto lo tomamos?") y reenvía con el mismo `id` y `manualUsdRate`. Sin cuentas, muestra `QuickAccountForm`. Sin categorías del tipo, "Ver todas" aparece vacío con "Crear categoría". Un borrador con una cuenta inactiva vacía ese campo y lo marca.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M7-02`: un gasto que deja el efectivo en negativo muestra el error y el formulario conserva sus datos.
+    - Escenario "Sin ninguna tasa disponible" (E2E, `EC-M7-04`): con la fuente caída y sin datos, guardar en $ pide la tasa y el valor ingresado queda como manual activo.
+    - `EC-M7-01`: sin cuentas, se ve "Crea tu primera cuenta".
+    - `EC-M7-07` / `EC-M10-03`: sin categorías de gasto, "Ver todas" ofrece "Crear categoría".
+    - `EC-M7-08`: un borrador con una cuenta archivada en otro contexto marca la cuenta para elegir otra.
+
+- [ ] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
+  - **Dependencias:** Requiere TASK-132, TASK-141
+  - **Trazabilidad SDD:** plan §4.7.3 (formulario guardado), plan §4.2.3 (sin conexión); RF-M7-07, EC-M2-02, RF-M2-07, RNF-23
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/register/components/today-recent.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/locales/es-BO/register.json`
+    - `e2e/m7-register-after-save.spec.ts`
+  - **Especificación de Implementación:** Al guardar: borra el borrador, genera un `id` nuevo, muestra "Gasto de Bs X guardado · Deshacer" durante 10 s (sigue disponible al cambiar de pestaña hasta cumplirlos), devuelve el foco al monto y actualiza `['register','context']` con la respuesta, sin otra petición. `TodayRecent` muestra los 3 últimos creados hoy.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Registro rápido en menos de 10 segundos" (formulario): el gasto queda en Efectivo con fecha de hoy y el formulario vacío en Registrar.
+    - Escenario "Deshacer después de guardar": el gasto se elimina y el saldo se restablece.
+    - Escenario "Bloqueo sin conexión conserva el borrador": con "35" escrito, el bloqueo tapa la app y, al reconectar, "35" sigue ahí.
+    - `EC-M2-02`: si la conexión se corta durante el guardado, al reconectar hay un solo movimiento.
+
+### Fase 13 — M8 Inicio (V1.0)
+
+- [ ] **`TASK-143`: Contratos de M8**
+  - **Dependencias:** Requiere TASK-096, TASK-118
+  - **Trazabilidad SDD:** plan §4.8.1; RF-M8-01, RF-M8-03
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/dashboard.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/dashboard.test.ts`
+  - **Especificación de Implementación:** `DashboardQuery` y `DashboardDto` (incluye los tipos opcionales `BudgetBarDto` y `UpcomingItemDto` de V1.1).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-01`: `month` exige el formato AAAA-MM.
+    - `RF-M8-03`: `savingsRatePct` admite `null`.
+
+- [ ] **`TASK-144`: Dominio `dashboard`: comparación, variación y tasa de ahorro**
+  - **Dependencias:** Requiere TASK-027
+  - **Trazabilidad SDD:** plan §4.8.1 (`packages/domain/dashboard`); RF-M8-03, RF-M8-04, EC-M8-03
+  - **Archivos en Alcance:**
+    - `packages/domain/src/dashboard.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/dashboard.test.ts`
+  - **Especificación de Implementación:** `comparisonWindow(month, today)`: en el mes en curso, el mismo tramo de días del mes anterior (o hasta su último día); en un mes cerrado, el mes anterior completo. `pctChange` es un entero redondeado con la mitad hacia arriba, y `null` si el anterior es 0. `savingsRate` es `null` si no hay ingresos o el balance es negativo. `savingsRateDeltaPp`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Comparación por el mismo tramo" (`RF-M8-04`): el 15/10, 1.000 contra 1.200 da +20.
+    - `EC-M8-03`: el día 31 contra un mes de 30 días compara con el mes completo.
+    - Escenario "Tasa de ahorro oculta" (`RF-M8-03`): con ingresos 3.000 y gastos 3.500, da `null`.
+    - Con un valor anterior de 0, `pctChange` da `null`.
+
+- [ ] **`TASK-145`: `DashboardService`: tarjetas, variaciones y rango de meses**
+  - **Dependencias:** Requiere TASK-126, TASK-143, TASK-144
+  - **Trazabilidad SDD:** plan §4.8.2, plan §4.8.3; RF-M8-01, RF-M8-02, RF-M8-03, RF-M8-04, EC-M8-02, RN-02, RN-05, RN-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/dashboard.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/test/integration/dashboard-cards.test.ts`
+  - **Especificación de Implementación:** Dentro de una transacción de solo lectura, con una consulta SQL por bloque: ingresos y gastos sin lo de RN-02, convertidos con las tasas guardadas; balance; tasa de ahorro; variaciones según `comparisonWindow`. El rango va desde el mes del primer movimiento o del primer saldo inicial hasta el mes actual.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Préstamos no inflan los ingresos" (`RN-02`): un ingreso de Bs 5.000 en "Deudas y préstamos" no suma en Ingresos, pero sí en el saldo de la cuenta.
+    - `EC-M8-02`: un mes sin movimientos da tarjetas en 0 y la tasa de ahorro en `null`.
+    - `RF-M8-01`: el rango empieza en el mes del primer saldo inicial y no incluye meses futuros.
+    - `RN-12`: un gasto anterior al saldo inicial cuenta en los gastos del mes.
+
+- [ ] **`TASK-146`: `DashboardService`: bloques y endpoint `/api/dashboard`**
+  - **Dependencias:** Requiere TASK-145
+  - **Trazabilidad SDD:** plan §4.8.2 (`GET /api/dashboard`), plan §4.8.3; RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, RF-M5-03, RF-M5-09, EC-M8-04, RNF-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/dashboard.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/src/presentation/routes/dashboard.routes.ts`
+    - `apps/api/src/presentation/controllers/dashboard.controller.ts`
+    - `apps/api/src/presentation/presenters/dashboard.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/dashboard.test.ts`
+  - **Especificación de Implementación:** Gasto por categoría: las 5 principales con sus hijas sumadas, con monto y %, más "Otras". Ritmo: el gasto acumulado por día del mes (hasta hoy, si es el actual) contra el mes anterior completo. Saldos: el total neto de hoy en la base y la otra moneda, y las 5 primeras cuentas. Los 5 últimos movimientos. Omite los bloques no liberados y los ocultos en `dashboard_blocks`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-05` / `RF-M5-03`: una subcategoría suma a su padre, y la sexta categoría va a "Otras".
+    - `RF-M5-09`: después de mover una subcategoría, los totales del mes pasado cambian.
+    - `RF-M8-07`: los saldos son los de hoy aunque se pida un mes pasado.
+    - `EC-M8-04`: sin tasa, `netWorth.other` es `null`.
+    - `RF-M8-10`: un bloque oculto no viene en la respuesta.
+    - `RNF-14`: el usuario B nunca ve datos de A.
+
+- [ ] **`TASK-147`: Web: Inicio, selector de mes y tarjetas**
+  - **Dependencias:** Requiere TASK-107, TASK-129, TASK-146
+  - **Trazabilidad SDD:** plan §4.8.4 (`/`); RF-M8-01, RF-M8-03, RF-M8-04, RF-M8-11, EC-M8-01, EC-M8-02
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/dashboard/api.ts`
+    - `apps/web/src/features/dashboard/hooks/use-dashboard.ts`
+    - `apps/web/src/features/dashboard/components/summary-cards.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/dashboard.json`
+    - `e2e/m8-dashboard-cards.spec.ts`
+  - **Especificación de Implementación:** Selector de mes (reutiliza `MonthSelector`) y las 4 tarjetas con sus variaciones: los gastos que suben, en rojo; los ingresos, el balance y la tasa de ahorro que suben, en verde. `['dashboard', month]` con `staleTime` 0, invalidado por toda mutación. Sin cuentas, invita a crear la primera con `QuickAccountForm`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Registro rápido en menos de 10 segundos" (Inicio): después de guardar en Registrar, el Inicio refleja el gasto (`RF-M8-11`).
+    - `EC-M8-01`: sin cuentas, se ve la invitación.
+    - `RF-M8-04`: una variación de gastos positiva se muestra en rojo, con un texto accesible que no depende solo del color.
+    - `EC-M8-02`: en un mes vacío, la tasa de ahorro no aparece.
+
+- [ ] **`TASK-148`: Web: bloques del Inicio y navegación**
+  - **Dependencias:** Requiere TASK-147
+  - **Trazabilidad SDD:** plan §4.8.4 (orden de `dashboard_blocks`, navegación); RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, EC-M8-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/category-bars.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/src/features/dashboard/components/balances-block.tsx`
+    - `apps/web/src/features/dashboard/components/recent-block.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/locales/es-BO/dashboard.json`
+    - `e2e/m8-dashboard-blocks.spec.ts`
+  - **Especificación de Implementación:** Los bloques en el orden de `dashboard_blocks`, cada uno con sus estados Con datos y Vacío ("Aún no tienes gastos este mes · Registrar"). "Saldos al día de hoy" con "Ver todas". Cada tarjeta o categoría navega a `/movimientos?month=…&kind=…` o `&categoryId=…`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-10`: tocar la tarjeta Gastos abre Movimientos filtrado por gasto y ese mes.
+    - `RF-M8-07`: se ve la leyenda "Saldos al día de hoy".
+    - `EC-M8-04`: sin tasa, se ve "Sin tipo de cambio".
+    - `RF-M8-05`: tocar una categoría filtra Movimientos por ella.
+
+### Fase 14 — M9 Ajustes y personalización (V1.0)
+
+- [ ] **`TASK-149`: Ajustes: cuenta por defecto y categorías favoritas**
+  - **Dependencias:** Requiere TASK-069, TASK-104, TASK-112
+  - **Trazabilidad SDD:** plan §4.9.2 (`PATCH /api/settings`); RF-M7-03, RF-M7-04, EC-M9-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/settings.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/favorite-category.repository.ts`
+    - `apps/api/test/http/settings-register.test.ts`
+  - **Especificación de Implementación:** `defaultAccountId` debe ser una cuenta activa (si no, `ACCOUNT_ARCHIVED`). `favoriteCategories` reemplaza las favoritas del tipo dentro de una transacción: hasta 8, activas y del tipo indicado (si no, `CATEGORY_ARCHIVED` o `VALIDATION_ERROR`).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-03`: la cuenta por defecto se guarda y `register/context` la devuelve.
+    - `EC-M9-02`: una cuenta archivada como cuenta por defecto da `ACCOUNT_ARCHIVED`.
+    - `RF-M7-04`: guardar 3 favoritas las pone primeras en la grilla, en su orden.
+
+- [ ] **`TASK-150`: Restablecer ajustes por sección**
+  - **Dependencias:** Requiere TASK-087, TASK-149
+  - **Trazabilidad SDD:** plan §4.9.2 (`POST /api/settings/reset`); RF-M9-05
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/settings.service.ts`
+    - `apps/api/src/presentation/routes/settings.routes.ts`
+    - `apps/api/src/presentation/controllers/settings.controller.ts`
+    - `apps/api/test/http/settings-reset.test.ts`
+  - **Especificación de Implementación:** `general` vuelve a los formatos, la semana y el tema por defecto. `currencies` solo pone la referencia en la mediana y desactiva el valor manual (con su evento). `register` deja la cuenta por defecto en NULL, borra las favoritas y apaga la nota siempre visible. `dashboard` restaura los bloques. `reminders` restaura las preferencias de avisos por defecto.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M9-05`: después de cada sección, las cuentas, los movimientos, las categorías, los atajos, las monedas y la moneda base no cambian.
+    - `RF-M9-05`: `currencies` desactiva el valor manual y deja `parallel_median`.
+
+- [ ] **`TASK-151`: Web: Ajustes y sección General**
+  - **Dependencias:** Requiere TASK-070, TASK-150
+  - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (rutas, restablecer); RF-M9-01, RF-M9-02, RF-M9-03, RF-M9-05, EC-M9-01
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/components/settings-hub.tsx`
+    - `apps/web/src/features/settings/components/general-settings.tsx`
+    - `apps/web/src/features/settings/components/reset-section-button.tsx`
+    - `apps/web/src/features/settings/hooks/use-update-settings.ts`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/settings.json`
+    - `e2e/m9-settings-general.spec.ts`
+  - **Especificación de Implementación:** `/ajustes` con sus secciones. `/ajustes/general` con los formatos de número y de fecha, el primer día de la semana y el tema. Cada cambio se guarda 300 ms después, con actualización optimista y vuelta atrás si hay error, sin botón "Guardar". Botón "Restablecer valores por defecto" por sección, con confirmación.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Ajustes sincronizados" (`RF-M9-01`): el tema oscuro elegido en un contexto se ve en otro al recargar.
+    - Escenario "Formato de números" (E2E): con "Bs 1,234.56", escribir "35.50" en Registrar guarda 35,50.
+    - `RF-M9-03`: con la fecha en AAAA-MM-DD, la lista de movimientos usa ese formato.
+    - `RF-M9-05`: restablecer General vuelve a "Bs 1.234,56".
+
+- [ ] **`TASK-152`: Web: Ajustes de Registrar**
+  - **Dependencias:** Requiere TASK-140, TASK-151
+  - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/registrar`); RF-M7-03, RF-M7-04, RF-M7-10, RF-M7-13, EC-M9-02, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/components/register-settings.tsx`
+    - `apps/web/src/features/settings/components/favorites-picker.tsx`
+    - `apps/web/src/features/settings/components/shortcuts-manager.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/locales/es-BO/settings.json`
+    - `e2e/m9-settings-register.spec.ts`
+  - **Especificación de Implementación:** Cuenta por defecto (activas, incluidas las dedicadas a metas), `FavoritesPicker` con hasta 8 por tipo, atajos (editar, reordenar con Subir y Bajar, eliminar) y "Mostrar la nota siempre".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M7-04`: las favoritas elegidas aparecen primero en la grilla de Registrar.
+    - `EC-M9-02`: después de archivar la cuenta por defecto, Registrar preselecciona según RF-M7-03.
+    - `RF-M7-10`: reordenar los atajos con el teclado se refleja en Registrar.
+    - `RF-M7-13`: activar la nota la muestra en el primer nivel.
+
+- [ ] **`TASK-153`: Web: Ajustes del Inicio**
+  - **Dependencias:** Requiere TASK-148, TASK-151
+  - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/inicio`); RF-M8-10, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/components/blocks-order-list.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/locales/es-BO/settings.json`
+    - `e2e/m9-settings-dashboard.spec.ts`
+  - **Especificación de Implementación:** `BlocksOrderList` con los bloques 3 a 8, interruptores de visibilidad y botones Subir y Bajar. Los bloques no liberados no se muestran.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-10`: ocultar "Ritmo del gasto" lo quita del Inicio, y moverlo arriba cambia el orden.
+
+- [ ] **`TASK-154`: Web: Ajustes de monedas**
+  - **Dependencias:** Requiere TASK-095, TASK-151
+  - **Trazabilidad SDD:** plan §4.3.4 (`/ajustes/monedas`), plan §4.9.4; RF-M3-11, RF-M3-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/components/currency-settings.tsx`
+    - `apps/web/src/features/settings/components/base-currency-select.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/locales/es-BO/settings.json`
+    - `e2e/m9-settings-currencies.spec.ts`
+  - **Especificación de Implementación:** `BaseCurrencySelect` con las monedas activas, más los componentes del panel de Tipo de cambio (referencia, valor manual y monedas).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M3-11`: cambiar la base a USD reexpresa los totales de Cuentas y del Inicio sin cambiar los movimientos registrados.
+    - Restablecer la sección vuelve a la mediana del paralelo y desactiva el valor manual.
+
+### Fase 15 — M10 Onboarding (V1.0)
+
+- [ ] **`TASK-155`: Contratos de M10**
+  - **Dependencias:** Requiere TASK-096, TASK-109
+  - **Trazabilidad SDD:** plan §4.10.1; RF-M10-04
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/onboarding.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/onboarding.test.ts`
+  - **Especificación de Implementación:** `OnboardingDto`, `Step1Input`, `Step2Input` (hasta 20 cuentas), `Step3Input` y `SkipInput`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M10-04`: `Step2Input` acepta el saldo con las reglas de `AmountAbs`; `Step1Input` solo acepta BOB o USD.
+
+- [ ] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
+  - **Dependencias:** Requiere TASK-085, TASK-155
+  - **Trazabilidad SDD:** plan §4.10.2 (`GET`, `step1`, `skip`, `skip-all`), plan §4.10.3; RF-M10-01, RF-M10-02, RF-M10-03, RF-M10-06
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/test/integration/onboarding-step1.test.ts`
+  - **Especificación de Implementación:** `get` devuelve el paso, las cuentas sugeridas ("Efectivo (Bs)" ✓, "Banco (Bs)" ✓, "Dólares en efectivo ($)" sin marcar), el árbol de categorías y la tasa en uso o `null`. `step1` y `skip` hacen `UPDATE … WHERE onboarding_step = N AND onboarding_completed_at IS NULL` (si no, `STEP_MISMATCH {currentStep}`). `skipAll` termina el Onboarding. Si ya terminó, todo responde `ONBOARDING_DONE`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M10-01`: dos `step1` simultáneos avanzan una sola vez, y el segundo da `STEP_MISMATCH`.
+    - `RF-M10-02`: saltar el paso 1 deja BOB.
+    - `RF-M10-03`: saltar el paso 2 no crea cuentas.
+    - `RF-M10-06`: saltar el paso 3 conserva todas las precargadas.
+
+- [ ] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
+  - **Dependencias:** Requiere TASK-101, TASK-156
+  - **Trazabilidad SDD:** plan §4.10.2 (`step2`); RF-M10-04, EC-M10-01, EC-M10-02, RF-M4-01, RF-M4-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/test/integration/onboarding-step2.test.ts`
+  - **Especificación de Implementación:** Crea las cuentas con `AccountsService.create` (idempotente), con la fecha de hoy, y avanza al paso 3 en la misma transacción.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M10-04`: los saldos quedan con fecha de hoy.
+    - `EC-M10-01`: un efectivo negativo da `VALIDATION_ERROR` y no se crea ninguna cuenta.
+    - `EC-M10-02`: dos cuentas con el mismo nombre dan `NAME_TAKEN`.
+    - Reenviar el paso con los mismos ids no duplica las cuentas.
+
+- [ ] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
+  - **Dependencias:** Requiere TASK-111, TASK-157
+  - **Trazabilidad SDD:** plan §4.10.2 (`step3`), plan §4.5.3 (seed); RF-M10-05, EC-M10-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/test/integration/onboarding-step3.test.ts`
+  - **Especificación de Implementación:** Borra las precargadas desmarcadas (al quitar un padre se quitan sus hijas), crea las nuevas y marca `onboarding_completed_at`. La categoría del sistema no se puede quitar.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M10-05`: quitar "Deudas y préstamos" da `SYSTEM_CATEGORY`.
+    - `EC-M10-03`: se pueden quitar todas las de gasto.
+    - Al terminar, el Onboarding queda completado.
+
+- [ ] **`TASK-159`: Rutas HTTP del Onboarding**
+  - **Dependencias:** Requiere TASK-158
+  - **Trazabilidad SDD:** plan §4.10.2 (tabla de endpoints); RNF-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/onboarding.routes.ts`
+    - `apps/api/src/presentation/controllers/onboarding.controller.ts`
+    - `apps/api/src/presentation/presenters/onboarding.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/onboarding.test.ts`
+  - **Especificación de Implementación:** Monta los endpoints de plan §4.10.2.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores, incluido `ONBOARDING_DONE`.
+    - `RNF-14`: el Onboarding de un usuario no afecta a otro.
+
+- [ ] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
+  - **Dependencias:** Requiere TASK-147, TASK-159
+  - **Trazabilidad SDD:** plan §4.10.4 (`/bienvenida`); RF-M10-01, RF-M10-02, spec §2.10.1
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/onboarding/api.ts`
+    - `apps/web/src/features/onboarding/components/onboarding-stepper.tsx`
+    - `apps/web/src/features/onboarding/components/base-currency-step.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/onboarding.json`
+    - `e2e/m10-onboarding-step1.spec.ts`
+  - **Especificación de Implementación:** "Paso N de 3", "Saltar paso" y "Saltar todo". El paso 1 elige la base (BOB por defecto) e informa "Usaremos el dólar paralelo: Bs X…" o "Aún no pudimos obtener el dólar…". Al terminar, navega a `/` en el mes actual.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Saltar todo": la base es BOB, no hay cuentas, están todas las categorías y el Inicio invita a crear la primera cuenta.
+    - Sin tasa, se ve el mensaje "Aún no pudimos obtener el dólar".
+
+- [ ] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
+  - **Dependencias:** Requiere TASK-160
+  - **Trazabilidad SDD:** plan §4.10.4 (`AccountsStep`, borradores); RF-M10-04, EC-M10-01, EC-M10-02
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/onboarding/components/accounts-step.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/locales/es-BO/onboarding.json`
+    - `e2e/m10-onboarding-step2.spec.ts`
+  - **Especificación de Implementación:** Fichas marcables con un nombre editable y el campo "saldo de hoy" (0 por defecto), más "+ Otra cuenta". Usa el borrador `onboarding-step2`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M10-01`: un saldo negativo en efectivo muestra la explicación.
+    - `EC-M10-02`: dos nombres iguales muestran el error de duplicado.
+    - `RF-M10-04`: las cuentas creadas tienen el saldo indicado con fecha de hoy.
+
+- [ ] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
+  - **Dependencias:** Requiere TASK-161
+  - **Trazabilidad SDD:** plan §4.10.4 (`CategoriesStep`); RF-M10-01, RF-M10-05, EC-M10-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/onboarding/components/categories-step.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/locales/es-BO/onboarding.json`
+    - `e2e/m10-onboarding-step3.spec.ts`
+  - **Especificación de Implementación:** Árbol con casillas, todas marcadas; desmarcar un padre desmarca sus hijas; la categoría del sistema está bloqueada; "+ Agregar". Usa el borrador `onboarding-step3`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Retomar en otro dispositivo" (`RF-M10-01`): con el paso 1 completado en un contexto, otro contexto abre en el paso 2.
+    - `RF-M10-05`: la casilla de "Deudas y préstamos" no se puede desmarcar.
+    - `EC-M10-03`: sin categorías de gasto, Registrar muestra "Crear categoría".
+
+### Fase 16 — Exportación de datos (M1, V1.0)
+
+- [ ] **`TASK-163`: Generador de CSV y ZIP en streaming**
+  - **Dependencias:** Requiere TASK-007
+  - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`), plan §2 (`export/csv-zip.ts`); RF-M1-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/infrastructure/export/csv-zip.ts`
+    - `apps/api/test/unit/csv-zip.test.ts`
+  - **Especificación de Implementación:** `createZipStream(files: AsyncIterable<{ name, rows }>)` con archiver. Los CSV van en UTF-8, con coma como separador, montos como `1234.56` (sin separador de miles) y comillas cuando hacen falta. Toda celda que empieza con `=`, `+`, `-` o `@` se neutraliza anteponiendo un apóstrofo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-14`: una nota "=SUM(A1)" queda neutralizada; un monto se escribe como "1234.56"; una nota con comas y tildes se lee igual.
+
+- [ ] **`TASK-164`: Exportadores de V1.0 y endpoint `/api/me/export`**
+  - **Dependencias:** Requiere TASK-136, TASK-163
+  - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/export.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/export.repository.ts`
+    - `apps/api/src/presentation/routes/me.routes.ts`
+    - `apps/api/src/presentation/controllers/me.controller.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/me-export.test.ts`
+  - **Especificación de Implementación:** Registro de exportadores por módulo, filtrado por `RELEASE`. En V1.0: perfil y ajustes, monedas e historial de tasas manuales, cuentas, categorías, movimientos (con sus asientos y tasas) y atajos, incluidos los archivados. La respuesta es `application/zip` en streaming.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-16`: el ZIP contiene un CSV por cada tipo de dato liberado, con todas las filas del usuario y las archivadas.
+    - `RF-M1-14`: con `RELEASE=1.0` no hay CSV de presupuestos, metas, deudas, recurrentes ni avisos.
+    - `RN-09`: el ZIP no contiene datos de otro usuario.
+
+- [ ] **`TASK-165`: Web: exportar mis datos**
+  - **Dependencias:** Requiere TASK-076, TASK-164
+  - **Trazabilidad SDD:** plan §4.1.4 (exportar); RF-M1-14, RF-M1-15
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/profile/components/export-button.tsx`
+    - `apps/web/src/features/profile/components/profile-form.tsx`
+    - `apps/web/src/features/profile/components/delete-account.tsx`
+    - `apps/web/src/locales/es-BO/profile.json`
+    - `e2e/m1-export.spec.ts`
+  - **Especificación de Implementación:** "Exportar mis datos" descarga con `fetch` + `blob` y muestra el progreso. La pantalla de eliminar la cuenta ofrece "Exportar antes".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-14`: la descarga produce un ZIP con los CSV esperados.
+    - `RF-M1-15`: "Exportar antes" está disponible en la pantalla de eliminación.
+
+### Fase 17 — Cierre de V1.0: rendimiento, accesibilidad y despliegue
+
+- [ ] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
+  - **Dependencias:** Requiere TASK-053, TASK-121
+  - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: `seed:e2e`), plan §5.1 (rendimiento); RNF-03
+  - **Archivos en Alcance:**
+    - `packages/db/seed/e2e.ts`
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+    - `packages/db/test/seed-e2e.test.ts`
+  - **Especificación de Implementación:** Crea usuarios de prueba conocidos, tasas fijas en `market_rate` para 13 meses y, para el usuario de rendimiento, 5.000 movimientos repartidos en 12 meses y varias cuentas y categorías. Es determinista e idempotente.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-03`: el usuario de rendimiento tiene exactamente 5.000 transacciones.
+    - Correrlo dos veces no duplica nada.
+
+- [ ] **`TASK-167`: Pruebas de rendimiento del API**
+  - **Dependencias:** Requiere TASK-146, TASK-166
+  - **Trazabilidad SDD:** plan §5.3 (RNF-02, RNF-03), plan §4.8.2 (objetivo p95); RNF-02, RNF-03
+  - **Archivos en Alcance:**
+    - `apps/api/test/integration/performance.test.ts`
+  - **Especificación de Implementación:** Mide, contra Postgres y con el seed de 5.000 movimientos, el p95 de 200 `POST /api/transactions` y de 50 `GET /api/dashboard`, y revisa con `EXPLAIN ANALYZE` los planes de las consultas del Inicio.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-02`: el p95 del endpoint de guardar es menor que 300 ms.
+    - `RNF-03`: el p95 del Inicio es menor que 1,2 s y ninguna consulta hace *seq scan* sobre `ledger_transaction` ni `ledger_entry`.
+
+- [ ] **`TASK-168`: Pruebas de rendimiento E2E**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166
+  - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
+  - **Archivos en Alcance:**
+    - `e2e/perf.spec.ts`
+    - `e2e/support/network-profiles.ts`
+  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-01`: el flujo completo tarda menos de 10 s.
+    - `RNF-03`: el Inicio carga en menos de 2 s.
+    - El JavaScript de `/registrar` pesa 150 KB gzip o menos.
+
+- [ ] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
+  - **Dependencias:** Requiere TASK-154, TASK-162, TASK-165
+  - **Trazabilidad SDD:** plan §5.3 (RNF-05, RNF-06), plan §5.4 (definición de terminado, punto 5); RNF-05, RNF-06, RF-M7-12
+  - **Archivos en Alcance:**
+    - `e2e/a11y-v1-0.spec.ts`
+    - `e2e/keyboard-v1-0.spec.ts`
+  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-06`: ninguna violación seria o crítica de axe en ninguna pantalla de V1.0.
+    - `RF-M7-12`: se registra un gasto solo con el teclado.
+    - `RNF-05`: las pruebas pasan en Chromium, WebKit y Firefox a 360 px y a 1280 px.
+
+- [ ] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
+  - **Dependencias:** Requiere TASK-164
+  - **Trazabilidad SDD:** plan §5.1 (aislamiento), plan §5.3 (RNF-14, RNF-17), plan §3.9 (logs); RNF-14, RNF-17
+  - **Archivos en Alcance:**
+    - `apps/api/test/http/isolation-sweep.test.ts`
+    - `apps/api/test/http/logs-secrets.test.ts`
+  - **Especificación de Implementación:** Recorre todas las rutas montadas de `/api`. Las que tienen `:id` se prueban con un recurso de A desde la sesión de B, y se verifica que toda ruta privada exige sesión. Además, captura los logs del registro, el inicio de sesión, la recuperación y la eliminación.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-14`: toda ruta con un recurso ajeno responde 404, y la prueba falla si aparece una ruta nueva sin cubrir.
+    - `RNF-17`: los logs no contienen contraseñas, tokens de enlaces ni cookies.
+
+- [ ] **`TASK-171`: Configuración de Render y Vercel**
+  - **Dependencias:** Requiere TASK-036, TASK-045
+  - **Trazabilidad SDD:** plan §1.5 (configuración versionada), ADR-02, ADR-20
+  - **Archivos en Alcance:**
+    - `render.yaml`
+    - `vercel.json`
+  - **Especificación de Implementación:** `render.yaml` con el servicio `finanzas-api`, plan gratis, `autoDeploy: false`, los comandos de build y arranque, `healthCheckPath: /api/health` y las variables con `sync: false`. `vercel.json` con `git.deploymentEnabled: false`, el rewrite de `/api/:path*` hacia Render y el de la SPA hacia `/index.html`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Los valores coinciden uno por uno con plan §1.5.
+    - Ningún secreto tiene valor en los archivos.
+
+- [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
+  - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
+  - **Trazabilidad SDD:** plan §1.5 (`qa-e2e.yml`), ADR-20; constitución §7
+  - **Archivos en Alcance:**
+    - `.github/workflows/qa-e2e.yml`
+  - **Especificación de Implementación:** Disparadores `push` a `qa` y `pull_request` hacia `main`. Postgres como *service*, migraciones, `seed:e2e`, API con `INTEGRATIONS=fake`, web en `vite preview`, Playwright en la matriz de 6 proyectos en paralelo, axe, rendimiento y el subconjunto `@release-1.0`. Publica el reporte, las trazas y los videos de los fallos. Nombre del check: `qa-e2e`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - El workflow cubre cada paso de plan §1.5 y publica los artefactos de los fallos.
+
+- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml`**
+  - **Dependencias:** Requiere TASK-171, TASK-172
+  - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás), ADR-20; constitución §4, §7
+  - **Archivos en Alcance:**
+    - `.github/workflows/deploy.yml`
+  - **Especificación de Implementación:** En cada `push` a `main`, con `concurrency: production` (sin cancelar) y el *environment* `production`: CI reutilizable → `prisma migrate deploy` con `DATABASE_URL_DIRECT` → Deploy Hook de Render, consultando su API cada 15 s hasta `live` (falla ante `build_failed`, `update_failed` o 15 minutos) → `vercel pull`, `vercel build --prod` y `vercel deploy --prebuilt --prod` → humo con `/api/health` = 204 y `/` = 200. Todos los secretos usan `::add-mask::`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - El orden de los pasos y las condiciones de fallo coinciden con plan §1.5.
+    - Si un paso falla, no corre el siguiente.
+
+- [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
+  - **Dependencias:** Requiere TASK-091, TASK-173
+  - **Trazabilidad SDD:** plan §1.5 (`fx-backfill.yml`), ADR-06
+  - **Archivos en Alcance:**
+    - `.github/workflows/fx-backfill.yml`
+  - **Especificación de Implementación:** `workflow_dispatch` en el *environment* `production`. Corre una vez `packages/db/scripts/fx-backfill.ts` con `DATABASE_URL_DIRECT`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Solo se dispara a mano y usa los secretos del *environment* `production`.
+
+### Fase 18 — M15 Bandeja de avisos (V1.1)
+
+- [ ] **`TASK-175`: Contratos de avisos (M15)**
+  - **Dependencias:** Requiere TASK-023
+  - **Trazabilidad SDD:** plan §4.15.1; RF-M15-01, RF-M15-02, RF-M15-08
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/notifications.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/notifications.test.ts`
+  - **Especificación de Implementación:** `NotificationType`, `NotificationDto`, `NotificationsQuery`, `PreferencesInput` y `DEFAULT_PREFERENCES` (tabla de plan §4.15.1).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-08`: `NotificationType` tiene exactamente los 6 tipos del plan y ninguno de "cambio fuerte del dólar".
+    - `RF-M15-02`: los valores por defecto coinciden con la tabla (`log_day` y `goal_progress` desactivados; `log_day` a las 21).
+    - `PreferencesInput` limita la hora a 0–23 y la anticipación a 0–7.
+
+- [ ] **`TASK-176`: `NotificationEmitter`: avisos únicos por evento y decisiones**
+  - **Dependencias:** Requiere TASK-120, TASK-175
+  - **Trazabilidad SDD:** plan §4.15.3 (un solo aviso por evento, generación por eventos, entrega); RN-10, RF-M15-01, RF-M15-03, RF-M15-04, RF-M15-07, RNF-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/notification-emitter.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/notification.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/notification-preference.repository.ts`
+    - `apps/api/test/integration/notification-emitter.test.ts`
+  - **Especificación de Implementación:** `emit(tx, userId, { type, eventKey, params, targetRoute, decision? })` no crea nada si el tipo no está liberado o su preferencia está desactivada. Si no, hace `INSERT … ON CONFLICT (user_id, event_key) DO NOTHING`. `resolveDecision(tx, userId, kind, ref)` pasa a `resolved` los avisos que esperan esa decisión. Nunca escribe en `email_outbox`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RN-10` / `RNF-12`: emitir dos veces la misma `eventKey` deja un solo aviso.
+    - `RF-M15-03`: con la preferencia desactivada no se crea el aviso.
+    - `RF-M15-07`: con `RELEASE=1.1`, un `log_day` no se crea.
+    - `RF-M15-01`: emitir no inserta filas en `email_outbox`.
+    - `resolveDecision` deja el aviso en `resolved`.
+
+- [ ] **`TASK-177`: Servicio y endpoints de la bandeja**
+  - **Dependencias:** Requiere TASK-176
+  - **Trazabilidad SDD:** plan §4.15.2 (endpoints); RF-M15-06, RF-M15-12, RNF-14
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/notifications.service.ts`
+    - `apps/api/src/presentation/routes/notifications.routes.ts`
+    - `apps/api/src/presentation/controllers/notifications.controller.ts`
+    - `apps/api/src/presentation/presenters/notifications.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/notifications.test.ts`
+  - **Especificación de Implementación:** `GET /api/notifications` por cursor, del más nuevo al más viejo; `GET /api/notifications/unread-count`; `POST /:id/read`; `POST /read-all`; `DELETE /:id`. Todo detrás de `releaseGate` de la bandeja.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-06`: el contador cuenta solo los no leídos.
+    - `RF-M15-12`: "marcar todo como leído" y eliminar incluyen los avisos que esperan una decisión, y la decisión sigue en su módulo.
+    - `RNF-14`: el usuario B recibe 404 con un aviso de A.
+    - Con `RELEASE=1.0`, las rutas dan `RELEASE_NOT_AVAILABLE`.
+
+- [ ] **`TASK-178`: Job `maintenance`: retención de avisos**
+  - **Dependencias:** Requiere TASK-063, TASK-176
+  - **Trazabilidad SDD:** plan §4.15.3 (retención), plan §3.9; RF-M15-05, RNF-26
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/test/integration/maintenance-notifications.test.ts`
+  - **Especificación de Implementación:** Borra los avisos de más de 90 días con `decision_status IS NULL OR decision_status = 'resolved'`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-05`: un aviso de 91 días se borra, salvo si espera una decisión; uno de 89 días se conserva.
+
+- [ ] **`TASK-179`: Web: campana y bandeja de avisos**
+  - **Dependencias:** Requiere TASK-072, TASK-177
+  - **Trazabilidad SDD:** plan §4.15.4 (cabecera, `NotificationsPanel`), plan §4.2.4; RF-M15-06, RF-M15-11, RF-M15-12, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/notifications/api.ts`
+    - `apps/web/src/features/notifications/hooks/use-notifications.ts`
+    - `apps/web/src/features/notifications/components/bell-button.tsx`
+    - `apps/web/src/features/notifications/components/notifications-panel.tsx`
+    - `apps/web/src/features/notifications/components/notification-item.tsx`
+    - `apps/web/src/components/resource-not-found.tsx`
+    - `apps/web/src/app/layout/header.tsx`
+    - `apps/web/src/locales/es-BO/notifications.json`
+    - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `e2e/m15-inbox.spec.ts`
+  - **Especificación de Implementación:** `BellButton` con el contador, refrescado cada 60 s con `X-Background` y al reenfocar la ventana. `NotificationsPanel` (Sheet) con el texto i18n de cada tipo y sus parámetros: tocar un aviso lo marca como leído y navega; un menú "…" permite eliminarlo; está "Marcar todo como leído". `ResourceNotFound` muestra "Esto ya no existe" y lo usan las pantallas de detalle. Solo con `INTEGRATIONS=fake`, `POST /internal/test/notifications` crea avisos para E2E.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-06`: la campana muestra la cantidad de no leídos.
+    - `RF-M15-11`: un aviso cuyo destino no existe muestra "Esto ya no existe" y queda leído.
+    - `RF-M15-12`: "Marcar todo como leído" deja el contador en 0.
+    - `RNF-06`: eliminar desde el menú "…" funciona con el teclado y sin violaciones de axe.
+
+### Fase 19 — M12 Metas de ahorro (V1.1)
+
+- [ ] **`TASK-180`: Contratos de M12**
+  - **Dependencias:** Requiere TASK-024, TASK-077
+  - **Trazabilidad SDD:** plan §4.12.1; RF-M12-01
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/goals.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/goals.test.ts`
+  - **Especificación de Implementación:** `CreateGoalInput`, `UpdateGoalInput`, `EarmarkInput`, `ReleaseInput`, `DedicateInput` y `GoalDto`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M12-01`: el nombre va de 1 a 40 caracteres y el objetivo es mayor que 0; la moneda es editable y `dedicatedAccountId` no se acepta en `UpdateGoalInput`.
+
+- [ ] **`TASK-181`: Dominio `goals`: progreso, estado, sugerido y propuesta de retiro**
+  - **Dependencias:** Requiere TASK-080
+  - **Trazabilidad SDD:** plan §4.12.1 (`packages/domain/goals`), ADR-13; RF-M12-02, RF-M12-05, RF-M12-06, EC-M12-03, EC-M12-04
+  - **Archivos en Alcance:**
+    - `packages/domain/src/goals.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/goals.test.ts`
+  - **Especificación de Implementación:** `progress(dedicatedBalance, earmarks, rates)`: el saldo de la dedicada con mínimo 0, más los apartados, convertido a la moneda de la meta con la tasa vigente. `status(goal, progress, today)`. `suggestedMonthly` con sus variantes (mensual, "Faltan X este mes", calculadora, "Elige una nueva fecha" u oculto). `earmarkProposal(shortfall, earmarksByGoal)`: primero la meta con la fecha más lejana o sin fecha.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Progreso combinado" (`RF-M12-02`): una dedicada de 850 y apartados de 200 y 150 dan 1.200.
+    - `EC-M12-04`: una dedicada en −100 aporta 0.
+    - `EC-M12-03`: una meta en USD cumplida pasa a en curso si el dólar sube.
+    - `RF-M12-06`: (objetivo − progreso) ÷ meses restantes, incluido el actual; con la fecha en este mes, la variante "Faltan X este mes".
+    - `RF-M12-05`: la propuesta toma primero de la meta sin fecha.
+
+- [ ] **`TASK-182`: Repositorios de metas y apartados**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §3.6, plan §4.12.2 (historial); RF-M12-04, RF-M12-07, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
+    - `apps/api/test/factories/goal.factory.ts`
+    - `apps/api/test/integration/goal-repositories.test.ts`
+  - **Especificación de Implementación:** CRUD de metas. Eventos de apartado: `insert`, `earmarkedByAccount(accountId)` (por meta), `earmarkedByGoal(goalId)` y `history(goalId)`, que une los eventos con los asientos de la cuenta dedicada, cada uno con su origen.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M12-04`: `earmarkedByAccount` suma por meta los apartados y los retiros.
+    - `RF-M12-07`: el historial incluye los asientos de la dedicada con el origen "cuenta dedicada" y los ajustes con el origen "ajuste".
+    - `RN-09`: no se ven las metas de otro usuario.
+
+- [ ] **`TASK-183`: `BalanceGuard`: protección de apartados**
+  - **Dependencias:** Requiere TASK-100, TASK-181, TASK-182
+  - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`, paso 4), plan §4.12.3 (protección de apartados); RF-M12-05, EC-M12-07, RNF-10
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/balance-guard.ts`
+    - `apps/api/test/integration/balance-guard-earmarks.test.ts`
+  - **Especificación de Implementación:** Si una cuenta no dedicada queda con un saldo menor que la suma de sus apartados: en modo `interactive` lanza `EARMARK_CONFIRMATION_REQUIRED {shortfall, proposal}`, salvo que `earmarkWithdrawals` cubra el faltante, y entonces inserta eventos `confirmed_spend` en la misma transacción; en modo `automatic` devuelve `AutoBlocked`; en modo `batch`, `skip`. Las salidas de una cuenta dedicada no piden confirmación.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M12-05`: un banco con 4.800 y 300 apartados, ante un gasto de 4.600, da un faltante de 100 con la propuesta.
+    - Con los retiros que cubren 100, se guarda y los apartados quedan en 200.
+    - `EC-M12-07`: un ajuste negativo que baja del apartado pide confirmación.
+    - `RNF-10`: dos gastos concurrentes evalúan los apartados con el saldo vigente.
+    - Una cuenta dedicada no pide confirmación.
+
+- [ ] **`TASK-184`: Protección de apartados en movimientos, deshacer y ajustes**
+  - **Dependencias:** Requiere TASK-103, TASK-125, TASK-183
+  - **Trazabilidad SDD:** plan §4.6.2 (errores `EARMARK_CONFIRMATION_REQUIRED`), plan §4.12.3; RF-M12-05, RF-M6-08, RF-M6-13, EC-M12-07
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/transactions.ts`
+    - `packages/contracts/src/accounts.ts`
+    - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/presentation/controllers/transactions.controller.ts`
+    - `apps/api/src/presentation/controllers/accounts.controller.ts`
+    - `apps/api/test/integration/earmark-protection.test.ts`
+  - **Especificación de Implementación:** Crear, editar, eliminar, deshacer y ajustar aceptan `earmarkWithdrawals` opcional (en eliminar, como cuerpo opcional; se agrega a `UndoInput` y `AdjustInput`) y lo pasan a `BalanceGuard` en modo `interactive`. El lote usa el modo `batch`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Gasto que toca dinero apartado" (integración): primero `EARMARK_CONFIRMATION_REQUIRED {shortfall: 100}`; al reenviar con los retiros, los apartados del Banco quedan en 200.
+    - `RF-M6-08`: deshacer la eliminación de un gasto que baja del apartado pide confirmación.
+    - `RF-M6-13`: el lote omite el movimiento que tocaría un apartado.
+    - `EC-M12-07`: el ajuste negativo pide confirmación y, al confirmar, registra el retiro.
+
+- [ ] **`TASK-185`: `GoalsService`: crear, editar, listar, detalle e historial**
+  - **Dependencias:** Requiere TASK-037, TASK-089, TASK-180, TASK-183
+  - **Trazabilidad SDD:** plan §4.12.2 (`GET`, `POST`, `PATCH`); RF-M12-01, RF-M12-02, RF-M12-06, RF-M12-07, RF-M4-05, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/test/integration/goals-crud.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente, con un tope de 50; si dedica una cuenta, valida lo mismo que `/dedicate`. `update` exige una fecha objetivo ≥ hoy (`TARGET_DATE_IN_PAST`). `list` y `get` calculan el progreso, el estado y el sugerido al leer, y el detalle trae el progreso por cuenta y el historial. Registra en `CurrencyUsage` el uso por metas no archivadas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M12-01`: una fecha pasada da `TARGET_DATE_IN_PAST`.
+    - `RNF-28`: la meta 51 da `LIMIT_REACHED`.
+    - `RF-M4-05`: un ajuste en la dedicada aparece en el historial con el origen "ajuste" y cambia el progreso.
+    - `EC-M3-05`: desactivar la moneda de una meta da `CURRENCY_IN_USE` con "goals".
+
+- [ ] **`TASK-186`: Apartar, liberar y dedicar una cuenta**
+  - **Dependencias:** Requiere TASK-185
+  - **Trazabilidad SDD:** plan §4.12.2 (`earmarks`, `release`, `dedicate`); RF-M12-03, RF-M12-04, EC-M12-01, EC-M12-06, EC-M12-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/test/integration/goals-earmarks.test.ts`
+  - **Especificación de Implementación:** Apartar, con la cuenta bajo `FOR UPDATE`: el monto debe ser ≤ el saldo libre (si no, `EARMARK_EXCEEDS_FREE {free}`); una tarjeta da `ACCOUNT_NOT_DEDICABLE`. Liberar: el monto debe ser ≤ lo apartado en esa cuenta (si no, `RELEASE_EXCEEDS_EARMARK`). Dedicar: la cuenta no es tarjeta, no está dedicada a otra meta ni tiene apartados de otras metas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M12-01`: apartar más que el saldo libre da `EARMARK_EXCEEDS_FREE` con el saldo libre.
+    - `EC-M12-06`: dedicar una cuenta con apartados de otra meta da `ACCOUNT_HAS_OTHER_EARMARKS`.
+    - `EC-M12-08`: dedicar una tarjeta da `ACCOUNT_NOT_DEDICABLE`.
+    - `RF-M12-03`: dedicar una cuenta ya dedicada da `ACCOUNT_ALREADY_DEDICATED`.
+    - Dos apartados simultáneos no superan el saldo libre.
+
+- [ ] **`TASK-187`: Usar y cerrar, archivar, restaurar, eliminar y celebración**
+  - **Dependencias:** Requiere TASK-186
+  - **Trazabilidad SDD:** plan §4.12.2 (`use-and-close`, `archive`, `restore`, `DELETE`, `celebrated`), plan §4.12.3; RF-M12-09, spec §2.12.2
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/test/integration/goals-lifecycle.test.ts`
+  - **Especificación de Implementación:** "Usar y cerrar" inserta eventos `use_and_close` que dejan cada apartado en 0, quita la cuenta dedicada y archiva la meta. Archivar o eliminar solo procede con la meta vacía (si no, `GOAL_NOT_EMPTY`). Restaurar no recupera los apartados. `celebrated` marca `celebrated_at` una sola vez.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Usar y cerrar" (`RF-M12-09`): los apartados quedan en 0 y la meta queda archivada con su historia.
+    - Archivar una meta con apartados da `GOAL_NOT_EMPTY`.
+    - Eliminar una meta vacía borra su historia.
+    - `firstAchievement` es verdadero solo hasta marcar `celebrated`.
+
+- [ ] **`TASK-188`: Cuentas con apartados y cuentas dedicadas**
+  - **Dependencias:** Requiere TASK-135, TASK-186
+  - **Trazabilidad SDD:** plan §4.4.2 (archivar, cambio de tipo, eliminar), plan §4.12.3 (total neto); RF-M4-07, RF-M4-10, RF-M7-11, RF-M12-08, EC-M12-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/presentation/presenters/accounts.presenter.ts`
+    - `apps/api/src/application/services/register.service.ts`
+    - `apps/api/test/integration/accounts-goals.test.ts`
+  - **Especificación de Implementación:** Archivar rechaza una cuenta con apartados (`ACCOUNT_HAS_EARMARKS {goals}`) o dedicada (`ACCOUNT_DEDICATED`). El cambio de tipo rechaza pasar a tarjeta una cuenta dedicada o con apartados. Eliminar rechaza una cuenta dedicada. `AccountDto` trae `earmarked`, `free` y `dedicatedGoal`. El desglose suma "Apartado para metas" (los apartados más el saldo positivo de las dedicadas) sin cambiar el total neto. El contexto de Registrar usa el saldo libre.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M12-02`: archivar una cuenta con apartados da `ACCOUNT_HAS_EARMARKS` con las metas.
+    - `RF-M12-08` / `RF-M4-10`: el total neto no cambia al apartar y el desglose muestra "Apartado para metas".
+    - `RF-M7-11`: la ficha de Registrar recibe el saldo libre.
+    - `RF-M4-07`: pasar a tarjeta una cuenta dedicada da `TYPE_CHANGE_INVALID`.
+
+- [ ] **`TASK-189`: Rutas HTTP de metas**
+  - **Dependencias:** Requiere TASK-187, TASK-188
+  - **Trazabilidad SDD:** plan §4.12.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/goals.routes.ts`
+    - `apps/api/src/presentation/controllers/goals.controller.ts`
+    - `apps/api/src/presentation/presenters/goals.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/goals.test.ts`
+    - `apps/api/test/http/goals.isolation.test.ts`
+  - **Especificación de Implementación:** Monta los endpoints de plan §4.12.2 detrás de `releaseGate('m12')`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-14`: el usuario B recibe 404 en cada endpoint con una meta de A, también al apartar en una cuenta de A.
+    - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
+
+- [ ] **`TASK-190`: Web: lista y detalle de metas**
+  - **Dependencias:** Requiere TASK-179, TASK-189
+  - **Trazabilidad SDD:** plan §4.12.4 (`/metas`, `/metas/:id`); RF-M12-02, RF-M12-06, RF-M12-07, spec §2.12.2 (celebración)
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/goals/api.ts`
+    - `apps/web/src/features/goals/hooks/use-goals.ts`
+    - `apps/web/src/features/goals/components/goal-cards.tsx`
+    - `apps/web/src/features/goals/components/goal-progress.tsx`
+    - `apps/web/src/features/goals/components/progress-by-account.tsx`
+    - `apps/web/src/features/goals/components/goal-history.tsx`
+    - `apps/web/src/features/goals/components/suggested-box.tsx`
+    - `apps/web/src/features/goals/components/celebration.tsx`
+    - `apps/web/src/features/goals/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/goals.json`
+    - `e2e/m12-goals.spec.ts`
+  - **Especificación de Implementación:** Tarjetas con anillo de progreso y estado. Detalle con el progreso, el progreso por cuenta, el historial con su origen, el sugerido y la celebración la primera vez. Una meta inexistente muestra `ResourceNotFound`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Progreso combinado" (E2E): el detalle muestra Bs 1.200,00.
+    - `RF-M12-06`: se ve el aporte mensual sugerido.
+    - La celebración aparece una sola vez.
+
+- [ ] **`TASK-191`: Web: crear meta, apartar, liberar, dedicar y usar y cerrar**
+  - **Dependencias:** Requiere TASK-190
+  - **Trazabilidad SDD:** plan §4.12.4 (diálogos); RF-M12-01, RF-M12-03, RF-M12-09, EC-M12-01, EC-M12-08
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/goals/components/goal-form.tsx`
+    - `apps/web/src/features/goals/components/earmark-dialog.tsx`
+    - `apps/web/src/features/goals/components/release-dialog.tsx`
+    - `apps/web/src/features/goals/components/dedicate-dialog.tsx`
+    - `apps/web/src/features/goals/components/use-and-close-dialog.tsx`
+    - `apps/web/src/features/goals/routes.tsx`
+    - `apps/web/src/locales/es-BO/goals.json`
+    - `e2e/m12-goal-dialogs.spec.ts`
+  - **Especificación de Implementación:** `GoalForm` con borrador. `EarmarkDialog` muestra el saldo libre. `DedicateDialog` no ofrece tarjetas. Toda mutación invalida `['goals']` y `['accounts']`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Usar y cerrar" (E2E): la meta queda Archivada y sus apartados en 0.
+    - `EC-M12-01`: apartar más que el saldo libre muestra el saldo libre.
+    - `EC-M12-08`: el diálogo de dedicar no lista tarjetas.
+
+- [ ] **`TASK-192`: Web: confirmación de apartados y avisos de cuenta dedicada**
+  - **Dependencias:** Requiere TASK-142, TASK-184, TASK-191
+  - **Trazabilidad SDD:** plan §4.7.3 (errores), plan §4.12.4 (`EarmarkConfirmDialog` compartido); RF-M12-05, RF-M7-14, EC-M7-03, RF-M4-10
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/goals/components/earmark-confirm-dialog.tsx`
+    - `apps/web/src/features/register/components/register-form.tsx`
+    - `apps/web/src/features/register/components/account-chip.tsx`
+    - `apps/web/src/features/transactions/components/transaction-edit-form.tsx`
+    - `apps/web/src/features/transactions/hooks/use-delete-transaction.ts`
+    - `apps/web/src/features/accounts/components/adjust-balance-dialog.tsx`
+    - `apps/web/src/features/accounts/components/account-header.tsx`
+    - `apps/web/src/features/accounts/components/net-worth-summary.tsx`
+    - `apps/web/src/locales/es-BO/goals.json`
+    - `e2e/m12-earmark-confirm.spec.ts`
+  - **Especificación de Implementación:** `EarmarkConfirmDialog` muestra "Este gasto usa X apartados" y las metas afectadas, con la propuesta editable; al confirmar, reenvía con el mismo `id` y `earmarkWithdrawals`; al cancelar, no cambia nada. Lo usan Registrar, la edición, la eliminación, deshacer y el ajuste. `AccountChip` muestra "Esto resta a tu meta X" en las dedicadas. El detalle de la cuenta y el desglose muestran Saldo · Apartado para metas · Libre.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Gasto que toca dinero apartado" (E2E): la app pregunta de qué metas tomar Bs 100,00 y, al confirmar, los apartados del Banco quedan en Bs 200,00.
+    - `EC-M7-03`: al cancelar, el formulario de Registrar queda intacto.
+    - Escenario "Salida de la cuenta dedicada sin confirmación": se guarda sin preguntar, se ve "Esto resta a tu meta Viaje" y el progreso baja (`RF-M7-14`).
+    - `RF-M4-10`: el desglose muestra la línea "Apartado para metas".
+
+### Fase 20 — M11 Presupuestos (V1.1)
+
+- [ ] **`TASK-193`: Contratos de M11**
+  - **Dependencias:** Requiere TASK-077
+  - **Trazabilidad SDD:** plan §4.11.1; RF-M11-04, RF-M11-07, RF-M11-08, RF-M11-13
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/budgets.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/budgets.test.ts`
+  - **Especificación de Implementación:** `CreateBudgetInput`, `UpdateBudgetInput` (estricto y sin moneda), `DecisionInput` y `BudgetDto`, como plan §4.11.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-13`: los umbrales [100, 80] se ordenan a [80, 100]; repetidos o más de 3 son inválidos.
+    - `RF-M11-04`: `startDay` va de 1 a 28.
+    - `RF-M11-07`: `UpdateBudgetInput` rechaza `currencyCode`.
+    - `RF-M11-08`: `DecisionInput` exige `carry` y `discard` en un sobrante, y `mode` en un exceso.
+
+- [ ] **`TASK-194`: Dominio `budget`: períodos**
+  - **Dependencias:** Requiere TASK-027
+  - **Trazabilidad SDD:** plan §4.11.1 (`periodFor`); RF-M11-04, RF-M11-07, EC-M11-07
+  - **Archivos en Alcance:**
+    - `packages/domain/src/budget.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/budget-periods.test.ts`
+  - **Especificación de Implementación:** `periodFor(startDay, nextStartDay, date)` devuelve el período mensual que empieza en `startDay`. Con `nextStartDay`, el período en curso se alarga hasta el día anterior al nuevo día de inicio. También `nextPeriod(period, startDay)` y `periodLabel`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-04`: con el día de inicio 15, el 03/11 cae en el período 15/10–14/11.
+    - `EC-M11-07` / `RF-M11-07`: al cambiar de 1 a 15 durante octubre, el período va del 01/10 al 14/11 y el siguiente empieza el 15/11.
+
+- [ ] **`TASK-195`: Dominio `budget`: disponible, reparto, umbrales y ritmo**
+  - **Dependencias:** Requiere TASK-026, TASK-194
+  - **Trazabilidad SDD:** plan §4.11.1 (`available`, `result`, `validateSplit`, `thresholdsCrossed`, `paceText`); RF-M11-05, RF-M11-08, RF-M11-13, RF-M11-14, EC-M11-01
+  - **Archivos en Alcance:**
+    - `packages/domain/src/budget.ts`
+    - `packages/domain/test/budget-math.test.ts`
+  - **Especificación de Implementación:** `available = amount + carryover_in + Σ ajustes tardíos no anulados`; `result = available − spent`; `validateSplit(result, carry, toGoal, discard)` con suma exacta; `thresholdsCrossed(spent, amount, thresholds, alreadyHit, isPeriodStart)` medido sobre el monto, que al crear o empezar un período solo devuelve el más alto; `paceText` ("Puedes gastar X/día durante N días", "Vas X por encima del ritmo" o "Superado por X"); `todayShouldBe`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-05` / `EC-M11-01`: un arrastre de −400 sobre un monto de 300 da un disponible de −100, y `paceText` da "Superado por".
+    - `RF-M11-08`: un reparto que no suma exacto es inválido.
+    - `RF-M11-13`: si un período empieza en el 120 % con umbrales 80 y 100, solo se avisa el 100.
+    - `RF-M11-14`: un presupuesto superado sigue sumando el gasto.
+
+- [ ] **`TASK-196`: Repositorios de presupuestos y gasto del período**
+  - **Dependencias:** Requiere TASK-119
+  - **Trazabilidad SDD:** plan §3.6, plan §4.11.2 (gasto del período); RF-M11-02, RF-M11-03, RN-02, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
+    - `apps/api/test/factories/budget.factory.ts`
+    - `apps/api/test/integration/budget-repositories.test.ts`
+  - **Especificación de Implementación:** CRUD de presupuestos, períodos, ajustes tardíos y umbrales. `spent(budget, period)` suma los gastos del alcance (con hijas; el general suma todos los gastos sin lo de RN-02), convertidos a la moneda del presupuesto con las tasas guardadas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-03`: un gasto en $ se convierte con su tasa guardada a un presupuesto en Bs.
+    - `RF-M11-02`: un gasto de una subcategoría cuenta en su presupuesto, en el del padre y en el general.
+    - `RN-02`: el general no suma las transferencias ni "Deudas y préstamos" (salvo "Intereses").
+
+- [ ] **`TASK-197`: `BudgetsService`: crear, listar y detalle**
+  - **Dependencias:** Requiere TASK-037, TASK-089, TASK-176, TASK-193, TASK-195, TASK-196
+  - **Trazabilidad SDD:** plan §4.11.2 (`GET`, `POST`); RF-M11-01, RF-M11-02, RF-M11-13, RF-M9-06, EC-M11-06, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/budgets.service.ts`
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/test/integration/budgets-create.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente, con un tope de 100. La categoría debe ser de gasto y activa; no se puede "Deudas y préstamos", pero sí "Intereses" (`CATEGORY_NOT_BUDGETABLE`). Crea el período en curso y evalúa los umbrales (solo el más alto). `list` y `get` traen el período en curso, el ritmo, el desglose del arrastre, el cierre pendiente, `childrenExceedParent` y, en el detalle, los 12 últimos períodos. Registra en `CurrencyUsage` el uso por presupuestos activos o pausados.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M11-06`: un segundo presupuesto de la misma categoría da `BUDGET_EXISTS {budgetId}`.
+    - `RF-M11-01`: "Deudas y préstamos" da `CATEGORY_NOT_BUDGETABLE`; "Intereses" se acepta.
+    - `RF-M11-13`: si al crearlo ya está en el 120 %, se crea un solo aviso, el del 100.
+    - `RF-M11-02`: si los hijos suman más que el padre, `childrenExceedParent` es verdadero.
+    - `RF-M9-06`: cada presupuesto guarda sus propios umbrales y acción.
+
+- [ ] **`TASK-198`: Editar, pausar, reanudar, reiniciar el arrastre y eliminar presupuestos**
+  - **Dependencias:** Requiere TASK-197
+  - **Trazabilidad SDD:** plan §4.11.2 (`PATCH`, `pause`, `resume`, `reset-carryover`, `DELETE`), plan §4.11.3; RF-M11-06, RF-M11-07, RF-M11-12, EC-M11-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/budgets.service.ts`
+    - `apps/api/test/integration/budgets-lifecycle.test.ts`
+  - **Especificación de Implementación:** El monto, la acción y los umbrales se aplican al período en curso. `startDay` se guarda en `next_start_day` y la respuesta trae la fecha de fin del período alargado. Pausar guarda el arrastre en `frozen_carryover` y elimina el período en curso si no tiene decisión. Reanudar crea el período que contiene hoy con ese arrastre. Reiniciar el arrastre pone `carryover_in = 0` y anula los ajustes tardíos. Eliminar borra el presupuesto en cascada y resuelve sus avisos de decisión.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-06`: cambiar el monto afecta el período en curso y no los pasados.
+    - `RF-M11-07`: cambiar el día de inicio devuelve la fecha de fin alargada.
+    - `EC-M11-08`: al reanudar a mitad de período, el gasto cuenta desde el inicio del período, con el arrastre congelado.
+    - `RF-M11-12`: reiniciar deja el arrastre en 0.
+    - Pausar o reanudar en un estado inválido da `INVALID_STATE`.
+
+- [ ] **`TASK-199`: `LedgerHooks` de presupuestos: umbrales y movimientos tardíos**
+  - **Dependencias:** Requiere TASK-197
+  - **Trazabilidad SDD:** plan §4.11.3 (movimientos tardíos, umbrales); RF-M11-11, RF-M11-13, EC-M11-05, RNF-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/budget-ledger-hook.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/budget-ledger-hook.test.ts`
+  - **Especificación de Implementación:** *Handler* registrado en `LedgerHooks`. Umbrales: recalcula el % del período en curso, hace `INSERT … ON CONFLICT DO NOTHING RETURNING` en `budget_threshold_hit` y emite `budget_alert:{periodId}:{threshold}` solo si insertó; un presupuesto pausado no alerta. Tardíos: con la decisión pendiente, no hace nada; si se decidió con arrastre, inserta un `budget_late_adjustment` por la diferencia; en los demás casos, no hace nada.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Umbral avisa una sola vez" (`RF-M11-13`, `RNF-12`).
+    - `EC-M11-05`: eliminar un gasto de un período decidido con arrastre sube el arrastre del período en curso por ese monto; con "descartar", no cambia nada.
+    - `RF-M11-11`: un tardío con la decisión pendiente cambia el resultado mostrado sin crear ajustes.
+
+- [ ] **`TASK-200`: Job `budgets.close`**
+  - **Dependencias:** Requiere TASK-064, TASK-199
+  - **Trazabilidad SDD:** plan §4.11.3 (open → closed_pending); RF-M11-10, RF-M11-13, EC-M11-09, RNF-13, RNF-20
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/budgets.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/budgets-close-job.test.ts`
+  - **Especificación de Implementación:** Con `withUserLock`, por cada período `open` con `end_date` < hoy en la zona del usuario: lo pasa a `closed_pending` con `decision_deadline = now() + 7 d`, crea el período siguiente (`carryover_in = 0`, aplicando `next_start_day`, con la evaluación de umbrales de inicio) y emite `period_close:{periodId}` con su decisión. Si el presupuesto está `finalizing`, no crea el siguiente y pasa a `finalized`. Corre en el tick y en la puesta al día del usuario.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M11-10`: tras una caída de 3 días, el cierre se genera al volver y el plazo de 7 días cuenta desde ese momento.
+    - `RNF-13`: correrlo dos veces no crea dos períodos ni dos avisos.
+    - `EC-M11-09`: un presupuesto `finalizing` pasa a `finalized` sin período siguiente.
+    - `RNF-20`: el cierre usa la medianoche de la zona del usuario.
+
+- [ ] **`TASK-201`: Decidir el cierre de un período**
+  - **Dependencias:** Requiere TASK-186, TASK-200
+  - **Trazabilidad SDD:** plan §4.11.2 (`decision`), plan §4.11.3 (closed_pending → decided); RF-M11-08, RF-M11-09, EC-M11-02, EC-M11-03, EC-M11-09, RNF-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/budgets.service.ts`
+    - `apps/api/test/integration/budgets-decision.test.ts`
+  - **Especificación de Implementación:** `UPDATE budget_period … WHERE status = 'closed_pending' RETURNING` (si no, `DECISION_ALREADY_MADE`). Guarda `spent_at_decision` y `result_at_decision`. Sobrante: el arrastre reemplaza el `carryover_in` del período siguiente; "Enviar a meta" crea un apartado (`origin = budget`) con la cuenta bajo `FOR UPDATE` y el monto convertido con la referencia vigente, o una transferencia real si la meta tiene cuenta dedicada (`origin = goal_transfer`); el resto se descarta. Exceso: arrastrar (negativo) o absorber. Resuelve el aviso.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Repartir un sobrante": con 800 y 650 gastados, arrastrar 50 y enviar 100 a "Viaje" desde el Banco deja noviembre con 850 disponible y un apartado de 100 en el Banco.
+    - Escenario "Exceso arrastrado": 300 con 400 gastados → el período siguiente tiene 200 disponible.
+    - `EC-M11-02`: enviar más que el saldo libre da `EARMARK_EXCEEDS_FREE`.
+    - `EC-M11-03`: con la meta archivada da `GOAL_NOT_AVAILABLE`.
+    - `RF-M11-09`: enviar a meta desde una subcategoría da `TO_GOAL_NOT_ALLOWED`.
+    - `EC-M11-09`: arrastrar en un presupuesto finalizado se rechaza.
+    - `RNF-11`: una doble decisión aplica una sola.
+
+- [ ] **`TASK-202`: Job `budgets.defaultDecision`**
+  - **Dependencias:** Requiere TASK-201
+  - **Trazabilidad SDD:** plan §4.11.3 (closed_pending → defaulted); RF-M11-10, RNF-12, RNF-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/budgets.ts`
+    - `apps/api/test/integration/budgets-default-job.test.ts`
+  - **Especificación de Implementación:** Si `decision_deadline` < `now()`, aplica la `default_action` (ante un exceso, descartar equivale a absorber; un período finalizado no arrastra), pasa a `defaulted` y resuelve el aviso.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Decisión por defecto": con un reloj 7 días después, el período queda `defaulted` y el período en curso no tiene arrastre de ese cierre.
+    - `RNF-12`: un usuario que decide en el mismo instante que el job deja una sola decisión.
+
+- [ ] **`TASK-203`: Presupuestos al archivar y fusionar categorías**
+  - **Dependencias:** Requiere TASK-114, TASK-201
+  - **Trazabilidad SDD:** plan §4.5.2 (archivar, fusionar), plan §4.11.3 (finalizing); RF-M5-07, RF-M5-08, EC-M11-04, EC-M5-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/categories-budgets.test.ts`
+  - **Especificación de Implementación:** Archivar una categoría pasa su presupuesto a `finalizing`; la decisión pendiente sigue disponible hasta su plazo. Fusionar: si A tiene un cierre pendiente, da `MERGE_PENDING_CLOSE`; el presupuesto de A pasa a B si B no tenía; si los dos tenían, se conserva el de B y se elimina el de A, con un aviso en la respuesta.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Archivar una categoría con presupuesto y recurrente" (parte de presupuestos): el presupuesto sigue hasta el fin del período y pasa a Finalizado.
+    - `EC-M11-04`: la decisión pendiente sigue disponible después de archivar.
+    - `RF-M5-08`: con los dos presupuestos se conserva el de B; con un cierre pendiente en A, `MERGE_PENDING_CLOSE`.
+    - `EC-M5-03`: después de mover una subcategoría, los períodos cerrados del padre no cambian.
+
+- [ ] **`TASK-204`: Rutas HTTP de presupuestos**
+  - **Dependencias:** Requiere TASK-198, TASK-202, TASK-203
+  - **Trazabilidad SDD:** plan §4.11.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/budgets.routes.ts`
+    - `apps/api/src/presentation/controllers/budgets.controller.ts`
+    - `apps/api/src/presentation/presenters/budgets.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/budgets.test.ts`
+    - `apps/api/test/http/budgets.isolation.test.ts`
+  - **Especificación de Implementación:** Monta los endpoints de plan §4.11.2 detrás de `releaseGate('m11')`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-14`: el usuario B recibe 404 con un presupuesto o un período de A, también al decidir.
+    - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
+
+- [ ] **`TASK-205`: Web: lista y detalle de presupuestos**
+  - **Dependencias:** Requiere TASK-179, TASK-204
+  - **Trazabilidad SDD:** plan §4.11.4 (`/presupuestos`, `/presupuestos/:id`); RF-M11-05, RF-M11-12, RF-M11-14, EC-M11-01, spec §2.11.1 (seguir el período)
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/api.ts`
+    - `apps/web/src/features/budgets/hooks/use-budgets.ts`
+    - `apps/web/src/features/budgets/components/budget-list.tsx`
+    - `apps/web/src/features/budgets/components/budget-progress.tsx`
+    - `apps/web/src/features/budgets/components/pace-text.tsx`
+    - `apps/web/src/features/budgets/components/carryover-breakdown.tsx`
+    - `apps/web/src/features/budgets/components/period-history.tsx`
+    - `apps/web/src/features/budgets/components/budget-actions.tsx`
+    - `apps/web/src/features/budgets/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/budgets.json`
+    - `e2e/m11-budgets.spec.ts`
+  - **Especificación de Implementación:** Barras con el período visible. Detalle con la barra y la marca "hoy deberías llevar X", el ritmo, "Monto ± arrastre = disponible" con los ajustes tardíos, el historial de 12 períodos y las acciones Pausar, Reanudar, Reiniciar arrastre (con confirmación que muestra el monto) y Eliminar.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M11-01`: un período que empieza superado muestra "Superado por X" desde el inicio.
+    - `RF-M11-12`: la confirmación de reiniciar muestra el monto.
+    - `RF-M11-05`: se ve el desglose del arrastre.
+
+- [ ] **`TASK-206`: Web: formulario de presupuesto**
+  - **Dependencias:** Requiere TASK-205
+  - **Trazabilidad SDD:** plan §4.11.4 (formulario); RF-M11-01, RF-M11-07, RF-M9-06, EC-M11-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/components/budget-form.tsx`
+    - `apps/web/src/features/budgets/routes.tsx`
+    - `apps/web/src/locales/es-BO/budgets.json`
+    - `e2e/m11-budget-form.spec.ts`
+  - **Especificación de Implementación:** Alcance (categoría, subcategoría o General; sin "Deudas y préstamos"), monto, moneda, día de inicio, acción por defecto y hasta 3 umbrales. Usa un borrador. Al editar no se puede cambiar la moneda, y al cambiar el día de inicio se informa la fecha de fin del período alargado.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M11-06`: crear un segundo presupuesto para la misma categoría ofrece editar el existente.
+    - `RF-M11-07`: cambiar el día de inicio muestra la fecha de fin.
+    - `RF-M11-01`: "Deudas y préstamos" no se ofrece como alcance.
+
+- [ ] **`TASK-207`: Web: decisión de cierre en el presupuesto y en la bandeja**
+  - **Dependencias:** Requiere TASK-191, TASK-205
+  - **Trazabilidad SDD:** plan §4.11.4 (`CloseDecisionCard`, en la bandeja); RF-M11-08, RF-M11-09, EC-M11-03, EC-M11-09, RF-M15-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/components/close-decision-card.tsx`
+    - `apps/web/src/features/budgets/components/surplus-split-form.tsx`
+    - `apps/web/src/features/budgets/components/deficit-choice.tsx`
+    - `apps/web/src/features/notifications/components/notification-item.tsx`
+    - `apps/web/src/locales/es-BO/budgets.json`
+    - `e2e/m11-close-decision.spec.ts`
+  - **Especificación de Implementación:** "Comida cerró octubre: sobraron Bs 150,00" (o "te pasaste por…"). `SurplusSplitForm` reparte en vivo con suma exacta, con selector de meta y cuenta (solo donde se permite enviar a meta). `DeficitChoice` ofrece Arrastrar y Absorber. En un presupuesto finalizado no se ofrece arrastrar. La bandeja muestra la versión compacta, que llama al mismo endpoint.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Repartir un sobrante" (E2E): después de aplicar, noviembre muestra Bs 850,00 disponible.
+    - `RF-M11-08`: "Aplicar" está deshabilitado mientras la suma no es exacta.
+    - `EC-M11-03`: una meta archivada desaparece de las opciones.
+    - `RF-M15-03`: la decisión se toma desde la bandeja y queda resuelta en el presupuesto.
+
+### Fase 21 — M13 Deudas y préstamos (V1.1)
+
+- [ ] **`TASK-208`: Contratos de M13**
+  - **Dependencias:** Requiere TASK-077
+  - **Trazabilidad SDD:** plan §4.13.1; RF-M13-01, RF-M13-03, RF-M13-10
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/debts.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/debts.test.ts`
+  - **Especificación de Implementación:** `CreateDebtInput`, `UpdateDebtInput`, `PaymentInput`, `DeleteDebtInput`, `DebtDto` y `DebtsSummaryDto`, como plan §4.13.1.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M13-01`: la persona va de 1 a 40 caracteres y el interés, de 0,01 a 100 con hasta 4 decimales.
+    - `RF-M13-03`: `UpdateDebtInput` rechaza la tasa y el período.
+    - `RF-M13-10`: `UpdateDebtInput` no acepta la dirección ni la moneda.
+
+- [ ] **`TASK-209`: Dominio `debts`: interés, desglose y validación de pagos**
+  - **Dependencias:** Requiere TASK-026, TASK-027
+  - **Trazabilidad SDD:** plan §4.13.1 (`packages/domain/debts`), ADR-14; RF-M13-02, RF-M13-05, RF-M13-06, EC-M13-01, EC-M13-02, RNF-18
+  - **Archivos en Alcance:**
+    - `packages/domain/src/debts.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/debts.test.ts`
+  - **Especificación de Implementación:** `dailyRate(rate, period)` es la tasa ÷ 100 ÷ 30 (mensual) o ÷ 365 (anual). `accrue(capital, interestUnpaid, dailyRate, from, to)` acumula con 10 decimales y no acumula con capital 0. `proposeSplit(amount, interestAccrued, capital)` toma primero el interés. `validatePayment(...)`. `deriveStatus(debt, today)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Desglose precargado" (`RF-M13-05`): con un interés de 42,30 y un pago de 500, propone 42,30 y 457,70.
+    - `RF-M13-02`: Bs 2.000 al 2 % mensual durante 30 días acumulan 40,00.
+    - `EC-M13-02`: con capital 0 no se acumula más interés.
+    - `EC-M13-01` / `RF-M13-06`: un pago mayor que el saldo pendiente es inválido.
+    - `RNF-18`: 365 acumulaciones diarias no acumulan error de redondeo.
+
+- [ ] **`TASK-210`: Repositorios de deudas y pagos**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §3.6, plan §4.13.2 (vista por persona); RF-M13-13, EC-M13-06, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/debt.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/debt-payment.repository.ts`
+    - `apps/api/test/factories/debt.factory.ts`
+    - `apps/api/test/integration/debt-repositories.test.ts`
+  - **Especificación de Implementación:** CRUD de deudas con `lockForUpdate`, `person_key = lower(unaccent(person))`, la lista de personas para el autocompletado y los pagos, con `last(debtId)` según el mayor `created_at`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M13-06`: "José" y "jose" comparten `person_key`.
+    - `last` devuelve el pago creado más recientemente.
+    - `RN-09`: no se ven las deudas de otro usuario.
+
+- [ ] **`TASK-211`: `DebtsService`: crear, listar y resumen**
+  - **Dependencias:** Requiere TASK-037, TASK-089, TASK-122, TASK-183, TASK-208, TASK-209, TASK-210
+  - **Trazabilidad SDD:** plan §4.13.2 (`GET`, `POST`), plan §4.13.3; RF-M13-01, RF-M13-02, RF-M13-08, RF-M13-09, RF-M13-13, EC-M13-06, EC-M13-08, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/test/integration/debts-create.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente, con un tope de 200: `capital_outstanding = principal` y `accrued_through = start_date`. El movimiento inicial opcional va en la categoría del sistema (ingreso si "Debo", gasto si "Me deben"), con `origin = debt_initial`, la tasa declarada si la cuenta tiene otra moneda (precargada según RF-M3-07) y `BalanceGuard`. `list(view)` calcula el interés al día sin escribir. `summary` da "Debes X · Te deben Y" en la base con la referencia vigente, y la vista por persona agrupa por `person_key`. Registra en `CurrencyUsage` el uso por deudas activas o vencidas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M13-08`: una deuda creada hoy con inicio el 1 de enero tiene interés desde el 1 de enero.
+    - `RF-M13-08`: el movimiento inicial no cuenta como ingreso en el Inicio.
+    - `RF-M13-09`: con la cuenta en otra moneda, se guarda la tasa declarada y el monto convertido sin residuo.
+    - `EC-M13-06`: la misma persona en "Debo" y "Me deben" muestra el neto.
+    - `RNF-28`: la deuda 201 da `LIMIT_REACHED`.
+
+- [ ] **`TASK-212`: Registrar pagos de deudas**
+  - **Dependencias:** Requiere TASK-211
+  - **Trazabilidad SDD:** plan §4.13.2 (`payments`), plan §4.13.3 (llevar el interés a hoy, pago); RF-M13-04, RF-M13-05, RF-M13-06, RF-M13-07, RF-M13-08, RF-M13-09, EC-M13-01, EC-M13-03, EC-M13-04, RNF-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/test/integration/debts-payments.test.ts`
+  - **Especificación de Implementación:** Con la deuda bajo `FOR UPDATE`: lleva el interés a hoy, valida el pago y su fecha (entre el inicio y hoy) y, si tiene cuenta, crea las transacciones vinculadas (capital en "Deudas y préstamos" e interés en "Intereses"; gastos si "Debo", ingresos si "Me deben") con `BalanceGuard`. Después resta del capital y del interés, y pasa la deuda a `paid` si los dos quedan en 0. Una deuda pagada o condonada da `DEBT_CLOSED`. Es idempotente por el `id` del pago.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Interés sobre el capital pendiente" (`RF-M13-04`): después de pagar 1.000 de capital, el interés corre sobre 1.000 y lo acumulado antes no cambia.
+    - Escenario "Desglose precargado" (integración): 42,30 cuentan como gasto en "Intereses" (`RF-M13-08`).
+    - `EC-M13-01`: un pago mayor que el saldo pendiente da `PAYMENT_EXCEEDS_BALANCE {pending}`.
+    - `EC-M13-03`: un pago que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
+    - `EC-M13-04`: un pago desde una cuenta con apartados pide confirmación.
+    - `RF-M13-07`: una fecha anterior al inicio da `SPLIT_INVALID`.
+    - `RNF-11`: dos pagos con el mismo id registran uno.
+
+- [ ] **`TASK-213`: Eliminar el último pago**
+  - **Dependencias:** Requiere TASK-212
+  - **Trazabilidad SDD:** plan §4.13.2 (`DELETE payments/last`), plan §4.13.3 (eliminar el último pago); RF-M13-04, EC-M13-05, EC-M13-07
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/test/integration/debts-delete-payment.test.ts`
+  - **Especificación de Implementación:** Lleva el interés a hoy y después restablece el capital y el interés que cubría el pago. Borra sus transacciones vinculadas con `BalanceGuard`, borra el pago y, si la deuda estaba `paid`, vuelve a `active`. Una deuda condonada da `DEBT_FORGIVEN`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M13-07`: eliminar el último pago de una deuda Pagada la devuelve a Activa (o Vencida), y el interés corre sobre el capital restablecido desde ese momento.
+    - `RF-M13-04`: lo ya acumulado no se recalcula.
+    - `EC-M13-05`: la operación siempre actúa sobre el último pago; con una deuda condonada, `DEBT_FORGIVEN`.
+
+- [ ] **`TASK-214`: Editar, condonar y eliminar deudas**
+  - **Dependencias:** Requiere TASK-213
+  - **Trazabilidad SDD:** plan §4.13.2 (`PATCH`, `forgive`, `DELETE`); RF-M13-10, RF-M13-11, RF-M13-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/test/integration/debts-lifecycle.test.ts`
+  - **Especificación de Implementación:** En una deuda activa se editan la persona, la nota y la fecha límite (extenderla la saca de vencida), y el monto original si queda ≥ al capital pagado (`PRINCIPAL_BELOW_PAID`). En una pagada o condonada, solo la persona y la nota (`FIELD_LOCKED`). Condonar fija `forgiven_amount` con el saldo pendiente, sin movimientos. Eliminar, si hay movimientos, exige `movements`: `delete` los borra con `BalanceGuard` y `keep` los convierte en movimientos normales.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Condonar" (`RF-M13-12`): la deuda queda Condonada y no se crea ningún movimiento.
+    - `RF-M13-11`: sin elegir, `MOVEMENTS_CHOICE_REQUIRED {count}`, con el movimiento inicial incluido en la cuenta.
+    - `RF-M13-11`: `keep` deja los movimientos con `origin = manual`.
+    - `RF-M13-10`: bajar el monto por debajo de lo pagado da `PRINCIPAL_BELOW_PAID`.
+
+- [ ] **`TASK-215`: Job `notifications.scheduled`: vencimientos de deudas**
+  - **Dependencias:** Requiere TASK-064, TASK-176, TASK-211
+  - **Trazabilidad SDD:** plan §4.13.3 (avisos de vencimiento), plan §4.15.3 (generación programada); RF-M13-14, RF-M15-09, RNF-12, RNF-20
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/notifications.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/notifications-debts-job.test.ts`
+  - **Especificación de Implementación:** Para los usuarios cuya hora local ya pasó las 08:00, crea los avisos de hoy de las deudas activas en ambas direcciones: tres días antes, el día del vencimiento y el día siguiente si quedó vencida, con la clave `debt:{id}:due:{dueDate}:{d-3|d0|d+1}`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Aviso de vencimiento de deuda": con un reloj en el 17/10 a las 08:00, llega "Vence en 3 días: debes Bs 1.200,00 a Juan".
+    - `RF-M13-14`: después del día siguiente no hay más avisos.
+    - `RNF-12`: correr el job dos veces deja un solo aviso.
+    - `RF-M15-09`: a las 07:59 locales no se genera nada.
+
+- [ ] **`TASK-216`: Rutas HTTP de deudas**
+  - **Dependencias:** Requiere TASK-214, TASK-215
+  - **Trazabilidad SDD:** plan §4.13.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/debts.routes.ts`
+    - `apps/api/src/presentation/controllers/debts.controller.ts`
+    - `apps/api/src/presentation/presenters/debts.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/debts.test.ts`
+    - `apps/api/test/http/debts.isolation.test.ts`
+  - **Especificación de Implementación:** Monta los endpoints de plan §4.13.2 detrás de `releaseGate('m13')`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-14`: el usuario B recibe 404 con una deuda de A.
+    - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
+
+- [ ] **`TASK-217`: Web: lista y detalle de deudas**
+  - **Dependencias:** Requiere TASK-179, TASK-216
+  - **Trazabilidad SDD:** plan §4.13.4 (`/deudas`, `/deudas/:id`); RF-M13-06, RF-M13-11, RF-M13-12, RF-M13-13, EC-M13-05
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/debts/api.ts`
+    - `apps/web/src/features/debts/hooks/use-debts.ts`
+    - `apps/web/src/features/debts/components/debts-summary.tsx`
+    - `apps/web/src/features/debts/components/view-toggle.tsx`
+    - `apps/web/src/features/debts/components/debt-list.tsx`
+    - `apps/web/src/features/debts/components/debt-header.tsx`
+    - `apps/web/src/features/debts/components/payments-list.tsx`
+    - `apps/web/src/features/debts/components/delete-debt-dialog.tsx`
+    - `apps/web/src/features/debts/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/debts.json`
+    - `e2e/m13-debts.spec.ts`
+  - **Especificación de Implementación:** Resumen "Debes X · Te deben Y", vista por deuda o por persona, y la lista con el saldo pendiente. Detalle con el capital, el interés acumulado y el pendiente por separado; los pagos, con "Eliminar último pago" solo en el último; Condonar y Eliminar con las dos opciones.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Condonar" (E2E): la deuda pasa a Condonada.
+    - `EC-M13-05`: solo el último pago ofrece "Eliminar".
+    - `RF-M13-11`: eliminar una deuda con movimientos ofrece las dos opciones con N.
+    - `RF-M13-13`: la vista por persona muestra el neto.
+
+- [ ] **`TASK-218`: Web: formularios de deuda y de pago**
+  - **Dependencias:** Requiere TASK-192, TASK-217
+  - **Trazabilidad SDD:** plan §4.13.4 (formularios), plan §4.6.4 (vinculados); RF-M13-01, RF-M13-05, RF-M13-09, RF-M6-09, EC-M13-04
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/debts/components/debt-form.tsx`
+    - `apps/web/src/features/debts/components/payment-form.tsx`
+    - `apps/web/src/features/debts/routes.tsx`
+    - `apps/web/src/locales/es-BO/debts.json`
+    - `e2e/m13-debt-forms.spec.ts`
+  - **Especificación de Implementación:** `DebtForm` con el autocompletado de personas, el interés opcional y el movimiento inicial opcional (con la tasa si la cuenta es de otra moneda). `PaymentForm` con el desglose precargado y editable, la cuenta opcional, la tasa si hace falta y `EarmarkConfirmDialog` cuando corresponde. Las mutaciones invalidan `['transactions']`, `['accounts']` y `['dashboard']`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Desglose precargado" (E2E): se proponen 42,30 y 457,70.
+    - Escenario "Vinculado solo se edita en su origen" (`RF-M6-09`): el movimiento de un pago a Juan de Bs 200,00, abierto desde la lista, no deja editar el monto, la cuenta ni la fecha, y ofrece "Ir a la deuda".
+    - `RF-M13-09`: con una cuenta en $, se pide y se precarga el tipo de cambio.
+
+### Fase 22 — Cierre de V1.1: Inicio, exportación y regresión
+
+- [ ] **`TASK-219`: Inicio: bloque "Presupuesto del mes"**
+  - **Dependencias:** Requiere TASK-148, TASK-204
+  - **Trazabilidad SDD:** plan §4.8.1 (`budgets`), plan §4.8.4 (`BudgetBlock`); RF-M8-08, RF-M8-10
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/dashboard.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/test/http/dashboard-budgets.test.ts`
+    - `apps/web/src/features/dashboard/components/budget-block.tsx`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/locales/es-BO/dashboard.json`
+    - `e2e/m8-dashboard-budgets.spec.ts`
+  - **Especificación de Implementación:** Una barra por presupuesto activo con su período visible. En un mes pasado, los períodos que terminaron dentro de ese mes. Solo con `RELEASE` ≥ 1.1. Lleva a Presupuestos.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-08`: en el mes actual se ve un presupuesto activo; en un mes pasado, el período que cerró en él.
+    - Con `RELEASE=1.0`, el bloque no viene en la respuesta.
+
+- [ ] **`TASK-220`: Inicio: bloque "Próximos pagos y deudas"**
+  - **Dependencias:** Requiere TASK-219, TASK-216
+  - **Trazabilidad SDD:** plan §4.8.1 (`upcoming`); RF-M8-09, RF-M4-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/dashboard.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/test/http/dashboard-upcoming.test.ts`
+    - `apps/web/src/features/dashboard/components/upcoming-block.tsx`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/locales/es-BO/dashboard.json`
+    - `e2e/m8-dashboard-upcoming.spec.ts`
+  - **Especificación de Implementación:** Los vencimientos de los próximos 7 días: deudas en ambas direcciones y tarjetas (corte y pago; si el mes no tiene ese día, el último día del mes). En un mes pasado, el bloque se oculta. Los recurrentes se agregan en TASK-236.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-09`: una deuda que vence en 5 días aparece; una que vence en 8, no.
+    - `RF-M4-08`: una tarjeta con pago el día 31 en un mes de 30 días aparece el 30.
+    - En un mes pasado, el bloque no aparece.
+
+- [ ] **`TASK-221`: Exportadores de V1.1**
+  - **Dependencias:** Requiere TASK-164, TASK-187, TASK-202, TASK-214, TASK-177
+  - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/export.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/export.repository.ts`
+    - `apps/api/test/http/me-export-v1-1.test.ts`
+  - **Especificación de Implementación:** Agrega los CSV de apartados y retiros, presupuestos y sus períodos, metas, deudas y pagos, y avisos, filtrados por `RELEASE`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-14`: con `RELEASE=1.1`, el ZIP incluye esos CSV, con las metas archivadas.
+    - `RNF-16`: cada CSV tiene todas las filas del usuario.
+
+- [ ] **`TASK-222`: Regresión de V1.1: accesibilidad y entregas**
+  - **Dependencias:** Requiere TASK-207, TASK-218, TASK-220, TASK-221
+  - **Trazabilidad SDD:** plan §5.4 (definición de terminado), plan §5.3 (RNF-05, RNF-06, RNF-14); RNF-05, RNF-06, RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `e2e/a11y-v1-1.spec.ts`
+    - `e2e/release-gating.spec.ts`
+  - **Especificación de Implementación:** axe en todas las pantallas de V1.1 en los dos temas y los 6 proyectos. Verifica que, con `RELEASE=1.0`, ningún módulo de V1.1 aparece en el menú, el Inicio ni la cabecera (sin campana). El barrido de aislamiento de TASK-170 cubre solo las rutas nuevas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-06`: ninguna violación seria o crítica de axe en las pantallas de V1.1.
+    - `RF-M2-03` (`@release-1.0`): no hay campana, ni PLANIFICAR, ni bloques de V1.1.
+    - Comando: `pnpm --filter api exec vitest run test/http/isolation-sweep.test.ts`
+
+### Fase 23 — M14 Recurrentes (V1.2)
+
+- [ ] **`TASK-223`: Contratos de M14**
+  - **Dependencias:** Requiere TASK-118
+  - **Trazabilidad SDD:** plan §4.14.1; RF-M14-01, RF-M14-03, RF-M14-14, RF-M14-15
+  - **Archivos en Alcance:**
+    - `packages/contracts/src/recurring.ts`
+    - `packages/contracts/src/index.ts`
+    - `packages/contracts/test/recurring.test.ts`
+  - **Especificación de Implementación:** `CreateRuleInput` (frecuencia y fin como uniones discriminadas), `UpdateRuleInput`, `ConfirmOccurrenceInput`, `ResumeInput` y `RecurringOverviewDto`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M14-14`: una regla automática sin monto da `AMOUNT_REQUIRED_FOR_AUTO`; con confirmación, es válida.
+    - `RF-M14-01`: una regla semanal exige un único `weekday`.
+    - `RF-M14-15`: el nombre va de 1 a 40 caracteres.
+    - El fin por cantidad va de 1 a 999.
+
+- [ ] **`TASK-224`: Dominio `recurrence`: fechas, saltadas y fin**
+  - **Dependencias:** Requiere TASK-027
+  - **Trazabilidad SDD:** plan §4.14.1 (`packages/domain/recurrence`); RF-M14-01, RF-M14-02, RF-M14-09, RF-M14-13, EC-M14-01, EC-M14-05, EC-M14-06
+  - **Archivos en Alcance:**
+    - `packages/domain/src/recurrence.ts`
+    - `packages/domain/src/index.ts`
+    - `packages/domain/test/recurrence.test.ts`
+  - **Especificación de Implementación:** `nextDates(rule, fromDate, n)` (si el día no existe en el mes, cae el último día; el 29 de febrero pasa al 28), `skippedDates(rule, pausedAt, today)` (respeta el fin), `isFinished(rule, generatedCount, date)` y `installment(rule, generatedCount)` para "Cuota X de N".
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M14-01`: una regla mensual con el día 31 cae el 30 en noviembre.
+    - `RF-M14-02`: una regla anual del 29/02 cae el 28/02 en 2027.
+    - `EC-M14-05`: con 12 veces y 11 generadas, de 2 saltadas solo se puede registrar 1.
+    - `EC-M14-06`: si el fin pasó durante la pausa, solo se devuelven las fechas hasta el fin.
+    - `RF-M14-13`: `installment` da "Cuota 3 de 12".
+
+- [ ] **`TASK-225`: Repositorios de reglas y ocurrencias**
+  - **Dependencias:** Requiere TASK-099
+  - **Trazabilidad SDD:** plan §3.6 (`recurring_rule`, `recurring_occurrence`); RF-M14-12, RN-09
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/recurring-rule.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/recurring-occurrence.repository.ts`
+    - `apps/api/test/factories/recurring.factory.ts`
+    - `apps/api/test/integration/recurring-repositories.test.ts`
+  - **Especificación de Implementación:** CRUD de reglas con `lockForUpdate`. Ocurrencias: `insertIfAbsent(ruleId, date)` con `ON CONFLICT (rule_id, scheduled_date) DO NOTHING RETURNING`, `pending()`, `decideIf(id, expectedStatus, newStatus)` y `expiredPending(before)`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M14-12`: insertar dos veces la misma regla y fecha devuelve una sola fila.
+    - `decideIf` solo cambia una ocurrencia que está en el estado esperado.
+    - `RN-09`: no se ven las reglas de otro usuario.
+
+- [ ] **`TASK-226`: Generación de ocurrencias y job `recurring.generate`**
+  - **Dependencias:** Requiere TASK-064, TASK-122, TASK-176, TASK-183, TASK-224, TASK-225
+  - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.generate`); RF-M14-04, RF-M14-05, RF-M14-06, RF-M14-12, RF-M6-10, EC-M4-03, EC-M12-05, EC-M14-03, RNF-13, RNF-20
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/recurring-generator.ts`
+    - `apps/api/src/application/jobs/recurring.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/recurring-generate-job.test.ts`
+  - **Especificación de Implementación:** `generateDue(tx, userId, rule, today)` genera todas las fechas faltantes desde `last_generated_date`. Para cada una: `insertIfAbsent`; en modo automático, crea la transacción (`origin = recurring`, `recurring_label`) con `BalanceGuard` en modo `automatic` (si queda bloqueada, la ocurrencia pasa a `pending` con aviso), y una transferencia entre monedas usa la precarga de RF-M3-07 de ese día; en modo confirmación, `pending` + aviso `recurring_pending:{occurrenceId}`. Incrementa `generated_count` y finaliza la regla al llegar a N o al pasar la fecha de fin. Las fechas se comparan como fechas locales, nunca como instantes.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Automático bloqueado pasa a pendiente" (`RF-M14-05`, `EC-M4-03`): un efectivo con 30 y una regla de 50 dejan un pendiente y ningún gasto.
+    - `EC-M12-05`: una ocurrencia automática que tocaría un apartado queda pendiente.
+    - `EC-M14-03`: tras 2 días caído, crea las ocurrencias de esos días una sola vez (`RF-M14-12`, `RNF-13`).
+    - `RF-M14-04` / `RNF-20`: un cambio de zona horaria o de horario de verano no repite ni pierde fechas.
+    - `RF-M6-10`: el movimiento lleva el nombre de la regla en `recurring_label`.
+
+- [ ] **`TASK-227`: `RecurringService`: crear y vista general**
+  - **Dependencias:** Requiere TASK-037, TASK-089, TASK-223, TASK-226
+  - **Trazabilidad SDD:** plan §4.14.2 (`GET`, `POST /api/recurring`); RF-M14-03, RF-M14-13, RF-M14-14, EC-M14-07, RNF-28
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/test/integration/recurring-create.test.ts`
+  - **Especificación de Implementación:** `create` es idempotente, con un tope de 100 y la fecha de inicio ≥ hoy (si no, `START_DATE_IN_PAST`). Si empieza hoy, genera la ocurrencia de hoy en la misma transacción. `overview` trae las reglas con su próxima fecha, las 3 siguientes y "Cuota X de N", los pendientes y los vencimientos de 30 días. Registra en `CurrencyUsage` el uso por reglas no eliminadas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M14-07` / `RF-M14-03`: una regla creada a las 15:00 que empieza hoy crea la ocurrencia de hoy al guardar.
+    - `RF-M14-03`: un inicio pasado da `START_DATE_IN_PAST`.
+    - `RF-M14-13`: la vista general trae la próxima fecha, las 3 siguientes y la cuota.
+    - `RF-M14-14`: una regla sin monto se muestra como "monto por definir".
+    - `RNF-28`: la regla 101 da `LIMIT_REACHED`.
+
+- [ ] **`TASK-228`: Confirmar y omitir pendientes**
+  - **Dependencias:** Requiere TASK-227
+  - **Trazabilidad SDD:** plan §4.14.2 (`confirm`, `skip`); RF-M14-06, RF-M14-08, EC-M15-01, RNF-11
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/test/integration/recurring-confirm.test.ts`
+  - **Especificación de Implementación:** `confirm`: `UPDATE … WHERE status = 'pending' RETURNING` (si no, `ALREADY_DECIDED`) y crea la transacción (`origin = recurring`, con la fecha original u otra ≤ hoy, que puede ser anterior al saldo inicial). Si la cuenta o la categoría están archivadas, exige elegir otra. Una regla sin monto exige `amount`. Pasa la ocurrencia a `registered` y resuelve el aviso. `skip` la pasa a `skipped` y resuelve el aviso.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M14-08`: confirmar con una fecha futura da `FUTURE_DATE`, y con la cuenta archivada sin otra cuenta, `ACCOUNT_ARCHIVED`.
+    - `EC-M15-01`: confirmar desde Recurrentes deja el aviso resuelto.
+    - `RNF-11`: dos confirmaciones simultáneas registran un solo movimiento.
+    - `RF-M14-06`: al confirmar una transferencia entre monedas, se puede ajustar la tasa.
+
+- [ ] **`TASK-229`: Job `recurring.expirePending`**
+  - **Dependencias:** Requiere TASK-228
+  - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.expirePending`); RF-M14-07, RNF-13
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/recurring.ts`
+    - `apps/api/test/integration/recurring-expire-job.test.ts`
+  - **Especificación de Implementación:** Un pendiente con `pending_since` de hace más de 30 días pasa a `omitted`, con el aviso `recurring_omitted:{occurrenceId}` (tipo `recurring_pending`) y el aviso original resuelto. Las ocurrencias siguientes se siguen generando aunque haya pendientes.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Pendiente vence" (`RF-M14-07`): con un reloj 30 días después, el pendiente pasa a Omitido y se genera un aviso.
+    - `RNF-13`: los pendientes recuperados tras una caída cuentan los 30 días desde `pending_since`.
+
+- [ ] **`TASK-230`: Pausar, ver las saltadas y reanudar reglas**
+  - **Dependencias:** Requiere TASK-228
+  - **Trazabilidad SDD:** plan §4.14.2 (`pause`, `skipped`, `resume`); RF-M14-09, EC-M14-05, EC-M14-06
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/test/integration/recurring-resume.test.ts`
+  - **Especificación de Implementación:** `pause` (si no está activa, `INVALID_STATE`). `skipped` devuelve las fechas saltadas (respetando N y la fecha de fin). `resume({ registerDates })` registra en orden las fechas elegidas, con su fecha y la tasa de esa fecha; las que bloquearían un negativo o un apartado quedan como pendientes; una fecha que no estaba saltada da `DATE_NOT_SKIPPED`. Al llegar a N o si el fin ya pasó, la regla queda Finalizada.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Reanudar con ocurrencias saltadas": una regla semanal pausada 3 semanas devuelve 3 fechas saltadas.
+    - `EC-M14-05`: de 2 elegidas, solo se registra 1 y la regla queda Finalizada.
+    - `EC-M14-06`: si el fin pasó durante la pausa, queda Finalizada y solo ofrece las fechas hasta el fin.
+    - `RF-M14-09`: una saltada que bloquearía el efectivo queda pendiente.
+
+- [ ] **`TASK-231`: Editar y eliminar reglas**
+  - **Dependencias:** Requiere TASK-228
+  - **Trazabilidad SDD:** plan §4.14.2 (`PATCH`, `DELETE`), plan §3.8 (regla eliminada); RF-M14-10, RF-M14-11, EC-M14-04
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/test/integration/recurring-update-delete.test.ts`
+  - **Especificación de Implementación:** Editar afecta solo a las fechas futuras; extender el fin de una regla Finalizada la vuelve a Activa. Eliminar borra sus pendientes en cascada, resuelve sus avisos y conserva los movimientos con `recurring_label`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M14-10`: cambiar el monto no cambia los pendientes ni los movimientos ya creados.
+    - `RF-M14-11` / `EC-M14-04`: al eliminar una regla con un pendiente, el pendiente desaparece y el movimiento conserva "De recurrente: X".
+    - Extender el fin de una regla finalizada la reactiva.
+
+- [ ] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
+  - **Dependencias:** Requiere TASK-104, TASK-112, TASK-227
+  - **Trazabilidad SDD:** plan §4.4.2 (archivar: pausar reglas con aviso), plan §4.5.2 (archivar), plan §4.14.3 (activa ⇄ pausada), plan §4.15.1 (`recurring_pending`); EC-M14-02, RF-M4-13, RF-M5-07, RF-M15-02
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/test/integration/recurring-cascades.test.ts`
+  - **Especificación de Implementación:** Archivar o eliminar una cuenta, o archivar una categoría, pausa sus reglas activas y emite un aviso (tipo `recurring_pending`, clave `rule:{id}:paused:{fecha}`) para elegir otra cuenta o categoría.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M14-02`: archivar la cuenta de una regla la deja pausada, con un aviso.
+    - Escenario "Archivar una categoría con presupuesto y recurrente" (parte de recurrentes, `RF-M5-07`): "Netflix" queda pausado con un aviso para elegir otra categoría.
+    - `RF-M4-13`: eliminar una cuenta sin movimientos pausa sus reglas con un aviso.
+
+- [ ] **`TASK-233`: Rutas HTTP de recurrentes**
+  - **Dependencias:** Requiere TASK-229, TASK-230, TASK-231, TASK-232
+  - **Trazabilidad SDD:** plan §4.14.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/presentation/routes/recurring.routes.ts`
+    - `apps/api/src/presentation/controllers/recurring.controller.ts`
+    - `apps/api/src/presentation/presenters/recurring.presenter.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/http/recurring.test.ts`
+    - `apps/api/test/http/recurring.isolation.test.ts`
+  - **Especificación de Implementación:** Monta los endpoints de plan §4.14.2 detrás de `releaseGate('m14')`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Cada endpoint responde con sus estados y errores.
+    - `RNF-14`: el usuario B recibe 404 con una regla o una ocurrencia de A.
+    - `RF-M2-03`: con `RELEASE=1.1`, `RELEASE_NOT_AVAILABLE`.
+
+- [ ] **`TASK-234`: Web: pantalla de Recurrentes**
+  - **Dependencias:** Requiere TASK-192, TASK-233
+  - **Trazabilidad SDD:** plan §4.14.4 (`/recurrentes`); RF-M14-08, RF-M14-13, RF-M14-14
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/recurring/api.ts`
+    - `apps/web/src/features/recurring/hooks/use-recurring.ts`
+    - `apps/web/src/features/recurring/components/rules-list.tsx`
+    - `apps/web/src/features/recurring/components/pending-list.tsx`
+    - `apps/web/src/features/recurring/components/confirm-pending-dialog.tsx`
+    - `apps/web/src/features/recurring/components/upcoming-30.tsx`
+    - `apps/web/src/features/recurring/routes.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/locales/es-BO/recurring.json`
+    - `e2e/m14-recurring.spec.ts`
+  - **Especificación de Implementación:** Las reglas con su próxima fecha, las 3 siguientes y "Cuota X de N"; "Pendientes de confirmar", con Confirmar (permite ajustar el monto, la fecha y la tasa, y elegir otra cuenta o categoría si estaba archivada) y Omitir; "Próximos vencimientos" de 30 días. Confirmar invalida `['transactions']`, `['accounts']` y `['dashboard']`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Automático bloqueado pasa a pendiente" (E2E): el pendiente se ve en "Pendientes de confirmar".
+    - `RF-M14-08`: confirmar con otra fecha registra el movimiento en esa fecha.
+    - `RF-M14-14`: una regla sin monto muestra "monto por definir" y pide el monto al confirmar.
+
+- [ ] **`TASK-235`: Web: formulario de regla y diálogo de reanudar**
+  - **Dependencias:** Requiere TASK-234
+  - **Trazabilidad SDD:** plan §4.14.4 (diálogos); RF-M14-01, RF-M14-03, RF-M14-09, RF-M14-14
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/recurring/components/rule-form.tsx`
+    - `apps/web/src/features/recurring/components/resume-dialog.tsx`
+    - `apps/web/src/features/recurring/routes.tsx`
+    - `apps/web/src/locales/es-BO/recurring.json`
+    - `e2e/m14-rule-form.spec.ts`
+  - **Especificación de Implementación:** `RuleForm` (con borrador): tipo, nombre, monto (opcional solo en confirmación), cuenta o par, categoría, nota, frecuencia, inicio (hoy o futuro), fin y modo. `ResumeDialog` muestra casillas para las fechas saltadas.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Reanudar con ocurrencias saltadas" (E2E): la app pregunta por las 3 ocurrencias saltadas.
+    - `RF-M14-14`: en modo automático, el monto es obligatorio.
+    - `RF-M14-03`: el calendario de inicio no permite fechas pasadas.
+
+- [ ] **`TASK-236`: Web y API: pendientes en la bandeja y recurrentes en el Inicio**
+  - **Dependencias:** Requiere TASK-220, TASK-234
+  - **Trazabilidad SDD:** plan §4.15.4 (botones de decisión inline), plan §4.8.1 (`upcoming`); RF-M8-09, RF-M15-03, EC-M15-01
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/notifications/components/notification-item.tsx`
+    - `apps/api/src/application/services/dashboard.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/test/http/dashboard-upcoming-recurring.test.ts`
+    - `apps/web/src/features/dashboard/components/upcoming-block.tsx`
+    - `e2e/m14-inbox-pending.spec.ts`
+  - **Especificación de Implementación:** Un aviso de pendiente tiene los botones Confirmar y Omitir en la bandeja, que llaman a los mismos endpoints. "Próximos pagos y deudas" incluye los recurrentes de gasto y transferencia de los próximos 7 días con `RELEASE` = 1.2.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M8-09`: un recurrente que vence en 3 días aparece en el Inicio con `RELEASE=1.2`, y no con 1.1.
+    - `EC-M15-01`: confirmar desde la bandeja deja el aviso Resuelto y el pendiente desaparece de Recurrentes.
+
+### Fase 24 — M15 Recordatorios y avisos completos (V1.2)
+
+- [ ] **`TASK-237`: Preferencias de avisos**
+  - **Dependencias:** Requiere TASK-177, TASK-226
+  - **Trazabilidad SDD:** plan §4.15.2 (`/api/notification-preferences`), plan §4.15.3; RF-M15-03, RF-M15-07
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/notifications.service.ts`
+    - `apps/api/src/presentation/routes/notifications.routes.ts`
+    - `apps/api/src/presentation/controllers/notifications.controller.ts`
+    - `apps/api/test/http/notification-preferences.test.ts`
+  - **Especificación de Implementación:** `GET` y `PATCH /api/notification-preferences`, disponibles solo con `RELEASE` = 1.2. La hora, la anticipación y los días de la semana se aceptan solo en los tipos que los usan.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-07`: con `RELEASE=1.1`, la configuración da `RELEASE_NOT_AVAILABLE`.
+    - Escenario "Decisión visible con el aviso desactivado" (`RF-M15-03`): con `recurring_pending` desactivado, un pendiente no crea ningún aviso, pero sí aparece en `/api/recurring`.
+
+- [ ] **`TASK-238`: Avisos programados de pagos próximos (recurrentes y tarjetas)**
+  - **Dependencias:** Requiere TASK-215, TASK-237
+  - **Trazabilidad SDD:** plan §4.15.1 (valores por defecto), plan §4.15.3 (generación programada); RF-M15-02, RF-M15-09, RF-M15-10, EC-M15-02, RF-M4-08
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/notifications.ts`
+    - `apps/api/test/integration/notifications-payments-job.test.ts`
+  - **Especificación de Implementación:** A las 08:00 locales: recurrentes de gasto y transferencia con frecuencia semanal o mayor (no diarias), con la anticipación configurada (1 día por defecto) y "monto por definir" si no tienen monto; tarjetas, el día de corte y 3 días antes del pago (si el mes no tiene ese día, el último día). La clave incluye la fecha. Solo se evalúa el día en curso.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M15-02`: una regla diaria no genera aviso; una semanal genera uno un día antes.
+    - `EC-M15-02`: si cambia el día de pago después de generado el aviso, no se repite, y el próximo usa la nueva fecha.
+    - `RF-M15-10`: al reactivar el tipo, no se generan avisos de días pasados.
+    - `RF-M4-08`: una tarjeta con corte el 31 en noviembre avisa el 30.
+
+- [ ] **`TASK-239`: Aviso "Registrar el día"**
+  - **Dependencias:** Requiere TASK-237
+  - **Trazabilidad SDD:** plan §4.15.3 (`log_day`); RF-M15-02, EC-M15-03
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/jobs/notifications.ts`
+    - `apps/api/test/integration/notifications-log-day-job.test.ts`
+  - **Especificación de Implementación:** Con `log_day` activo, a su hora (21:00 por defecto) y en los días de la semana elegidos, crea un aviso por día con la clave `log_day:{fecha}`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M15-03`: el aviso se genera aunque haya movimientos ese día.
+    - `RF-M15-02`: en un día no elegido no se genera.
+
+- [ ] **`TASK-240`: Avisos de avance de metas**
+  - **Dependencias:** Requiere TASK-187, TASK-237
+  - **Trazabilidad SDD:** plan §4.12.3 (hitos), plan §4.15.1; RF-M15-02, RF-M15-04, RF-M12-01, RNF-12
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/shared/goal-milestones.ts`
+    - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/jobs/fx.ts`
+    - `apps/api/src/application/jobs/notifications.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/goal-milestones.test.ts`
+  - **Especificación de Implementación:** Después de cada evento de apartado, de cada asiento de una cuenta dedicada (*handler* de `LedgerHooks`) y del job horario de tasas, evalúa los hitos 25, 50, 75 y 100 y emite `goal:{id}:milestone:{n}`. El día 1 de cada mes, a las 08:00, avisa si el aporte del mes anterior (apartados + entradas a la dedicada − retiros, sin el efecto del tipo de cambio) fue menor que el sugerido.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Sin duplicados" (`RF-M15-04`, `RNF-12`): cuando el 50 % baja y vuelve a cruzarse por el tipo de cambio, no hay un segundo aviso.
+    - `RF-M12-01`: cambiar la moneda de la meta no repite los hitos ya avisados.
+    - `RF-M15-02`: el aviso mensual sale solo si el aporte fue menor que el sugerido.
+
+- [ ] **`TASK-241`: Web: Ajustes de recordatorios**
+  - **Dependencias:** Requiere TASK-151, TASK-237
+  - **Trazabilidad SDD:** plan §4.15.4 (`/ajustes/recordatorios`); RF-M15-03, RF-M15-07, RNF-06
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/settings/components/preferences-list.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/locales/es-BO/settings.json`
+    - `e2e/m15-preferences.spec.ts`
+  - **Especificación de Implementación:** `PreferencesList` con un interruptor por tipo y, según el tipo, la hora, la anticipación de 0 a 7 días y los días de la semana. Se guarda al instante. Con `RELEASE` < 1.2, la sección no aparece.
+  - **Criterios de Verificación (Tests & DoD):**
+    - Escenario "Decisión visible con el aviso desactivado" (E2E): con el tipo desactivado, el pendiente no llega a la bandeja pero sí aparece en Recurrentes.
+    - `RNF-06`: los controles se manejan con el teclado y sin violaciones de axe.
+
+- [ ] **`TASK-242`: Exportadores de V1.2**
+  - **Dependencias:** Requiere TASK-221, TASK-231
+  - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
+  - **Archivos en Alcance:**
+    - `apps/api/src/application/services/export.service.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/export.repository.ts`
+    - `apps/api/test/http/me-export-v1-2.test.ts`
+  - **Especificación de Implementación:** Agrega los CSV de reglas recurrentes y de pendientes y ocurrencias, filtrados por `RELEASE`.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M1-14`: con `RELEASE=1.2`, el ZIP incluye las reglas y los pendientes; con 1.1, no.
+
+### Fase 25 — Final: integración E2E y validación de RNF
+
+- [ ] **`TASK-243`: Cobertura de escenarios Gherkin y regresión completa**
+  - **Dependencias:** Requiere TASK-236, TASK-241, TASK-242
+  - **Trazabilidad SDD:** plan §5.2 (criterios de aceptación → pruebas), plan §5.4 (definición de terminado, puntos 1 y 3)
+  - **Archivos en Alcance:**
+    - `e2e/gherkin-coverage.spec.ts`
+  - **Especificación de Implementación:** Lee los títulos de todos los escenarios Gherkin de `spec.md` y verifica que cada uno aparece en el nombre de al menos un test (E2E o del API). Además, verifica que cada RF y EC de la spec aparece en el nombre de algún test.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `TASK-243`: los 53 escenarios Gherkin tienen su test, y la prueba lista los que falten.
+    - `TASK-243`: cada RF y EC de `spec.md` aparece en el nombre de algún test.
+
+- [ ] **`TASK-244`: Jobs interrumpidos que se retoman (RNF-13)**
+  - **Dependencias:** Requiere TASK-229, TASK-240
+  - **Trazabilidad SDD:** plan §5.3 (RNF-13), ADR-01; RNF-13, RF-M14-12, RNF-12
+  - **Archivos en Alcance:**
+    - `apps/api/test/integration/jobs-resume.test.ts`
+  - **Especificación de Implementación:** Para `budgets.close`, `recurring.generate` y `notifications.scheduled`: inyecta un fallo a mitad de un lote de varios usuarios, vuelve a correr el job y compara con una corrida sin interrupción.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-13`: después de reintentar, no hay duplicados ni omisiones en los cierres, las ocurrencias ni los avisos.
+
+- [ ] **`TASK-245`: Fechas de negocio en varias zonas horarias (RNF-20)**
+  - **Dependencias:** Requiere TASK-244
+  - **Trazabilidad SDD:** plan §5.3 (RNF-20), plan §5.1 (datos de prueba: tres zonas); RNF-20, RF-M14-04, RN-07
+  - **Archivos en Alcance:**
+    - `apps/api/test/integration/timezones.test.ts`
+  - **Especificación de Implementación:** Usuarios en America/La_Paz, Europe/Madrid y America/Santiago, con un reloj en los cruces de medianoche y de horario de verano: validación de la fecha de un movimiento, cierre de presupuestos, ocurrencias a las 00:00 y avisos a las 08:00.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-20`: cada proceso usa el día local del usuario en las tres zonas.
+    - `RF-M14-04`: en el día del cambio de hora, la ocurrencia se ejecuta una vez, en el primer minuto válido.
+
+- [ ] **`TASK-246`: Barrido de concurrencia**
+  - **Dependencias:** Requiere TASK-244
+  - **Trazabilidad SDD:** plan §5.1 (concurrencia), plan §4.3.3; RNF-10, RNF-11, RNF-12
+  - **Archivos en Alcance:**
+    - `apps/api/test/integration/concurrency-sweep.test.ts`
+  - **Especificación de Implementación:** Con `Promise.all` y conexiones distintas: desactivar una moneda mientras se crea una cuenta en ella; dos ticks en paralelo; un pago de deuda y la eliminación de su último pago al mismo tiempo; dos apartados que superan juntos el saldo libre.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-10`: ningún saldo ni apartado queda inconsistente.
+    - `RNF-11` / `RNF-12`: cada operación surte efecto una sola vez.
+    - La moneda queda activa con la cuenta creada, o inactiva sin ella, nunca las dos cosas.
+
+- [ ] **`TASK-247`: Validación final de V1.2: accesibilidad, rendimiento, aislamiento y entregas**
+  - **Dependencias:** Requiere TASK-243, TASK-245, TASK-246
+  - **Trazabilidad SDD:** plan §5.3 (RNF-01 a RNF-07, RNF-14), plan §5.4; RNF-01, RNF-02, RNF-03, RNF-05, RNF-06, RNF-07, RNF-14, RF-M2-03
+  - **Archivos en Alcance:**
+    - `e2e/a11y-v1-2.spec.ts`
+    - `e2e/release-gating.spec.ts`
+  - **Especificación de Implementación:** axe en todas las pantallas de V1.2 en los dos temas y los 6 proyectos. Con `RELEASE=1.1`, Recurrentes, Ajustes › Recordatorios y los tipos `log_day` y `goal_progress` no aparecen. Vuelve a correr las suites de rendimiento, el barrido de aislamiento y el lint de textos sobre el producto completo.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-06`: ninguna violación seria o crítica de axe en todo el producto.
+    - `RF-M2-03`: con 1.1, los módulos de V1.2 no aparecen.
+    - Comando: `pnpm --filter e2e exec playwright test perf.spec.ts --project=chromium-1280`
+    - Comando: `pnpm --filter api exec vitest run test/http/isolation-sweep.test.ts test/integration/performance.test.ts`
+    - Comando: `pnpm lint`
+
