@@ -201,7 +201,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm --filter web lint`
     - `package.json` declara todas las librerías de la web de plan §1.3, y existen los 20 componentes base de shadcn/ui del alcance.
 
-- [ ] **`TASK-009`: Reglas de capas del backend con dependency-cruiser**
+- [x] **`TASK-009`: Reglas de capas del backend con dependency-cruiser**
   - **Dependencias:** Requiere TASK-007
   - **Trazabilidad SDD:** plan §1.4 (cumplimiento automático), ADR-19
   - **Archivos en Alcance:**
