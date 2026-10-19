@@ -6,6 +6,7 @@ import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NA
 import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } from '../lib/context.mjs';
 import { readText, sh, posixShell } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
+import { wrapText, SECRETS, MAX_LINE } from '../lib/message.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -250,4 +251,19 @@ test('isUiTask: solo el código visual de apps/web cuenta como interfaz', () => 
   assert.equal(isUiTask(['apps/web/src/features/home/HomePage.test.tsx']), false);
   assert.equal(isUiTask(['apps/web/src/lib/api-client.ts']), false);
   assert.equal(isUiTask(['apps/api/src/routes/home.ts', 'packages/db/seed/preset-categories.ts']), false);
+});
+
+test('wrapText corta el cuerpo del commit sin pasar de 100 columnas', () => {
+  const long = Array.from({ length: 40 }, (_, i) => `palabra${i}`).join(' ');
+  const wrapped = wrapText(`${long}\n\nTask: TASK-001`);
+  assert.ok(wrapped.split('\n').every((l) => l.length <= MAX_LINE));
+  assert.equal(wrapped.replace(/\n(?!\n|Task)/g, ' '), `${long}\n\nTask: TASK-001`);
+  assert.equal(wrapText('corta'), 'corta');
+});
+
+test('secretos: una URL con contraseña literal se detecta y un placeholder ${…} no', () => {
+  const dbUrl = SECRETS.find(([, label]) => label.includes('base de datos'))[0];
+  assert.equal(dbUrl.test('DATABASE_URL=postgresql://app:Sup3rS3cret@ep-cool.neon.tech/finanzas'), true);
+  assert.equal(dbUrl.test('throw new Error(`connection to postgres://user:${secret}@db failed`)'), false);
+  assert.equal(dbUrl.test('postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test'), false);
 });
