@@ -611,7 +611,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 5 — Base de la web y harness E2E
 
-- [ ] **`TASK-039`: i18n y textos de errores**
+- [x] **`TASK-039`: i18n y textos de errores**
   - **Dependencias:** Requiere TASK-008, TASK-022
   - **Trazabilidad SDD:** plan §1.3 (librerías de interfaz), ADR-09, plan §5.3 (RNF-07); RNF-07, RNF-17
   - **Archivos en Alcance:**
