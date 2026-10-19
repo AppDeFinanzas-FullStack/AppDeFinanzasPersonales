@@ -7,6 +7,8 @@ import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } fro
 import { readText, sh, posixShell } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
 import { wrapText, SECRETS, MAX_LINE } from '../lib/message.mjs';
+import { stopLine, PHASE_AGENT } from '../lib/gates.mjs';
+import { buildBrief, availableTasks, MAX_AVAILABLE } from '../lib/brief.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -231,6 +233,30 @@ test('huecos de alcance: lockfile y tsconfig del paquete', () => {
   assert.equal(workspaceOf('eslint.config.js'), '');
 });
 
+test('huecos de alcance: un global-setup de Vitest exige el vitest.config.ts de su paquete', () => {
+  const t = (id, scope) => ({ id, scope });
+  const tasks = [
+    t('TASK-001', ['apps/api/tsconfig.json', 'apps/api/test/integration/setup/global-setup.ts']),
+    t('TASK-002', ['apps/api/vitest.config.ts', 'apps/api/test/integration/setup/global-setup.ts']),
+  ];
+  assert.deepEqual(scopeProblems(tasks[0], tasks), [
+    'crea apps/api/test/integration/setup/global-setup.ts, pero no tiene apps/api/vitest.config.ts en su alcance para registrarlo.',
+  ]);
+  assert.deepEqual(scopeProblems(tasks[1], tasks), []);
+});
+
+test('gate: paradas válidas y subagente de cada fase', () => {
+  assert.deepEqual(stopLine('NEEDS_CLARIFICATION: ¿se redondea antes o después?'), { kind: 'NEEDS_CLARIFICATION', text: '¿se redondea antes o después?' });
+  assert.deepEqual(stopLine('\nSCOPE_CHANGE_REQUEST: apps/api/vitest.config.ts · registrar el globalSetup'), {
+    kind: 'SCOPE_CHANGE_REQUEST',
+    text: 'apps/api/vitest.config.ts · registrar el globalSetup',
+  });
+  // Solo cuenta si abre la respuesta: una mención en medio del informe no es una parada.
+  assert.equal(stopLine('TESTS_READY\nNo hizo falta ningún SCOPE_CHANGE_REQUEST.'), null);
+  assert.equal(stopLine(undefined), null);
+  assert.deepEqual(PHASE_AGENT, { tests: 'test-author', implement: 'implementer', audit: 'sdd-auditor' });
+});
+
 test('ninguna tarea abierta del tasks.md real tiene huecos de alcance', () => {
   const tasks = allTasks();
   const gaps = tasks.filter((t) => !t.done).flatMap((t) => scopeProblems(t, tasks).map((p) => `${t.id} ${p}`));
@@ -268,4 +294,30 @@ test('secretos: una URL con contraseña literal se detecta y un placeholder ${�
   assert.equal(dbUrl.test(literal), true);
   assert.equal(dbUrl.test('throw new Error(`connection to postgres://user:${secret}@db failed`)'), false);
   assert.equal(dbUrl.test('postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test'), false);
+});
+
+test('resumen de SessionStart: sin tarea activa, avance y tareas disponibles', () => {
+  const phase = { number: 4, name: 'Base del API' };
+  const t = (id, done, dependencies = []) => ({ id, done, dependencies, phase });
+  const tasks = [t('TASK-001', true), t('TASK-002', false, ['TASK-001']), t('TASK-003', false, ['TASK-002']), t('TASK-004', false)];
+  const text = buildBrief({ tasks, state: null, branch: 'feature/04-base-del-api', clean: true });
+  assert.match(text, /Rama: feature\/04-base-del-api \(árbol limpio\)/);
+  assert.match(text, /Tarea activa: ninguna/);
+  assert.match(text, /Avance: 1\/4 tareas cerradas \(25 %\)/);
+  assert.match(text, /Fase 4 — Base del API: 1\/4/);
+  // TASK-003 depende de una tarea abierta: no está disponible.
+  assert.match(text, /disponibles \(dependencias cerradas\): TASK-002 \(Fase 4\), TASK-004 \(Fase 4\)\./);
+});
+
+test('resumen de SessionStart: tarea bloqueada con su motivo y límite de disponibles', () => {
+  const phase = { number: 5, name: 'Base de la web y harness E2E' };
+  const tasks = Array.from({ length: 8 }, (_, i) => ({ id: `TASK-${String(i + 1).padStart(3, '0')}`, done: false, dependencies: [], phase }));
+  const state = { task: 'TASK-001', title: 'i18n', phase: 'implement', status: 'blocked', blockedReason: 'Gate B falló 4 veces.' };
+  const text = buildBrief({ tasks, state, branch: null, clean: null });
+  assert.match(text, /Tarea activa: TASK-001 — i18n \(etapa implement, blocked\)\./);
+  assert.match(text, /Motivo del bloqueo: Gate B falló 4 veces\./);
+  assert.ok(text.includes(`TASK-005 (Fase 5) y ${8 - MAX_AVAILABLE} más.`));
+  assert.ok(!text.includes('TASK-006 (Fase 5)'));
+  assert.doesNotMatch(text, /Rama:/);
+  assert.deepEqual(availableTasks([{ id: 'TASK-001', done: true, dependencies: [] }]), []);
 });

@@ -1,7 +1,20 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/sdd/session-brief.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
+        "matcher": "^(test-author|implementer|sdd-auditor)$",
         "hooks": [
           {
             "type": "command",
@@ -18,7 +31,8 @@
       "Bash(node tools/sdd/state.mjs:*)",
       "Bash(node tools/sdd/context.mjs:*)",
       "Bash(node tools/sdd/task-parse.mjs:*)",
-      "Bash(node tools/sdd/audit.mjs:*)"
+      "Bash(node tools/sdd/audit.mjs:*)",
+      "Bash(node tools/sdd/check.mjs:*)"
     ]
   }
 }

@@ -19,14 +19,18 @@ El orquestador te da el ID de la tarea y las pruebas que tienes que poner en ver
    - código en inglés, textos de la interfaz en `locales/es-BO` (constitución §5);
    - el estilo y la estructura de lo que ya existe en el repositorio.
 3. Corre las pruebas de la tarea, el typecheck y el lint de lo que tocaste hasta que todo esté en verde.
+4. **Antes de terminar, corre `node tools/sdd/check.mjs`** desde la raíz. Corre exactamente los controles del Gate B (alcance, pruebas intactas, tipos, lint, capas, pruebas relacionadas y los `Comando:` de la tarea), sin gastar intentos. Termina solo cuando diga `✓`; si muestra problemas, corrígelos y vuelve a correrlo.
 
 ## Límites
 - **No modificas las pruebas**: están bloqueadas. Si una prueba te parece incorrecta respecto de la spec, no la "arregles": detente y explícalo.
 - Solo creas, modificas o borras los **archivos de implementación del alcance**. Nada más del repositorio (tampoco `package.json`, `tasks.md`, la spec ni el plan, salvo que estén en el alcance).
 - No inventas reglas de negocio ni agregas funciones que la tarea no pide. No dejas `TODO`, código comentado ni `console.log`.
+- Los **«Pasos manuales»** de la tarea (cuentas, paneles, secretos) los hace una persona fuera del pipeline: no intentes hacerlos.
 
 ## Control automático
-Cuando intentes terminar, un hook verificará: alcance, pruebas intactas, typecheck, lint, reglas de capas, las pruebas de la tarea y las relacionadas, y los `Comando:` de la tarea. Si algo falla, recibirás el motivo: corrígelo y vuelve a intentar terminar. Tienes un máximo de 3 intentos.
+Cuando intentes terminar, un hook verificará lo mismo que `check.mjs`: alcance, pruebas intactas, typecheck, lint, reglas de capas, las pruebas de la tarea y las relacionadas, y los `Comando:` de la tarea. Si algo falla, recibirás el motivo: corrígelo y vuelve a intentar terminar. Tienes un máximo de 3 intentos.
+
+Si terminas con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` en la **primera línea**, el hook no te juzga: detiene el pipeline y el orquestador le pregunta al usuario.
 
 ## Cómo terminar
 Tu respuesta final es breve y empieza con una de estas formas:
