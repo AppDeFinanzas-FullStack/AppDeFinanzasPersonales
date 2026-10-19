@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { RUN_DIR, ROOT, abs, writeText, changedFiles, gitOut } from './repo.mjs';
-import { isTestFile } from './scope.mjs';
+import { splitScope } from './scope.mjs';
 
 export const STATE_FILE = join(RUN_DIR, 'active-task.json');
 export const MAX_GATE_ATTEMPTS = 3;
@@ -13,14 +13,44 @@ export function taskDir(id) {
   return join(RUN_DIR, id);
 }
 
-export function loadState() {
-  if (!existsSync(STATE_FILE)) return null;
-  return JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+export function loadState(file = STATE_FILE) {
+  if (!existsSync(file)) return null;
+  return JSON.parse(readFileSync(file, 'utf8'));
 }
 
-export function saveState(state) {
+export function saveState(state, file = STATE_FILE) {
   state.updatedAt = new Date().toISOString();
-  writeText(STATE_FILE, `${JSON.stringify(state, null, 2)}\n`);
+  writeText(file, `${JSON.stringify(state, null, 2)}\n`);
+}
+
+/** Cambia de "época": cada cambio de fase, bloqueo o desbloqueo invalida los gates que ya estaban corriendo. */
+export function bumpEpoch(state) {
+  state.epoch = (state.epoch ?? 0) + 1;
+}
+
+/** ¿Sigue vigente el estado que un proceso leyó al empezar (`seen`) frente al actual (`fresh`)? */
+export function isCurrent(seen, fresh) {
+  return (
+    Boolean(fresh) &&
+    fresh.task === seen.task &&
+    fresh.startedAt === seen.startedAt &&
+    fresh.phase === seen.phase &&
+    (fresh.epoch ?? 0) === (seen.epoch ?? 0) &&
+    fresh.status === 'running'
+  );
+}
+
+/**
+ * Relee el estado y le aplica `mutate` solo si sigue vigente respecto de `seen`.
+ * Así un proceso largo (el gate) no pisa un cambio de fase que ocurrió mientras corría.
+ * Devuelve el estado guardado, o null si el resultado quedó obsoleto y se descartó.
+ */
+export function updateState(seen, mutate, file = STATE_FILE) {
+  const fresh = loadState(file);
+  if (!isCurrent(seen, fresh)) return null;
+  mutate(fresh);
+  saveState(fresh, file);
+  return fresh;
 }
 
 export function clearState() {
@@ -28,7 +58,7 @@ export function clearState() {
 }
 
 export function newState(task, branch) {
-  const testFiles = task.scope.filter((p) => isTestFile(p));
+  const { testFiles, implFiles } = splitScope(task.scope);
   return {
     task: task.id,
     feature: task.feature,
@@ -39,12 +69,13 @@ export function newState(task, branch) {
     blockedReason: null,
     scope: task.scope,
     testFiles,
-    implFiles: task.scope.filter((p) => !isTestFile(p)),
+    implFiles,
     commands: task.commands,
     verificationOnly: testFiles.length > 0 && testFiles.length === task.scope.length,
     gates: { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } },
     auditRounds: 0,
     auditFingerprint: null,
+    epoch: 0,
     startedAt: new Date().toISOString(),
   };
 }

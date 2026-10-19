@@ -1,10 +1,14 @@
 // Pruebas de tools/sdd. Uso: node --test tools/sdd/test/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTasks, phaseBranch, setDone, allTasks } from '../lib/tasks.mjs';
-import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID } from '../lib/scope.mjs';
+import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf } from '../lib/tasks.mjs';
+import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow } from '../lib/context.mjs';
-import { readText } from '../lib/repo.mjs';
+import { readText, sh, posixShell } from '../lib/repo.mjs';
+import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const SAMPLE = `# Tareas
 
@@ -120,4 +124,121 @@ test('extrae secciones del plan, reglas y escenarios de la spec', () => {
   assert.match(specItem(spec, 'RN-02'), /Intereses/);
   assert.match(scenario(spec, 'Doble toque no duplica'), /se crea un solo movimiento/);
   assert.equal(specItem(spec, 'RF-M99-01'), null);
+});
+
+const baseState = () => ({
+  task: 'TASK-002',
+  startedAt: '2026-10-17T21:22:19.780Z',
+  phase: 'implement',
+  status: 'running',
+  epoch: 3,
+  gates: { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } },
+});
+
+test('estado vigente: misma tarea, fase, época y en curso', () => {
+  const seen = baseState();
+  assert.equal(isCurrent(seen, baseState()), true);
+  assert.equal(isCurrent(seen, null), false);
+  assert.equal(isCurrent(seen, { ...baseState(), phase: 'audit' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), status: 'blocked' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), task: 'TASK-003' }), false);
+  assert.equal(isCurrent(seen, { ...baseState(), startedAt: 'otra' }), false);
+  const roundTrip = baseState();
+  bumpEpoch(roundTrip); // implement → audit → implement vuelve a la misma fase, pero en otra época
+  assert.equal(isCurrent(seen, roundTrip), false);
+  // Un estado anterior a la época cuenta como época 0.
+  const { epoch: _a, ...legacy } = baseState();
+  assert.equal(isCurrent(legacy, { ...legacy }), true);
+});
+
+test('un gate tardío no pisa el cambio de fase que ocurrió mientras corría', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sdd-state-'));
+  const file = join(dir, 'active-task.json');
+  try {
+    saveState(baseState(), file);
+    const seenByGate = loadState(file);
+
+    // Mientras el gate corre, el orquestador pasa a audit y guarda la huella.
+    const moved = loadState(file);
+    moved.phase = 'audit';
+    moved.auditFingerprint = 'abc';
+    bumpEpoch(moved);
+    saveState(moved, file);
+
+    const result = updateState(seenByGate, (s) => {
+      s.gates.B.passed = true;
+    }, file);
+    assert.equal(result, null);
+    const now = loadState(file);
+    assert.equal(now.phase, 'audit');
+    assert.equal(now.auditFingerprint, 'abc');
+    assert.equal(now.gates.B.passed, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('un gate vigente guarda sobre el estado más reciente sin perder otros campos', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sdd-state-'));
+  const file = join(dir, 'active-task.json');
+  try {
+    saveState(baseState(), file);
+    const seenByGate = loadState(file);
+
+    // Otro gate de la misma fase falló entretanto: su intento no se pierde.
+    const other = loadState(file);
+    other.gates.B.attempts = 1;
+    saveState(other, file);
+
+    const saved = updateState(seenByGate, (s) => {
+      s.gates.B.attempts += 1;
+    }, file);
+    assert.equal(saved.gates.B.attempts, 2);
+    assert.equal(loadState(file).gates.B.attempts, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('el harness sin casos de prueba lo escribe el implementer', () => {
+  const harnessOnly = ['packages/db/package.json', 'packages/db/test/global-setup.ts', 'packages/db/test/helpers.ts'];
+  assert.deepEqual(splitScope(harnessOnly), { testFiles: [], implFiles: harnessOnly });
+  const withCases = ['e2e/package.json', 'e2e/fixtures/base.ts', 'e2e/smoke.spec.ts', 'pnpm-lock.yaml'];
+  assert.deepEqual(splitScope(withCases), {
+    testFiles: ['e2e/fixtures/base.ts', 'e2e/smoke.spec.ts'],
+    implFiles: ['e2e/package.json', 'pnpm-lock.yaml'],
+  });
+  const e2eHarness = ['e2e/tsconfig.json', 'e2e/playwright.config.ts', 'e2e/support/axe.ts', 'e2e/smoke.spec.ts'];
+  assert.deepEqual(splitScope(e2eHarness).testFiles, ['e2e/support/axe.ts', 'e2e/smoke.spec.ts']);
+});
+
+test('huecos de alcance: lockfile y tsconfig del paquete', () => {
+  const t = (id, scope) => ({ id, scope });
+  const tasks = [
+    t('TASK-001', ['packages/db/tsconfig.json', 'packages/db/package.json', 'pnpm-lock.yaml']),
+    t('TASK-002', ['packages/db/package.json', 'packages/db/scripts/a.ts']),
+    t('TASK-003', ['e2e/smoke.spec.ts']),
+    t('TASK-004', ['e2e/tsconfig.json', 'e2e/a.spec.ts']),
+    t('TASK-005', ['commitlint.config.cjs', 'apps/web/postcss.config.js']),
+  ];
+  assert.deepEqual(scopeProblems(tasks[0], tasks), []);
+  assert.deepEqual(scopeProblems(tasks[1], tasks), ['toca un package.json pero no tiene pnpm-lock.yaml en su alcance.']);
+  assert.match(scopeProblems(tasks[2], tasks)[0], /e2e.*e2e\/tsconfig\.json/);
+  assert.deepEqual(scopeProblems(tasks[3], tasks), []);
+  assert.deepEqual(scopeProblems(tasks[4], tasks), []); // el JS de configuración se revisa sin tipos
+  assert.equal(workspaceOf('apps/web/src/a.tsx'), 'apps/web');
+  assert.equal(workspaceOf('eslint.config.js'), '');
+});
+
+test('ninguna tarea abierta del tasks.md real tiene huecos de alcance', () => {
+  const tasks = allTasks();
+  const gaps = tasks.filter((t) => !t.done).flatMap((t) => scopeProblems(t, tasks).map((p) => `${t.id} ${p}`));
+  assert.deepEqual(gaps, []);
+});
+
+test('los comandos de tasks.md corren en un shell POSIX, no en cmd.exe', () => {
+  const shell = posixShell();
+  assert.ok(shell, 'no se encontró un shell POSIX');
+  // cmd.exe pasaría '"a b" ' (con comillas y espacio final) al pipe.
+  assert.equal(sh('echo "a b" | cat', { shell }).output, 'a b\n');
 });

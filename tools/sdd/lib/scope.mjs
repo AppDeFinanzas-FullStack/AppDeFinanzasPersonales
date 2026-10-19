@@ -15,6 +15,24 @@ export function isTestCaseFile(path) {
   return /\.(test|spec)\.(ts|tsx|mts|js|mjs)$/.test(path);
 }
 
+/** Manifiestos y configuración de herramientas: infraestructura, aunque vivan dentro de e2e/ o test/. */
+export function isToolingFile(path) {
+  return /(^|\/)(package|tsconfig)\.json$/.test(path) || /\.config\.(ts|mts|js|mjs|cjs)$/.test(path);
+}
+
+/**
+ * Reparte el alcance entre test-author e implementer.
+ *  - Los manifiestos y configs (isToolingFile) siempre los escribe el implementer, que es quien instala.
+ *  - Si la tarea no tiene ningún archivo con casos de prueba, sus archivos de test son solo harness
+ *    (setup, helpers): no hay nada que poner en rojo, así que también los escribe el implementer y
+ *    la tarea no pasa por la etapa de pruebas.
+ */
+export function splitScope(scope) {
+  const hasCases = scope.some(isTestCaseFile);
+  const testFiles = hasCases ? scope.filter((p) => isTestFile(p) && !isToolingFile(p)) : [];
+  return { testFiles, implFiles: scope.filter((p) => !testFiles.includes(p)) };
+}
+
 function globToRegex(glob) {
   const re = glob
     .replace(/[.+^${}()|[\]\\]/g, '\\$&')

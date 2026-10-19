@@ -24,11 +24,28 @@ export function exists(rel) {
   return existsSync(abs(rel));
 }
 
+/**
+ * Shell POSIX para los comandos de tasks.md, que se escriben con sintaxis de sh (`echo "x" | …`).
+ * En Windows es el bash de Git: nunca cmd.exe (deja las comillas en el echo) ni el bash de WSL.
+ * Devuelve null si no lo encuentra.
+ */
+export function posixShell() {
+  if (process.platform !== 'win32') return '/bin/sh';
+  const execPath = spawnSync('git', ['--exec-path'], { encoding: 'utf8' }).stdout?.trim();
+  const candidates = [
+    process.env.CLAUDE_CODE_GIT_BASH_PATH,
+    // <git>/mingw64/libexec/git-core → <git>/bin/bash.exe
+    execPath && resolve(execPath, '..', '..', '..', 'bin', 'bash.exe'),
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+  ];
+  return candidates.find((p) => p && existsSync(p)) ?? null;
+}
+
 /** Ejecuta un comando con shell en la raíz. Nunca lanza: devuelve { code, output }. */
-export function sh(command, { cwd = ROOT, timeoutMs = 15 * 60_000, input } = {}) {
+export function sh(command, { cwd = ROOT, timeoutMs = 15 * 60_000, input, shell = true } = {}) {
   const r = spawnSync(command, {
     cwd,
-    shell: true,
+    shell,
     encoding: 'utf8',
     timeout: timeoutMs,
     input,

@@ -4,10 +4,12 @@
 //   implement → Gate B: alcance, pruebas intactas, tipos, lint, capas, tests y comandos.
 //   audit     → verifica que el auditor no modificó nada.
 // Si un control falla, bloquea el cierre del subagente y le devuelve el motivo (máximo 3 veces).
+// Los controles tardan: antes de guardar se relee el estado, y si la fase cambió mientras corrían
+// (por ejemplo, el orquestador ya pasó a audit) el resultado se descarta en lugar de pisar el estado.
 import { readFileSync, existsSync } from 'node:fs';
-import { loadState, saveState, log, hashFile, lockPath, worktreeFingerprint, MAX_GATE_ATTEMPTS } from './lib/state.mjs';
+import { loadState, updateState, log, hashFile, lockPath, worktreeFingerprint, MAX_GATE_ATTEMPTS } from './lib/state.mjs';
 import { findTask } from './lib/tasks.mjs';
-import { isTestFile, isTestCaseFile, outOfScope, testCaseNames, NAME_ID } from './lib/scope.mjs';
+import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID } from './lib/scope.mjs';
 import { runTests, typecheck, lint, depcruise, commands } from './lib/runner.mjs';
 import { changedFiles, abs, writeText, tail, sh } from './lib/repo.mjs';
 
@@ -28,27 +30,37 @@ const respond = (obj) => {
   process.exit(0);
 };
 
+/** Guarda en el estado vigente; si quedó obsoleto, registra el descarte y deja terminar al subagente. */
+function commit(what, mutate) {
+  const saved = updateState(state, mutate);
+  if (saved) return saved;
+  log(state.task, `${what} descartado`, `La tarea cambió de fase o de estado mientras corría (fase al empezar: "${state.phase}"). El resultado ya no aplica y no se guardó.`);
+  process.exit(0);
+}
+
 function finish(gateKey, problems, onPass) {
-  const gate = state.gates[gateKey];
   const name = `Gate ${gateKey}`;
   if (!problems.length) {
-    gate.passed = true;
+    commit(name, (s) => {
+      s.gates[gateKey].passed = true;
+    });
     onPass?.();
-    saveState(state);
     log(state.task, `${name} ✓`, 'Todos los controles pasaron.');
     process.exit(0);
   }
-  gate.attempts += 1;
-  gate.passed = false;
+  const saved = commit(name, (s) => {
+    const gate = s.gates[gateKey];
+    gate.attempts += 1;
+    gate.passed = false;
+    if (gate.attempts > MAX_GATE_ATTEMPTS) {
+      s.status = 'blocked';
+      s.blockedReason = `${name} falló ${MAX_GATE_ATTEMPTS + 1} veces. Detalle en .claude/run/${s.task}/gate.log.`;
+    }
+  });
+  const gate = saved.gates[gateKey];
   const full = problems.map((p) => `### ${p.title}\n${p.detail}`).join('\n\n');
   log(state.task, `${name} ✗ (intento ${gate.attempts}/${MAX_GATE_ATTEMPTS})`, full);
-  if (gate.attempts > MAX_GATE_ATTEMPTS) {
-    state.status = 'blocked';
-    state.blockedReason = `${name} falló ${MAX_GATE_ATTEMPTS + 1} veces. Detalle en .claude/run/${state.task}/gate.log.`;
-    saveState(state);
-    respond({ systemMessage: `${state.task}: ${state.blockedReason}` });
-  }
-  saveState(state);
+  if (saved.status === 'blocked') respond({ systemMessage: `${state.task}: ${saved.blockedReason}` });
   const short = problems.map((p) => `### ${p.title}\n${tail(p.detail, 40)}`).join('\n\n');
   respond({
     decision: 'block',
@@ -134,7 +146,8 @@ function gateB() {
   const lockFile = lockPath(state.task);
   const lock = existsSync(lockFile) ? JSON.parse(readFileSync(lockFile, 'utf8')) : {};
   const tampered = Object.entries(lock).filter(([f, h]) => hashFile(f) !== h).map(([f]) => f);
-  const newTests = changes.filter((f) => isTestFile(f) && !(f in lock));
+  // Los harness que la tarea asigna al implementer (scope.mjs → splitScope) sí se pueden escribir aquí.
+  const newTests = changes.filter((f) => isTestFile(f) && !matchesScope(f, state.implFiles) && !(f in lock));
   if (tampered.length || newTests.length) {
     problems.push({
       title: 'Pruebas modificadas',
@@ -160,11 +173,13 @@ function gateB() {
 // ---------- Auditoría ----------
 function auditCheck() {
   if (state.auditFingerprint && worktreeFingerprint() !== state.auditFingerprint) {
-    state.status = 'blocked';
-    state.blockedReason = 'El árbol de trabajo cambió durante la auditoría; el auditor no debe escribir.';
-    saveState(state);
-    log(state.task, 'Auditoría ✗', state.blockedReason);
-    respond({ systemMessage: `${state.task}: ${state.blockedReason}` });
+    const reason = 'El árbol de trabajo cambió durante la auditoría; el auditor no debe escribir.';
+    commit('Control de auditoría', (s) => {
+      s.status = 'blocked';
+      s.blockedReason = reason;
+    });
+    log(state.task, 'Auditoría ✗', reason);
+    respond({ systemMessage: `${state.task}: ${reason}` });
   }
   process.exit(0);
 }
@@ -177,8 +192,10 @@ try {
 } catch (e) {
   // Un error del propio gate no es culpa del subagente: se deja terminar y la tarea queda bloqueada.
   log(state.task, 'Error interno del gate', e.stack ?? String(e));
-  state.status = 'blocked';
-  state.blockedReason = `Error interno del gate: ${e.message}`;
-  saveState(state);
-  respond({ systemMessage: `${state.task}: ${state.blockedReason}` });
+  const reason = `Error interno del gate: ${e.message}`;
+  commit('Error interno del gate', (s) => {
+    s.status = 'blocked';
+    s.blockedReason = reason;
+  });
+  respond({ systemMessage: `${state.task}: ${reason}` });
 }

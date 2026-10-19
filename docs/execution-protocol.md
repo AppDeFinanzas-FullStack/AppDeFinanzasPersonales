@@ -133,6 +133,8 @@ Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea
 
 **Límites:** cada gate bloquea como máximo 3 veces por tarea. A la cuarta falla deja cerrar al subagente, marca `status = blocked` con la salida en `gate.log`, y el orquestador le pregunta al usuario.
 
+**Resultados obsoletos:** los controles tardan, y mientras corren el orquestador puede cambiar de fase (un subagente puede terminar tarde). Cada cambio de fase, `block` y `unblock` incrementa `epoch` en `active-task.json`. Antes de guardar, el gate relee el estado: si la tarea, la fase, `epoch` o `status` ya no son los que vio al empezar, descarta su resultado, lo anota en `gate.log` y deja terminar al subagente sin tocar el estado.
+
 ### 4.2 `pre-push` → `tools/sdd/pre-push.mjs`
 
 Revisa los commits que se van a subir (los que no están en el remoto) y su diff. Si alguno de estos controles falla, el push se rechaza:
@@ -180,9 +182,15 @@ Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los 
 - **Dependencias:** `Ninguna` o los IDs `TASK-NNN` separados por comas.
 - **Trazabilidad SDD:** cita `plan §x.y.z` y los IDs exactos de la spec (`RF-M4-04`, `EC-M4-01`, `RNF-10`, `RN-06`).
 - **Archivos en Alcance:** una ruta entre backticks por viñeta, relativa a la raíz. Solo se admiten globs en `packages/db/prisma/migrations/`.
-- **Criterios de Verificación:** las líneas `` Comando: `…` `` son comandos que el Gate B ejecuta y que deben terminar con 0.
+- **Criterios de Verificación:** las líneas `` Comando: `…` `` son comandos que el Gate B ejecuta y que deben terminar con 0. Se escriben con sintaxis POSIX y corren en `sh` (en Windows, el bash de Git; nunca `cmd.exe`).
 
 Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/test/**` o `e2e/**`. Las fases se marcan con encabezados `### Fase N — <nombre>` y definen la rama (§5).
+
+**Reparto del alcance** (`splitScope` en `tools/sdd/lib/scope.mjs`): test-author escribe los archivos de test, salvo los manifiestos y las configuraciones (`package.json`, `tsconfig.json`, `*.config.*`), que siempre escribe el implementer porque es quien instala. Si la tarea no tiene ningún archivo con casos de prueba (`*.test.*`, `*.spec.*`), sus archivos de test son solo harness y también los escribe el implementer: la tarea no pasa por la etapa de pruebas.
+
+**Huecos de alcance** (`scopeProblems` en `tools/sdd/lib/tasks.mjs`): `preflight.mjs` no arranca una tarea con un hueco que haría fallar un gate sin que el subagente pueda corregirlo, y `sdd.test.mjs` revisa todas las tareas abiertas:
+- Si una tarea toca un `package.json`, también tiene `pnpm-lock.yaml` en su alcance.
+- Cada `.ts` o `.tsx` del alcance cae en el `tsconfig.json` de su paquete (`apps/*`, `packages/*` o `e2e`), creado en esa tarea o en una anterior. Por eso cada `tsconfig.json` de paquete cubre todas sus carpetas, también las que agregarán tareas posteriores. El JS de configuración (`*.js`, `*.cjs`, `*.mjs`) se revisa con ESLint sin información de tipos, así que no necesita un tsconfig.
 
 ---
 
