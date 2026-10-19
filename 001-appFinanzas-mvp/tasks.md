@@ -237,7 +237,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Existen todos los tipos de plan §3.2, con sus valores exactos y en el mismo orden.
     - Existen la extensión `unaccent` y la función `set_updated_at`.
 
-- [ ] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
+- [x] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
   - **Dependencias:** Requiere TASK-011
   - **Trazabilidad SDD:** plan §3.3; RF-M1-02, RF-M1-05, RF-M1-16, RN-13
   - **Archivos en Alcance:**

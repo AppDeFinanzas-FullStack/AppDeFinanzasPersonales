@@ -289,3 +289,124 @@ enum DecisionStatus {
 
   @@map("decision_status")
 }
+
+// User account and security (plan §3.3). Created by migration 0002_auth.
+// CHECK constraints and partial indexes live only in the migration SQL.
+
+model AuthUser {
+  id              String   @id @db.Uuid
+  name            String   @db.VarChar(60)
+  email           String   @unique @db.VarChar(254)
+  emailVerified   Boolean  @default(false) @map("email_verified")
+  image           String?
+  timezone        String   @default("America/La_Paz") @db.VarChar(64)
+  locale          String   @default("es-BO") @db.VarChar(10)
+  termsAcceptedAt DateTime @map("terms_accepted_at") @db.Timestamptz(6)
+  registeredAt    DateTime @map("registered_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  sessions   AuthSession[]
+  accounts   AuthAccount[]
+  emailLinks EmailLink[]
+
+  @@map("auth_user")
+}
+
+model AuthSession {
+  id             String   @id @db.Uuid
+  token          String   @unique
+  userId         String   @map("user_id") @db.Uuid
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+  lastActivityAt DateTime @map("last_activity_at") @db.Timestamptz(6)
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_session")
+}
+
+model AuthAccount {
+  id                    String    @id @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  password              String?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("auth_account")
+}
+
+model AuthVerification {
+  id         String   @id @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("auth_verification")
+}
+
+model EmailLink {
+  id            String           @id @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  purpose       EmailLinkPurpose
+  tokenHash     String           @unique @map("token_hash") @db.Char(64)
+  expiresAt     DateTime         @map("expires_at") @db.Timestamptz(6)
+  usedAt        DateTime?        @map("used_at") @db.Timestamptz(6)
+  invalidatedAt DateTime?        @map("invalidated_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_link")
+}
+
+model LoginThrottle {
+  emailHmac           String    @id @map("email_hmac") @db.Char(64)
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastFailureAt       DateTime? @map("last_failure_at") @db.Timestamptz(6)
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastAlertSentAt     DateTime? @map("last_alert_sent_at") @db.Timestamptz(6)
+
+  @@map("login_throttle")
+}
+
+model EmailOutbox {
+  id            String       @id @db.Uuid
+  toAddress     String       @map("to_address") @db.VarChar(254)
+  kind          EmailKind
+  payload       Json
+  status        OutboxStatus @default(pending)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastError     String?      @map("last_error")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("email_outbox")
+}
+
+model EmailSendLog {
+  id        BigInt    @id @default(autoincrement())
+  emailHmac String    @map("email_hmac") @db.Char(64)
+  kind      EmailKind
+  sentAt    DateTime  @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@index([emailHmac, kind, sentAt(sort: Desc)])
+  @@map("email_send_log")
+}
