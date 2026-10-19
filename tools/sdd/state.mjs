@@ -37,7 +37,8 @@ function toPhase(next) {
       if (from === 'preflight' && state.testFiles.length) err('primero hay que escribir las pruebas (fase tests).');
       if (from === 'tests' && !state.gates.A.passed) err('el Gate A todavía no pasó.');
       if (from === 'audit') {
-        if (lastVerdict() !== 'CHANGES_REQUIRED') err('el último veredicto no es CHANGES_REQUIRED.');
+        // NEEDS_CLARIFICATION cuenta una vez resuelta en un commit docs: (spec, plan o tasks.md).
+        if (!['CHANGES_REQUIRED', 'NEEDS_CLARIFICATION'].includes(lastVerdict())) err('el último veredicto no es CHANGES_REQUIRED ni NEEDS_CLARIFICATION.');
         if (state.auditRounds + 1 > MAX_AUDIT_ROUNDS) {
           err(`se agotaron las ${MAX_AUDIT_ROUNDS} rondas de corrección. Bloquea la tarea y consulta al usuario.`);
         }
