@@ -425,7 +425,9 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Archivos en Alcance:**
     - `packages/db/seed/preset-categories.ts`
     - `packages/db/test/preset-categories.test.ts`
-  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo. Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses").
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo, con la forma de plan §4.5.3 (`PRESET_CATEGORIES`). Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses"). Declara `@finanzas/contracts` (`workspace:*`) en `packages/db/package.json` y actualiza `pnpm-lock.yaml`.
   - **Criterios de Verificación (Tests & DoD):**
     - La lista coincide exactamente con spec §2.5.1, en el mismo orden.
     - `RF-M5-05`: "Deudas y préstamos" existe en gasto y en ingreso con "Intereses", marcadas como del sistema.
