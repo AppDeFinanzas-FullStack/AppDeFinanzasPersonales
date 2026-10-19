@@ -407,7 +407,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Con 1.1 se liberan M11, M12, M13 y la bandeja, con los tipos `budget_alert`, `period_close` y los avisos de deuda.
     - Con 1.2 está todo liberado.
 
-- [ ] **`TASK-024`: Catálogos de colores e íconos**
+- [x] **`TASK-024`: Catálogos de colores e íconos**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.5.1 (catálogos fijos); RF-M5-04, RNF-06
   - **Archivos en Alcance:**
