@@ -9,3 +9,15 @@ export {
   sumRounded,
   toMoneyString,
 } from './money.js';
+export {
+  addMonths,
+  BOLIVIA_TIME_ZONE,
+  boliviaDay,
+  clampDay,
+  daysBetween,
+  isFutureFor,
+  monthRange,
+  startOfDayInstant,
+  todayFor,
+} from './dates.js';
+export type { DateRange, Instant, LocalDate, YearMonth } from './dates.js';

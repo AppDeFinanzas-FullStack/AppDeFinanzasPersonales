@@ -445,7 +445,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-06`: 0,005 → 0,01; −0,005 → −0,01; 2,345 → 2,35.
     - `RNF-18`: una prueba de propiedad con 1.000 casos aleatorios verifica que `sumRounded` no acumula diferencias.
 
-- [ ] **`TASK-027`: Dominio `dates`: día local, meses y zona horaria**
+- [x] **`TASK-027`: Dominio `dates`: día local, meses y zona horaria**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §4.0 (`Clock`), plan §5.1; RN-07, RNF-20, RF-M3-13, RF-M14-02
   - **Archivos en Alcance:**
