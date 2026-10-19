@@ -741,7 +741,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/infrastructure/integrations/resend.fake.ts`
     - `apps/api/src/infrastructure/integrations/email-templates.ts`
     - `apps/api/test/unit/email-templates.test.ts`
-  - **Especificación de Implementación:** `EmailGateway.send({ to, kind, payload })`. El adaptador real usa la API de Resend. El *fake* guarda los correos en memoria y permite leerlos por destinatario. Plantillas en español para los 6 tipos de `email_kind`: llevan solo el enlace o los datos imprescindibles, nunca contraseñas ni montos.
+  - **Especificación de Implementación:** `EmailGateway.send({ to, kind, payload })`. El adaptador real usa la API de Resend. El *fake* guarda los correos en memoria y permite leerlos por destinatario. Plantillas en español para los 6 tipos de `email_kind`: llevan solo el enlace o los datos imprescindibles, nunca contraseñas ni montos. Interfaz de `email-templates.ts`: `EMAIL_KINDS` (`as const`, los 6 tipos), `type EmailKind`, `emailTemplates: Record<EmailKind, (payload: EmailPayload) => RenderedEmail>` con exactamente 6 claves y `renderEmail(kind, payload): RenderedEmail`, donde `RenderedEmail = { subject, text, html }` y `EmailPayload = { link?: string }`. Solo `confirm` y `reset` usan `payload.link`; los otros cuatro no usan `payload`. Las plantillas ignoran cualquier otro campo del `payload`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-16`: hay exactamente una plantilla por cada tipo de `email_kind`.
     - `RNF-25`: existen las plantillas de intentos fallidos, cambio de contraseña y eliminación de la cuenta.
