@@ -8,6 +8,6 @@ export default mergeConfig(baseConfig, {
   },
   test: {
     environment: 'node',
-    include: ['test/unit/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
   },
 });
