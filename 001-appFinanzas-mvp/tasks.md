@@ -279,7 +279,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M4-07` / `EC-M4-02`: un UPDATE del saldo inicial o de su fecha falla.
     - Los campos de tarjeta solo se aceptan en `credit_card`.
 
-- [ ] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
+- [x] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
   - **Dependencias:** Requiere TASK-014
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-05, EC-M5-01
   - **Archivos en Alcance:**

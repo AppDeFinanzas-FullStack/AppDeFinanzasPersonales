@@ -314,6 +314,7 @@ model AuthUser {
   settings           UserSettings?
   favoriteCategories FavoriteCategory[]
   financialAccounts  Account[]
+  categories         Category[]
 
   @@map("auth_user")
 }
@@ -530,4 +531,33 @@ model Account {
   @@unique([userId, id])
   @@index([userId, status, sortOrder])
   @@map("account")
+}
+
+// Categories (plan §3.5). Created by migration 0005_category.
+// CHECK constraints, the partial unique indexes category_active_name (NULLS NOT DISTINCT) and
+// category_system_key, and the category_guard trigger live only in the migration SQL.
+
+model Category {
+  id         String             @id @db.Uuid
+  userId     String             @map("user_id") @db.Uuid
+  kind       CategoryKind
+  parentId   String?            @map("parent_id") @db.Uuid
+  name       String             @db.VarChar(30)
+  color      String             @db.VarChar(16)
+  icon       String             @db.VarChar(32)
+  isSystem   Boolean            @default(false) @map("is_system")
+  systemKey  SystemCategoryKey? @map("system_key")
+  seedOrder  Int?               @map("seed_order") @db.SmallInt
+  status     LifecycleStatus    @default(active)
+  archivedAt DateTime?          @map("archived_at") @db.Timestamptz(6)
+  sortOrder  Int                @map("sort_order")
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user          AuthUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Category?  @relation("CategoryHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  subcategories Category[] @relation("CategoryHierarchy")
+
+  @@unique([userId, id])
+  @@map("category")
 }
