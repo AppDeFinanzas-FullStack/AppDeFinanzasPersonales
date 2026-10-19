@@ -809,8 +809,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/login-throttle.repository.ts`
     - `apps/api/src/application/shared/login-throttle.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/login-throttle.test.ts`
-  - **Especificación de Implementación:** Clave HMAC-SHA256 del correo normalizado. `check(email)` devuelve los segundos que faltan. `fail(email)` hace el `INSERT … ON CONFLICT` atómico de plan §4.1.3 y fija `locked_until`. `reset(email)`. `shouldAlert(email)` permite como máximo una alerta por hora.
+  - **Especificación de Implementación:** `createLoginThrottleRepository(tx)` queda ligado a la transacción y se expone como `repos.loginThrottle`; `container.ts` lo construye en `buildRepositories`. `createLoginThrottle({ uow, hmacSecret })` devuelve `check`, `fail`, `reset` y `shouldAlert`. Clave HMAC-SHA256 del correo normalizado. `check(email)` devuelve los segundos que faltan. `fail(email)` hace el `INSERT … ON CONFLICT` atómico de plan §4.1.3 y fija `locked_until`. `reset(email)`. `shouldAlert(email)` permite como máximo una alerta por hora.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-08`: 5 fallos dan 60 s de espera, 10 fallos dan 15 min, y cada fallo posterior vuelve a dar 15 min.
     - `RF-M1-08`: el contador se reinicia con un éxito o tras 1 h sin intentos, y la alerta sale como máximo una vez por hora.
