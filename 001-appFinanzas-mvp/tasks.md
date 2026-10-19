@@ -1235,7 +1235,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-08`: editar el monto que llega recalcula la tasa, con una diferencia máxima de 0,01.
     - Entre dos monedas agregadas se usa la tasa cruzada a través de BOB.
 
-- [ ] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
+- [x] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
   - **Dependencias:** Requiere TASK-031, TASK-078
   - **Trazabilidad SDD:** ADR-06, plan §1.3 (S-2), plan §4.3.2 (jobs); EC-M3-04, RF-M3-04
   - **Archivos en Alcance:**
