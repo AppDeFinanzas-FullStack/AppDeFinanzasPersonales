@@ -7,3 +7,998 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_DIRECT")
 }
+
+// Enumerated types (plan §3.2). Created by migration 0001_base.
+
+enum EmailLinkPurpose {
+  confirmEmail  @map("confirm_email")
+  resetPassword @map("reset_password")
+
+  @@map("email_link_purpose")
+}
+
+enum EmailKind {
+  confirm
+  registerAttempt @map("register_attempt")
+  reset
+  passwordChanged @map("password_changed")
+  loginAlert      @map("login_alert")
+  accountDeleted  @map("account_deleted")
+
+  @@map("email_kind")
+}
+
+enum OutboxStatus {
+  pending
+  sent
+  failed
+
+  @@map("outbox_status")
+}
+
+enum NumberFormat {
+  dotComma @map("dot_comma")
+  commaDot @map("comma_dot")
+
+  @@map("number_format")
+}
+
+enum DateFormat {
+  dmy
+  iso
+  shortText @map("short_text")
+
+  @@map("date_format")
+}
+
+enum WeekStart {
+  monday
+  sunday
+
+  @@map("week_start")
+}
+
+enum ThemeMode {
+  system
+  light
+  dark
+
+  @@map("theme_mode")
+}
+
+enum MarketRateKind {
+  parallelBid    @map("parallel_bid")
+  parallelAsk    @map("parallel_ask")
+  parallelMedian @map("parallel_median")
+  official
+
+  @@map("market_rate_kind")
+}
+
+enum RateSource {
+  paraleloBo @map("paralelo_bo")
+  bcb
+  seed
+
+  @@map("rate_source")
+}
+
+enum CurrencyStatus {
+  active
+  inactive
+
+  @@map("currency_status")
+}
+
+enum FxEventKind {
+  referenceSet @map("reference_set")
+  manualUsdOn  @map("manual_usd_on")
+  manualUsdOff @map("manual_usd_off")
+  customRate   @map("custom_rate")
+
+  @@map("fx_event_kind")
+}
+
+enum AccountType {
+  cash
+  bank
+  ewallet
+  creditCard @map("credit_card")
+  savings
+  other
+
+  @@map("account_type")
+}
+
+enum LifecycleStatus {
+  active
+  archived
+
+  @@map("lifecycle_status")
+}
+
+enum CategoryKind {
+  expense
+  income
+
+  @@map("category_kind")
+}
+
+enum SystemCategoryKey {
+  debts
+  debtsInterest @map("debts_interest")
+
+  @@map("system_category_key")
+}
+
+enum TransactionKind {
+  expense
+  income
+  transfer
+  adjustment
+
+  @@map("transaction_kind")
+}
+
+enum TransactionOrigin {
+  manual
+  recurring
+  debtInitial  @map("debt_initial")
+  debtPayment  @map("debt_payment")
+  fee
+  goalTransfer @map("goal_transfer")
+
+  @@map("transaction_origin")
+}
+
+enum UndoKind {
+  delete
+  recategorize
+  create
+
+  @@map("undo_kind")
+}
+
+enum EntryKind {
+  expense
+  income
+  transfer
+
+  @@map("entry_kind")
+}
+
+enum BudgetScope {
+  category
+  general
+
+  @@map("budget_scope")
+}
+
+enum BudgetStatus {
+  active
+  paused
+  finalizing
+  finalized
+
+  @@map("budget_status")
+}
+
+enum BudgetDefaultAction {
+  discard
+  carry
+
+  @@map("budget_default_action")
+}
+
+enum BudgetPeriodStatus {
+  open
+  closedPending @map("closed_pending")
+  decided
+  defaulted
+
+  @@map("budget_period_status")
+}
+
+enum AllocationOrigin {
+  manual
+  budget
+  confirmedSpend @map("confirmed_spend")
+  useAndClose    @map("use_and_close")
+  adjustment
+
+  @@map("allocation_origin")
+}
+
+enum DebtDirection {
+  iOwe     @map("i_owe")
+  owedToMe @map("owed_to_me")
+
+  @@map("debt_direction")
+}
+
+enum DebtStatus {
+  active
+  paid
+  forgiven
+
+  @@map("debt_status")
+}
+
+enum InterestPeriod {
+  monthly
+  yearly
+
+  @@map("interest_period")
+}
+
+enum RuleFrequency {
+  daily
+  weekly
+  monthly
+  yearly
+
+  @@map("rule_frequency")
+}
+
+enum RuleEndType {
+  none
+  until
+  count
+
+  @@map("rule_end_type")
+}
+
+enum RuleMode {
+  auto
+  confirm
+
+  @@map("rule_mode")
+}
+
+enum RuleStatus {
+  active
+  paused
+  finished
+
+  @@map("rule_status")
+}
+
+enum OccurrenceStatus {
+  pending
+  registered
+  skipped
+  omitted
+
+  @@map("occurrence_status")
+}
+
+enum NotificationType {
+  paymentUpcoming  @map("payment_upcoming")
+  budgetAlert      @map("budget_alert")
+  periodClose      @map("period_close")
+  recurringPending @map("recurring_pending")
+  logDay           @map("log_day")
+  goalProgress     @map("goal_progress")
+
+  @@map("notification_type")
+}
+
+enum DecisionStatus {
+  waiting
+  resolved
+
+  @@map("decision_status")
+}
+
+// User account and security (plan §3.3). Created by migration 0002_auth.
+// CHECK constraints and partial indexes live only in the migration SQL.
+
+model AuthUser {
+  id              String   @id @db.Uuid
+  name            String   @db.VarChar(60)
+  email           String   @unique @db.VarChar(254)
+  emailVerified   Boolean  @default(false) @map("email_verified")
+  image           String?
+  timezone        String   @default("America/La_Paz") @db.VarChar(64)
+  locale          String   @default("es-BO") @db.VarChar(10)
+  termsAcceptedAt DateTime @map("terms_accepted_at") @db.Timestamptz(6)
+  registeredAt    DateTime @map("registered_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  sessions           AuthSession[]
+  accounts           AuthAccount[]
+  emailLinks         EmailLink[]
+  currencies         Currency[]
+  fxEvents           UserFxEvent[]
+  settings           UserSettings?
+  favoriteCategories FavoriteCategory[]
+  financialAccounts  Account[]
+  categories         Category[]
+  transactions       LedgerTransaction[]
+  ledgerEntries      LedgerEntry[]
+  undoActions        UndoAction[]
+  shortcuts          Shortcut[]
+  budgets            Budget[]
+  budgetPeriods      BudgetPeriod[]
+  budgetAdjustments  BudgetLateAdjustment[]
+  goals              Goal[]
+  goalAllocations    GoalAllocationEvent[]
+  debts              Debt[]
+  debtPayments       DebtPayment[]
+  recurringRules     RecurringRule[]
+  occurrences        RecurringOccurrence[]
+  notifications      Notification[]
+  notificationPrefs  NotificationPreference[]
+
+  @@map("auth_user")
+}
+
+model AuthSession {
+  id             String   @id @db.Uuid
+  token          String   @unique
+  userId         String   @map("user_id") @db.Uuid
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+  lastActivityAt DateTime @map("last_activity_at") @db.Timestamptz(6)
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_session")
+}
+
+model AuthAccount {
+  id                    String    @id @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  password              String?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                 String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("auth_account")
+}
+
+model AuthVerification {
+  id         String   @id @db.Uuid
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("auth_verification")
+}
+
+model EmailLink {
+  id            String           @id @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  purpose       EmailLinkPurpose
+  tokenHash     String           @unique @map("token_hash") @db.Char(64)
+  expiresAt     DateTime         @map("expires_at") @db.Timestamptz(6)
+  usedAt        DateTime?        @map("used_at") @db.Timestamptz(6)
+  invalidatedAt DateTime?        @map("invalidated_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_link")
+}
+
+model LoginThrottle {
+  emailHmac           String    @id @map("email_hmac") @db.Char(64)
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastFailureAt       DateTime? @map("last_failure_at") @db.Timestamptz(6)
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastAlertSentAt     DateTime? @map("last_alert_sent_at") @db.Timestamptz(6)
+
+  @@map("login_throttle")
+}
+
+model EmailOutbox {
+  id            String       @id @db.Uuid
+  toAddress     String       @map("to_address") @db.VarChar(254)
+  kind          EmailKind
+  payload       Json
+  status        OutboxStatus @default(pending)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastError     String?      @map("last_error")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("email_outbox")
+}
+
+model EmailSendLog {
+  id        BigInt    @id @default(autoincrement())
+  emailHmac String    @map("email_hmac") @db.Char(64)
+  kind      EmailKind
+  sentAt    DateTime  @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@index([emailHmac, kind, sentAt(sort: Desc)])
+  @@map("email_send_log")
+}
+
+// Exchange rates, currencies and user settings (plan §3.4). Created by migration 0003_fx_settings.
+// CHECK constraints, the deferrable unique on favorite_category and user_rate_on live only in the migration SQL.
+// The account and category foreign keys are created by migration 0010_deferred_fks. The default account
+// uses ON DELETE SET NULL (default_account_id), which Prisma cannot express: it lives only in the SQL.
+
+/// Global market data written only by jobs (ADR-12): no user_id.
+model MarketRate {
+  kind       MarketRateKind
+  rateDate   DateTime       @map("rate_date") @db.Date
+  value      Decimal        @db.Decimal(14, 2)
+  observedAt DateTime       @map("observed_at") @db.Timestamptz(6)
+  source     RateSource
+
+  @@id([kind, rateDate])
+  @@map("market_rate")
+}
+
+model Currency {
+  userId    String         @map("user_id") @db.Uuid
+  code      String         @db.Char(3)
+  symbol    String         @db.VarChar(5)
+  isSystem  Boolean        @default(false) @map("is_system")
+  status    CurrencyStatus @default(active)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user           AuthUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fxEvents       UserFxEvent[]
+  settingsAsBase UserSettings[]
+  accounts       Account[]
+  budgets        Budget[]
+  goals          Goal[]
+  debts          Debt[]
+
+  @@id([userId, code])
+  @@map("currency")
+}
+
+model UserFxEvent {
+  id           String          @id @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  kind         FxEventKind
+  currencyCode String?         @map("currency_code") @db.Char(3)
+  reference    MarketRateKind?
+  value        Decimal?        @db.Decimal(14, 2)
+  effectiveAt  DateTime        @default(now()) @map("effective_at") @db.Timestamptz(6)
+
+  user     AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency? @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, kind, currencyCode, effectiveAt(sort: Desc)])
+  @@map("user_fx_event")
+}
+
+model UserSettings {
+  userId                String         @id @map("user_id") @db.Uuid
+  numberFormat          NumberFormat   @default(dotComma) @map("number_format")
+  dateFormat            DateFormat     @default(dmy) @map("date_format")
+  weekStart             WeekStart      @default(monday) @map("week_start")
+  theme                 ThemeMode      @default(system)
+  sidebarCollapsed      Boolean        @default(false) @map("sidebar_collapsed")
+  baseCurrency          String         @default("BOB") @map("base_currency") @db.Char(3)
+  usdReference          MarketRateKind @default(parallelMedian) @map("usd_reference")
+  manualUsdValue        Decimal?       @map("manual_usd_value") @db.Decimal(14, 2)
+  manualUsdSince        DateTime?      @map("manual_usd_since") @db.Timestamptz(6)
+  defaultAccountId      String?        @map("default_account_id") @db.Uuid
+  alwaysShowNote        Boolean        @default(false) @map("always_show_note")
+  dashboardBlocks       Json           @map("dashboard_blocks")
+  onboardingStep        Int            @default(1) @map("onboarding_step") @db.SmallInt
+  onboardingCompletedAt DateTime?      @map("onboarding_completed_at") @db.Timestamptz(6)
+  updatedAt             DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user               AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseCurrencyRecord Currency @relation(fields: [userId, baseCurrency], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  defaultAccount     Account? @relation(fields: [userId, defaultAccountId], references: [userId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("user_settings")
+}
+
+model FavoriteCategory {
+  userId     String       @map("user_id") @db.Uuid
+  categoryId String       @map("category_id") @db.Uuid
+  kind       CategoryKind
+  position   Int          @db.SmallInt
+
+  user     AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([userId, categoryId])
+  @@unique([userId, kind, position])
+  @@map("favorite_category")
+}
+
+// Accounts (plan §3.5). Created by migration 0004_account.
+// CHECK constraints, the partial unique index account_active_name and the
+// account_initial_immutable trigger live only in the migration SQL.
+
+model Account {
+  id                 String          @id @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  type               AccountType
+  name               String          @db.VarChar(40)
+  currencyCode       String          @map("currency_code") @db.Char(3)
+  initialBalance     Decimal         @default(0) @map("initial_balance") @db.Decimal(14, 2)
+  initialBalanceDate DateTime        @map("initial_balance_date") @db.Date
+  color              String          @db.VarChar(16)
+  icon               String          @db.VarChar(32)
+  cardCutDay         Int?            @map("card_cut_day") @db.SmallInt
+  cardPayDay         Int?            @map("card_pay_day") @db.SmallInt
+  cardLimit          Decimal?        @map("card_limit") @db.Decimal(14, 2)
+  status             LifecycleStatus @default(active)
+  archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(6)
+  sortOrder          Int             @map("sort_order")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user                 AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency             Currency              @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  defaultOfSettings    UserSettings[]
+  entries              LedgerEntry[]
+  shortcuts            Shortcut[]            @relation("ShortcutAccount")
+  shortcutDestinations Shortcut[]            @relation("ShortcutDestAccount")
+  dedicatedGoals       Goal[]
+  goalAllocations      GoalAllocationEvent[]
+  debtPayments         DebtPayment[]
+  recurringRules       RecurringRule[]       @relation("RecurringRuleAccount")
+  recurringRuleDests   RecurringRule[]       @relation("RecurringRuleDestAccount")
+
+  @@unique([userId, id])
+  @@index([userId, status, sortOrder])
+  @@map("account")
+}
+
+// Categories (plan §3.5). Created by migration 0005_category.
+// CHECK constraints, the partial unique indexes category_active_name (NULLS NOT DISTINCT) and
+// category_system_key, and the category_guard trigger live only in the migration SQL.
+
+model Category {
+  id         String             @id @db.Uuid
+  userId     String             @map("user_id") @db.Uuid
+  kind       CategoryKind
+  parentId   String?            @map("parent_id") @db.Uuid
+  name       String             @db.VarChar(30)
+  color      String             @db.VarChar(16)
+  icon       String             @db.VarChar(32)
+  isSystem   Boolean            @default(false) @map("is_system")
+  systemKey  SystemCategoryKey? @map("system_key")
+  seedOrder  Int?               @map("seed_order") @db.SmallInt
+  status     LifecycleStatus    @default(active)
+  archivedAt DateTime?          @map("archived_at") @db.Timestamptz(6)
+  sortOrder  Int                @map("sort_order")
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user           AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         Category?           @relation("CategoryHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  subcategories  Category[]          @relation("CategoryHierarchy")
+  transactions   LedgerTransaction[]
+  shortcuts      Shortcut[]
+  budgets        Budget[]
+  recurringRules RecurringRule[]
+  favorites      FavoriteCategory[]
+
+  @@unique([userId, id])
+  @@map("category")
+}
+
+// Ledger, undo and shortcuts (plan §3.5, ADR-04, ADR-07, ADR-15). Created by migration 0006_ledger.
+// CHECK constraints, the partial indexes ledger_tx_list, (user_id, category_id, date) and (deleted_at)
+// live only in the migration SQL. The recurring_rule foreign key is created by migration 0010_deferred_fks
+// with ON DELETE SET NULL (recurring_rule_id), which Prisma cannot express: it lives only in the SQL.
+
+model LedgerTransaction {
+  id                  String            @id @db.Uuid
+  userId              String            @map("user_id") @db.Uuid
+  kind                TransactionKind
+  date                DateTime          @db.Date
+  note                String?           @db.VarChar(140)
+  categoryId          String?           @map("category_id") @db.Uuid
+  origin              TransactionOrigin @default(manual)
+  originId            String?           @map("origin_id") @db.Uuid
+  parentTransactionId String?           @map("parent_transaction_id") @db.Uuid
+  recurringRuleId     String?           @map("recurring_rule_id") @db.Uuid
+  recurringLabel      String?           @map("recurring_label") @db.VarChar(40)
+  rateCurBob          Decimal           @map("rate_cur_bob") @db.Decimal(14, 2)
+  rateUsdBob          Decimal?          @map("rate_usd_bob") @db.Decimal(14, 2)
+  declaredRate        Decimal?          @map("declared_rate") @db.Decimal(14, 2)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  user          AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      Category?           @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  parent        LedgerTransaction?  @relation("TransactionFee", fields: [parentTransactionId], references: [id], onDelete: Cascade)
+  fees          LedgerTransaction[] @relation("TransactionFee")
+  entries       LedgerEntry[]
+  recurringRule RecurringRule?      @relation(fields: [userId, recurringRuleId], references: [userId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  initialOfDebts       Debt[]
+  debtCapitalPayments  DebtPayment[]         @relation("DebtPaymentCapital")
+  debtInterestPayments DebtPayment[]         @relation("DebtPaymentInterest")
+  occurrences          RecurringOccurrence[]
+
+  @@unique([userId, id])
+  @@map("ledger_transaction")
+}
+
+model LedgerEntry {
+  id            String   @id @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  transactionId String   @map("transaction_id") @db.Uuid
+  accountId     String   @map("account_id") @db.Uuid
+  /// Signed amount (ADR-04).
+  amount        Decimal  @db.Decimal(14, 2)
+  /// Copy of the transaction date.
+  date          DateTime @db.Date
+
+  user        AuthUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  account     Account           @relation(fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([userId, accountId, date], map: "ledger_entry_balance")
+  @@index([transactionId])
+  @@map("ledger_entry")
+}
+
+model UndoAction {
+  /// The undoToken (ADR-07).
+  id         String    @id @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  kind       UndoKind
+  payload    Json
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("undo_action")
+}
+
+model Shortcut {
+  id            String    @id @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  name          String    @db.VarChar(30)
+  kind          EntryKind
+  amount        Decimal?  @db.Decimal(14, 2)
+  accountId     String    @map("account_id") @db.Uuid
+  destAccountId String?   @map("dest_account_id") @db.Uuid
+  categoryId    String?   @map("category_id") @db.Uuid
+  note          String?   @db.VarChar(140)
+  sortOrder     Int       @map("sort_order")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user        AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account   @relation("ShortcutAccount", fields: [userId, accountId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
+  destAccount Account?  @relation("ShortcutDestAccount", fields: [userId, destAccountId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
+  category    Category? @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("shortcut")
+}
+
+// Budgets (plan §3.6). Created by migration 0007_budgets.
+// CHECK constraints and the partial unique indexes budget_one_per_category and budget_one_general
+// live only in the migration SQL.
+
+model Budget {
+  id              String              @id @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  scope           BudgetScope
+  categoryId      String?             @map("category_id") @db.Uuid
+  amount          Decimal             @db.Decimal(14, 2)
+  currencyCode    String              @map("currency_code") @db.Char(3)
+  startDay        Int                 @map("start_day") @db.SmallInt
+  nextStartDay    Int?                @map("next_start_day") @db.SmallInt
+  defaultAction   BudgetDefaultAction @default(discard) @map("default_action")
+  thresholds      Int[]               @default([80, 100]) @db.SmallInt
+  status          BudgetStatus        @default(active)
+  frozenCarryover Decimal?            @map("frozen_carryover") @db.Decimal(14, 2)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user     AuthUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category?      @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  currency Currency       @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  periods  BudgetPeriod[]
+
+  @@unique([userId, id])
+  @@map("budget")
+}
+
+model BudgetPeriod {
+  id               String             @id @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  budgetId         String             @map("budget_id") @db.Uuid
+  startDate        DateTime           @map("start_date") @db.Date
+  endDate          DateTime           @map("end_date") @db.Date
+  /// Copy of the budget amount in force for the period.
+  amount           Decimal            @db.Decimal(14, 2)
+  carryoverIn      Decimal            @default(0) @map("carryover_in") @db.Decimal(14, 2)
+  status           BudgetPeriodStatus @default(open)
+  spentAtDecision  Decimal?           @map("spent_at_decision") @db.Decimal(14, 2)
+  resultAtDecision Decimal?           @map("result_at_decision") @db.Decimal(14, 2)
+  decision         Json?
+  decisionDeadline DateTime?          @map("decision_deadline") @db.Timestamptz(6)
+  decidedAt        DateTime?          @map("decided_at") @db.Timestamptz(6)
+
+  user              AuthUser               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget            Budget                 @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  lateAdjustments   BudgetLateAdjustment[] @relation("AdjustmentPeriod")
+  sourceAdjustments BudgetLateAdjustment[] @relation("AdjustmentSourcePeriod")
+  thresholdHits     BudgetThresholdHit[]
+
+  @@unique([budgetId, startDate])
+  @@index([userId, status, endDate])
+  @@map("budget_period")
+}
+
+model BudgetLateAdjustment {
+  id             String    @id @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  /// The period in progress.
+  periodId       String    @map("period_id") @db.Uuid
+  /// The closed period the adjustment comes from.
+  sourcePeriodId String    @map("source_period_id") @db.Uuid
+  amount         Decimal   @db.Decimal(14, 2)
+  /// Set by "Reiniciar arrastre".
+  voidedAt       DateTime? @map("voided_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user         AuthUser     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period       BudgetPeriod @relation("AdjustmentPeriod", fields: [periodId], references: [id], onDelete: Cascade)
+  sourcePeriod BudgetPeriod @relation("AdjustmentSourcePeriod", fields: [sourcePeriodId], references: [id], onDelete: Cascade)
+
+  @@map("budget_late_adjustment")
+}
+
+model BudgetThresholdHit {
+  periodId  String   @map("period_id") @db.Uuid
+  threshold Int      @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  period BudgetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  // One notice per threshold and period (RNF-12).
+  @@id([periodId, threshold])
+  @@map("budget_threshold_hit")
+}
+
+// Goals and debts (plan §3.6, ADR-14). Created by migration 0008_goals_debts.
+// CHECK constraints live only in the migration SQL.
+
+model Goal {
+  id                 String    @id @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  name               String    @db.VarChar(40)
+  target             Decimal   @db.Decimal(14, 2)
+  currencyCode       String    @map("currency_code") @db.Char(3)
+  targetDate         DateTime? @map("target_date") @db.Date
+  icon               String    @db.VarChar(32)
+  color              String    @db.VarChar(16)
+  /// A dedicated account belongs to a single goal (RF-M12-03).
+  dedicatedAccountId String?   @unique @map("dedicated_account_id") @db.Uuid
+  celebratedAt       DateTime? @map("celebrated_at") @db.Timestamptz(6)
+  archivedAt         DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user             AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency         Currency              @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  dedicatedAccount Account?              @relation(fields: [userId, dedicatedAccountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  allocations      GoalAllocationEvent[]
+
+  @@unique([userId, id])
+  @@map("goal")
+}
+
+/// Allocations (+) and withdrawals (-).
+model GoalAllocationEvent {
+  id                   String           @id @db.Uuid
+  userId               String           @map("user_id") @db.Uuid
+  goalId               String           @map("goal_id") @db.Uuid
+  accountId            String           @map("account_id") @db.Uuid
+  amount               Decimal          @db.Decimal(14, 2)
+  origin               AllocationOrigin
+  relatedTransactionId String?          @map("related_transaction_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal    Goal     @relation(fields: [userId, goalId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
+  account Account  @relation(fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([userId, accountId])
+  @@index([goalId, createdAt])
+  @@map("goal_allocation_event")
+}
+
+/// Interest is kept as a snapshot (ADR-14).
+model Debt {
+  id                   String          @id @db.Uuid
+  userId               String          @map("user_id") @db.Uuid
+  direction            DebtDirection
+  person               String          @db.VarChar(40)
+  /// lower(unaccent(person)).
+  personKey            String          @map("person_key") @db.VarChar(40)
+  principal            Decimal         @db.Decimal(14, 2)
+  currencyCode         String          @map("currency_code") @db.Char(3)
+  startDate            DateTime        @map("start_date") @db.Date
+  dueDate              DateTime?       @map("due_date") @db.Date
+  note                 String?         @db.VarChar(140)
+  interestRate         Decimal?        @map("interest_rate") @db.Decimal(7, 4)
+  interestPeriod       InterestPeriod? @map("interest_period")
+  status               DebtStatus      @default(active)
+  forgivenAmount       Decimal?        @map("forgiven_amount") @db.Decimal(14, 2)
+  initialTransactionId String?         @map("initial_transaction_id") @db.Uuid
+  capitalOutstanding   Decimal         @map("capital_outstanding") @db.Decimal(14, 2)
+  interestUnpaid       Decimal         @default(0) @map("interest_unpaid") @db.Decimal(24, 10)
+  accruedThrough       DateTime        @map("accrued_through") @db.Date
+  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user               AuthUser           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency           Currency           @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  initialTransaction LedgerTransaction? @relation(fields: [initialTransactionId], references: [id], onDelete: SetNull)
+  payments           DebtPayment[]
+
+  @@unique([userId, id])
+  @@index([userId, status, dueDate])
+  @@index([userId, personKey])
+  @@map("debt")
+}
+
+model DebtPayment {
+  id                    String   @id @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  debtId                String   @map("debt_id") @db.Uuid
+  amount                Decimal  @db.Decimal(14, 2)
+  interestPart          Decimal  @map("interest_part") @db.Decimal(14, 2)
+  capitalPart           Decimal  @map("capital_part") @db.Decimal(14, 2)
+  date                  DateTime @db.Date
+  accountId             String?  @map("account_id") @db.Uuid
+  declaredRate          Decimal? @map("declared_rate") @db.Decimal(14, 2)
+  accountAmount         Decimal? @map("account_amount") @db.Decimal(14, 2)
+  capitalTransactionId  String?  @map("capital_transaction_id") @db.Uuid
+  interestTransactionId String?  @map("interest_transaction_id") @db.Uuid
+  note                  String?  @db.VarChar(140)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user                AuthUser           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  debt                Debt               @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  account             Account?           @relation(fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  capitalTransaction  LedgerTransaction? @relation("DebtPaymentCapital", fields: [capitalTransactionId], references: [id], onDelete: SetNull)
+  interestTransaction LedgerTransaction? @relation("DebtPaymentInterest", fields: [interestTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([debtId, createdAt(sort: Desc)])
+  @@map("debt_payment")
+}
+
+// Recurring rules (plan §3.6). Created by migration 0009_recurring_notifications.
+// CHECK constraints live only in the migration SQL. The ledger_transaction.recurring_rule_id
+// foreign key is created by migration 0010_deferred_fks.
+
+model RecurringRule {
+  id                String        @id @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  name              String        @db.VarChar(40)
+  kind              EntryKind
+  amount            Decimal?      @db.Decimal(14, 2)
+  accountId         String        @map("account_id") @db.Uuid
+  destAccountId     String?       @map("dest_account_id") @db.Uuid
+  categoryId        String?       @map("category_id") @db.Uuid
+  note              String?       @db.VarChar(140)
+  frequency         RuleFrequency
+  weekday           Int?          @db.SmallInt
+  dayOfMonth        Int?          @map("day_of_month") @db.SmallInt
+  month             Int?          @db.SmallInt
+  startDate         DateTime      @map("start_date") @db.Date
+  endType           RuleEndType   @default(none) @map("end_type")
+  endDate           DateTime?     @map("end_date") @db.Date
+  endCount          Int?          @map("end_count") @db.SmallInt
+  mode              RuleMode
+  status            RuleStatus    @default(active)
+  pausedAt          DateTime?     @map("paused_at") @db.Timestamptz(6)
+  generatedCount    Int           @default(0) @map("generated_count")
+  lastGeneratedDate DateTime?     @map("last_generated_date") @db.Date
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user         AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account               @relation("RecurringRuleAccount", fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  destAccount  Account?              @relation("RecurringRuleDestAccount", fields: [userId, destAccountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  category     Category?             @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  occurrences  RecurringOccurrence[]
+  transactions LedgerTransaction[]
+
+  @@unique([userId, id])
+  @@index([userId, status])
+  @@map("recurring_rule")
+}
+
+model RecurringOccurrence {
+  id            String           @id @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  ruleId        String           @map("rule_id") @db.Uuid
+  scheduledDate DateTime         @map("scheduled_date") @db.Date
+  status        OccurrenceStatus
+  transactionId String?          @map("transaction_id") @db.Uuid
+  pendingSince  DateTime?        @map("pending_since") @db.Timestamptz(6)
+  decidedAt     DateTime?        @map("decided_at") @db.Timestamptz(6)
+
+  user        AuthUser           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule        RecurringRule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  transaction LedgerTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  // At most one occurrence per rule and date (RF-M14-12).
+  @@unique([ruleId, scheduledDate])
+  @@index([userId, status, pendingSince])
+  @@map("recurring_occurrence")
+}
+
+// Notifications and job monitoring (plan §3.7). Created by migration 0009_recurring_notifications.
+// CHECK constraints and the partial index on unread notifications live only in the migration SQL.
+
+model Notification {
+  id             String           @id @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  type           NotificationType
+  /// For example debt:<id>:due:2026-10-20:d-3.
+  eventKey       String           @map("event_key") @db.VarChar(200)
+  /// Data for the i18n text.
+  params         Json
+  targetRoute    String           @map("target_route") @db.VarChar(200)
+  /// 'budget_period' | 'occurrence'.
+  decisionKind   String?          @map("decision_kind") @db.VarChar(32)
+  decisionRef    String?          @map("decision_ref") @db.Uuid
+  decisionStatus DecisionStatus?  @map("decision_status")
+  readAt         DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One event never produces two notifications (RN-10, RNF-12).
+  @@unique([userId, eventKey])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notification")
+}
+
+model NotificationPreference {
+  userId   String           @map("user_id") @db.Uuid
+  type     NotificationType
+  enabled  Boolean
+  hour     Int?             @db.SmallInt
+  leadDays Int?             @map("lead_days") @db.SmallInt
+  weekdays Int[]            @db.SmallInt
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preference")
+}
+
+/// Monitoring only; mutual exclusion between job runs uses advisory locks.
+model JobRun {
+  job            String    @id @db.VarChar(64)
+  lastStartedAt  DateTime? @map("last_started_at") @db.Timestamptz(6)
+  lastFinishedAt DateTime? @map("last_finished_at") @db.Timestamptz(6)
+  lastError      String?   @map("last_error")
+
+  @@map("job_run")
+}
