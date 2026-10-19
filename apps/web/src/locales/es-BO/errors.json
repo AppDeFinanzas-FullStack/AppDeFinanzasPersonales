@@ -59,6 +59,7 @@
   "NOT_FOUND": "Esto ya no existe.",
   "NOT_LAST_PAYMENT": "Solo puedes cambiar el último pago.",
   "ONBOARDING_DONE": "Ya completaste la configuración inicial.",
+  "ORIGIN_NOT_ALLOWED": "No se pudo completar la acción. Vuelve a abrir la app e inténtalo de nuevo.",
   "PARENT_ARCHIVED": "La categoría principal está archivada.",
   "PAYMENT_EXCEEDS_BALANCE": "El pago supera lo pendiente: {{pending}}.",
   "PRINCIPAL_BELOW_PAID": "El monto no puede ser menor a lo ya pagado.",
@@ -77,5 +78,6 @@
   "TO_GOAL_NOT_ALLOWED": "No puedes mover dinero hacia esta meta.",
   "TYPE_CHANGE_INVALID": "No puedes cambiar el tipo de esta cuenta.",
   "UNDO_EXPIRED": "Ya no se puede deshacer.",
+  "UNSUPPORTED_MEDIA_TYPE": "No se pudo enviar la información. Inténtalo de nuevo.",
   "VALIDATION_ERROR": "Revisa los datos ingresados."
 }
