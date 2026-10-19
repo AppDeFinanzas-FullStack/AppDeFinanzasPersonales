@@ -1208,7 +1208,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-078`: `classifyBidAsk(10.30, 10.10)` da compra 10,10 y venta 10,30.
     - `RF-M3-12`: con paralelo 10,25 y oficial 6,96, la brecha es 47,27 % y Bs 3,29.
 
-- [ ] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
+- [x] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
   - **Dependencias:** Requiere TASK-027, TASK-078
   - **Trazabilidad SDD:** plan §4.3.1 (`resolveUsdRate`); RF-M3-03, RF-M3-06, RF-M3-13, EC-M3-03, RN-04
   - **Archivos en Alcance:**
