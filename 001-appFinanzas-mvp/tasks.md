@@ -632,7 +632,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Archivos en Alcance:**
     - `apps/web/src/lib/ui-store.ts`
     - `apps/web/test/ui-store.test.ts`
-  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`.
+  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`. `createUiStore({ storage })` devuelve `{ getState, subscribe, setTabMemory(moduleKey, { url, scrollY }), setOffline(value), openSessionExpired(), closeSessionExpired(), showUndo({ token, label, expiresAt }), clearUndo() }`, y `uiStore` es la instancia sobre `sessionStorage`. `moduleKey` es el `ModuleKey` de `@finanzas/contracts`. `rootFor(moduleKey)` es una exportación suelta que devuelve la raíz del módulo, aunque `tabMemory` guarde una ruta de detalle: M8 `/`, M6 `/movimientos`, M7 `/registrar`, M4 `/cuentas`, M5 `/categorias`, M3 `/tipo-de-cambio`, M11 `/presupuestos`, M12 `/metas`, M13 `/deudas` y M14 `/recurrentes`. M1, M2, M9, M10 y M15 devuelven `/` hasta que sus tareas definan su raíz.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-04`: `tabMemory` sobrevive a recrear el store sobre el mismo storage.
     - `RF-M2-05`: `rootFor(moduleKey)` devuelve la raíz del módulo.
