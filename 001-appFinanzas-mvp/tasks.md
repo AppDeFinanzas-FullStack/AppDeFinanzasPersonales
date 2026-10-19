@@ -674,7 +674,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `EC-M2-01`: `clearAllDrafts` borra los borradores del usuario anterior.
     - `RF-M7-08`: el borrador sobrevive a un nuevo inicio de sesión del mismo usuario.
 
-- [ ] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
+- [x] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-16; RF-M2-04, RF-M2-06
   - **Archivos en Alcance:**
