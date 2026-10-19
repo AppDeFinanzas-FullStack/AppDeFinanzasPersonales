@@ -1060,14 +1060,15 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 - [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
-  - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
+  - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
     - `apps/web/src/features/settings/api.ts`
     - `apps/web/src/features/settings/hooks/use-settings.ts`
     - `apps/web/src/lib/formatters.ts`
     - `apps/web/src/app/providers/theme.tsx`
+    - `packages/domain/src/index.ts`
     - `apps/web/test/formatters.test.ts`
-  - **Especificación de Implementación:** `useSettings()` usa la clave `['settings']`. `useFormatters()` expone `money`, `date` y `relativeDay` según los ajustes, y todas las pantallas lo usan para mostrar montos y fechas. `ThemeProvider` aplica el tema del servidor y actualiza la copia en localStorage. `buildFormatters(settings)` es puro.
+  - **Especificación de Implementación:** `useSettings()` usa la clave `['settings']`. `useFormatters()` expone `money`, `date` y `relativeDay` según los ajustes, y todas las pantallas lo usan para mostrar montos y fechas. `ThemeProvider` aplica el tema del servidor y actualiza la copia en localStorage. `buildFormatters(settings)` es puro. `packages/domain/src/index.ts` reexporta `formatDate`, `relativeDay`, `weekDays` y los tipos `DateFormat`, `WeekStart` y `WeekDay` de `format.ts` (TASK-029); `relativeDay` recibe el `dateFormat` del usuario.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
@@ -3367,7 +3368,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/domain/src/recurrence.ts`
     - `packages/domain/src/index.ts`
     - `packages/domain/test/recurrence.test.ts`
-  - **Especificación de Implementación:** `nextDates(rule, fromDate, n)` (si el día no existe en el mes, cae el último día; el 29 de febrero pasa al 28), `skippedDates(rule, pausedAt, today)` (respeta el fin), `isFinished(rule, generatedCount, date)` y `installment(rule, generatedCount)` para "Cuota X de N".
+  - **Especificación de Implementación:** `nextDates(rule, fromDate, n)` (si el día no existe en el mes, cae el último día; el 29 de febrero pasa al 28; usa `addMonths` y `clampDay` de `dates.ts`, TASK-027), `skippedDates(rule, pausedAt, today)` (respeta el fin), `isFinished(rule, generatedCount, date)` y `installment(rule, generatedCount)` para "Cuota X de N".
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M14-01`: una regla mensual con el día 31 cae el 30 en noviembre.
     - `RF-M14-02`: una regla anual del 29/02 cae el 28/02 en 2027.
