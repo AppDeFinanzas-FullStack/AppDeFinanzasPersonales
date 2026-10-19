@@ -648,7 +648,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-07`: con temporizadores falsos, un 204 de health vuelve a `online` e invalida las consultas.
     - `EC-M2-02`: la mutación en vuelo se reenvía una sola vez y con el mismo `id`.
 
-- [ ] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
+- [x] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
   - **Dependencias:** Requiere TASK-039, TASK-041
   - **Trazabilidad SDD:** plan §4.0 (cliente fetch tipado), ADR-09, ADR-11; RF-M1-07, RF-M2-07, RF-M2-08
   - **Archivos en Alcance:**
