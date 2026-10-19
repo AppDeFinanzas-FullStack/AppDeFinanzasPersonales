@@ -1038,7 +1038,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 7 — M2 Navegación y estructura, perfil y ajustes base (V1.0)
 
-- [ ] **`TASK-068`: Contratos de ajustes (M9)**
+- [x] **`TASK-068`: Contratos de ajustes (M9)**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.2.1; RF-M9-01, RF-M2-09, RF-M8-10
   - **Archivos en Alcance:**
