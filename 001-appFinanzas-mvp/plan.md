@@ -1251,6 +1251,9 @@ transferPrefill(input: { from: CurrencyCode; to: CurrencyCode; date: LocalDate; 
 // from = to → null.
 amountInFrom(amountOut: Decimal, rate: Decimal, from: CurrencyCode): Decimal;             // from BOB: amountOut ÷ rate; si no: amountOut × rate; round2
 rateFromAmounts(amountOut: Decimal, amountIn: Decimal, from: CurrencyCode): Decimal;      // inversa: from BOB: amountOut ÷ amountIn; si no: amountIn ÷ amountOut; round2
+// La tasa recalculada se redondea a 2 decimales (RN-06), así que no siempre reproduce el monto que llega: el error de amountInFrom(amountOut, rate)
+// puede llegar a amountOut × 0,005. La diferencia máxima de 0,01 de RF-M3-08 solo se garantiza para montos pequeños (amountOut ≤ 2 en la moneda
+// de origen no BOB); las pruebas no deben exigirla con montos grandes. El monto que llega que el usuario editó es el que se guarda.
 customRateOn(events: FxEvent[], code: CurrencyCode, date: LocalDate, tz: string): Decimal | null;
 // Equivale a user_rate_on (§3.4): último custom_rate de `code` con effectiveAt antes del inicio de D+1 en tz; si ninguno, el primero conocido;
 // null si la moneda no tiene ningún custom_rate.
