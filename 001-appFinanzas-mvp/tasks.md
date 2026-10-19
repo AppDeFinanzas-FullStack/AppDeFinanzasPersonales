@@ -626,7 +626,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-07`: cada código de `ErrorCode` tiene su texto en `errors.json`.
     - `RNF-17`: un código desconocido muestra el texto genérico, sin detalles.
 
-- [ ] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
+- [x] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3, plan §4.2.4; RF-M2-04, RF-M2-05
   - **Archivos en Alcance:**
