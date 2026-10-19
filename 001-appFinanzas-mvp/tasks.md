@@ -433,7 +433,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 3 — Dominio transversal
 
-- [ ] **`TASK-026`: Dominio `money`: redondeo y aritmética decimal**
+- [x] **`TASK-026`: Dominio `money`: redondeo y aritmética decimal**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** ADR-03, plan §5.1 (tests de propiedades); RN-06, RNF-18; constitución §3
   - **Archivos en Alcance:**
