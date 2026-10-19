@@ -517,7 +517,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `AppError` expone `code`, `status` y `data`.
     - Comando: `pnpm depcruise`
 
-- [ ] **`TASK-032`: Cliente Prisma con la extensión de aislamiento por usuario**
+- [x] **`TASK-032`: Cliente Prisma con la extensión de aislamiento por usuario**
   - **Dependencias:** Requiere TASK-020, TASK-031
   - **Trazabilidad SDD:** ADR-05, ADR-12, plan §3.9; RN-09, RNF-14
   - **Archivos en Alcance:**
