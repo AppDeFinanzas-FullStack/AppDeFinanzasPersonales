@@ -487,7 +487,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 4 — Base del API
 
-- [ ] **`TASK-030`: Variables de entorno validadas**
+- [x] **`TASK-030`: Variables de entorno validadas**
   - **Dependencias:** Requiere TASK-007
   - **Trazabilidad SDD:** plan §2 (`config/env.ts`), plan §1.4 (*fakes*), plan §3.9 (secretos); constitución §4
   - **Archivos en Alcance:**
