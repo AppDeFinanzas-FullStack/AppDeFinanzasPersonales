@@ -1314,6 +1314,8 @@ MergePreviewDto  = { movements: number, budgetEffect: 'moved'|'kept_target'|'non
 
 Catálogos fijos en `contracts`: `PaletteKey` (12 colores con su valor en claro y oscuro, contraste AA) e `IconKey` (unos 60 íconos de lucide-react, que ya viene con shadcn). Si no se elige color, una subcategoría hereda el del padre (RF-M5-04).
 
+Forma exportada por `catalogs.ts`: `PaletteKey` (`z.enum` de 12 claves), `PALETTE: Record<PaletteKey, { light: '#rrggbb'; dark: '#rrggbb' }>`, `THEME_BACKGROUND = { light: '#ffffff', dark: '#020817' }`, `IconKey` (`z.enum` en kebab-case) e `ICON_KEYS` (arreglo de nombres). Los fondos son los de la web (`--background` en `apps/web/src/index.css`: `0 0% 100%` y `222.2 84% 4.9%`) y el contraste AA (≥ 4,5:1) se mide contra ellos.
+
 #### 4.5.2 Endpoints
 
 | Método y ruta | Comportamiento | Errores |
