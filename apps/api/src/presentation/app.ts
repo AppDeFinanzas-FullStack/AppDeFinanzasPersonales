@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import express, { type Express, type RequestHandler } from 'express';
 
+import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.js';
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
@@ -9,6 +10,8 @@ import { healthRouter } from './routes/health.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
+  /** The internal tick endpoint (ADR-01); an app built without it does not expose it. */
+  jobs?: JobsControllerDeps;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -42,6 +45,9 @@ export const createApp = (deps: AppDeps): Express => {
   app.use(requireJson);
   app.use(express.json());
   app.use('/api', healthRouter());
+  if (deps.jobs !== undefined) {
+    app.use('/internal/jobs', jobsRouter(deps.jobs));
+  }
   app.use(errorHandler);
   return app;
 };

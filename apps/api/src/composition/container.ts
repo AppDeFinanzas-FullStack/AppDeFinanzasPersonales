@@ -1,12 +1,14 @@
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
+import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import {
   buildPrismaClient,
   type PrismaClient,
@@ -24,6 +26,8 @@ export interface Container {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
+  readonly jobs: Jobs;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -48,8 +52,16 @@ export const buildContainer = (env: Env): Container => {
     uow: createUnitOfWork(prisma, buildRepositories),
     clock: systemClock,
     ids: uuidv7Ids,
+    jobs: createJobs({
+      jobRuns: createJobRuns(prisma),
+      clock: systemClock,
+      release: env.RELEASE,
+    }),
   };
 };
 
 export const createApp = (container: Container): Express =>
-  createExpressApp({ webOrigin: container.env.WEB_ORIGIN });
+  createExpressApp({
+    webOrigin: container.env.WEB_ORIGIN,
+    jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
+  });

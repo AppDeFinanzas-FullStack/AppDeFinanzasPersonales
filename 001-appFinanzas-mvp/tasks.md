@@ -597,7 +597,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-28`: con 49 cuentas pasa; con 50 lanza `LIMIT_REACHED`. Lo mismo para cada entidad.
 
-- [ ] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
+- [x] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
   - **Dependencias:** Requiere TASK-036
   - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs y lease), plan §3.7 (`job_run`), ADR-18; RNF-13
   - **Archivos en Alcance:**
