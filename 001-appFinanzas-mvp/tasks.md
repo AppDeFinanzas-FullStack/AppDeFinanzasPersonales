@@ -419,7 +419,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M5-04`: hay exactamente 12 colores, y cada uno tiene un contraste ≥ 4,5:1 contra el fondo de su tema.
     - Los nombres de íconos son únicos y hay entre 55 y 65.
 
-- [ ] **`TASK-025`: Definición de las categorías precargadas**
+- [x] **`TASK-025`: Definición de las categorías precargadas**
   - **Dependencias:** Requiere TASK-024
   - **Trazabilidad SDD:** plan §2 (`packages/db/seed`), plan §4.5.3 (seed); spec §2.5.1; RF-M5-05, RF-M6-05
   - **Archivos en Alcance:**
