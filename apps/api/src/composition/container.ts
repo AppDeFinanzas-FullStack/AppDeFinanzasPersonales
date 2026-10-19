@@ -1,19 +1,27 @@
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { createOutboxSend } from '../application/jobs/outbox.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
+import type { EmailGateway } from '../application/ports/email-gateway.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
+import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
+import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
-import { createUnitOfWork } from '../infrastructure/persistence/unit-of-work.js';
+import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
+import {
+  createUnitOfWork,
+  type TransactionClient,
+} from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 
 /**
@@ -41,22 +49,39 @@ const uuidv7Ids: IdGenerator = {
   next: () => uuidv7(),
 };
 
+/** Sender of the account emails; the environment has no variable for it yet. */
+const EMAIL_FROM = 'Finanzas <onboarding@resend.dev>';
+
+/** Real Resend gateway, or the in-memory fake when the environment asks for fake integrations. */
+const createEmailGateway = (env: Env): EmailGateway =>
+  env.INTEGRATIONS === 'fake'
+    ? new FakeEmailGateway()
+    : new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
+
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
-const buildRepositories = (): Repositories => ({});
+const buildRepositories = (tx: TransactionClient): Repositories => ({
+  emailOutbox: createEmailOutboxRepository(tx),
+});
 
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
+  const uow = createUnitOfWork(prisma, buildRepositories);
+  const jobs = createJobs({
+    jobRuns: createJobRuns(prisma),
+    clock: systemClock,
+    release: env.RELEASE,
+  });
+  jobs.registerJob(
+    'outbox.send',
+    createOutboxSend({ uow, emailGateway: createEmailGateway(env), clock: systemClock }),
+  );
   return {
     env,
     prisma,
-    uow: createUnitOfWork(prisma, buildRepositories),
+    uow,
     clock: systemClock,
     ids: uuidv7Ids,
-    jobs: createJobs({
-      jobRuns: createJobRuns(prisma),
-      clock: systemClock,
-      release: env.RELEASE,
-    }),
+    jobs,
   };
 };
 

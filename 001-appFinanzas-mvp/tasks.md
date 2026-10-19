@@ -756,7 +756,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-25`: existen las plantillas de intentos fallidos, cambio de contraseña y eliminación de la cuenta.
     - Ninguna plantilla incluye la contraseña ni el token en texto, fuera del enlace.
 
-- [ ] **`TASK-049`: Bandeja de salida de correos y job `outbox.send`**
+- [x] **`TASK-049`: Bandeja de salida de correos y job `outbox.send`**
   - **Dependencias:** Requiere TASK-038, TASK-048
   - **Trazabilidad SDD:** plan §3.3 (`email_outbox`), plan §4.1.3 (correo caído), plan §4.0 (tick); EC-M1-07, RNF-22
   - **Archivos en Alcance:**
