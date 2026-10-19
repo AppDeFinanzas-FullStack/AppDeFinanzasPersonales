@@ -367,7 +367,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 2 — Contratos y catálogos compartidos
 
-- [ ] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
+- [x] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.4.1, plan §4.6.1, ADR-03; RF-M6-01, RF-M6-03, RF-M3-02, RN-13
   - **Archivos en Alcance:**
