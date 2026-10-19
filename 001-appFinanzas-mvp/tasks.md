@@ -637,7 +637,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-04`: `tabMemory` sobrevive a recrear el store sobre el mismo storage.
     - `RF-M2-05`: `rootFor(moduleKey)` devuelve la raíz del módulo.
 
-- [ ] **`TASK-041`: Detección sin conexión (`online`)**
+- [x] **`TASK-041`: Detección sin conexión (`online`)**
   - **Dependencias:** Requiere TASK-040
   - **Trazabilidad SDD:** plan §4.2.3 (normal ↔ sin conexión); RF-M2-07, EC-M2-02, RNF-23
   - **Archivos en Alcance:**
