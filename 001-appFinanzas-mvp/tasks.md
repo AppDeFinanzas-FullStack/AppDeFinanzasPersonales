@@ -695,7 +695,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/main.tsx`
     - `apps/web/src/App.tsx`
-  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones. `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
+  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones; al crearlo se llama a `online.attach(queryClient)` (TASK-041). `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
