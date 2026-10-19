@@ -306,9 +306,13 @@ model AuthUser {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  sessions   AuthSession[]
-  accounts   AuthAccount[]
-  emailLinks EmailLink[]
+  sessions           AuthSession[]
+  accounts           AuthAccount[]
+  emailLinks         EmailLink[]
+  currencies         Currency[]
+  fxEvents           UserFxEvent[]
+  settings           UserSettings?
+  favoriteCategories FavoriteCategory[]
 
   @@map("auth_user")
 }
@@ -409,4 +413,88 @@ model EmailSendLog {
 
   @@index([emailHmac, kind, sentAt(sort: Desc)])
   @@map("email_send_log")
+}
+
+// Exchange rates, currencies and user settings (plan §3.4). Created by migration 0003_fx_settings.
+// CHECK constraints, the deferrable unique on favorite_category and user_rate_on live only in the migration SQL.
+
+/// Global market data written only by jobs (ADR-12): no user_id.
+model MarketRate {
+  kind       MarketRateKind
+  rateDate   DateTime       @map("rate_date") @db.Date
+  value      Decimal        @db.Decimal(14, 2)
+  observedAt DateTime       @map("observed_at") @db.Timestamptz(6)
+  source     RateSource
+
+  @@id([kind, rateDate])
+  @@map("market_rate")
+}
+
+model Currency {
+  userId    String         @map("user_id") @db.Uuid
+  code      String         @db.Char(3)
+  symbol    String         @db.VarChar(5)
+  isSystem  Boolean        @default(false) @map("is_system")
+  status    CurrencyStatus @default(active)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user           AuthUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fxEvents       UserFxEvent[]
+  settingsAsBase UserSettings[]
+
+  @@id([userId, code])
+  @@map("currency")
+}
+
+model UserFxEvent {
+  id           String          @id @db.Uuid
+  userId       String          @map("user_id") @db.Uuid
+  kind         FxEventKind
+  currencyCode String?         @map("currency_code") @db.Char(3)
+  reference    MarketRateKind?
+  value        Decimal?        @db.Decimal(14, 2)
+  effectiveAt  DateTime        @default(now()) @map("effective_at") @db.Timestamptz(6)
+
+  user     AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency? @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, kind, currencyCode, effectiveAt(sort: Desc)])
+  @@map("user_fx_event")
+}
+
+model UserSettings {
+  userId                String         @id @map("user_id") @db.Uuid
+  numberFormat          NumberFormat   @default(dotComma) @map("number_format")
+  dateFormat            DateFormat     @default(dmy) @map("date_format")
+  weekStart             WeekStart      @default(monday) @map("week_start")
+  theme                 ThemeMode      @default(system)
+  sidebarCollapsed      Boolean        @default(false) @map("sidebar_collapsed")
+  baseCurrency          String         @default("BOB") @map("base_currency") @db.Char(3)
+  usdReference          MarketRateKind @default(parallelMedian) @map("usd_reference")
+  manualUsdValue        Decimal?       @map("manual_usd_value") @db.Decimal(14, 2)
+  manualUsdSince        DateTime?      @map("manual_usd_since") @db.Timestamptz(6)
+  defaultAccountId      String?        @map("default_account_id") @db.Uuid
+  alwaysShowNote        Boolean        @default(false) @map("always_show_note")
+  dashboardBlocks       Json           @map("dashboard_blocks")
+  onboardingStep        Int            @default(1) @map("onboarding_step") @db.SmallInt
+  onboardingCompletedAt DateTime?      @map("onboarding_completed_at") @db.Timestamptz(6)
+  updatedAt             DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user               AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseCurrencyRecord Currency @relation(fields: [userId, baseCurrency], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("user_settings")
+}
+
+model FavoriteCategory {
+  userId     String       @map("user_id") @db.Uuid
+  categoryId String       @map("category_id") @db.Uuid
+  kind       CategoryKind
+  position   Int          @db.SmallInt
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, categoryId])
+  @@unique([userId, kind, position])
+  @@map("favorite_category")
 }

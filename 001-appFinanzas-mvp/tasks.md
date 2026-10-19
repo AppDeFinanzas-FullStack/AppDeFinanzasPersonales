@@ -251,7 +251,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M1-05`: no pueden coexistir dos enlaces vigentes del mismo usuario y propósito.
     - `RF-M1-16`: `email_kind` tiene exactamente los 6 correos de la cuenta.
 
-- [ ] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
+- [x] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
   - **Dependencias:** Requiere TASK-012
   - **Trazabilidad SDD:** plan §3.4, plan §3.1 (orden de la migración), ADR-12; RF-M3-01, RF-M3-02, RF-M3-13
   - **Archivos en Alcance:**
