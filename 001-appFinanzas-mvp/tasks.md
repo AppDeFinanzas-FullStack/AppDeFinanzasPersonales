@@ -1,7 +1,7 @@
 # Tareas — App de Finanzas Personales (MVP)
 
 **Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Borrador para aprobación
-**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.1
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.2
 
 ## 1. Mapa de fases y orden de ejecución
 
@@ -598,17 +598,23 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 - [ ] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
   - **Dependencias:** Requiere TASK-036
-  - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs), ADR-18; RNF-13
+  - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs y lease), plan §3.7 (`job_run`), ADR-18; RNF-13
   - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0011_job_run_lease/migration.sql`
+    - `apps/api/src/application/ports/job-runs.ts`
+    - `apps/api/src/infrastructure/persistence/job-runs.ts`
     - `apps/api/src/application/jobs/tick.ts`
     - `apps/api/src/presentation/internal/jobs.controller.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/tick.test.ts`
-  - **Especificación de Implementación:** Registro de jobs con el orden fijo de plan §4.0. Cada job toma `pg_try_advisory_lock(job)` y, si está tomado, se salta. Registra inicio, fin y error en `job_run`. El tick deja de iniciar jobs al pasar los 25 s. Sin el encabezado `x-jobs-secret` correcto, responde 404. Los jobs de módulos no liberados no corren. Expone `registerJob(name, run)` para los módulos.
+  - **Especificación de Implementación:** La migración `0011_job_run_lease` agrega `locked_until timestamptz` a `job_run`, y `schema.prisma` suma `lockedUntil` al modelo `JobRun`. El puerto `JobRuns` (`tryAcquire(job, now): Promise<boolean>` y `finish(job, now, error?)`) lo implementa la infraestructura con el *lease* de plan §4.0: `INSERT … ON CONFLICT DO NOTHING` y un `UPDATE` condicionado a `locked_until IS NULL OR locked_until < now`, con 5 minutos de vigencia. No usa *advisory locks* de sesión. Registro de jobs con el orden fijo de plan §4.0. Un job sin lease se salta. Al terminar, con éxito o con error, se libera el lease y se registran el fin y el error en `job_run`. El tick deja de iniciar jobs al pasar los 25 s. Sin el encabezado `x-jobs-secret` correcto, responde 404. Los jobs de módulos no liberados no corren. Expone `registerJob(name, run)` para los módulos.
   - **Criterios de Verificación (Tests & DoD):**
-    - `RNF-13`: un job que falla registra `last_error` y no detiene los siguientes.
-    - Los jobs corren en el orden del plan, y uno con el *lock* tomado se salta.
+    - `RNF-13`: un job que falla registra `last_error`, libera su lease y no detiene los siguientes.
+    - Los jobs corren en el orden del plan.
+    - Un job con un lease vigente se salta, y uno con el lease vencido se toma.
+    - Al terminar con éxito, `locked_until` queda en NULL y `last_finished_at` registrado.
     - Sin secreto, la respuesta es 404.
 
 ### Fase 5 — Base de la web y harness E2E
@@ -1273,7 +1279,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/jobs/fx.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-jobs.test.ts`
-  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Usa `pg_try_advisory_lock(hashtext('fx_refresh'))`.
+  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Una sola actualización a la vez con el lease `fx_refresh` de `JobRuns` (plan §4.0 y §4.3.3), también cuando es a pedido.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-04`: con una captura de hace 30 minutos no consulta; con una de hace 61, sí.
     - `EC-M3-01` / `RNF-21`: si la fuente falla, el último valor queda intacto.
