@@ -225,7 +225,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 1 — Esquema de datos
 
-- [ ] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
+- [x] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
   - **Dependencias:** Requiere TASK-005
   - **Trazabilidad SDD:** plan §3.1, plan §3.2, ADR-10
   - **Archivos en Alcance:**
