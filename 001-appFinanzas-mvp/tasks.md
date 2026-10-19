@@ -685,7 +685,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-06`: parsear y serializar es estable (ida y vuelta), así el botón Atrás restaura el mismo estado.
     - Un mes con formato inválido cae al valor por defecto sin lanzar errores.
 
-- [ ] **`TASK-045`: Proveedores de la app y router base**
+- [x] **`TASK-045`: Proveedores de la app y router base**
   - **Dependencias:** Requiere TASK-039, TASK-042
   - **Trazabilidad SDD:** plan §2 (`app/providers`, `app/router.tsx`), ADR-16, plan §4.9.3 (primer pintado del tema)
   - **Archivos en Alcance:**
