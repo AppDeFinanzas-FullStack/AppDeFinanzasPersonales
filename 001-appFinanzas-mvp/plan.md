@@ -1243,7 +1243,17 @@ resolveUsdRate(input: { events: FxEvent[]; series: MarketSeries; date: LocalDate
 // hoy: referencia en uso o manual activo · fecha pasada: estado del usuario al final de D (manual si estaba activo;
 // si no, la referencia de ese día) → valor de D en el calendario de Bolivia → si falta compra o venta, mediana de D
 // → si D no tiene datos, el día anterior más cercano → antes del primer dato, el primer valor conocido (RF-M3-06, RF-M3-13)
-transferPrefill(input: { from: CurrencyCode; to: CurrencyCode; date: LocalDate; ... }): Decimal | null;   // RF-M3-07
+transferPrefill(input: { from: CurrencyCode; to: CurrencyCode; date: LocalDate; manual: Decimal | null;
+  parallel: { bid: Decimal; ask: Decimal } | null; customRates: Record<CurrencyCode, Decimal> }): Decimal | null;   // RF-M3-07
+// Quien llama resuelve lo de `date` (manual activo ese día, bid/ask del día, tasas con customRateOn); la función no consulta nada.
+// Devuelve la tasa declarada (§4.6.1) o null si falta alguna. Bs por unidad: BOB = 1; USD = manual, o ask si se compra USD (to) y bid si se
+// vende (from); otra moneda = customRates[code]. De BOB a X: Bs(X). De X a BOB: Bs(X). Entre dos monedas no BOB: Bs(from) ÷ Bs(to), round2.
+// from = to → null.
+amountInFrom(amountOut: Decimal, rate: Decimal, from: CurrencyCode): Decimal;             // from BOB: amountOut ÷ rate; si no: amountOut × rate; round2
+rateFromAmounts(amountOut: Decimal, amountIn: Decimal, from: CurrencyCode): Decimal;      // inversa: from BOB: amountOut ÷ amountIn; si no: amountIn ÷ amountOut; round2
+customRateOn(events: FxEvent[], code: CurrencyCode, date: LocalDate, tz: string): Decimal | null;
+// Equivale a user_rate_on (§3.4): último custom_rate de `code` con effectiveAt antes del inicio de D+1 en tz; si ninguno, el primero conocido;
+// null si la moneda no tiene ningún custom_rate.
 convert(amount: Decimal, rateCurBob: Decimal, rateBaseBob: Decimal): Decimal; // ROUND_HALF_UP alejado del cero, 2 decimales
 gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 ```
