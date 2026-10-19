@@ -307,7 +307,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-09`: un asiento que apunta a la cuenta de otro usuario viola la clave foránea compuesta.
     - `RF-M7-09`: los CHECK de `shortcut` exigen destino solo en transferencias y categoría en los demás tipos.
 
-- [ ] **`TASK-017`: Tablas de presupuestos (M11)**
+- [x] **`TASK-017`: Tablas de presupuestos (M11)**
   - **Dependencias:** Requiere TASK-016
   - **Trazabilidad SDD:** plan §3.6; RF-M11-01, RF-M11-04, RF-M11-13, RNF-12
   - **Archivos en Alcance:**

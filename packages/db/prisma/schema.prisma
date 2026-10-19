@@ -319,6 +319,9 @@ model AuthUser {
   ledgerEntries      LedgerEntry[]
   undoActions        UndoAction[]
   shortcuts          Shortcut[]
+  budgets            Budget[]
+  budgetPeriods      BudgetPeriod[]
+  budgetAdjustments  BudgetLateAdjustment[]
 
   @@map("auth_user")
 }
@@ -448,6 +451,7 @@ model Currency {
   fxEvents       UserFxEvent[]
   settingsAsBase UserSettings[]
   accounts       Account[]
+  budgets        Budget[]
 
   @@id([userId, code])
   @@map("currency")
@@ -566,6 +570,7 @@ model Category {
   subcategories Category[]          @relation("CategoryHierarchy")
   transactions  LedgerTransaction[]
   shortcuts     Shortcut[]
+  budgets       Budget[]
 
   @@unique([userId, id])
   @@map("category")
@@ -658,4 +663,91 @@ model Shortcut {
   category    Category? @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("shortcut")
+}
+
+// Budgets (plan §3.6). Created by migration 0007_budgets.
+// CHECK constraints and the partial unique indexes budget_one_per_category and budget_one_general
+// live only in the migration SQL.
+
+model Budget {
+  id              String              @id @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  scope           BudgetScope
+  categoryId      String?             @map("category_id") @db.Uuid
+  amount          Decimal             @db.Decimal(14, 2)
+  currencyCode    String              @map("currency_code") @db.Char(3)
+  startDay        Int                 @map("start_day") @db.SmallInt
+  nextStartDay    Int?                @map("next_start_day") @db.SmallInt
+  defaultAction   BudgetDefaultAction @default(discard) @map("default_action")
+  thresholds      Int[]               @default([80, 100]) @db.SmallInt
+  status          BudgetStatus        @default(active)
+  frozenCarryover Decimal?            @map("frozen_carryover") @db.Decimal(14, 2)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user     AuthUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category?      @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  currency Currency       @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  periods  BudgetPeriod[]
+
+  @@unique([userId, id])
+  @@map("budget")
+}
+
+model BudgetPeriod {
+  id               String             @id @db.Uuid
+  userId           String             @map("user_id") @db.Uuid
+  budgetId         String             @map("budget_id") @db.Uuid
+  startDate        DateTime           @map("start_date") @db.Date
+  endDate          DateTime           @map("end_date") @db.Date
+  /// Copy of the budget amount in force for the period.
+  amount           Decimal            @db.Decimal(14, 2)
+  carryoverIn      Decimal            @default(0) @map("carryover_in") @db.Decimal(14, 2)
+  status           BudgetPeriodStatus @default(open)
+  spentAtDecision  Decimal?           @map("spent_at_decision") @db.Decimal(14, 2)
+  resultAtDecision Decimal?           @map("result_at_decision") @db.Decimal(14, 2)
+  decision         Json?
+  decisionDeadline DateTime?          @map("decision_deadline") @db.Timestamptz(6)
+  decidedAt        DateTime?          @map("decided_at") @db.Timestamptz(6)
+
+  user              AuthUser               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budget            Budget                 @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  lateAdjustments   BudgetLateAdjustment[] @relation("AdjustmentPeriod")
+  sourceAdjustments BudgetLateAdjustment[] @relation("AdjustmentSourcePeriod")
+  thresholdHits     BudgetThresholdHit[]
+
+  @@unique([budgetId, startDate])
+  @@index([userId, status, endDate])
+  @@map("budget_period")
+}
+
+model BudgetLateAdjustment {
+  id             String    @id @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  /// The period in progress.
+  periodId       String    @map("period_id") @db.Uuid
+  /// The closed period the adjustment comes from.
+  sourcePeriodId String    @map("source_period_id") @db.Uuid
+  amount         Decimal   @db.Decimal(14, 2)
+  /// Set by "Reiniciar arrastre".
+  voidedAt       DateTime? @map("voided_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user         AuthUser     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period       BudgetPeriod @relation("AdjustmentPeriod", fields: [periodId], references: [id], onDelete: Cascade)
+  sourcePeriod BudgetPeriod @relation("AdjustmentSourcePeriod", fields: [sourcePeriodId], references: [id], onDelete: Cascade)
+
+  @@map("budget_late_adjustment")
+}
+
+model BudgetThresholdHit {
+  periodId  String   @map("period_id") @db.Uuid
+  threshold Int      @db.SmallInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  period BudgetPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  // One notice per threshold and period (RNF-12).
+  @@id([periodId, threshold])
+  @@map("budget_threshold_hit")
 }
