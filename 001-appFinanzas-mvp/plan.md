@@ -1301,6 +1301,11 @@ Respuestas reales de `https://paralelo.bo/mcp` (JSON-RPC 2.0 por POST, sin sesi�
 - `convert_currency { amount: 1, from: "USD", to: "BOB", direction: "official" }` → `{ result: 11.69, rate: 11.69, … }`, y el texto trae «(vigencia 2026-10-17)», de donde sale `effectiveDate` (expresión `vigencia (\d{4}-\d{2}-\d{2})`; `null` si no aparece). `observedAt` = ahora. El valor es `rate`.
 - Valor válido: número finito, ≥ 0,01 y con a lo sumo 2 decimales (EC-M3-04). Si no, `INVALID_VALUE`. El *timeout* da `TIMEOUT`.
 
+**Respaldo del BCB (`infrastructure/integrations/bcb.ts`).** `createBcbGateway(opts: { url: string; timeoutMs: number; fetch?: typeof fetch; now?: () => Date }): Pick<RatesGateway, 'fetchOfficial'>` y `createFakeBcbGateway(opts?: { official?: OfficialQuote; failure?: RateFailure | null; delayMs?: number })` con la misma forma que el *fake* de paralelo.bo (`configure`, `calls.official`). La URL es `https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php`: un `GET` que devuelve un fragmento de HTML (sin autenticación), verificado el 2026-10-19. Se lee con expresiones regulares, sin analizador de HTML:
+- Valor: el texto de `<div class="tco-public-value">Bs 11,69/$us</div>`; la coma decimal se convierte en punto y se valida como en paralelo.bo.
+- Vigencia: `<span class="tco-public-vigencia">VIGENCIA: DEL SÁBADO 17 DE OCTUBRE DE 2026 AL LUNES 19 DE OCTUBRE DE 2026</span>`. `effectiveDate` es la primera fecha («17 de octubre de 2026» → `2026-10-17`), con los meses en español sin importar mayúsculas o acentos; `null` si no se puede leer.
+- Si falta el elemento del valor (HTML inesperado) → `SOURCE_ERROR`; si está pero no es un valor válido → `INVALID_VALUE`. HTTP distinto de 200 o error de red → `SOURCE_ERROR`; *timeout* → `TIMEOUT`. `observedAt` = ahora.
+
 #### 4.3.3 Ciclo de vida y concurrencia
 - **Moneda Activa → Inactiva:** `SELECT … FOR UPDATE` sobre `currency` → cada módulo responde a `currencyUsage.check(tx, userId, code)` (cuentas activas, metas no archivadas, presupuestos activos o pausados, deudas activas, reglas no eliminadas) → `UPDATE … SET status = 'inactive'`. Toda creación con esa moneda toma `FOR SHARE` y verifica `status = 'active'`, así no hay carreras.
 - **Inactiva → Activa:** exige una tasa nueva → inserta `custom_rate`.
