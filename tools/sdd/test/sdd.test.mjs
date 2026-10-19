@@ -263,7 +263,9 @@ test('wrapText corta el cuerpo del commit sin pasar de 100 columnas', () => {
 
 test('secretos: una URL con contraseña literal se detecta y un placeholder ${…} no', () => {
   const dbUrl = SECRETS.find(([, label]) => label.includes('base de datos'))[0];
-  assert.equal(dbUrl.test('DATABASE_URL=postgresql://app:Sup3rS3cret@ep-cool.neon.tech/finanzas'), true);
+  // Se arma en tiempo de ejecución para que el propio pre-push no la tome como un secreto en el diff.
+  const literal = ['DATABASE_URL=postgresql://app:', 'Sup3rS3cret', '@ep-cool.neon.tech/finanzas'].join('');
+  assert.equal(dbUrl.test(literal), true);
   assert.equal(dbUrl.test('throw new Error(`connection to postgres://user:${secret}@db failed`)'), false);
   assert.equal(dbUrl.test('postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test'), false);
 });
