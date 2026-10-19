@@ -293,7 +293,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - El trigger rechaza un segundo nivel, un padre de otro tipo o archivado, y que una categoría con hijas pase a ser hija.
     - `RF-M5-05`: en la categoría del sistema solo se pueden cambiar el color y el ícono.
 
-- [ ] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
+- [x] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
   - **Dependencias:** Requiere TASK-015
   - **Trazabilidad SDD:** plan §3.5, ADR-04, ADR-07, ADR-15; RF-M6-01, RF-M6-03, RF-M7-09, RN-09
   - **Archivos en Alcance:**
