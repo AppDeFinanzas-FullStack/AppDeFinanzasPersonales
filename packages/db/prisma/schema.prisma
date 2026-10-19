@@ -326,6 +326,10 @@ model AuthUser {
   goalAllocations    GoalAllocationEvent[]
   debts              Debt[]
   debtPayments       DebtPayment[]
+  recurringRules     RecurringRule[]
+  occurrences        RecurringOccurrence[]
+  notifications      Notification[]
+  notificationPrefs  NotificationPreference[]
 
   @@map("auth_user")
 }
@@ -547,6 +551,8 @@ model Account {
   dedicatedGoals       Goal[]
   goalAllocations      GoalAllocationEvent[]
   debtPayments         DebtPayment[]
+  recurringRules       RecurringRule[]       @relation("RecurringRuleAccount")
+  recurringRuleDests   RecurringRule[]       @relation("RecurringRuleDestAccount")
 
   @@unique([userId, id])
   @@index([userId, status, sortOrder])
@@ -574,12 +580,13 @@ model Category {
   createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  user          AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent        Category?           @relation("CategoryHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
-  subcategories Category[]          @relation("CategoryHierarchy")
-  transactions  LedgerTransaction[]
-  shortcuts     Shortcut[]
-  budgets       Budget[]
+  user           AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent         Category?           @relation("CategoryHierarchy", fields: [userId, parentId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  subcategories  Category[]          @relation("CategoryHierarchy")
+  transactions   LedgerTransaction[]
+  shortcuts      Shortcut[]
+  budgets        Budget[]
+  recurringRules RecurringRule[]
 
   @@unique([userId, id])
   @@map("category")
@@ -615,8 +622,9 @@ model LedgerTransaction {
   entries  LedgerEntry[]
 
   initialOfDebts       Debt[]
-  debtCapitalPayments  DebtPayment[] @relation("DebtPaymentCapital")
-  debtInterestPayments DebtPayment[] @relation("DebtPaymentInterest")
+  debtCapitalPayments  DebtPayment[]         @relation("DebtPaymentCapital")
+  debtInterestPayments DebtPayment[]         @relation("DebtPaymentInterest")
+  occurrences          RecurringOccurrence[]
 
   @@unique([userId, id])
   @@map("ledger_transaction")
@@ -872,4 +880,116 @@ model DebtPayment {
 
   @@index([debtId, createdAt(sort: Desc)])
   @@map("debt_payment")
+}
+
+// Recurring rules (plan §3.6). Created by migration 0009_recurring_notifications.
+// CHECK constraints live only in the migration SQL. The ledger_transaction.recurring_rule_id
+// relation is added in TASK-020.
+
+model RecurringRule {
+  id                String        @id @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  name              String        @db.VarChar(40)
+  kind              EntryKind
+  amount            Decimal?      @db.Decimal(14, 2)
+  accountId         String        @map("account_id") @db.Uuid
+  destAccountId     String?       @map("dest_account_id") @db.Uuid
+  categoryId        String?       @map("category_id") @db.Uuid
+  note              String?       @db.VarChar(140)
+  frequency         RuleFrequency
+  weekday           Int?          @db.SmallInt
+  dayOfMonth        Int?          @map("day_of_month") @db.SmallInt
+  month             Int?          @db.SmallInt
+  startDate         DateTime      @map("start_date") @db.Date
+  endType           RuleEndType   @default(none) @map("end_type")
+  endDate           DateTime?     @map("end_date") @db.Date
+  endCount          Int?          @map("end_count") @db.SmallInt
+  mode              RuleMode
+  status            RuleStatus    @default(active)
+  pausedAt          DateTime?     @map("paused_at") @db.Timestamptz(6)
+  generatedCount    Int           @default(0) @map("generated_count")
+  lastGeneratedDate DateTime?     @map("last_generated_date") @db.Date
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user        AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     Account               @relation("RecurringRuleAccount", fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  destAccount Account?              @relation("RecurringRuleDestAccount", fields: [userId, destAccountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  category    Category?             @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  occurrences RecurringOccurrence[]
+
+  @@unique([userId, id])
+  @@index([userId, status])
+  @@map("recurring_rule")
+}
+
+model RecurringOccurrence {
+  id            String           @id @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  ruleId        String           @map("rule_id") @db.Uuid
+  scheduledDate DateTime         @map("scheduled_date") @db.Date
+  status        OccurrenceStatus
+  transactionId String?          @map("transaction_id") @db.Uuid
+  pendingSince  DateTime?        @map("pending_since") @db.Timestamptz(6)
+  decidedAt     DateTime?        @map("decided_at") @db.Timestamptz(6)
+
+  user        AuthUser           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rule        RecurringRule      @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  transaction LedgerTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  // At most one occurrence per rule and date (RF-M14-12).
+  @@unique([ruleId, scheduledDate])
+  @@index([userId, status, pendingSince])
+  @@map("recurring_occurrence")
+}
+
+// Notifications and job monitoring (plan §3.7). Created by migration 0009_recurring_notifications.
+// CHECK constraints and the partial index on unread notifications live only in the migration SQL.
+
+model Notification {
+  id             String           @id @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  type           NotificationType
+  /// For example debt:<id>:due:2026-10-20:d-3.
+  eventKey       String           @map("event_key") @db.VarChar(200)
+  /// Data for the i18n text.
+  params         Json
+  targetRoute    String           @map("target_route") @db.VarChar(200)
+  /// 'budget_period' | 'occurrence'.
+  decisionKind   String?          @map("decision_kind") @db.VarChar(32)
+  decisionRef    String?          @map("decision_ref") @db.Uuid
+  decisionStatus DecisionStatus?  @map("decision_status")
+  readAt         DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One event never produces two notifications (RN-10, RNF-12).
+  @@unique([userId, eventKey])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notification")
+}
+
+model NotificationPreference {
+  userId   String           @map("user_id") @db.Uuid
+  type     NotificationType
+  enabled  Boolean
+  hour     Int?             @db.SmallInt
+  leadDays Int?             @map("lead_days") @db.SmallInt
+  weekdays Int[]            @db.SmallInt
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preference")
+}
+
+/// Monitoring only; mutual exclusion between job runs uses advisory locks.
+model JobRun {
+  job            String    @id @db.VarChar(64)
+  lastStartedAt  DateTime? @map("last_started_at") @db.Timestamptz(6)
+  lastFinishedAt DateTime? @map("last_finished_at") @db.Timestamptz(6)
+  lastError      String?   @map("last_error")
+
+  @@map("job_run")
 }

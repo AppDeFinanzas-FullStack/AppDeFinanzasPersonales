@@ -335,7 +335,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M13-05`: un pago con `amount ≠ interest_part + capital_part` viola el CHECK.
     - `interest_unpaid` conserva 10 decimales.
 
-- [ ] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
+- [x] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
   - **Dependencias:** Requiere TASK-018
   - **Trazabilidad SDD:** plan §3.6, plan §3.7; RF-M14-12, RF-M14-14, RF-M14-15, RN-10
   - **Archivos en Alcance:**
