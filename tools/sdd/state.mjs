@@ -23,6 +23,12 @@ function toPhase(next) {
 
   switch (next) {
     case 'tests':
+      // Reapertura: solo si el Gate B falla por un defecto de las propias pruebas (p. ej. lint), que
+      // el implementer no puede corregir porque están bloqueadas. Reinicia ambos gates.
+      if (from === 'implement' && state.gates.B.attempts > 0 && !state.gates.B.passed) {
+        state.gates = { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } };
+        break;
+      }
       if (from !== 'preflight') err('las pruebas se escriben al empezar la tarea.');
       if (!state.testFiles.length) err('la tarea no tiene archivos de test.');
       break;

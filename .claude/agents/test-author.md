@@ -17,6 +17,8 @@ El orquestador te da el ID de la tarea. Todo lo que necesitas está en `.claude/
 5. Corre tus pruebas. **Deben fallar** porque la implementación todavía no existe (un import que no resuelve o una aserción que falla son rojos válidos). Un error de sintaxis o de configuración en tu propio test no es un rojo válido: corrígelo.
    - **Excepción, tarea de verificación**: si todos los archivos del alcance son de test, la tarea verifica algo que ya existe y tus pruebas **deben pasar**.
 
+6. Corre eslint sobre tus archivos de test (`pnpm exec eslint --max-warnings=0 <archivo>` desde la raíz) y déjalos sin errores: el Gate B los lintea y, una vez que el Gate A los bloquea, el implementer ya no puede corregirlos. Con respuestas HTTP tipa el cuerpo (`res.body as Problem`, o un esquema `zod`) en vez de acceder a miembros de un `any`.
+
 ## Límites
 - Solo creas o modificas los **archivos de test del alcance**. No escribes código de producción, ni siquiera un esqueleto o un *stub*.
 - No miras implementaciones que la tarea todavía no tiene, ni escribes pruebas a la medida de un código imaginado: pruebas el comportamiento que describe la spec, a través de la interfaz que define el plan (contratos, endpoints, firmas de funciones).
