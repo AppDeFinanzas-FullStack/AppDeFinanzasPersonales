@@ -321,7 +321,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M11-13`: más de 3 umbrales, o un umbral fuera de 1–150, viola el CHECK.
     - `RNF-12`: un mismo umbral no se registra dos veces por período.
 
-- [ ] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
+- [x] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
   - **Dependencias:** Requiere TASK-017
   - **Trazabilidad SDD:** plan §3.6, ADR-14; RF-M12-01, RF-M12-03, RF-M13-01, RF-M13-05
   - **Archivos en Alcance:**
