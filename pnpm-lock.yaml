@@ -302,6 +302,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@finanzas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@prisma/client':
         specifier: 6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)

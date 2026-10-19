@@ -1273,7 +1273,7 @@ AccountsSummaryDto = { netWorth: { base, other }, breakdown: { liquid, savings, 
 | `PUT /api/accounts/order` | Reasigna `sort_order` en una transacción. | `VALIDATION_ERROR` (ids ajenos o faltantes) |
 | `POST /api/accounts/:id/adjust` | Bajo `FOR UPDATE`: delta = real − actual. Si es 0, `200 {created:false}` (EC-M4-08). Si no, `ledger_transaction(kind=adjustment, date=hoy)` + un asiento + `BalanceGuard`. | `NEGATIVE_BALANCE 422` · `EARMARK_CONFIRMATION_REQUIRED 409` |
 | `POST /api/accounts/:id/archive` | `UPDATE … WHERE status='active'`. Con saldo distinto de 0 sin confirmar, pide confirmación. Rechaza si tiene apartados o es dedicada (V1.1). Quita la cuenta por defecto y pausa sus reglas con aviso (V1.2). | `ARCHIVE_CONFIRMATION_REQUIRED 409 {balance}` · `ACCOUNT_HAS_EARMARKS 409 {goals}` · `ACCOUNT_DEDICATED 409` |
-| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 409` |
+| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 422` |
 | `DELETE /api/accounts/:id` | Sin asientos (incluidos los que están dentro de la ventana de deshacer) y no dedicada. Limpieza de RF-M4-13. | `ACCOUNT_HAS_MOVEMENTS 409` · `ACCOUNT_DEDICATED 409` |
 | `GET /api/accounts/:id/balance-series?from&to` | Saldo inicial + suma acumulada (`SUM … OVER (ORDER BY date)`) por día del rango. | — |
 
@@ -1314,6 +1314,8 @@ MergePreviewDto  = { movements: number, budgetEffect: 'moved'|'kept_target'|'non
 
 Catálogos fijos en `contracts`: `PaletteKey` (12 colores con su valor en claro y oscuro, contraste AA) e `IconKey` (unos 60 íconos de lucide-react, que ya viene con shadcn). Si no se elige color, una subcategoría hereda el del padre (RF-M5-04).
 
+Forma exportada por `catalogs.ts`: `PaletteKey` (`z.enum` de 12 claves), `PALETTE: Record<PaletteKey, { light: '#rrggbb'; dark: '#rrggbb' }>`, `THEME_BACKGROUND = { light: '#ffffff', dark: '#020817' }`, `IconKey` (`z.enum` en kebab-case) e `ICON_KEYS` (arreglo de nombres). Los fondos son los de la web (`--background` en `apps/web/src/index.css`: `0 0% 100%` y `222.2 84% 4.9%`) y el contraste AA (≥ 4,5:1) se mide contra ellos.
+
 #### 4.5.2 Endpoints
 
 | Método y ruta | Comportamiento | Errores |
@@ -1332,6 +1334,7 @@ Catálogos fijos en `contracts`: `PaletteKey` (12 colores con su valor en claro 
 - **Protecciones** (trigger `category_guard` + validaciones del servicio): un solo nivel, el tipo nunca cambia (RF-M5-01), la categoría del sistema solo cambia color e ícono (RF-M5-05) y una categoría con hijas no pasa a ser hija.
 - **Totales por categoría:** se calculan con la jerarquía actual al leer, así que fusionar o mover cambia los totales de meses pasados en el Inicio y en la lista (RF-M5-09, RN-11). Los presupuestos decididos guardan `spent_at_decision`, así que sus períodos cerrados no cambian.
 - **Fusión:** atómica e irreversible. Repetirla devuelve `CATEGORY_NOT_FOUND`, que el cliente trata como ya hecha.
+- **Definición del seed:** `packages/db/seed/preset-categories.ts` exporta `PRESET_CATEGORIES: readonly PresetCategory[]`, un árbol en el orden de spec §2.5.1 (gastos, luego ingresos), con `PresetCategory = { kind: 'expense' | 'income'; name: string; icon: IconKey; color: PaletteKey; seedOrder: number; systemKey?: 'debts' | 'debts_interest'; children?: PresetCategory[] }`. `seedOrder` empieza en 0 y cuenta por tipo entre las raíces y por padre entre las hijas. Las hijas usan el color de su padre. Las del sistema son "Deudas y préstamos" (`debts`) con su hija "Intereses" (`debts_interest`), repetidas en gasto y en ingreso. `IconKey` y `PaletteKey` vienen de `@finanzas/contracts`, que `@finanzas/db` declara como dependencia.
 - **Seed:** al crear el usuario se crean las precargadas (con `seed_order`) y las del sistema. Al terminar el paso 3 del Onboarding se borran las desmarcadas, que no tienen movimientos.
 
 #### 4.5.4 UI y estado

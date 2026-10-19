@@ -367,7 +367,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 2 — Contratos y catálogos compartidos
 
-- [ ] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
+- [x] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.4.1, plan §4.6.1, ADR-03; RF-M6-01, RF-M6-03, RF-M3-02, RN-13
   - **Archivos en Alcance:**
@@ -382,7 +382,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-13`: un nombre se valida después de recortar sus espacios.
     - Ningún schema acepta `number` para montos.
 
-- [ ] **`TASK-022`: Catálogo de errores y formato problem+json**
+- [x] **`TASK-022`: Catálogo de errores y formato problem+json**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.0 (catálogo común), plan §4.1.2 a §4.15.2 (errores por módulo), ADR-09; RNF-17
   - **Archivos en Alcance:**
@@ -394,7 +394,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Una tabla de pruebas verifica el estado HTTP de cada código según el plan.
     - `RNF-17`: `INTERNAL_ERROR` no admite `data`.
 
-- [ ] **`TASK-023`: Mapa de entregas por módulo**
+- [x] **`TASK-023`: Mapa de entregas por módulo**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.2.1 (`ModuleRelease`), plan §4.15.3 (entrega), ADR-18; RF-M2-03, spec §1.2
   - **Archivos en Alcance:**
@@ -407,7 +407,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Con 1.1 se liberan M11, M12, M13 y la bandeja, con los tipos `budget_alert`, `period_close` y los avisos de deuda.
     - Con 1.2 está todo liberado.
 
-- [ ] **`TASK-024`: Catálogos de colores e íconos**
+- [x] **`TASK-024`: Catálogos de colores e íconos**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.5.1 (catálogos fijos); RF-M5-04, RNF-06
   - **Archivos en Alcance:**
@@ -419,13 +419,15 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M5-04`: hay exactamente 12 colores, y cada uno tiene un contraste ≥ 4,5:1 contra el fondo de su tema.
     - Los nombres de íconos son únicos y hay entre 55 y 65.
 
-- [ ] **`TASK-025`: Definición de las categorías precargadas**
+- [x] **`TASK-025`: Definición de las categorías precargadas**
   - **Dependencias:** Requiere TASK-024
   - **Trazabilidad SDD:** plan §2 (`packages/db/seed`), plan §4.5.3 (seed); spec §2.5.1; RF-M5-05, RF-M6-05
   - **Archivos en Alcance:**
     - `packages/db/seed/preset-categories.ts`
     - `packages/db/test/preset-categories.test.ts`
-  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo. Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses").
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo, con la forma de plan §4.5.3 (`PRESET_CATEGORIES`). Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses"). Declara `@finanzas/contracts` (`workspace:*`) en `packages/db/package.json` y actualiza `pnpm-lock.yaml`.
   - **Criterios de Verificación (Tests & DoD):**
     - La lista coincide exactamente con spec §2.5.1, en el mismo orden.
     - `RF-M5-05`: "Deudas y préstamos" existe en gasto y en ingreso con "Intereses", marcadas como del sistema.
