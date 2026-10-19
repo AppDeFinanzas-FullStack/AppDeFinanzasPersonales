@@ -1,4 +1,4 @@
-import type { Decimal } from 'decimal.js';
+import { Decimal } from 'decimal.js';
 import { startOfDayInstant } from './dates.js';
 import type { Instant, LocalDate } from './dates.js';
 import { round2 } from './money.js';
@@ -27,6 +27,8 @@ export type FxEvent = {
 };
 
 export type MarketSeries = Record<UsdReference, ReadonlyArray<{ rateDate: LocalDate; value: Decimal }>>;
+
+const ONE = new Decimal(1);
 
 type SeriesRow = { rateDate: LocalDate; value: Decimal };
 
@@ -72,4 +74,61 @@ export function resolveUsdRate(input: {
   }
   if (manual) return manual;
   return valueForDay(reference, input.series, input.date);
+}
+
+/** Converts an amount between two currencies through BOB, rounded per RN-06. */
+export function convert(amount: Decimal, rateCurBob: Decimal, rateBaseBob: Decimal): Decimal {
+  return round2(amount.times(rateCurBob).dividedBy(rateBaseBob));
+}
+
+/** Last custom rate of a currency up to the end of the day in tz; else the first known one (equivalent to user_rate_on). */
+export function customRateOn(events: FxEvent[], code: string, date: LocalDate, tz: string): Decimal | null {
+  const limit = startOfDayInstant(nextDay(date), tz).getTime();
+  const rates = events
+    .filter((e) => e.kind === 'custom_rate' && e.currencyCode === code && e.value !== null)
+    .sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime());
+  if (rates.length === 0) return null;
+  let chosen = rates[0] as FxEvent;
+  for (const e of rates) {
+    if (e.effectiveAt.getTime() < limit) chosen = e;
+  }
+  return chosen.value;
+}
+
+/** Declared rate to prefill a transfer between two currencies (RF-M3-07); null if any input is missing. */
+export function transferPrefill(input: {
+  from: string;
+  to: string;
+  date: LocalDate;
+  manual: Decimal | null;
+  parallel: { bid: Decimal; ask: Decimal } | null;
+  customRates: Record<string, Decimal>;
+}): Decimal | null {
+  const { from, to } = input;
+  if (from === to) return null;
+  const bsPerUnit = (code: string): Decimal | null => {
+    if (code === 'BOB') return ONE;
+    if (code === 'USD') {
+      if (input.manual) return input.manual;
+      if (!input.parallel) return null;
+      return code === to ? input.parallel.ask : input.parallel.bid;
+    }
+    return input.customRates[code] ?? null;
+  };
+  const bsFrom = bsPerUnit(from);
+  const bsTo = bsPerUnit(to);
+  if (!bsFrom || !bsTo) return null;
+  if (to === 'BOB') return round2(bsFrom);
+  if (from === 'BOB') return round2(bsTo);
+  return round2(bsFrom.dividedBy(bsTo));
+}
+
+/** Amount that arrives given the amount that leaves and the declared rate. */
+export function amountInFrom(amountOut: Decimal, rate: Decimal, from: string): Decimal {
+  return round2(from === 'BOB' ? amountOut.dividedBy(rate) : amountOut.times(rate));
+}
+
+/** Inverse of amountInFrom: the declared rate implied by both amounts. */
+export function rateFromAmounts(amountOut: Decimal, amountIn: Decimal, from: string): Decimal {
+  return round2(from === 'BOB' ? amountOut.dividedBy(amountIn) : amountIn.dividedBy(amountOut));
 }

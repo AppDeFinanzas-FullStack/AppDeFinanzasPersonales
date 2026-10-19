@@ -1222,7 +1222,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-03`: un día sin datos usa el anterior más cercano y, antes del primer dato, el primero.
     - Sin ninguna tasa, devuelve `null`.
 
-- [ ] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
+- [x] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
   - **Dependencias:** Requiere TASK-079
   - **Trazabilidad SDD:** plan §4.3.1 (`convert`, `transferPrefill`), plan §4.6.1 (convención de la tasa declarada); RF-M3-07, RF-M3-08, EC-M3-06, RN-05, RN-06
   - **Archivos en Alcance:**
