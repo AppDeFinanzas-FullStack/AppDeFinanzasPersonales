@@ -13,7 +13,13 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
-import { createUnitOfWork } from '../infrastructure/persistence/unit-of-work.js';
+import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
+import { createMarketRateRepository } from '../infrastructure/persistence/repositories/market-rate.repository.js';
+import { createUserFxEventRepository } from '../infrastructure/persistence/repositories/user-fx-event.repository.js';
+import {
+  createUnitOfWork,
+  type TransactionClient,
+} from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 
 /**
@@ -42,7 +48,13 @@ const uuidv7Ids: IdGenerator = {
 };
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
-const buildRepositories = (): Repositories => ({});
+const NO_USER = '00000000-0000-0000-0000-000000000000';
+
+const buildRepositories = (tx: TransactionClient, userId: string | undefined): Repositories => ({
+  marketRates: createMarketRateRepository(tx),
+  currencies: createCurrencyRepository(tx, userId ?? NO_USER),
+  userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
+});
 
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);

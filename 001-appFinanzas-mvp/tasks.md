@@ -1260,7 +1260,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-082`: con una respuesta de ejemplo, devuelve el valor y su fecha de vigencia; con HTML inesperado, informa el fallo.
 
-- [ ] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
+- [x] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §3.4, ADR-12; RF-M3-13, RN-09
   - **Archivos en Alcance:**
