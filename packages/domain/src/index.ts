@@ -21,3 +21,5 @@ export {
   todayFor,
 } from './dates.js';
 export type { DateRange, Instant, LocalDate, YearMonth } from './dates.js';
+export { formatMoney, parseAmountInput } from './format.js';
+export type { NumberFormat } from './format.js';

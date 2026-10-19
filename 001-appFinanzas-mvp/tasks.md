@@ -459,7 +459,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M14-02`: `clampDay(2027, 2, 29)` da el 28 y `clampDay(2026, 11, 31)` da el 30.
     - `RF-M3-13`: `boliviaDay` usa el calendario de Bolivia.
 
-- [ ] **`TASK-028`: Dominio `format`: montos y parseo de lo que escribe el usuario**
+- [x] **`TASK-028`: Dominio `format`: montos y parseo de lo que escribe el usuario**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.7.1 (`parseAmountInput`); RF-M9-02, RF-M7-02
   - **Archivos en Alcance:**
