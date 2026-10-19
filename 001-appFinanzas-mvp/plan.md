@@ -1278,6 +1278,21 @@ gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 - `fx.fetchOfficial`: una vez al día. Usa `convert_currency direction=official`; si falla, el widget del BCB. Guarda en la fecha de vigencia y reintenta en cada tick hasta lograrlo.
 - Script `fx-backfill` (una vez): la mediana diaria desde el 01/01/2024 (1 consulta por segundo) y el oficial (6,96 hasta el 26/06/2026; la serie del BCB desde el 27/06/2026).
 
+**Script `fx-backfill` (`packages/db/scripts/fx-backfill.ts`).** `packages/db` no puede importar de `apps/api`, así que el script define su propio cliente y escribe con SQL propio:
+
+```ts
+interface BackfillClient {
+  parallelMedianOn(date: LocalDate): Promise<Decimal | null>;                          // null si la fuente no tiene dato ese día
+  officialSeries(): Promise<ReadonlyArray<{ effectiveDate: LocalDate; value: Decimal }>>;  // TCO del BCB desde el 27/06/2026, una entrada por vigencia
+}
+runFxBackfill(input: { db: PrismaClient; client: BackfillClient; from: LocalDate; to: LocalDate; now?: () => Date;
+                       sleep?: (ms: number) => Promise<void> }): Promise<{ parallel: number; official: number }>;
+```
+- Una fila por día de `from` a `to` para cada tipo. `parallel_median`: `parallelMedianOn(día)` (se omite el día si da `null`), fuente `paralelo_bo`. Entre consultas espera 1 s con `sleep` (el valor por defecto es el real; las pruebas lo reemplazan).
+- `official`: hasta el 26/06/2026 es 6,96 con fuente `seed`. Desde el 27/06/2026, el valor de la serie con la `effectiveDate` más reciente que sea ≤ al día, con fuente `bcb`; si la serie no tiene ninguna anterior, se omite el día.
+- `observed_at` determinista: el menor entre `now()` y el inicio del día siguiente en La Paz. Se escribe con `INSERT … ON CONFLICT (kind, rate_date) DO UPDATE … WHERE excluded.observed_at > market_rate.observed_at`, así que correrlo dos veces no duplica nada y no pisa lo que ya escribieron los jobs.
+- Cliente real (solo en la ejecución desde la línea de comandos, sin pruebas): `parallelMedianOn` llama a `get_historical_rate` de paralelo.bo; `officialSeries` lee la fila «BANCOS (MEDIANA PONDERADA POR MONTO)» de la primera tabla de `https://www.bcb.gob.bo/bcb_tco_publico_evolutivo.php` (cabeceras `d-mes` por fecha de corte; el año sale del título «Fecha de corte dd/mm/aaaa → dd/mm/aaaa») y fija `effectiveDate` = día siguiente a la fecha de corte.
+
 **Puerto `RatesGateway` (`application/ports/rates-gateway.ts`) y sus adaptadores.** Una fuente que falla no lanza: devuelve un resultado.
 
 ```ts
