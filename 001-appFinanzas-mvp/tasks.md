@@ -535,11 +535,12 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Trazabilidad SDD:** plan §4.0, plan §1.4 (transacciones solo en aplicación), plan §5.1 (datos de prueba); RNF-10
   - **Archivos en Alcance:**
     - `apps/api/src/infrastructure/persistence/unit-of-work.ts`
+    - `apps/api/vitest.config.ts`
     - `apps/api/test/integration/setup/global-setup.ts`
     - `apps/api/test/integration/setup/db.ts`
     - `apps/api/test/factories/user.factory.ts`
     - `apps/api/test/integration/unit-of-work.test.ts`
-  - **Especificación de Implementación:** `run(fn, opts)` abre la transacción. Con `userLock`, toma `pg_advisory_xact_lock(hashtext('user:' || id))`. Con `readOnly`, usa `SET TRANSACTION READ ONLY`. Los repositorios quedan ligados a la transacción y al usuario. El *global setup* migra la base de test. `user.factory` crea un usuario confirmado con sus filas iniciales por SQL; desde TASK-053 usa `user-bootstrap`.
+  - **Especificación de Implementación:** `run(fn, opts)` abre la transacción. Con `userLock`, toma `pg_advisory_xact_lock(hashtext('user:' || id))`. Con `readOnly`, usa `SET TRANSACTION READ ONLY`. Los repositorios quedan ligados a la transacción y al usuario. El *global setup* migra la base de test, y `vitest.config.ts` lo registra como `globalSetup` del proyecto `integration`. `user.factory` crea un usuario confirmado con sus filas iniciales por SQL; desde TASK-053 usa `user-bootstrap`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-10`: dos `run` concurrentes con el mismo `userLock` se serializan, y con usuarios distintos corren en paralelo.
     - Un error dentro de `fn` revierte todo, y `readOnly` rechaza las escrituras.
