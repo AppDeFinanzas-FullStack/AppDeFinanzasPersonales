@@ -564,7 +564,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-17`: un error inesperado devuelve solo `INTERNAL_ERROR` y `traceId`, sin *stack*.
     - El log de una petición no contiene su cuerpo.
 
-- [ ] **`TASK-035`: Middleware `releaseGate`**
+- [x] **`TASK-035`: Middleware `releaseGate`**
   - **Dependencias:** Requiere TASK-023, TASK-034
   - **Trazabilidad SDD:** ADR-18, plan §4.2.2; RF-M2-03
   - **Archivos en Alcance:**
