@@ -1275,7 +1275,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-13`: `upsertIfNewer` solo reemplaza el valor del día si la observación es más reciente.
     - `RN-09`: las monedas y los eventos de un usuario no son visibles para otro.
 
-- [ ] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
+- [x] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
   - **Dependencias:** Requiere TASK-038, TASK-082, TASK-083
   - **Trazabilidad SDD:** plan §4.3.2 (jobs), plan §4.3.3 (una sola actualización a la vez); RF-M3-04, EC-M3-01, EC-M3-04, RNF-21
   - **Archivos en Alcance:**

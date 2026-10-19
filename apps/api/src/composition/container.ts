@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { createFxJobs } from '../application/jobs/fx.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
@@ -8,6 +9,10 @@ import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
+import { createFakeBcbGateway } from '../infrastructure/integrations/bcb.fake.js';
+import { createBcbGateway } from '../infrastructure/integrations/bcb.js';
+import { createFakeRatesGateway } from '../infrastructure/integrations/paralelo-bo.fake.js';
+import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import {
   buildPrismaClient,
@@ -56,20 +61,28 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
 });
 
+const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
+const BCB_URL = 'https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php';
+const SOURCE_TIMEOUT_MS = 10_000;
+
+/** Real sources (paralelo.bo and the BCB) or their fakes, by `env.INTEGRATIONS` (plan §1.4). */
+const buildRateSources = (env: Env) =>
+  env.INTEGRATIONS === 'real'
+    ? {
+        rates: createParaleloBoGateway({ url: PARALELO_BO_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+        bcb: createBcbGateway({ url: BCB_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      }
+    : { rates: createFakeRatesGateway(), bcb: createFakeBcbGateway() };
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
-  return {
-    env,
-    prisma,
-    uow: createUnitOfWork(prisma, buildRepositories),
-    clock: systemClock,
-    ids: uuidv7Ids,
-    jobs: createJobs({
-      jobRuns: createJobRuns(prisma),
-      clock: systemClock,
-      release: env.RELEASE,
-    }),
-  };
+  const jobRuns = createJobRuns(prisma);
+  const uow = createUnitOfWork(prisma, buildRepositories);
+  const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
+  const fxJobs = createFxJobs({ ...buildRateSources(env), uow, jobRuns, clock: systemClock });
+  jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
+  jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
+  return { env, prisma, uow, clock: systemClock, ids: uuidv7Ids, jobs };
 };
 
 export const createApp = (container: Container): Express =>
