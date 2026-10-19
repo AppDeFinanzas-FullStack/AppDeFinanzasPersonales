@@ -790,8 +790,10 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/email-link.repository.ts`
     - `apps/api/src/application/shared/email-links.ts`
+    - `apps/api/src/infrastructure/persistence/unit-of-work.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/email-links.test.ts`
-  - **Especificación de Implementación:** `create(tx, userId, purpose)` invalida el enlace vigente, genera un token aleatorio de 32 bytes y guarda solo su SHA-256, con 24 h de vigencia para la confirmación y 1 h para la recuperación. `consume(tx, token, purpose)` hace el `UPDATE … RETURNING` condicionado de plan §4.1.3; si no actualiza ninguna fila, devuelve el motivo.
+  - **Especificación de Implementación:** `createEmailLinkRepository(tx)` queda ligado a la transacción y se expone como `repos.emailLinks`, igual que el resto de repositorios. `create(userId, purpose)` invalida el enlace vigente, genera un token aleatorio de 32 bytes y guarda solo su SHA-256, con 24 h de vigencia para la confirmación y 1 h para la recuperación. `consume(token, purpose)` hace el `UPDATE … RETURNING` condicionado de plan §4.1.3; si no actualiza ninguna fila, devuelve el motivo. Para que cada repositorio nuevo no rompa a los que arman solo parte del conjunto, `BuildRepositories` devuelve `Partial<Repositories>` y `UnitOfWork.run` entrega `Repositories` completo a la capa de aplicación; `container.ts` construye también `emailLinks`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-09`: un enlace sirve una sola vez; dos consumos simultáneos dan un solo éxito.
     - `RF-M1-05`: crear un enlace nuevo invalida el anterior.
