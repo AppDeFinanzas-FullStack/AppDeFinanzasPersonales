@@ -544,7 +544,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-10`: dos `run` concurrentes con el mismo `userLock` se serializan, y con usuarios distintos corren en paralelo.
     - Un error dentro de `fn` revierte todo, y `readOnly` rechaza las escrituras.
 
-- [ ] **`TASK-034`: Aplicación Express, middlewares base y `/api/health`**
+- [x] **`TASK-034`: Aplicación Express, middlewares base y `/api/health`**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §1.4 (presentación), plan §3.9 (CSRF y logs), plan §4.2.2 (health), ADR-02, ADR-09; RNF-17
   - **Archivos en Alcance:**
