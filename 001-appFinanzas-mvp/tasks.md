@@ -1196,7 +1196,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RateHistoryQuery` solo admite los rangos 7d, 30d, 90d y 1y.
     - `RF-M3-05`: cada referencia de `RatesCurrentDto` trae `observedAt` y `source`.
 
-- [ ] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
+- [x] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.3.1 (`classifyBidAsk`, `gap`), ADR-06; RF-M3-12, spec §1.5 (referencia del dólar)
   - **Archivos en Alcance:**
