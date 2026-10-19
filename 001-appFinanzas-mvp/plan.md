@@ -1225,6 +1225,19 @@ UpdateCurrencyInput = z.object({ symbol: z.string().trim().min(1).max(5).optiona
 **Funciones de `packages/domain/fx`:**
 
 ```ts
+// Tipos de entrada (se declaran y exportan desde packages/domain/src/fx.ts; no dependen de Prisma)
+type FxEvent = {                      // fila de user_fx_event (§3.4), ya en camelCase
+  kind: 'reference_set' | 'manual_usd_on' | 'manual_usd_off' | 'custom_rate';
+  currencyCode: string | null;        // 'USD' en manual_usd_*; la moneda agregada en custom_rate
+  reference: UsdReference | null;     // solo en reference_set
+  value: Decimal | null;              // null en reference_set y manual_usd_off
+  effectiveAt: Instant;
+};
+type MarketSeries = Record<UsdReference, ReadonlyArray<{ rateDate: LocalDate; value: Decimal }>>; // filas de market_rate por kind, orden libre
+// Estado del usuario al final del día D = eventos con effectiveAt < startOfDayInstant(D + 1, tz). Hoy y fechas pasadas usan
+// la misma regla (no hay eventos futuros). Sin reference_set, la referencia es 'parallel_median'. D se usa tal cual como
+// rate_date (calendario de Bolivia). Los eventos pueden llegar sin ordenar.
+
 classifyBidAsk(a: Decimal, b: Decimal): { bid: Decimal; ask: Decimal };     // compra = menor, venta = mayor
 resolveUsdRate(input: { events: FxEvent[]; series: MarketSeries; date: LocalDate; tz: string; now: Instant }): Decimal | null;
 // hoy: referencia en uso o manual activo · fecha pasada: estado del usuario al final de D (manual si estaba activo;
