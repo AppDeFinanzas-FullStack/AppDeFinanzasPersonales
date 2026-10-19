@@ -1379,7 +1379,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
 
-- [ ] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
+- [x] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
   - **Dependencias:** Requiere TASK-083
   - **Trazabilidad SDD:** ADR-06, plan §4.3.2 (script `fx-backfill`)
   - **Archivos en Alcance:**
