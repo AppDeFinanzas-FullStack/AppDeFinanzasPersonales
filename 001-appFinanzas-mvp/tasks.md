@@ -394,7 +394,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Una tabla de pruebas verifica el estado HTTP de cada código según el plan.
     - `RNF-17`: `INTERNAL_ERROR` no admite `data`.
 
-- [ ] **`TASK-023`: Mapa de entregas por módulo**
+- [x] **`TASK-023`: Mapa de entregas por módulo**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.2.1 (`ModuleRelease`), plan §4.15.3 (entrega), ADR-18; RF-M2-03, spec §1.2
   - **Archivos en Alcance:**
