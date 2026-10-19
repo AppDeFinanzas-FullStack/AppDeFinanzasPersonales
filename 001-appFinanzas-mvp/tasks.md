@@ -839,8 +839,11 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/auth/sign-up`), plan §4.1.3; RF-M1-01, RF-M1-03, RF-M1-06, RF-M1-17, EC-M1-03, EC-M1-09, RNF-15
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/auth-signup.test.ts`
-  - **Especificación de Implementación:** Con un correo nuevo, crea el usuario sin confirmar, su credencial, los datos iniciales, el enlace (24 h) y el correo `confirm`. Con un correo Sin confirmar, reemplaza el nombre y la contraseña, fija `registered_at = now()`, invalida el enlace y envía uno nuevo. Con un correo Activo, encola `register_attempt` (como máximo uno por hora). Siempre devuelve `{ status: 'check_email' }` en un tiempo igualado. Si dos registros del mismo correo chocan en el índice único, el perdedor se reintenta por la rama Sin confirmar.
+  - **Especificación de Implementación:** `createAuthService({ uow, auth, hmacSecret, webOrigin })` expone `signUp({ name, email, password, termsAccepted })`. `UserRepository` gana `findByEmail`, `createUnconfirmed` y `replaceUnconfirmed`, y `claimRegisterAttempt` (un `register_attempt` por hora y por cuenta sobre `email_send_log`, con la clave HMAC del correo); el repositorio propio de `email_send_log` nace en TASK-055. `container.ts` cablea el servicio. Con un correo nuevo, crea el usuario sin confirmar, su credencial, los datos iniciales, el enlace (24 h) y el correo `confirm`. Con un correo Sin confirmar, reemplaza el nombre y la contraseña, fija `registered_at = now()`, invalida el enlace y envía uno nuevo. Con un correo Activo, encola `register_attempt` (como máximo uno por hora). Siempre devuelve `{ status: 'check_email' }` en un tiempo igualado. Si dos registros del mismo correo chocan en el índice único, el perdedor se reintenta por la rama Sin confirmar.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registro con correo ya existente no revela la cuenta": la respuesta es la misma, se encola `register_attempt` y sigue habiendo un solo `auth_user`.
     - `RF-M1-17`: dos intentos en menos de 1 h encolan un solo aviso.
