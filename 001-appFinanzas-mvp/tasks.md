@@ -770,7 +770,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `EC-M1-07`: con el *fake* fallando y un `Clock` falso, los reintentos siguen la secuencia 1, 5, 15 y 60 minutos.
     - `RNF-22`: un correo enviado borra su fila; uno pendiente sigue reintentándose.
 
-- [ ] **`TASK-050`: `AuthGateway` sobre Better Auth (prueba técnica S-1)**
+- [x] **`TASK-050`: `AuthGateway` sobre Better Auth (prueba técnica S-1)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** ADR-08, ADR-02, plan §1.3 (S-1), plan §3.3; RF-M1-07
   - **Archivos en Alcance:**
