@@ -1249,7 +1249,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Las respuestas se clasifican en compra y venta con `classifyBidAsk`.
     - Un *timeout* se informa como un fallo de la fuente, sin lanzar errores internos.
 
-- [ ] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
+- [x] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
   - **Dependencias:** Requiere TASK-081
   - **Trazabilidad SDD:** ADR-06 (TCO con respaldo en el BCB), plan §4.3.2 (`fx.fetchOfficial`)
   - **Archivos en Alcance:**
