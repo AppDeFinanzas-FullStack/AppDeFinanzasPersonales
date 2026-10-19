@@ -783,7 +783,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M1-07`: dos sesiones del mismo usuario coexisten.
     - `revokeSessions` con `exceptSessionId` conserva solo esa sesión.
 
-- [ ] **`TASK-051`: Enlaces de confirmación y recuperación (`email-links`)**
+- [x] **`TASK-051`: Enlaces de confirmación y recuperación (`email-links`)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §4.1.3 (enlace de un solo uso), plan §3.9 (tokens como SHA-256); RF-M1-05, RF-M1-09, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**

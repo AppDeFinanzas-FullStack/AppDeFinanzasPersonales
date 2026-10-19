@@ -17,6 +17,7 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
+import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import {
   createUnitOfWork,
@@ -61,6 +62,7 @@ const createEmailGateway = (env: Env): EmailGateway =>
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
 const buildRepositories = (tx: TransactionClient): Repositories => ({
   emailOutbox: createEmailOutboxRepository(tx),
+  emailLinks: createEmailLinkRepository(tx),
 });
 
 export const buildContainer = (env: Env): Container => {

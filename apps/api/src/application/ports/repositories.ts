@@ -30,10 +30,28 @@ export interface EmailOutboxRepository {
   ): Promise<void>;
 }
 
+export type EmailLinkPurpose = 'confirm_email' | 'reset_password';
+
+/** Why a link could not be consumed: invalid (expired, invalidated, unknown) or already used. */
+export type EmailLinkFailure = 'LINK_INVALID' | 'LINK_ALREADY_USED';
+
+export type ConsumeEmailLinkResult =
+  | { ok: true; userId: string; purpose: EmailLinkPurpose }
+  | { ok: false; reason: EmailLinkFailure };
+
+/** Single-use links sent by email; only the SHA-256 of each token is stored (plan §4.1.3). */
+export interface EmailLinkRepository {
+  /** Invalidates the user's current link of that purpose and issues a new one. */
+  create(userId: string, purpose: EmailLinkPurpose): Promise<{ token: string; expiresAt: Date }>;
+  /** Marks the link as used. Of simultaneous calls with the same token, only one succeeds. */
+  consume(token: string, purpose: EmailLinkPurpose): Promise<ConsumeEmailLinkResult>;
+}
+
 /**
  * Repositories bound to a transaction and to a user (ADR-05).
  * Each module adds its own repository here.
  */
 export interface Repositories {
   emailOutbox: EmailOutboxRepository;
+  emailLinks: EmailLinkRepository;
 }
