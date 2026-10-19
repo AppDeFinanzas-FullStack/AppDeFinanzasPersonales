@@ -1278,6 +1278,29 @@ gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 - `fx.fetchOfficial`: una vez al día. Usa `convert_currency direction=official`; si falla, el widget del BCB. Guarda en la fecha de vigencia y reintenta en cada tick hasta lograrlo.
 - Script `fx-backfill` (una vez): la mediana diaria desde el 01/01/2024 (1 consulta por segundo) y el oficial (6,96 hasta el 26/06/2026; la serie del BCB desde el 27/06/2026).
 
+**Puerto `RatesGateway` (`application/ports/rates-gateway.ts`) y sus adaptadores.** Una fuente que falla no lanza: devuelve un resultado.
+
+```ts
+type RateFailure = 'TIMEOUT' | 'INVALID_VALUE' | 'SOURCE_ERROR';   // SOURCE_ERROR: red, HTTP no 200, error JSON-RPC o isError
+type RateResult<T> = { ok: true; value: T } | { ok: false; reason: RateFailure };
+type ParallelQuote = { median: Decimal; bid: Decimal | null; ask: Decimal | null; observedAt: Date };  // bid/ask ya con classifyBidAsk
+type OfficialQuote = { value: Decimal; effectiveDate: LocalDate | null; observedAt: Date };            // vigencia de la tasa, si la fuente la dice
+interface RatesGateway {
+  fetchParallel(): Promise<RateResult<ParallelQuote>>;
+  fetchOfficial(): Promise<RateResult<OfficialQuote>>;
+  fetchParallelOn(date: LocalDate): Promise<RateResult<{ median: Decimal; date: LocalDate }>>;          // para fx-backfill
+}
+createParaleloBoGateway(opts: { url: string; timeoutMs: number; fetch?: typeof fetch; now?: () => Date }): RatesGateway;
+createFakeRatesGateway(opts?: { parallel?: ParallelQuote; official?: OfficialQuote; failure?: RateFailure | null; delayMs?: number }):
+  RatesGateway & { configure(patch: Partial<NonNullable<typeof opts>>): void; calls: { parallel: number; official: number; parallelOn: number } };
+```
+
+Respuestas reales de `https://paralelo.bo/mcp` (JSON-RPC 2.0 por POST, sin sesión ni autenticación; cabeceras `Content-Type: application/json` y `Accept: application/json, text/event-stream`; verificadas el 2026-10-19). Los datos útiles vienen en `result.structuredContent`; el texto de `result.content[0].text` solo se lee para la vigencia del oficial:
+- `get_current_rate {}` → `{ median: 11.83, buy: 11.85, sell: 11.81, timestamp: "2026-10-19T23:04:58.836Z", … }`. Números JSON. `buy` puede ser mayor que `sell`, por eso se clasifica con `classifyBidAsk`. `observedAt` = `timestamp`. La mediana debe ser válida (si no, `INVALID_VALUE`); si `buy` o `sell` no es válido, `bid` y `ask` quedan en `null` y se usa la mediana (RF-M3-13).
+- `get_historical_rate { date: "YYYY-MM-DD" }` → `{ date, median, requestedDate, illustrative: false }`. Si `illustrative` es `true`, se trata como `INVALID_VALUE`. Con un parámetro inválido responde `result.isError: true`.
+- `convert_currency { amount: 1, from: "USD", to: "BOB", direction: "official" }` → `{ result: 11.69, rate: 11.69, … }`, y el texto trae «(vigencia 2026-10-17)», de donde sale `effectiveDate` (expresión `vigencia (\d{4}-\d{2}-\d{2})`; `null` si no aparece). `observedAt` = ahora. El valor es `rate`.
+- Valor válido: número finito, ≥ 0,01 y con a lo sumo 2 decimales (EC-M3-04). Si no, `INVALID_VALUE`. El *timeout* da `TIMEOUT`.
+
 #### 4.3.3 Ciclo de vida y concurrencia
 - **Moneda Activa → Inactiva:** `SELECT … FOR UPDATE` sobre `currency` → cada módulo responde a `currencyUsage.check(tx, userId, code)` (cuentas activas, metas no archivadas, presupuestos activos o pausados, deudas activas, reglas no eliminadas) → `UPDATE … SET status = 'inactive'`. Toda creación con esa moneda toma `FOR SHARE` y verifica `status = 'active'`, así no hay carreras.
 - **Inactiva → Activa:** exige una tasa nueva → inserta `custom_rate`.
