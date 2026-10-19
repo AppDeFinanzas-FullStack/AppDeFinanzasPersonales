@@ -802,7 +802,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-01`: un enlace vencido o invalidado da `LINK_INVALID`.
     - `EC-M1-02`: un enlace ya usado da `LINK_ALREADY_USED`.
 
-- [ ] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
+- [x] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §4.1.3 (espera tras intentos fallidos), plan §3.9 (HMAC); RF-M1-08, EC-M1-04, EC-M1-12
   - **Archivos en Alcance:**

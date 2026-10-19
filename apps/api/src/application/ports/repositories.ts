@@ -47,6 +47,18 @@ export interface EmailLinkRepository {
   consume(token: string, purpose: EmailLinkPurpose): Promise<ConsumeEmailLinkResult>;
 }
 
+/** Failed login attempts per email, keyed by the HMAC-SHA256 of the email (plan §3.9, §4.1.3). */
+export interface LoginThrottleRepository {
+  /** Seconds left of the wait, rounded up; `0` when there is none. */
+  remainingSeconds(emailHmac: string): Promise<number>;
+  /** Atomically counts a failure and sets the wait: 1 min at 5 failures, 15 min from 10 on. */
+  recordFailure(emailHmac: string): Promise<void>;
+  /** Forgets the failures of that email. */
+  reset(emailHmac: string): Promise<void>;
+  /** `true` when no alert went out in the last hour, and records this one. Atomic. */
+  claimAlert(emailHmac: string): Promise<boolean>;
+}
+
 /**
  * Repositories bound to a transaction and to a user (ADR-05).
  * Each module adds its own repository here.
@@ -54,4 +66,5 @@ export interface EmailLinkRepository {
 export interface Repositories {
   emailOutbox: EmailOutboxRepository;
   emailLinks: EmailLinkRepository;
+  loginThrottle: LoginThrottleRepository;
 }
