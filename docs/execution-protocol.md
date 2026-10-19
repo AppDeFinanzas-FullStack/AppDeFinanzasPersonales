@@ -1,6 +1,6 @@
 # Protocolo de Ejecución de Tareas con Agentes
 
-**Versión:** 1.1 · **Fecha:** 2026-10-17
+**Versión:** 1.2 · **Fecha:** 2026-10-19
 **Deriva de:** `docs/constitution.md` §8 · **Aplica a:** toda feature `NNN-nombre/`
 
 Este documento es el detalle operativo de la constitución §8: cómo se implementa una tarea de `tasks.md` con la skill orquestadora, sus subagentes y sus hooks. `tasks.md` no menciona nada de esto; solo lista tareas.
@@ -13,9 +13,10 @@ Este documento es el detalle operativo de la constitución §8: cómo se impleme
 |---|---|---|
 | Skill orquestadora | `.claude/skills/implement-task/SKILL.md` | `/implement-task TASK-XXX`. La corre la sesión principal. Es la única que hace commit. |
 | Subagentes | `.claude/agents/test-author.md` · `implementer.md` · `sdd-auditor.md` | Una etapa del pipeline cada uno (§3). |
-| Hook de agente | `.claude/settings.json` → `SubagentStop` | Ejecuta `tools/sdd/gate.mjs` (§4.1). |
+| Hook de agente | `.claude/settings.json` → `SubagentStop` | Ejecuta `tools/sdd/gate.mjs` (§4.1), solo para `test-author`, `implementer` y `sdd-auditor`. |
+| Hook de sesión | `.claude/settings.json` → `SessionStart` | Ejecuta `tools/sdd/session-brief.mjs` (§4.3): al abrir Claude, un resumen de la rama, la tarea activa, el avance y las tareas disponibles. |
 | Hook de git | `.githooks/pre-push` | Ejecuta `tools/sdd/pre-push.mjs` (§4.2). Se activa con `git config core.hooksPath .githooks`. |
-| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `close` (marca `[x]` y hace el commit) y `pre-push`. Los usan los dos hooks y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
+| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `check` (corre los controles del gate sin gastar intentos), `close` (marca `[x]` y hace el commit), `session-brief` (resumen al abrir una sesión) y `pre-push`. Los controles de los gates viven en `lib/gates.mjs` y los comparten `gate` y `check`. Los usan los hooks, los subagentes y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
 | Estado de ejecución | `.claude/run/` (ignorado por git) | `active-task.json` y una carpeta por tarea (§2.2). |
 
 ---
@@ -98,7 +99,7 @@ La respuesta final del auditor empieza con una de estas líneas:
 
 ### 3.2 Paradas
 
-Cualquier subagente puede terminar su trabajo con una de estas líneas, y el pipeline se detiene (`status = blocked`) y le pregunta al usuario:
+Cualquier subagente puede terminar su trabajo con una de estas líneas, como **primera línea** de su respuesta. El gate no lo juzga ni le gasta intentos: deja la tarea en `status = blocked` con ese motivo, y el orquestador le pregunta al usuario.
 
 - `NEEDS_CLARIFICATION: <pregunta>`: la spec o el plan son ambiguos (constitución §6).
 - `SCOPE_CHANGE_REQUEST: <archivo> · <motivo>`: hace falta un archivo fuera del alcance. Se corrige `tasks.md` en un commit `docs:` y se retoma.
@@ -110,6 +111,10 @@ Cualquier subagente puede terminar su trabajo con una de estas líneas, y el pip
 ### 4.1 `SubagentStop` → `tools/sdd/gate.mjs`
 
 Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea el cierre del subagente y le devuelve el error como motivo, para que siga trabajando. Sin tarea activa, o con la tarea bloqueada, no hace nada.
+
+- **A quién juzga:** el *matcher* del hook lo limita a los tres subagentes del pipeline. Además, el gate lee `agent_type` de la entrada del hook y solo juzga al subagente de la fase vigente: `test-author` en `tests`, `implementer` en `implement` y `sdd-auditor` en `audit`. Un subagente de exploración que termine durante una tarea no consume intentos.
+- **Paradas:** si `last_assistant_message` empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` (§3.2), no corre los controles: bloquea la tarea con ese motivo y deja terminar al subagente.
+- **Autoverificación:** antes de terminar, el test-author y el implementer corren `node tools/sdd/check.mjs`. Aplica los mismos controles del gate de la fase (`lib/gates.mjs`), pero sin gastar intentos ni tocar el estado, y sale con código 0 si el gate pasaría. Así, la mayoría de los errores (tipos, lint, comandos, alcance) se corrigen antes de que cuente un intento.
 
 **Gate A (`phase = tests`):**
 1. Los archivos cambiados o nuevos (`git status --porcelain`) son solo archivos de test del alcance.
@@ -146,7 +151,17 @@ Revisa los commits que se van a subir (los que no están en el remoto) y su diff
 
 Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los controles 1 y 2. Los E2E completos, axe y rendimiento corren en CI (`qa-e2e.yml`).
 
-### 4.3 Controles que no son hooks
+### 4.3 `SessionStart` → `tools/sdd/session-brief.mjs`
+
+Al abrir, retomar, limpiar o compactar una sesión de Claude en el proyecto, le agrega al contexto un resumen corto de dónde quedó el trabajo, para que cada integrante retome sin buscar a mano:
+- la rama actual, y si el árbol de trabajo está limpio;
+- la tarea activa, con su etapa y su estado; si está `blocked`, el motivo;
+- el avance: tareas cerradas sobre el total, y las de la fase en curso;
+- hasta 5 tareas disponibles, es decir, abiertas con todas sus dependencias cerradas.
+
+El texto lo arma `lib/brief.mjs`, una función pura con sus pruebas. El hook solo lee: no cambia archivos ni el estado, y no participa en el pipeline. Si algo no se puede leer (no hay `tasks.md`, el estado está corrupto o no es un repositorio git), omite ese dato y sale igual con código 0: nunca impide abrir una sesión.
+
+### 4.4 Controles que no son hooks
 
 - La protección de ramas de GitHub impide el push directo a `develop`, `qa` y `main` (plan 1.5).
 - CI repite lint, tipos, capas, commitlint y tests en cada push y PR.
@@ -168,7 +183,8 @@ Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los 
   Audit: approved
   ```
 
-  El tipo es `feat`, `test`, `chore`, `build` o `ci` según la tarea, y el scope es el módulo o el paquete.
+  El tipo es `feat`, `test`, `chore`, `build` o `ci` según la tarea, y el scope es el módulo o el paquete. `close.mjs` pone el ID de la tarea, corta el cuerpo a 100 columnas y pasa el mensaje por commitlint antes de hacer el commit, así un mensaje inválido no aparece recién en el `pre-push`.
+- **Traer `develop` a la rama** con un merge es válido: el `pre-push` y commitlint no revisan el asunto de los merges que escribe git.
 - **Un PR a `develop`** al cerrar la última tarea de la fase. Antes corre el `pre-push`.
 - Corregir `tasks.md`, `plan.md` o `spec.md` es un commit `docs:` aparte, nunca mezclado con código (constitución §6).
 
@@ -183,6 +199,7 @@ Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los 
 - **Trazabilidad SDD:** cita `plan §x.y.z` y los IDs exactos de la spec (`RF-M4-04`, `EC-M4-01`, `RNF-10`, `RN-06`).
 - **Archivos en Alcance:** una ruta entre backticks por viñeta, relativa a la raíz. Solo se admiten globs en `packages/db/prisma/migrations/`.
 - **Criterios de Verificación:** las líneas `` Comando: `…` `` son comandos que el Gate B ejecuta y que deben terminar con 0. Se escriben con sintaxis POSIX y corren en `sh` (en Windows, el bash de Git; nunca `cmd.exe`).
+- **Pasos manuales** (opcional, después de los cinco obligatorios): lo que una persona tiene que hacer fuera del pipeline, como crear cuentas, configurar paneles o cargar secretos. Va como lista numerada, con sangría de 4 espacios. Los scripts no lo leen y los subagentes no lo ejecutan ni lo auditan. Al cerrar la tarea, el orquestador se lo muestra al usuario como una lista para ir marcando.
 
 Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spec.ts`, `**/test/**` o `e2e/**`. Las fases se marcan con encabezados `### Fase N — <nombre>` y definen la rama (§5).
 
@@ -191,6 +208,7 @@ Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spe
 **Huecos de alcance** (`scopeProblems` en `tools/sdd/lib/tasks.mjs`): `preflight.mjs` no arranca una tarea con un hueco que haría fallar un gate sin que el subagente pueda corregirlo, y `sdd.test.mjs` revisa todas las tareas abiertas:
 - Si una tarea toca un `package.json`, también tiene `pnpm-lock.yaml` en su alcance.
 - Cada `.ts` o `.tsx` del alcance cae en el `tsconfig.json` de su paquete (`apps/*`, `packages/*` o `e2e`), creado en esa tarea o en una anterior. Por eso cada `tsconfig.json` de paquete cubre todas sus carpetas, también las que agregarán tareas posteriores. El JS de configuración (`*.js`, `*.cjs`, `*.mjs`) se revisa con ESLint sin información de tipos, así que no necesita un tsconfig.
+- Si una tarea crea un `global-setup` de Vitest en `test/`, también tiene el `vitest.config.ts` de su paquete en el alcance, porque hay que registrarlo ahí.
 
 ---
 

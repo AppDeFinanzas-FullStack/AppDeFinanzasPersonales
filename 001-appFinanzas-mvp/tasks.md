@@ -1,11 +1,11 @@
 # Tareas — App de Finanzas Personales (MVP)
 
 **Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Borrador para aprobación
-**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.2
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.3
 
 ## 1. Mapa de fases y orden de ejecución
 
-Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dependencias están cerradas. Cada entrega (V1.0, V1.1, V1.2) queda usable y desplegable antes de empezar la siguiente (constitución §1).
+Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones de orden**. Una tarea empieza solo cuando sus dependencias están cerradas. Cada entrega (V1.0, V1.1, V1.2) queda usable y desplegable antes de empezar la siguiente (constitución §1).
 
 | Fase | Contenido | Entrega | Tareas |
 |---|---|---|---|
@@ -39,6 +39,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 **Orden dentro de cada fase de módulo:** contratos → dominio → repositorios → servicios y jobs → rutas HTTP con su test de aislamiento → interfaz y estado → E2E de sus escenarios.
 
 **Decisiones de orden:**
+- **Despliegue temprano:** TASK-171 y TASK-173 se hacen apenas cierra la Fase 4 (TASK-036), en la rama de la Fase 17, para que las tres partes (web, API y base de datos) estén desplegadas y conectadas desde el principio. Cada entrega llega a producción por `deploy.yml`. El resto de la Fase 17 sigue en su orden. `qa-e2e` (TASK-172) se suma a la protección de `main` cuando existe.
 - El esquema completo, incluidas las tablas de V1.1 y V1.2, se crea en la Fase 1, como la migración inicial de plan §3. Los módulos no liberados responden 404 por `RELEASE` (ADR-18).
 - M12 Metas va antes que M11 Presupuestos, porque la decisión de cierre "Enviar a meta" usa los apartados.
 - La bandeja de avisos (M15 básico) va al inicio de V1.1, porque la usan los umbrales y cierres de presupuestos y los vencimientos de deudas.
@@ -620,7 +621,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 5 — Base de la web y harness E2E
 
-- [ ] **`TASK-039`: i18n y textos de errores**
+- [x] **`TASK-039`: i18n y textos de errores**
   - **Dependencias:** Requiere TASK-008, TASK-022
   - **Trazabilidad SDD:** plan §1.3 (librerías de interfaz), ADR-09, plan §5.3 (RNF-07); RNF-07, RNF-17
   - **Archivos en Alcance:**
@@ -628,35 +629,36 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/locales/es-BO/common.json`
     - `apps/web/src/locales/es-BO/errors.json`
     - `apps/web/src/lib/i18n-errors.ts`
+    - `apps/web/vitest.config.ts`
     - `apps/web/test/i18n-errors.test.ts`
-  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico.
+  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico. El `include` de `apps/web/vitest.config.ts` suma `test/**/*.test.ts`, para que corran las pruebas que esta fase pone en `apps/web/test/`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-07`: cada código de `ErrorCode` tiene su texto en `errors.json`.
     - `RNF-17`: un código desconocido muestra el texto genérico, sin detalles.
 
-- [ ] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
+- [x] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3, plan §4.2.4; RF-M2-04, RF-M2-05
   - **Archivos en Alcance:**
     - `apps/web/src/lib/ui-store.ts`
     - `apps/web/test/ui-store.test.ts`
-  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`.
+  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`. `createUiStore({ storage })` devuelve `{ getState, subscribe, setTabMemory(moduleKey, { url, scrollY }), setOffline(value), openSessionExpired(), closeSessionExpired(), showUndo({ token, label, expiresAt }), clearUndo() }`, y `uiStore` es la instancia sobre `sessionStorage`. `moduleKey` es el `ModuleKey` de `@finanzas/contracts`. `rootFor(moduleKey)` es una exportación suelta que devuelve la raíz del módulo, aunque `tabMemory` guarde una ruta de detalle: M8 `/`, M6 `/movimientos`, M7 `/registrar`, M4 `/cuentas`, M5 `/categorias`, M3 `/tipo-de-cambio`, M11 `/presupuestos`, M12 `/metas`, M13 `/deudas` y M14 `/recurrentes`. M1, M2, M9, M10 y M15 devuelven `/` hasta que sus tareas definan su raíz.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-04`: `tabMemory` sobrevive a recrear el store sobre el mismo storage.
     - `RF-M2-05`: `rootFor(moduleKey)` devuelve la raíz del módulo.
 
-- [ ] **`TASK-041`: Detección sin conexión (`online`)**
+- [x] **`TASK-041`: Detección sin conexión (`online`)**
   - **Dependencias:** Requiere TASK-040
   - **Trazabilidad SDD:** plan §4.2.3 (normal ↔ sin conexión); RF-M2-07, EC-M2-02, RNF-23
   - **Archivos en Alcance:**
     - `apps/web/src/lib/online.ts`
     - `apps/web/test/online.test.ts`
-  - **Especificación de Implementación:** `setOffline()` pausa TanStack Query (`onlineManager.setOnline(false)`), marca `offline` y consulta `GET /api/health` cada 5 s. Con un 204 o el evento `online`, reactiva todo, invalida las consultas y reenvía una vez, con el mismo `id`, la mutación que estaba en vuelo.
+  - **Especificación de Implementación:** `setOffline()` pausa TanStack Query (`onlineManager.setOnline(false)`), marca `offline` y consulta `GET /api/health` cada 5 s. Con un 204 o el evento `online`, reactiva todo, invalida las consultas y reenvía una vez, con el mismo `id`, la mutación que estaba en vuelo. `createOnline({ queryClient, store, fetch, events, healthIntervalMs = 5000 })` recibe el `QueryClient`, el `UiStore` de TASK-040, el `fetch` para `GET /api/health` y el `EventTarget` del que escucha `online`. Devuelve `{ setOffline(), trackInFlight(id, send), dispose() }`. `trackInFlight` registra la mutación en curso: si se llama a `setOffline()` mientras dura, al volver la conexión ejecuta `send()` exactamente una vez, y la promesa que devolvió se resuelve o se rechaza con ese reenvío. `queryClient` es opcional en la fábrica, y el objeto devuelto también expone `attach(queryClient)`: sin un `QueryClient` no se invalida nada. `online` es la instancia sobre los objetos reales (`window`, `fetch` global y `uiStore`), creada sin `QueryClient`; TASK-045 llama a `online.attach(queryClient)`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-07`: con temporizadores falsos, un 204 de health vuelve a `online` e invalida las consultas.
     - `EC-M2-02`: la mutación en vuelo se reenvía una sola vez y con el mismo `id`.
 
-- [ ] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
+- [x] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
   - **Dependencias:** Requiere TASK-039, TASK-041
   - **Trazabilidad SDD:** plan §4.0 (cliente fetch tipado), ADR-09, ADR-11; RF-M1-07, RF-M2-07, RF-M2-08
   - **Archivos en Alcance:**
@@ -669,20 +671,20 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-07`: un `TypeError` de red marca la app sin conexión.
     - Una respuesta que no cumple el schema de salida lanza un error.
 
-- [ ] **`TASK-043`: Borradores de formularios (`useDraft`)**
+- [x] **`TASK-043`: Borradores de formularios (`useDraft`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3 (borradores); RF-M2-10, RF-M2-11, EC-M2-01, RF-M7-08
   - **Archivos en Alcance:**
     - `apps/web/src/lib/drafts.ts`
     - `apps/web/test/drafts.test.ts`
-  - **Especificación de Implementación:** Funciones puras `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts(userId)` sobre un storage inyectable, con la clave `draft:{userId}:{formKey}`. Al restaurar, valida con el schema y aplica `validateRefs`. El hook `useDraft(formKey, form, opts)` guarda 300 ms después del último cambio y expone `clear` y `restoredWithIssues`.
+  - **Especificación de Implementación:** Funciones puras `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts(userId)` sobre un storage inyectable, con la clave `draft:{userId}:{formKey}`. Al restaurar, valida con el schema y aplica `validateRefs`. El hook `useDraft(formKey, form, opts)` guarda 300 ms después del último cambio y expone `clear` y `restoredWithIssues`. `createDrafts({ storage })` devuelve `{ save(userId, formKey, value), load(userId, formKey, { schema, validateRefs? }), clear(userId, formKey), clearAll(userId) }`; `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts` son esas funciones sobre `sessionStorage`. `load` devuelve `{ value, issues } | null`: los campos que `validateRefs` marca con `'reselect'` se quitan de `value` y quedan en `issues`, y un borrador que no cumple el schema se borra del storage y da `null`. `clearAll(userId)` borra todas las claves `draft:{userId}:*` de ese usuario (el anterior en EC-M2-01), así que un nuevo inicio de sesión del mismo usuario conserva las suyas (RF-M7-08). `useDraft` recibe `userId` en `opts`, y `restoredWithIssues` es `true` si `issues` tiene al menos un campo. Las formas cortas del plan (`drafts.clear('register')`, `drafts.clearAll()`) son el `clear` del hook y `clearAllDrafts` con el usuario anterior. La web no tiene jsdom ni testing-library, así que en esta tarea el hook solo se comprueba como exportación.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-10`: lo guardado se restaura igual, y un borrador inválido se descarta.
     - `RF-M2-11`: una cuenta que ya no está activa se vacía y se marca para elegir otra.
     - `EC-M2-01`: `clearAllDrafts` borra los borradores del usuario anterior.
     - `RF-M7-08`: el borrador sobrevive a un nuevo inicio de sesión del mismo usuario.
 
-- [ ] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
+- [x] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-16; RF-M2-04, RF-M2-06
   - **Archivos en Alcance:**
@@ -693,7 +695,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-06`: parsear y serializar es estable (ida y vuelta), así el botón Atrás restaura el mismo estado.
     - Un mes con formato inválido cae al valor por defecto sin lanzar errores.
 
-- [ ] **`TASK-045`: Proveedores de la app y router base**
+- [x] **`TASK-045`: Proveedores de la app y router base**
   - **Dependencias:** Requiere TASK-039, TASK-042
   - **Trazabilidad SDD:** plan §2 (`app/providers`, `app/router.tsx`), ADR-16, plan §4.9.3 (primer pintado del tema)
   - **Archivos en Alcance:**
@@ -703,12 +705,12 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/main.tsx`
     - `apps/web/src/App.tsx`
-  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones. `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
+  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones; al crearlo se llama a `online.attach(queryClient)` (TASK-041). `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
 
-- [ ] **`TASK-046`: Harness E2E con Playwright**
+- [x] **`TASK-046`: Harness E2E con Playwright**
   - **Dependencias:** Requiere TASK-036, TASK-045
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §1.5 (entorno efímero); RNF-05, RNF-06
   - **Archivos en Alcance:**
@@ -765,7 +767,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/jobs/outbox.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/outbox.test.ts`
-  - **Especificación de Implementación:** `enqueue(tx, email)` inserta una fila en `email_outbox`. El job `outbox.send` toma las filas pendientes vencidas, las envía y borra cada fila enviada. Si falla, reintenta a 1, 5, 15 y 60 minutos y después marca la fila `failed`. Se registra en el tick.
+  - **Especificación de Implementación:** `enqueue(tx, email)` inserta una fila en `email_outbox`. El job `outbox.send` toma las filas pendientes vencidas, las envía y borra cada fila enviada. Si falla, reintenta a 1, 5, 15 y 60 minutos y después marca la fila `failed`. Se registra en el tick con `container.jobs.registerJob`. El contenedor arma el `EmailGateway` real (Resend) o el *fake* según `env.INTEGRATIONS` (plan §1.4).
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M1-07`: con el *fake* fallando y un `Clock` falso, los reintentos siguen la secuencia 1, 5, 15 y 60 minutos.
     - `RNF-22`: un correo enviado borra su fila; uno pendiente sigue reintentándose.
@@ -1282,7 +1284,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/jobs/fx.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-jobs.test.ts`
-  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Una sola actualización a la vez con el lease `fx_refresh` de `JobRuns` (plan §4.0 y §4.3.3), también cuando es a pedido.
+  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Una sola actualización a la vez con el lease `fx_refresh` de `JobRuns` (plan §4.0 y §4.3.3), también cuando es a pedido. El contenedor arma el `RatesGateway` real (paralelo.bo y BCB) o sus *fakes* según `env.INTEGRATIONS` (plan §1.4), y registra los dos jobs con `container.jobs.registerJob`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-04`: con una captura de hace 30 minutos no consulta; con una de hace 61, sí.
     - `EC-M3-01` / `RNF-21`: si la fuente falla, el último valor queda intacto.
@@ -2578,16 +2580,52 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-14`: toda ruta con un recurso ajeno responde 404, y la prueba falla si aparece una ruta nueva sin cubrir.
     - `RNF-17`: los logs no contienen contraseñas, tokens de enlaces ni cookies.
 
-- [ ] **`TASK-171`: Configuración de Render y Vercel**
-  - **Dependencias:** Requiere TASK-036, TASK-045
-  - **Trazabilidad SDD:** plan §1.5 (configuración versionada), ADR-02, ADR-20
+- [ ] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
+  - **Dependencias:** Requiere TASK-036
+  - **Trazabilidad SDD:** plan §1.5 (configuración versionada, puesta en marcha), plan §1.2 (cómo se conectan las tres partes), plan §4.2.2 (`/api/health/ready`), ADR-02, ADR-19, ADR-20
   - **Archivos en Alcance:**
     - `render.yaml`
     - `vercel.json`
-  - **Especificación de Implementación:** `render.yaml` con el servicio `finanzas-api`, plan gratis, `autoDeploy: false`, los comandos de build y arranque, `healthCheckPath: /api/health` y las variables con `sync: false`. `vercel.json` con `git.deploymentEnabled: false`, el rewrite de `/api/:path*` hacia Render y el de la SPA hacia `/index.html`.
+    - `.gitignore`
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+    - `apps/api/src/application/ports/readiness.ts`
+    - `apps/api/src/infrastructure/persistence/readiness.ts`
+    - `apps/api/src/infrastructure/persistence/prisma-client.ts`
+    - `apps/api/src/presentation/routes/health.routes.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/readiness.test.ts`
+  - **Especificación de Implementación:**
+    - **`render.yaml`:** el servicio `finanzas-api` con lo que dice plan §1.5:
+      - plan gratis y `autoDeploy: false`;
+      - el `buildCommand` con `--prod=false` y `pnpm --filter @finanzas/db generate`;
+      - `startCommand` y `healthCheckPath: /api/health`;
+      - `NODE_ENV=production` y `NODE_VERSION=22`;
+      - las demás variables con `sync: false`.
+    - **`vercel.json`:**
+      - `git.deploymentEnabled: false`;
+      - `installCommand`, `buildCommand` y `outputDirectory: apps/web/dist`;
+      - los rewrites en orden: primero `/api/:path*` hacia la URL del API en Render y después la SPA hacia `/index.html`.
+    - **`.gitignore`:** ignora `.vercel/`.
+    - **`packages/db/package.json`:** agrega `"exports": { ".": "./src/index.ts" }`, y `prisma-client.ts` pasa a importar `@finanzas/db` en lugar de `@finanzas/db/src/index.js`.
+    - **`GET /api/health/ready`** (plan §4.2.2): el puerto `ReadinessProbe` (`check(): Promise<boolean>`) lo implementa la infraestructura con `SELECT 1` y un límite de 2 s. `health.routes.ts` lo recibe por las dependencias de `createApp` y responde 204 o 503 sin cuerpo. El contenedor lo arma con el cliente Prisma. `GET /api/health` no cambia.
   - **Criterios de Verificación (Tests & DoD):**
-    - Los valores coinciden uno por uno con plan §1.5.
-    - Ningún secreto tiene valor en los archivos.
+    - `TASK-171`: con la base de test, `GET /api/health/ready` responde 204.
+    - `TASK-171`: con una base inalcanzable, responde 503 sin cuerpo y sin detalles internos, en menos de 3 s.
+    - `TASK-171`: `GET /api/health` sigue respondiendo 204 sin tocar la base.
+    - `render.yaml` y `vercel.json` coinciden uno por uno con plan §1.5, y ningún secreto tiene valor en los archivos.
+    - Comando: `pnpm --filter api build`
+  - **Pasos manuales** (los hace quien implementa la tarea; el pipeline no puede crear cuentas ni cargar secretos):
+    1. **Neon:** crear el proyecto `finanzas` y usar su rama `main`. Copiar la URL con pooler (será `DATABASE_URL`) y la directa (será `DATABASE_URL_DIRECT`). Nunca van al repositorio.
+    2. **Resend:** crear la cuenta y una API key (`RESEND_API_KEY`). `env.ts` la exige desde el primer arranque.
+    3. **Secretos de la app:** generar `AUTH_SECRET`, `HMAC_SECRET` y `JOBS_SECRET` con `openssl rand -base64 32`, uno por cada uno.
+    4. **Vercel:** `pnpm dlx vercel login` y, en la raíz del repo, `pnpm dlx vercel link`. De `.vercel/project.json` salen `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`. Crear un token en Account Settings → Tokens (`VERCEL_TOKEN`) y anotar la URL de producción (`WEB_URL`).
+    5. **Render**, cuando `render.yaml` ya esté en `main`:
+       - New → Blueprint → el repo, rama `main`.
+       - Cargar las variables `sync: false`: `DATABASE_URL` con pooler, los tres secretos, `RESEND_API_KEY`, `RELEASE=1.0`, `WEB_ORIGIN` = `WEB_URL` e `INTEGRATIONS=real`.
+       - Anotar la URL pública del servicio (`API_URL`). Si no coincide con el rewrite de `vercel.json`, corregirlo en un commit `fix`.
+       - Copiar el Deploy Hook (Settings → Deploy Hook), crear una API key (Account Settings → API Keys) y anotar el ID del servicio (`srv-…`).
 
 - [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
   - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
@@ -2597,16 +2635,44 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Especificación de Implementación:** Disparadores `push` a `qa` y `pull_request` hacia `main`. Postgres como *service*, migraciones, `seed:e2e`, API con `INTEGRATIONS=fake`, web en `vite preview`, Playwright en la matriz de 6 proyectos en paralelo, axe, rendimiento y el subconjunto `@release-1.0`. Publica el reporte, las trazas y los videos de los fallos. Nombre del check: `qa-e2e`.
   - **Criterios de Verificación (Tests & DoD):**
     - El workflow cubre cada paso de plan §1.5 y publica los artefactos de los fallos.
+  - **Pasos manuales:**
+    1. En GitHub → Settings → Branches, agregar `qa-e2e` a los checks obligatorios de `main` (plan §1.5, protección de ramas). Hasta esta tarea, `main` solo exige `ci`.
 
-- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml`**
-  - **Dependencias:** Requiere TASK-171, TASK-172
-  - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás), ADR-20; constitución §4, §7
+- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
+  - **Dependencias:** Requiere TASK-171
+  - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás, puesta en marcha), plan §1.2 (pruebas de humo de los tres enlaces), plan §5.1 (contratos HTTP en CI), ADR-20; constitución §4, §7
   - **Archivos en Alcance:**
     - `.github/workflows/deploy.yml`
-  - **Especificación de Implementación:** En cada `push` a `main`, con `concurrency: production` (sin cancelar) y el *environment* `production`: CI reutilizable → `prisma migrate deploy` con `DATABASE_URL_DIRECT` → Deploy Hook de Render, consultando su API cada 15 s hasta `live` (falla ante `build_failed`, `update_failed` o 15 minutos) → `vercel pull`, `vercel build --prod` y `vercel deploy --prebuilt --prod` → humo con `/api/health` = 204 y `/` = 200. Todos los secretos usan `::add-mask::`.
+    - `apps/api/package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:**
+    - **Disparadores y concurrencia:** `deploy.yml` corre en cada `push` a `main` y con `workflow_dispatch`, con `concurrency: production` sin cancelar.
+    - **Job 1:** `uses: ./.github/workflows/ci.yml`.
+    - **Job 2, `deploy`** (`needs` el job 1, *environment* `production`). Sigue plan §1.5 al pie de la letra:
+      - checkout, `pnpm/action-setup`, `setup-node` con `.nvmrc` y `pnpm install --frozen-lockfile`;
+      - `prisma migrate deploy`, con `DATABASE_URL` y `DATABASE_URL_DIRECT` iguales al secreto `DATABASE_URL_DIRECT`;
+      - el Deploy Hook de Render, siguiendo **ese** deploy por su ID cada 15 s hasta `live`. Falla ante `build_failed`, `update_failed`, `pre_deploy_failed`, `canceled`, `deactivated` o a los 15 minutos;
+      - `vercel pull --yes --environment=production`, `vercel build --prod` y `vercel deploy --prebuilt --prod`, con `--token`;
+      - las 4 pruebas de humo de plan §1.5, con `vars.API_URL` y `vars.WEB_URL`.
+    - **Secretos:** los valores derivados que no son secretos de GitHub usan `::add-mask::`.
+    - **Pruebas HTTP en CI:** el `test:unit` del API pasa a correr `--project unit --project http`, así CI y el `pre-push` corren los contratos HTTP de `apps/api/test/http/`.
   - **Criterios de Verificación (Tests & DoD):**
-    - El orden de los pasos y las condiciones de fallo coinciden con plan §1.5.
-    - Si un paso falla, no corre el siguiente.
+    - El orden de los pasos y las condiciones de fallo coinciden con plan §1.5. Si un paso falla, no corre el siguiente.
+    - Las 4 pruebas de humo verifican los enlaces API, API → BD, web y web → API → BD.
+    - Comando: `pnpm --filter api test:unit`
+  - **Pasos manuales:**
+    1. **GitHub → Settings → Environments → `production`:**
+       - en «Deployment branches», solo `main`;
+       - los secretos `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`;
+       - las variables `WEB_URL` y `API_URL`.
+    2. **GitHub → Settings → Branches:** `develop`, `qa` y `main` exigen PR y el check `ci`.
+    3. **Primer despliegue:**
+       - promover por PR `develop` → `qa` → `main` y mirar Actions → `deploy`;
+       - si falló porque todavía no estaban los datos de Render (paso 5 de TASK-171), cargarlos y correr de nuevo con «Run workflow» (`workflow_dispatch`).
+    4. **cron-job.org:** crear una tarea cada minuto, `POST $API_URL/internal/jobs/tick`, con los encabezados `x-jobs-secret: <JOBS_SECRET>` y `Content-Type: application/json` y el cuerpo `{}`.
+    5. **Verificar:**
+       - abrir en el navegador `$API_URL/api/health/ready`, `$WEB_URL/` y `$WEB_URL/api/health/ready`;
+       - pasar las URLs reales al README en un commit `docs(readme)`.
 
 - [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
   - **Dependencias:** Requiere TASK-091, TASK-173
@@ -2616,6 +2682,8 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Especificación de Implementación:** `workflow_dispatch` en el *environment* `production`. Corre una vez `packages/db/scripts/fx-backfill.ts` con `DATABASE_URL_DIRECT`.
   - **Criterios de Verificación (Tests & DoD):**
     - Solo se dispara a mano y usa los secretos del *environment* `production`.
+  - **Pasos manuales:**
+    1. Cuando la tarea esté en `main`, correrlo **una sola vez** desde Actions → `fx-backfill` → «Run workflow», y revisar en el log que haya cargado el histórico.
 
 ### Fase 18 — M15 Bandeja de avisos (V1.1)
 
