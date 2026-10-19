@@ -530,7 +530,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-09`: `findMany` con la extensión devuelve solo las filas del usuario.
     - `RNF-14`: crear con otro `userId` lanza un error, y actualizar un id ajeno afecta 0 filas.
 
-- [ ] **`TASK-033`: `UnitOfWork` con transacción y bloqueo por usuario, más el harness de integración**
+- [x] **`TASK-033`: `UnitOfWork` con transacción y bloqueo por usuario, más el harness de integración**
   - **Dependencias:** Requiere TASK-032
   - **Trazabilidad SDD:** plan §4.0, plan §1.4 (transacciones solo en aplicación), plan §5.1 (datos de prueba); RNF-10
   - **Archivos en Alcance:**

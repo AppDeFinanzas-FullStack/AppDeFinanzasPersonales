@@ -14,6 +14,7 @@ export default mergeConfig(baseConfig, {
         test: {
           name: 'integration',
           include: ['test/integration/**/*.test.ts'],
+          globalSetup: ['./test/integration/setup/global-setup.ts'],
           fileParallelism: false,
         },
       },
