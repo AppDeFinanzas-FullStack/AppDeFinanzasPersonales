@@ -661,7 +661,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-07`: un `TypeError` de red marca la app sin conexión.
     - Una respuesta que no cumple el schema de salida lanza un error.
 
-- [ ] **`TASK-043`: Borradores de formularios (`useDraft`)**
+- [x] **`TASK-043`: Borradores de formularios (`useDraft`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3 (borradores); RF-M2-10, RF-M2-11, EC-M2-01, RF-M7-08
   - **Archivos en Alcance:**
