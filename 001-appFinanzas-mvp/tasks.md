@@ -709,7 +709,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
 
-- [ ] **`TASK-046`: Harness E2E con Playwright**
+- [x] **`TASK-046`: Harness E2E con Playwright**
   - **Dependencias:** Requiere TASK-036, TASK-045
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §1.5 (entorno efímero); RNF-05, RNF-06
   - **Archivos en Alcance:**
