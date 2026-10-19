@@ -1268,6 +1268,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/infrastructure/persistence/repositories/market-rate.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/user-fx-event.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-repositories.test.ts`
   - **Especificación de Implementación:** `market_rate`: `upsertIfNewer`, `latest(kind)` y `series(kind, from, to)`. `currency`: `list`, `get`, `lockForUpdate`, `lockForShare` e `insert`. `user_fx_event`: `insert` y `eventsUntil(instant)`.
   - **Criterios de Verificación (Tests & DoD):**
