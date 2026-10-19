@@ -1273,7 +1273,7 @@ AccountsSummaryDto = { netWorth: { base, other }, breakdown: { liquid, savings, 
 | `PUT /api/accounts/order` | Reasigna `sort_order` en una transacción. | `VALIDATION_ERROR` (ids ajenos o faltantes) |
 | `POST /api/accounts/:id/adjust` | Bajo `FOR UPDATE`: delta = real − actual. Si es 0, `200 {created:false}` (EC-M4-08). Si no, `ledger_transaction(kind=adjustment, date=hoy)` + un asiento + `BalanceGuard`. | `NEGATIVE_BALANCE 422` · `EARMARK_CONFIRMATION_REQUIRED 409` |
 | `POST /api/accounts/:id/archive` | `UPDATE … WHERE status='active'`. Con saldo distinto de 0 sin confirmar, pide confirmación. Rechaza si tiene apartados o es dedicada (V1.1). Quita la cuenta por defecto y pausa sus reglas con aviso (V1.2). | `ARCHIVE_CONFIRMATION_REQUIRED 409 {balance}` · `ACCOUNT_HAS_EARMARKS 409 {goals}` · `ACCOUNT_DEDICATED 409` |
-| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 409` |
+| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 422` |
 | `DELETE /api/accounts/:id` | Sin asientos (incluidos los que están dentro de la ventana de deshacer) y no dedicada. Limpieza de RF-M4-13. | `ACCOUNT_HAS_MOVEMENTS 409` · `ACCOUNT_DEDICATED 409` |
 | `GET /api/accounts/:id/balance-series?from&to` | Saldo inicial + suma acumulada (`SUM … OVER (ORDER BY date)`) por día del rango. | — |
 
