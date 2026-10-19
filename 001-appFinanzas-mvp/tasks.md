@@ -619,8 +619,9 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/locales/es-BO/common.json`
     - `apps/web/src/locales/es-BO/errors.json`
     - `apps/web/src/lib/i18n-errors.ts`
+    - `apps/web/vitest.config.ts`
     - `apps/web/test/i18n-errors.test.ts`
-  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico.
+  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico. El `include` de `apps/web/vitest.config.ts` suma `test/**/*.test.ts`, para que corran las pruebas que esta fase pone en `apps/web/test/`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-07`: cada código de `ErrorCode` tiene su texto en `errors.json`.
     - `RNF-17`: un código desconocido muestra el texto genérico, sin detalles.
