@@ -382,7 +382,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-13`: un nombre se valida después de recortar sus espacios.
     - Ningún schema acepta `number` para montos.
 
-- [ ] **`TASK-022`: Catálogo de errores y formato problem+json**
+- [x] **`TASK-022`: Catálogo de errores y formato problem+json**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.0 (catálogo común), plan §4.1.2 a §4.15.2 (errores por módulo), ADR-09; RNF-17
   - **Archivos en Alcance:**
