@@ -434,6 +434,8 @@ model EmailSendLog {
 
 // Exchange rates, currencies and user settings (plan §3.4). Created by migration 0003_fx_settings.
 // CHECK constraints, the deferrable unique on favorite_category and user_rate_on live only in the migration SQL.
+// The account and category foreign keys are created by migration 0010_deferred_fks. The default account
+// uses ON DELETE SET NULL (default_account_id), which Prisma cannot express: it lives only in the SQL.
 
 /// Global market data written only by jobs (ADR-12): no user_id.
 model MarketRate {
@@ -503,6 +505,7 @@ model UserSettings {
 
   user               AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
   baseCurrencyRecord Currency @relation(fields: [userId, baseCurrency], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  defaultAccount     Account? @relation(fields: [userId, defaultAccountId], references: [userId, id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("user_settings")
 }
@@ -513,7 +516,8 @@ model FavoriteCategory {
   kind       CategoryKind
   position   Int          @db.SmallInt
 
-  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([userId, categoryId])
   @@unique([userId, kind, position])
@@ -545,6 +549,7 @@ model Account {
 
   user                 AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
   currency             Currency              @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+  defaultOfSettings    UserSettings[]
   entries              LedgerEntry[]
   shortcuts            Shortcut[]            @relation("ShortcutAccount")
   shortcutDestinations Shortcut[]            @relation("ShortcutDestAccount")
@@ -587,6 +592,7 @@ model Category {
   shortcuts      Shortcut[]
   budgets        Budget[]
   recurringRules RecurringRule[]
+  favorites      FavoriteCategory[]
 
   @@unique([userId, id])
   @@map("category")
@@ -594,7 +600,8 @@ model Category {
 
 // Ledger, undo and shortcuts (plan §3.5, ADR-04, ADR-07, ADR-15). Created by migration 0006_ledger.
 // CHECK constraints, the partial indexes ledger_tx_list, (user_id, category_id, date) and (deleted_at)
-// live only in the migration SQL. The recurring_rule relation is added in TASK-020.
+// live only in the migration SQL. The recurring_rule foreign key is created by migration 0010_deferred_fks
+// with ON DELETE SET NULL (recurring_rule_id), which Prisma cannot express: it lives only in the SQL.
 
 model LedgerTransaction {
   id                  String            @id @db.Uuid
@@ -615,11 +622,12 @@ model LedgerTransaction {
   updatedAt           DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
   deletedAt           DateTime?         @map("deleted_at") @db.Timestamptz(6)
 
-  user     AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category Category?           @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
-  parent   LedgerTransaction?  @relation("TransactionFee", fields: [parentTransactionId], references: [id], onDelete: Cascade)
-  fees     LedgerTransaction[] @relation("TransactionFee")
-  entries  LedgerEntry[]
+  user          AuthUser            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      Category?           @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  parent        LedgerTransaction?  @relation("TransactionFee", fields: [parentTransactionId], references: [id], onDelete: Cascade)
+  fees          LedgerTransaction[] @relation("TransactionFee")
+  entries       LedgerEntry[]
+  recurringRule RecurringRule?      @relation(fields: [userId, recurringRuleId], references: [userId, id], onDelete: NoAction, onUpdate: NoAction)
 
   initialOfDebts       Debt[]
   debtCapitalPayments  DebtPayment[]         @relation("DebtPaymentCapital")
@@ -884,7 +892,7 @@ model DebtPayment {
 
 // Recurring rules (plan §3.6). Created by migration 0009_recurring_notifications.
 // CHECK constraints live only in the migration SQL. The ledger_transaction.recurring_rule_id
-// relation is added in TASK-020.
+// foreign key is created by migration 0010_deferred_fks.
 
 model RecurringRule {
   id                String        @id @db.Uuid
@@ -912,11 +920,12 @@ model RecurringRule {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  user        AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account     Account               @relation("RecurringRuleAccount", fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
-  destAccount Account?              @relation("RecurringRuleDestAccount", fields: [userId, destAccountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
-  category    Category?             @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
-  occurrences RecurringOccurrence[]
+  user         AuthUser              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account               @relation("RecurringRuleAccount", fields: [userId, accountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  destAccount  Account?              @relation("RecurringRuleDestAccount", fields: [userId, destAccountId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  category     Category?             @relation(fields: [userId, categoryId], references: [userId, id], onDelete: Restrict, onUpdate: NoAction)
+  occurrences  RecurringOccurrence[]
+  transactions LedgerTransaction[]
 
   @@unique([userId, id])
   @@index([userId, status])

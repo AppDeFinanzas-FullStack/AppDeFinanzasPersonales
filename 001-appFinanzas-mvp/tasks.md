@@ -349,7 +349,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M14-15`: un nombre vacío o de más de 40 caracteres viola el CHECK.
     - `RN-10`: dos avisos con el mismo `event_key` para el mismo usuario violan la restricción única.
 
-- [ ] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
+- [x] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
   - **Dependencias:** Requiere TASK-019
   - **Trazabilidad SDD:** plan §3.1 (orden de la migración), plan §3.8, plan §3.9; RN-08, RN-09, RF-M1-15, RF-M4-13, RF-M6-05, RF-M14-11
   - **Archivos en Alcance:**
