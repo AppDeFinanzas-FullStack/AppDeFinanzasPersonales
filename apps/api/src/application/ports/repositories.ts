@@ -36,8 +36,7 @@ export type EmailLinkPurpose = 'confirm_email' | 'reset_password';
 export type EmailLinkFailure = 'LINK_INVALID' | 'LINK_ALREADY_USED';
 
 export type ConsumeEmailLinkResult =
-  | { ok: true; userId: string; purpose: EmailLinkPurpose }
-  | { ok: false; reason: EmailLinkFailure };
+  { ok: true; userId: string; purpose: EmailLinkPurpose } | { ok: false; reason: EmailLinkFailure };
 
 /** Single-use links sent by email; only the SHA-256 of each token is stored (plan §4.1.3). */
 export interface EmailLinkRepository {
@@ -59,6 +58,58 @@ export interface LoginThrottleRepository {
   claimAlert(emailHmac: string): Promise<boolean>;
 }
 
+export type CategoryKind = 'expense' | 'income';
+export type SystemCategoryKey = 'debts' | 'debts_interest';
+
+/** A category row to create for a new user (plan §4.5.3). */
+export interface NewCategory {
+  id: string;
+  userId: string;
+  kind: CategoryKind;
+  parentId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  systemKey: SystemCategoryKey | null;
+  seedOrder: number;
+  sortOrder: number;
+}
+
+export interface DashboardBlock {
+  key: string;
+  visible: boolean;
+}
+
+export type NotificationType =
+  | 'payment_upcoming'
+  | 'budget_alert'
+  | 'period_close'
+  | 'recurring_pending'
+  | 'log_day'
+  | 'goal_progress';
+
+export interface NewNotificationPreference {
+  type: NotificationType;
+  enabled: boolean;
+  hour: number | null;
+  leadDays: number | null;
+  weekdays: number[] | null;
+}
+
+/** Writes the initial rows of a new user (plan §3.4, §4.5.3, §4.15.1). */
+export interface UserRepository {
+  /** Creates BOB and USD, active and marked as system (RF-M3-01). */
+  createSystemCurrencies(userId: string): Promise<void>;
+  /** Creates `user_settings` with the column defaults and the given dashboard blocks. */
+  createSettings(userId: string, dashboardBlocks: DashboardBlock[]): Promise<void>;
+  /** Inserts the categories in the given order, so each parent comes before its children. */
+  createCategories(categories: NewCategory[]): Promise<void>;
+  createNotificationPreferences(
+    userId: string,
+    preferences: NewNotificationPreference[],
+  ): Promise<void>;
+}
+
 /**
  * Repositories bound to a transaction and to a user (ADR-05).
  * Each module adds its own repository here.
@@ -67,4 +118,5 @@ export interface Repositories {
   emailOutbox: EmailOutboxRepository;
   emailLinks: EmailLinkRepository;
   loginThrottle: LoginThrottleRepository;
+  users: UserRepository;
 }

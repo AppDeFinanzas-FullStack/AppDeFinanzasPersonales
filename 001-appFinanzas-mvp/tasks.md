@@ -818,7 +818,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-04`: durante la espera, `check` informa el tiempo restante.
     - `EC-M1-12`: un correo sin cuenta recibe la misma espera.
 
-- [ ] **`TASK-053`: Datos iniciales de un usuario nuevo (`user-bootstrap`)**
+- [x] **`TASK-053`: Datos iniciales de un usuario nuevo (`user-bootstrap`)**
   - **Dependencias:** Requiere TASK-025, TASK-033
   - **Trazabilidad SDD:** plan §4.5.3 (seed), plan §4.15.1 (valores por defecto), plan §3.4; RF-M3-01, RF-M5-05, RF-M15-02
   - **Archivos en Alcance:**

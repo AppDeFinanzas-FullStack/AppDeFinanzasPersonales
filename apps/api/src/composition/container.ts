@@ -20,6 +20,7 @@ import {
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
@@ -65,6 +66,7 @@ const buildRepositories = (tx: TransactionClient): Repositories => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  users: createUserRepository(tx),
 });
 
 export const buildContainer = (env: Env): Container => {
