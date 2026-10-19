@@ -225,7 +225,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 1 — Esquema de datos
 
-- [ ] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
+- [x] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
   - **Dependencias:** Requiere TASK-005
   - **Trazabilidad SDD:** plan §3.1, plan §3.2, ADR-10
   - **Archivos en Alcance:**
@@ -237,7 +237,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Existen todos los tipos de plan §3.2, con sus valores exactos y en el mismo orden.
     - Existen la extensión `unaccent` y la función `set_updated_at`.
 
-- [ ] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
+- [x] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
   - **Dependencias:** Requiere TASK-011
   - **Trazabilidad SDD:** plan §3.3; RF-M1-02, RF-M1-05, RF-M1-16, RN-13
   - **Archivos en Alcance:**
@@ -251,7 +251,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M1-05`: no pueden coexistir dos enlaces vigentes del mismo usuario y propósito.
     - `RF-M1-16`: `email_kind` tiene exactamente los 6 correos de la cuenta.
 
-- [ ] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
+- [x] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
   - **Dependencias:** Requiere TASK-012
   - **Trazabilidad SDD:** plan §3.4, plan §3.1 (orden de la migración), ADR-12; RF-M3-01, RF-M3-02, RF-M3-13
   - **Archivos en Alcance:**
@@ -265,7 +265,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Los CHECK de `user_fx_event` rechazan cada combinación inválida de `kind`.
     - `RF-M3-13`: `user_rate_on` devuelve la última tasa del día en la zona del usuario y, antes del primer dato, el primer valor conocido.
 
-- [ ] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
+- [x] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
   - **Dependencias:** Requiere TASK-013
   - **Trazabilidad SDD:** plan §3.5; RF-M4-01, RF-M4-02, RF-M4-07, EC-M4-02
   - **Archivos en Alcance:**
@@ -279,7 +279,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M4-07` / `EC-M4-02`: un UPDATE del saldo inicial o de su fecha falla.
     - Los campos de tarjeta solo se aceptan en `credit_card`.
 
-- [ ] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
+- [x] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
   - **Dependencias:** Requiere TASK-014
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-05, EC-M5-01
   - **Archivos en Alcance:**
@@ -293,7 +293,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - El trigger rechaza un segundo nivel, un padre de otro tipo o archivado, y que una categoría con hijas pase a ser hija.
     - `RF-M5-05`: en la categoría del sistema solo se pueden cambiar el color y el ícono.
 
-- [ ] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
+- [x] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
   - **Dependencias:** Requiere TASK-015
   - **Trazabilidad SDD:** plan §3.5, ADR-04, ADR-07, ADR-15; RF-M6-01, RF-M6-03, RF-M7-09, RN-09
   - **Archivos en Alcance:**
@@ -307,7 +307,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-09`: un asiento que apunta a la cuenta de otro usuario viola la clave foránea compuesta.
     - `RF-M7-09`: los CHECK de `shortcut` exigen destino solo en transferencias y categoría en los demás tipos.
 
-- [ ] **`TASK-017`: Tablas de presupuestos (M11)**
+- [x] **`TASK-017`: Tablas de presupuestos (M11)**
   - **Dependencias:** Requiere TASK-016
   - **Trazabilidad SDD:** plan §3.6; RF-M11-01, RF-M11-04, RF-M11-13, RNF-12
   - **Archivos en Alcance:**
@@ -321,7 +321,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M11-13`: más de 3 umbrales, o un umbral fuera de 1–150, viola el CHECK.
     - `RNF-12`: un mismo umbral no se registra dos veces por período.
 
-- [ ] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
+- [x] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
   - **Dependencias:** Requiere TASK-017
   - **Trazabilidad SDD:** plan §3.6, ADR-14; RF-M12-01, RF-M12-03, RF-M13-01, RF-M13-05
   - **Archivos en Alcance:**
@@ -335,7 +335,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M13-05`: un pago con `amount ≠ interest_part + capital_part` viola el CHECK.
     - `interest_unpaid` conserva 10 decimales.
 
-- [ ] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
+- [x] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
   - **Dependencias:** Requiere TASK-018
   - **Trazabilidad SDD:** plan §3.6, plan §3.7; RF-M14-12, RF-M14-14, RF-M14-15, RN-10
   - **Archivos en Alcance:**
@@ -349,7 +349,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M14-15`: un nombre vacío o de más de 40 caracteres viola el CHECK.
     - `RN-10`: dos avisos con el mismo `event_key` para el mismo usuario violan la restricción única.
 
-- [ ] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
+- [x] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
   - **Dependencias:** Requiere TASK-019
   - **Trazabilidad SDD:** plan §3.1 (orden de la migración), plan §3.8, plan §3.9; RN-08, RN-09, RF-M1-15, RF-M4-13, RF-M6-05, RF-M14-11
   - **Archivos en Alcance:**
