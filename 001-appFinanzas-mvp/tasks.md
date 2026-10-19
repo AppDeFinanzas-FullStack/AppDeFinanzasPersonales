@@ -555,10 +555,12 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/presentation/middlewares/error-handler.ts`
     - `apps/api/src/presentation/routes/health.routes.ts`
     - `apps/api/test/http/app.test.ts`
-  - **Especificación de Implementación:** `createApp(deps)` monta el parser JSON, `requireJson` (mutaciones), `checkOrigin` (contra `WEB_ORIGIN`), un `traceId` por petición, un log de ruta, código y duración sin cuerpos, y el `errorHandler` (`AppError` → problem+json; cualquier otro error → `INTERNAL_ERROR` 500 con `traceId`). `validate(schema)` responde `VALIDATION_ERROR` con detalles seguros.
+    - `packages/contracts/src/errors.ts`
+    - `packages/contracts/test/errors.test.ts`
+  - **Especificación de Implementación:** Agrega al catálogo de `packages/contracts` `UNSUPPORTED_MEDIA_TYPE` (415) y `ORIGIN_NOT_ALLOWED` (403) (plan §4.0; la tabla de su test pasa a 81 códigos). `createApp(deps)` monta el parser JSON, `requireJson` (mutaciones), `checkOrigin` (contra `WEB_ORIGIN`), un `traceId` por petición, un log de ruta, código y duración sin cuerpos, y el `errorHandler` (`AppError` → problem+json; cualquier otro error → `INTERNAL_ERROR` 500 con `traceId`). `validate(schema)` responde `VALIDATION_ERROR` con detalles seguros.
   - **Criterios de Verificación (Tests & DoD):**
     - `GET /api/health` responde 204 sin sesión.
-    - Una mutación sin JSON responde 415, y un `Origin` ajeno, 403.
+    - Una mutación sin JSON responde 415 con `UNSUPPORTED_MEDIA_TYPE`, y un `Origin` ajeno, 403 con `ORIGIN_NOT_ALLOWED`; una mutación sin `Origin` no se rechaza. Un cuerpo JSON mal formado responde `VALIDATION_ERROR` 400.
     - `RNF-17`: un error inesperado devuelve solo `INTERNAL_ERROR` y `traceId`, sin *stack*.
     - El log de una petición no contiene su cuerpo.
 
