@@ -313,6 +313,7 @@ model AuthUser {
   fxEvents           UserFxEvent[]
   settings           UserSettings?
   favoriteCategories FavoriteCategory[]
+  financialAccounts  Account[]
 
   @@map("auth_user")
 }
@@ -441,6 +442,7 @@ model Currency {
   user           AuthUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
   fxEvents       UserFxEvent[]
   settingsAsBase UserSettings[]
+  accounts       Account[]
 
   @@id([userId, code])
   @@map("currency")
@@ -497,4 +499,35 @@ model FavoriteCategory {
   @@id([userId, categoryId])
   @@unique([userId, kind, position])
   @@map("favorite_category")
+}
+
+// Accounts (plan §3.5). Created by migration 0004_account.
+// CHECK constraints, the partial unique index account_active_name and the
+// account_initial_immutable trigger live only in the migration SQL.
+
+model Account {
+  id                 String          @id @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  type               AccountType
+  name               String          @db.VarChar(40)
+  currencyCode       String          @map("currency_code") @db.Char(3)
+  initialBalance     Decimal         @default(0) @map("initial_balance") @db.Decimal(14, 2)
+  initialBalanceDate DateTime        @map("initial_balance_date") @db.Date
+  color              String          @db.VarChar(16)
+  icon               String          @db.VarChar(32)
+  cardCutDay         Int?            @map("card_cut_day") @db.SmallInt
+  cardPayDay         Int?            @map("card_pay_day") @db.SmallInt
+  cardLimit          Decimal?        @map("card_limit") @db.Decimal(14, 2)
+  status             LifecycleStatus @default(active)
+  archivedAt         DateTime?       @map("archived_at") @db.Timestamptz(6)
+  sortOrder          Int             @map("sort_order")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user     AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency Currency @relation(fields: [userId, currencyCode], references: [userId, code], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, id])
+  @@index([userId, status, sortOrder])
+  @@map("account")
 }

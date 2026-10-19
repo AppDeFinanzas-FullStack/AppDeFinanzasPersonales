@@ -265,7 +265,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Los CHECK de `user_fx_event` rechazan cada combinación inválida de `kind`.
     - `RF-M3-13`: `user_rate_on` devuelve la última tasa del día en la zona del usuario y, antes del primer dato, el primer valor conocido.
 
-- [ ] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
+- [x] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
   - **Dependencias:** Requiere TASK-013
   - **Trazabilidad SDD:** plan §3.5; RF-M4-01, RF-M4-02, RF-M4-07, EC-M4-02
   - **Archivos en Alcance:**
