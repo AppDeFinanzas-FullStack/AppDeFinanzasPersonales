@@ -1,6 +1,6 @@
 # Plan de Diseño Técnico — App de Finanzas Personales
 
-**Versión:** 1.2 · **Fecha:** 2026-10-19 · **Estado:** Aprobado (2026-10-16)
+**Versión:** 1.3 · **Fecha:** 2026-10-19 · **Estado:** Aprobado (2026-10-16)
 **Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4
 **Alcance:** V1 completa (V1.0, V1.1, V1.2). Este documento define el **cómo**. Las tareas se definen en `tasks.md`.
 
@@ -79,6 +79,16 @@ sequenceDiagram
   A-->>W: 201 {transaction, undoToken, todayRecent}
   W->>W: limpia formulario · toast "Deshacer" 10 s · invalida ['dashboard'] y ['accounts']
 ```
+
+**Cómo se conectan las tres partes.** La web, el API y la base de datos son tres despliegues separados, cada uno en su servicio. Cada despliegue verifica los tres enlaces con pruebas de humo (1.5):
+
+| Enlace | Cómo se conecta | Dónde se configura | Prueba de humo |
+|---|---|---|---|
+| Web (Vercel) → API (Render) | Rewrite de `/api/*` hacia la URL pública del API. El navegador solo ve el dominio de la web: no hace falta CORS y la cookie funciona también en Safari (ADR-02). | `vercel.json` | `GET $WEB_URL/api/health/ready` = 204 |
+| API (Render) → BD (Neon) | `DATABASE_URL`, con el pooler de Neon, en tiempo de ejecución. Las migraciones usan `DATABASE_URL_DIRECT`, sin pooler. | Variables de Render y secreto del Environment `production` | `GET $API_URL/api/health/ready` = 204 |
+| API ← Web (origen permitido) | `checkOrigin` rechaza las mutaciones cuyo `Origin` no sea la web. | `WEB_ORIGIN` en Render | — |
+
+`GET /api/health` solo dice que el API está vivo. `GET /api/health/ready` hace además una consulta a la base de datos (4.2.2). Si esa consulta responde 204 llamando por el dominio de la web, quedan probadas la web, el API y la base de datos, de punta a punta.
 
 ### 1.3 Registro de decisiones (ADR)
 
@@ -221,30 +231,32 @@ flowchart LR
 |---|---|---|
 | `ci.yml` | `push` a cualquier rama y `pull_request` hacia `develop`, `qa` y `main`. También es reutilizable (`workflow_call`). | 1) `pnpm install --frozen-lockfile` con caché. 2) commitlint de los commits del PR. 3) lint (ESLint, i18n, sin literales). 4) typecheck estricto. 5) dependency-cruiser (reglas de capas). 6) Unitarios (`domain`, `contracts`, aplicación). 7) Integración del API contra Postgres 16 como *service* (`prisma migrate deploy` + Vitest), incluidos aislamiento y concurrencia. 8) Build de `api` y `web`. |
 | `qa-e2e.yml` | `push` a `qa` y `pull_request` hacia `main` | Levanta el entorno efímero: Postgres como *service*, migraciones, `seed:e2e` (usuarios de prueba, 5.000 movimientos, tasas fijas), API con `INTEGRATIONS=fake` (los correos se capturan en un buzón de prueba para leer los enlaces), web compilada en `vite preview`. Corre Playwright en la matriz Chromium/WebKit/Firefox × 360/1280 px (en paralelo), axe y la suite de rendimiento (RNF-01 a RNF-03). Publica el reporte, las trazas y los videos de los fallos como artefactos. |
-| `deploy.yml` | `push` a `main` (incluye merges de `qa` y `hotfix/*`) | `concurrency: production` (sin cancelar despliegues en curso). Corre en el *GitHub Environment* `production`. 1) `uses: ./.github/workflows/ci.yml`: si CI falla, no se despliega. 2) `prisma migrate deploy` con `DATABASE_URL_DIRECT` (conexión directa de Neon, sin pooler). 3) `curl -X POST $RENDER_DEPLOY_HOOK_URL` y consulta a la API de Render (`GET /v1/services/{id}/deploys?limit=1`) cada 15 s hasta `live`; si sale `build_failed` o `update_failed`, o pasan 15 min, falla (Render conserva la versión anterior). 4) `vercel pull --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`. 5) Pruebas de humo contra la URL pública: `GET /api/health` = 204 y `GET /` = 200. |
+| `deploy.yml` | `push` a `main` (incluye merges de `qa` y `hotfix/*`) y `workflow_dispatch`, para volver a desplegar sin un commit | `concurrency: production` (sin cancelar despliegues en curso). Hay dos jobs. El primero, `uses: ./.github/workflows/ci.yml`: si CI falla, no se despliega. El segundo, `deploy`, corre en el *GitHub Environment* `production` y en un runner propio, así que prepara su entorno: checkout, `pnpm/action-setup`, `setup-node` con `.nvmrc` y `pnpm install --frozen-lockfile`. 1) `prisma migrate deploy` con `DATABASE_URL` y `DATABASE_URL_DIRECT` iguales a la conexión directa de Neon: Prisma exige la variable de `url` aunque migre por `directUrl`. 2) `curl -X POST $RENDER_DEPLOY_HOOK_URL`. Toma el ID del deploy de la respuesta (si no viene, busca el deploy cuyo `commit.id` es `github.sha`) y consulta `GET /v1/services/{id}/deploys/{deployId}` cada 15 s hasta `live`. Falla ante cualquier estado final distinto (`build_failed`, `update_failed`, `pre_deploy_failed`, `canceled` o `deactivated`) o a los 15 min; Render conserva la versión anterior. No usa `deploys?limit=1`, que puede devolver el deploy anterior y dar un falso verde. 3) `vercel pull --yes --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`, todos con `--token`. Sin `--yes`, `vercel pull` pide confirmación y el job se cuelga. 4) Pruebas de humo, una por enlace (1.2), con las variables `API_URL` y `WEB_URL` del Environment: `GET $API_URL/api/health` = 204 (el API está vivo), `GET $API_URL/api/health/ready` = 204 (el API llega a la BD), `GET $WEB_URL/` = 200 (la web está viva) y `GET $WEB_URL/api/health/ready` = 204 (web → API → BD). |
 | `fx-backfill.yml` | Manual (`workflow_dispatch`) | Ejecuta una vez `packages/db/scripts/fx-backfill.ts` contra producción (ADR-06). |
 
 **Configuración versionada en el repo:**
 - **`render.yaml` (Blueprint):** define el servicio `finanzas-api` con estos valores:
   - plan gratis y `autoDeploy: false`;
-  - `buildCommand`: `corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build`;
+  - `buildCommand`: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @finanzas/db generate && pnpm --filter api build`. Hacen falta las devDependencies porque `start` corre con `tsx`, y el cliente de Prisma se genera en el build. El `build` del API solo verifica tipos: no emite JS;
   - `startCommand`: `pnpm --filter api start`;
   - `healthCheckPath`: `/api/health`;
-  - variables `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`, todas con `sync: false`, así los secretos se cargan en el panel de Render y no en el repo.
-- **`vercel.json`:**
+  - variables con valor fijo: `NODE_ENV=production` (`env.ts` lo exige) y `NODE_VERSION=22`, igual que `.nvmrc`, para que Render no elija otra versión por el `engines: >=22`;
+  - variables con `sync: false`, que se cargan en el panel de Render y no en el repo: `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`. `RESEND_API_KEY` es obligatoria desde el primer arranque, porque `env.ts` la valida aunque todavía no se manden correos.
+- **`vercel.json`** (en la raíz del monorepo):
   - `"git": { "deploymentEnabled": false }`, así solo despliega `deploy.yml`;
-  - el rewrite `/api/:path*` → `https://finanzas-api.onrender.com/api/:path*` (ADR-02);
-  - el rewrite de la SPA `/(.*)` → `/index.html`.
+  - `installCommand: "pnpm install --frozen-lockfile"`, `buildCommand: "pnpm --filter web build"` y `outputDirectory: "apps/web/dist"`;
+  - los rewrites, en este orden: primero `/api/:path*` → `<URL pública del API en Render>/api/:path*` (ADR-02), después el de la SPA, `/(.*)` → `/index.html`;
+  - `.vercel/`, que crea `vercel link`, va al `.gitignore`.
 - **`commitlint.config.cjs`** y **`.dependency-cruiser.cjs`**.
 
 **Secretos:**
-- Los de despliegue viven en el *GitHub Environment* `production`, restringido a la rama `main`: `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+- Los de despliegue viven en el *GitHub Environment* `production`, restringido a la rama `main`: `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Las URLs públicas, `WEB_URL` y `API_URL`, son variables del Environment, no secretos.
 - Los de ejecución viven solo en Render.
 - Ningún secreto aparece en logs (constitución §4): los pasos usan `::add-mask::`.
 
 **Protección de ramas (§7):**
-- `develop`, `qa` y `main` solo aceptan cambios por PR y exigen el check `ci`.
-- `main` exige además `qa-e2e`.
+- `develop`, `qa` y `main` solo aceptan cambios por PR y exigen el check `ci`, desde el primer despliegue.
+- `main` exige además `qa-e2e` cuando ese workflow exista (TASK-172). Hasta entonces, `ci` alcanza para desplegar.
 - Nadie, ni los agentes de IA, empuja directo a esas ramas.
 - Un `hotfix/*` sale de `main`, entra a `main` por PR y después se integra en `qa` y en `develop` con dos PR más.
 
@@ -262,14 +274,30 @@ flowchart LR
 
 **Costo:** USD 0. GitHub Actions es gratis en repos públicos, y en privados da 2.000 min al mes; cada corrida de CI toma unos 8 min y `qa-e2e` unos 20 min, en paralelo. Render y Vercel siguen en sus planes gratis.
 
+**Puesta en marcha (una sola vez).** Lo que una persona hace a mano: los agentes no pueden crear cuentas ni cargar secretos. El paso a paso está en los «Pasos manuales» de TASK-171, TASK-172, TASK-173 y TASK-174, y reunido en el README.
+1. **Neon:** el proyecto, su rama `main` y las URLs con pooler y directa.
+2. **Resend:** la cuenta y la API key.
+3. **Secretos de la app:** `AUTH_SECRET`, `HMAC_SECRET` y `JOBS_SECRET`, aleatorios.
+4. **Vercel:** el proyecto vinculado con `vercel link`, el token y `WEB_URL`.
+5. **Render:** el Blueprint desde `render.yaml` en `main`, sus variables, el Deploy Hook, la API key, el ID del servicio y `API_URL`.
+6. **GitHub:** el Environment `production` con sus secretos y variables, y la protección de ramas.
+7. **cron-job.org:** `POST $API_URL/internal/jobs/tick` cada minuto, con `x-jobs-secret`, `Content-Type: application/json` y el cuerpo `{}` (`requireJson` responde 415 a un POST sin JSON).
+8. **Primer despliegue:** la promoción `develop` → `qa` → `main` por PR.
+
 ---
 
 ## 2. Estructura del Proyecto (Árbol de Directorios)
 
 ```
 /
+├─ README.md                              # qué es, despliegues, cómo correrlo, CI/CD, SDD, puesta en marcha
 ├─ docs/
-│  └─ constitution.md
+│  ├─ constitution.md
+│  └─ execution-protocol.md               # pipeline de tareas con agentes (constitución §8)
+├─ .claude/                               # settings.json (hooks), agents/ (test-author, implementer,
+│                                         # sdd-auditor), skills/implement-task/
+├─ .githooks/pre-push                     # control antes de subir (tools/sdd/pre-push.mjs)
+├─ tools/sdd/                             # scripts del pipeline: preflight, gate, check, close, state…
 ├─ 001-appFinanzas-mvp/
 │  ├─ spec.md
 │  ├─ plan.md
@@ -298,7 +326,7 @@ flowchart LR
 │  │  │  │  │                                # notifications.ts, maintenance.ts
 │  │  │  │  ├─ ports/                        # unit-of-work.ts, repositories.ts, rates-gateway.ts,
 │  │  │  │  │                                # email-gateway.ts, auth-gateway.ts, clock.ts, id-generator.ts,
-│  │  │  │  │                                # job-runs.ts
+│  │  │  │  │                                # job-runs.ts, readiness.ts
 │  │  │  │  └─ errors.ts                     # AppError + catálogo de códigos (ADR-09)
 │  │  │  ├─ domain/                          # CAPA 3 · reexporta packages/domain + tipos de entidad
 │  │  │  └─ infrastructure/                  # CAPA 4 · detalles técnicos
@@ -307,6 +335,7 @@ flowchart LR
 │  │  │     │  ├─ prisma-client.ts           # cliente + extensión de aislamiento (ADR-05)
 │  │  │     │  ├─ unit-of-work.ts            # transacción, withUserLock, repositorios ligados a tx y userId
 │  │  │     │  ├─ job-runs.ts                # lease de los jobs en job_run (implementa ports/job-runs.ts)
+│  │  │     │  ├─ readiness.ts               # SELECT 1 de /api/health/ready (implementa ports/readiness.ts)
 │  │  │     │  └─ repositories/              # <entidad>.repository.ts (implementan ports/repositories.ts)
 │  │  │     ├─ auth/better-auth.ts           # implementa AuthGateway (ADR-08)
 │  │  │     ├─ integrations/                 # paralelo-bo.ts, bcb.ts, resend.ts y sus .fake.ts (CI)
@@ -1125,12 +1154,14 @@ MeDto = { id, name, email, timezone, locale: 'es-BO', release: '1.0'|'1.1'|'1.2'
 
 ```ts
 HealthOutput = void                                         // GET /api/health → 204, público
+ReadyOutput  = void                                         // GET /api/health/ready → 204 o 503, público
 UpdateSettingsInput.pick({ sidebarCollapsed: true })        // definido en M9
 ModuleRelease = Record<ModuleKey, '1.0'|'1.1'|'1.2'>        // packages/contracts/releases.ts
 ```
 
 #### 4.2.2 Endpoints
-- `GET /api/health`: `204`, sin sesión. Lo usa la detección sin conexión.
+- `GET /api/health`: `204`, sin sesión. No toca la base de datos. Lo usan la detección sin conexión y el *health check* de Render.
+- `GET /api/health/ready`: sin sesión. Hace `SELECT 1` en la base de datos con un límite de 2 s y responde `204` si contesta o `503` sin cuerpo si no, sin detalles internos (constitución §4). La presentación lo recibe como un puerto `ReadinessProbe` (`application/ports/readiness.ts`), implementado en `infrastructure/persistence/readiness.ts` (ADR-19). Lo usan las pruebas de humo de `deploy.yml` para verificar los enlaces API → BD y web → API → BD (1.2).
 - `PATCH /api/settings {sidebarCollapsed}` (RF-M2-09). El contrato completo está en M9.
 - `releaseGate(module)`: middleware del API. Si el módulo no está en `RELEASE`, responde `RELEASE_NOT_AVAILABLE 404` (RF-M2-03).
 
@@ -1917,9 +1948,9 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 | Concurrencia | Vitest (integración, `Promise.all` con conexiones distintas) | Gastos simultáneos sobre el mismo efectivo, doble confirmación de un enlace, doble decisión de cierre, doble confirmación de un pendiente, jobs en paralelo, desactivar una moneda mientras se crea una cuenta. | — |
 | E2E | Playwright (Chromium, WebKit y Firefox; 360 px y 1280 px) | Escenarios Gherkin de la spec, navegación adaptable, sin conexión, sesión vencida, teclado, accesibilidad con `@axe-core/playwright`. | — |
 | Rendimiento | Playwright + seed de 5.000 movimientos | RNF-01, RNF-02 y RNF-03 con perfil de red 4G y CPU de gama media (×4 de throttling). | — |
-| Calidad en CI | GitHub Actions (`ci.yml`) | commitlint, lint, typecheck estricto, reglas de capas (dependency-cruiser), unitarios e integración en cada push y PR. Ningún PR se integra con fallas. | §5 y §7 |
+| Calidad en CI | GitHub Actions (`ci.yml`) | commitlint, lint, typecheck estricto, reglas de capas (dependency-cruiser), unitarios e integración en cada push y PR. Los contratos HTTP del API (proyecto `http` de Vitest, supertest sin BD) corren dentro de `test:unit`. Ningún PR se integra con fallas. | §5 y §7 |
 | QA efímero | GitHub Actions (`qa-e2e.yml`) | E2E completo, axe y rendimiento contra un entorno temporal en cada push a `qa` y en cada PR hacia `main`. Es un check requerido para integrar en `main`. | §7 (validación antes de producción) |
-| Despliegue | GitHub Actions (`deploy.yml`) | En cada push a `main`: CI → migraciones → Render → Vercel → pruebas de humo. Si un paso falla, no se sigue y queda en línea la versión anterior. | §7 |
+| Despliegue | GitHub Actions (`deploy.yml`) | En cada push a `main`: CI → migraciones → Render → Vercel → pruebas de humo de los tres enlaces (1.2). Si un paso falla, no se sigue y queda en línea la versión anterior. | §7 |
 
 **Datos de prueba:** fábricas por entidad en `apps/api/test/factories`. Cada test usa un usuario nuevo. Los jobs se prueban con un reloj inyectable (`Clock`) y zonas horarias distintas (America/La_Paz, Europe/Madrid, America/Santiago).
 
