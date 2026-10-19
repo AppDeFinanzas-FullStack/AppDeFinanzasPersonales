@@ -23,6 +23,12 @@ function toPhase(next) {
 
   switch (next) {
     case 'tests':
+      // Reapertura: solo si el Gate B aún no pasó, por un defecto de las propias pruebas (p. ej. lint), que
+      // el implementer no puede corregir porque están bloqueadas. Reinicia ambos gates.
+      if (from === 'implement' && !state.gates.B.passed) {
+        state.gates = { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } };
+        break;
+      }
       if (from !== 'preflight') err('las pruebas se escriben al empezar la tarea.');
       if (!state.testFiles.length) err('la tarea no tiene archivos de test.');
       break;
@@ -31,7 +37,8 @@ function toPhase(next) {
       if (from === 'preflight' && state.testFiles.length) err('primero hay que escribir las pruebas (fase tests).');
       if (from === 'tests' && !state.gates.A.passed) err('el Gate A todavía no pasó.');
       if (from === 'audit') {
-        if (lastVerdict() !== 'CHANGES_REQUIRED') err('el último veredicto no es CHANGES_REQUIRED.');
+        // NEEDS_CLARIFICATION cuenta una vez resuelta en un commit docs: (spec, plan o tasks.md).
+        if (!['CHANGES_REQUIRED', 'NEEDS_CLARIFICATION'].includes(lastVerdict())) err('el último veredicto no es CHANGES_REQUIRED ni NEEDS_CLARIFICATION.');
         if (state.auditRounds + 1 > MAX_AUDIT_ROUNDS) {
           err(`se agotaron las ${MAX_AUDIT_ROUNDS} rondas de corrección. Bloquea la tarea y consulta al usuario.`);
         }

@@ -3,9 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf } from '../lib/tasks.mjs';
 import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
-import { planSection, dedupeSections, specItem, scenario, adrRow } from '../lib/context.mjs';
+import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } from '../lib/context.mjs';
 import { readText, sh, posixShell } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
+import { wrapText, SECRETS, MAX_LINE } from '../lib/message.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -241,4 +242,30 @@ test('los comandos de tasks.md corren en un shell POSIX, no en cmd.exe', () => {
   assert.ok(shell, 'no se encontró un shell POSIX');
   // cmd.exe pasaría '"a b" ' (con comillas y espacio final) al pipe.
   assert.equal(sh('echo "a b" | cat', { shell }).output, 'a b\n');
+});
+
+test('isUiTask: solo el código visual de apps/web cuenta como interfaz', () => {
+  assert.equal(isUiTask(['apps/web/src/features/home/HomePage.tsx']), true);
+  assert.equal(isUiTask(['apps/web/src/index.css']), true);
+  assert.equal(isUiTask(['apps/web/tailwind.config.ts']), true);
+  assert.equal(isUiTask(['apps/web/src/features/home/HomePage.test.tsx']), false);
+  assert.equal(isUiTask(['apps/web/src/lib/api-client.ts']), false);
+  assert.equal(isUiTask(['apps/api/src/routes/home.ts', 'packages/db/seed/preset-categories.ts']), false);
+});
+
+test('wrapText corta el cuerpo del commit sin pasar de 100 columnas', () => {
+  const long = Array.from({ length: 40 }, (_, i) => `palabra${i}`).join(' ');
+  const wrapped = wrapText(`${long}\n\nTask: TASK-001`);
+  assert.ok(wrapped.split('\n').every((l) => l.length <= MAX_LINE));
+  assert.equal(wrapped.replace(/\n(?!\n|Task)/g, ' '), `${long}\n\nTask: TASK-001`);
+  assert.equal(wrapText('corta'), 'corta');
+});
+
+test('secretos: una URL con contraseña literal se detecta y un placeholder ${…} no', () => {
+  const dbUrl = SECRETS.find(([, label]) => label.includes('base de datos'))[0];
+  // Se arma en tiempo de ejecución para que el propio pre-push no la tome como un secreto en el diff.
+  const literal = ['DATABASE_URL=postgresql://app:', 'Sup3rS3cret', '@ep-cool.neon.tech/finanzas'].join('');
+  assert.equal(dbUrl.test(literal), true);
+  assert.equal(dbUrl.test('throw new Error(`connection to postgres://user:${secret}@db failed`)'), false);
+  assert.equal(dbUrl.test('postgresql://ci:ci-ephemeral@localhost:5432/finanzas_test'), false);
 });
