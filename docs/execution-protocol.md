@@ -14,8 +14,9 @@ Este documento es el detalle operativo de la constitución §8: cómo se impleme
 | Skill orquestadora | `.claude/skills/implement-task/SKILL.md` | `/implement-task TASK-XXX`. La corre la sesión principal. Es la única que hace commit. |
 | Subagentes | `.claude/agents/test-author.md` · `implementer.md` · `sdd-auditor.md` | Una etapa del pipeline cada uno (§3). |
 | Hook de agente | `.claude/settings.json` → `SubagentStop` | Ejecuta `tools/sdd/gate.mjs` (§4.1), solo para `test-author`, `implementer` y `sdd-auditor`. |
+| Hook de sesión | `.claude/settings.json` → `SessionStart` | Ejecuta `tools/sdd/session-brief.mjs` (§4.3): al abrir Claude, un resumen de la rama, la tarea activa, el avance y las tareas disponibles. |
 | Hook de git | `.githooks/pre-push` | Ejecuta `tools/sdd/pre-push.mjs` (§4.2). Se activa con `git config core.hooksPath .githooks`. |
-| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `check` (corre los controles del gate sin gastar intentos), `close` (marca `[x]` y hace el commit) y `pre-push`. Los controles de los gates viven en `lib/gates.mjs` y los comparten `gate` y `check`. Los usan los hooks, los subagentes y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
+| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `check` (corre los controles del gate sin gastar intentos), `close` (marca `[x]` y hace el commit), `session-brief` (resumen al abrir una sesión) y `pre-push`. Los controles de los gates viven en `lib/gates.mjs` y los comparten `gate` y `check`. Los usan los hooks, los subagentes y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
 | Estado de ejecución | `.claude/run/` (ignorado por git) | `active-task.json` y una carpeta por tarea (§2.2). |
 
 ---
@@ -150,7 +151,17 @@ Revisa los commits que se van a subir (los que no están en el remoto) y su diff
 
 Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los controles 1 y 2. Los E2E completos, axe y rendimiento corren en CI (`qa-e2e.yml`).
 
-### 4.3 Controles que no son hooks
+### 4.3 `SessionStart` → `tools/sdd/session-brief.mjs`
+
+Al abrir, retomar, limpiar o compactar una sesión de Claude en el proyecto, le agrega al contexto un resumen corto de dónde quedó el trabajo, para que cada integrante retome sin buscar a mano:
+- la rama actual, y si el árbol de trabajo está limpio;
+- la tarea activa, con su etapa y su estado; si está `blocked`, el motivo;
+- el avance: tareas cerradas sobre el total, y las de la fase en curso;
+- hasta 5 tareas disponibles, es decir, abiertas con todas sus dependencias cerradas.
+
+El texto lo arma `lib/brief.mjs`, una función pura con sus pruebas. El hook solo lee: no cambia archivos ni el estado, y no participa en el pipeline. Si algo no se puede leer (no hay `tasks.md`, el estado está corrupto o no es un repositorio git), omite ese dato y sale igual con código 0: nunca impide abrir una sesión.
+
+### 4.4 Controles que no son hooks
 
 - La protección de ramas de GitHub impide el push directo a `develop`, `qa` y `main` (plan 1.5).
 - CI repite lint, tipos, capas, commitlint y tests en cada push y PR.
