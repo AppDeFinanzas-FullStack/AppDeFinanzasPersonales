@@ -472,7 +472,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M7-02`: "35.50" y "35,50" dan 35,50 con los dos formatos (escenarios "Formato de números" y "Punto decimal con el formato por defecto").
     - `RF-M7-02`: "35,5" da 35,50, mientras que "1.234", "3+4" y "1,234.56" dan `null`.
 
-- [ ] **`TASK-029`: Dominio `format`: fechas y días relativos**
+- [x] **`TASK-029`: Dominio `format`: fechas y días relativos**
   - **Dependencias:** Requiere TASK-027, TASK-028
   - **Trazabilidad SDD:** plan §4.9.1; RF-M9-03, RF-M9-04
   - **Archivos en Alcance:**
