@@ -717,7 +717,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 6 — M1 Acceso y cuenta de usuario (V1.0)
 
-- [ ] **`TASK-047`: Contratos de M1**
+- [x] **`TASK-047`: Contratos de M1**
   - **Dependencias:** Requiere TASK-021, TASK-023
   - **Trazabilidad SDD:** plan §4.1.1; RF-M1-01, RF-M1-02, RF-M1-11, RF-M1-13, EC-M1-08
   - **Archivos en Alcance:**
