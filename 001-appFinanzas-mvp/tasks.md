@@ -732,7 +732,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M1-13`: `UpdateMeInput` rechaza el campo `email`.
     - `EC-M1-08`: `DeleteAccountInput` solo acepta exactamente "ELIMINAR".
 
-- [ ] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
+- [x] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §1.4 (*fakes* de integraciones), plan §1.5 (buzón de prueba), ADR-08; RF-M1-16, RNF-25
   - **Archivos en Alcance:**
