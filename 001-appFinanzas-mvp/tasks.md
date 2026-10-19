@@ -586,7 +586,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Con `INTEGRATIONS=fake`, el contenedor arma la app y `/api/health` responde 204.
     - Comando: `pnpm --filter api build`
 
-- [ ] **`TASK-037`: Límites por usuario (`assertLimit`)**
+- [x] **`TASK-037`: Límites por usuario (`assertLimit`)**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §4.0 (`assertLimit`); RNF-28
   - **Archivos en Alcance:**
