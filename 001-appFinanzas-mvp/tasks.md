@@ -1183,7 +1183,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 8 — M3 Monedas y tipo de cambio (V1.0)
 
-- [ ] **`TASK-077`: Contratos de M3**
+- [x] **`TASK-077`: Contratos de M3**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.3.1; RF-M3-02, RF-M3-12, RF-M3-05
   - **Archivos en Alcance:**
