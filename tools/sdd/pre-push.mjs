@@ -7,18 +7,10 @@ import { git, gitOut, sh, abs, tail } from './lib/repo.mjs';
 import { parseTasks } from './lib/tasks.mjs';
 import { isTestCaseFile, testCaseNames } from './lib/scope.mjs';
 import { rootScript, ensureDatabase, packageJson } from './lib/runner.mjs';
+import { CONVENTIONAL, MAX_LINE, SECRETS } from './lib/message.mjs';
 
 const ZERO = /^0+$/;
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
-const CONVENTIONAL = /^(feat|fix|docs|test|chore|build|ci|refactor|perf|style|revert)(\([\w\-./]+\))?!?: \S.*$/;
-const SECRETS = [
-  [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, 'clave privada'],
-  [/\bre_[A-Za-z0-9_]{20,}\b/, 'API key de Resend'],
-  [/\bsk-ant-[A-Za-z0-9_-]{20,}/, 'API key de Anthropic'],
-  [/\bgh[pousr]_[A-Za-z0-9]{30,}\b/, 'token de GitHub'],
-  [/\bAKIA[0-9A-Z]{16}\b/, 'access key de AWS'],
-  [/postgres(?:ql)?:\/\/[^:\s/]+:[^@\s]+@(?!localhost|127\.0\.0\.1|db[:/]|postgres[:/])[^\s"']+/, 'URL de base de datos con contraseña'],
-];
 
 const input = process.stdin.isTTY ? '' : readFileSync(0, 'utf8');
 const refs = input.split(/\r?\n/).filter(Boolean).map((l) => l.split(' '));
@@ -36,10 +28,11 @@ for (const [, localSha, remoteRef, remoteSha] of refs) {
   const realBase = git(`rev-parse --verify --quiet ${parent}`).code === 0;
   const base = realBase ? parent : EMPTY_TREE;
 
-  // 1. Conventional Commits.
+  // 1. Conventional Commits. Los merges (traer develop a la rama) los escribe git y commitlint los ignora.
   for (const c of commits) {
+    if (gitOut(`log -1 --format=%P ${c}`).split(' ').length > 1) continue;
     const subject = gitOut(`log -1 --format=%s ${c}`);
-    if (!CONVENTIONAL.test(subject) || subject.length > 100) add(`Mensaje inválido en ${c.slice(0, 7)}`, `"${subject}" no sigue Conventional Commits (máximo 100 caracteres).`);
+    if (!CONVENTIONAL.test(subject) || subject.length > MAX_LINE) add(`Mensaje inválido en ${c.slice(0, 7)}`, `"${subject}" no sigue Conventional Commits (máximo ${MAX_LINE} caracteres).`);
   }
   const commitlint = existsSync(abs('node_modules/.bin/commitlint')) || existsSync(abs('node_modules/.bin/commitlint.cmd'));
   if (commitlint && realBase) {

@@ -57,6 +57,17 @@ export function scenario(specText, title) {
   return out.join('\n').trimEnd();
 }
 
+export const DESIGN_DIRECTION = 'docs/design-direction.md';
+
+/** Una tarea es de interfaz si su alcance escribe pantallas, componentes o estilos de la web. */
+export function isUiTask(scope) {
+  return scope.some(
+    (p) =>
+      (/^apps\/web\/src\/.*\.(tsx|css)$/.test(p) && !/\.(test|spec)\.tsx?$/.test(p)) ||
+      p === 'apps/web/tailwind.config.ts',
+  );
+}
+
 function planConventions(planText) {
   const m = planText.match(/Convenciones de este documento:\n([\s\S]*?)\n---/);
   return m ? m[1].trim() : '';
@@ -78,6 +89,12 @@ export function buildContext(task, { round = 0 } = {}) {
   const scenarios = task.scenarios.map((t) => scenario(spec, t) ?? `> Escenario "${t}": no se encontró en la spec.`);
   const { testFiles, implFiles } = splitScope(task.scope);
 
+  const designSection = !isUiTask(task.scope)
+    ? '_No aplica: la tarea no escribe pantallas ni estilos de la web._'
+    : exists(DESIGN_DIRECTION)
+      ? `Esta tarea escribe interfaz. Todo lo visual (tokens, tipografía, estética, componentes) debe respetar este documento (\`${DESIGN_DIRECTION}\`); no inventes otro estilo.\n\n${readText(DESIGN_DIRECTION)}`
+      : `> \`${DESIGN_DIRECTION}\` no existe todavía. Usa los valores por defecto de shadcn/ui sin añadir decisiones visuales propias.`;
+
   const parts = [
     `# Paquete de contexto — ${task.id}: ${task.title}`,
     `Fase ${task.phase.number} — ${task.phase.name}. Lee este archivo completo antes de empezar.`,
@@ -94,13 +111,15 @@ export function buildContext(task, { round = 0 } = {}) {
     planConventions(plan),
     adrs.length ? `Decisiones citadas:\n\n| ID | Decisión | Motivo | Alternativas descartadas |\n|---|---|---|---|\n${adrs.join('\n')}` : '',
     sections || '_La tarea no cita secciones del plan._',
-    '## 6. Constitución del proyecto',
+    '## 6. Dirección visual',
+    designSection,
+    '## 7. Constitución del proyecto',
     constitution,
   ];
 
   if (round > 0) {
     const findings = lastFindings(task.id);
-    parts.push(`## 7. Hallazgos de la auditoría anterior (ronda ${round})`, findings ?? '_No se encontraron hallazgos._', 'Corrige cada hallazgo sin salir del alcance ni tocar las pruebas.');
+    parts.push(`## 8. Hallazgos de la auditoría anterior (ronda ${round})`, findings ?? '_No se encontraron hallazgos._', 'Corrige cada hallazgo sin salir del alcance ni tocar las pruebas.');
   }
 
   const file = join(taskDir(task.id), 'context.md');

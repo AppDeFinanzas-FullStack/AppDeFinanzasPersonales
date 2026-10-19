@@ -993,12 +993,14 @@ model NotificationPreference {
   @@map("notification_preference")
 }
 
-/// Monitoring only; mutual exclusion between job runs uses advisory locks.
+/// Monitoring of the jobs and exclusion between runs: each job holds a lease (plan §4.0).
 model JobRun {
   job            String    @id @db.VarChar(64)
   lastStartedAt  DateTime? @map("last_started_at") @db.Timestamptz(6)
   lastFinishedAt DateTime? @map("last_finished_at") @db.Timestamptz(6)
   lastError      String?   @map("last_error")
+  /// Lease in force until this instant; NULL means the job is free.
+  lockedUntil    DateTime? @map("locked_until") @db.Timestamptz(6)
 
   @@map("job_run")
 }

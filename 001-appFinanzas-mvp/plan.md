@@ -1,6 +1,6 @@
 # Plan de Diseño Técnico — App de Finanzas Personales
 
-**Versión:** 1.1 · **Fecha:** 2026-10-16 · **Estado:** Aprobado (2026-10-16)
+**Versión:** 1.2 · **Fecha:** 2026-10-19 · **Estado:** Aprobado (2026-10-16)
 **Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4
 **Alcance:** V1 completa (V1.0, V1.1, V1.2). Este documento define el **cómo**. Las tareas se definen en `tasks.md`.
 
@@ -131,7 +131,7 @@ flowchart TB
   subgraph A["2 · Aplicación (application/)"]
     S[services: casos de uso] --> SH[shared: BalanceGuard, LedgerHooks,<br/>NotificationEmitter, CurrencyUsage]
     J[jobs]
-    PO[[ports: UnitOfWork, repositorios,<br/>RatesGateway, EmailGateway, AuthGateway,<br/>Clock, IdGenerator]]
+    PO[[ports: UnitOfWork, repositorios,<br/>RatesGateway, EmailGateway, AuthGateway,<br/>Clock, IdGenerator, JobRuns]]
   end
   subgraph D["3 · Dominio (domain/ = packages/domain)"]
     DM[reglas puras: dinero, tasas, períodos,<br/>interés, recurrencias, formatos]
@@ -297,7 +297,8 @@ flowchart LR
 │  │  │  │  ├─ jobs/                         # tick.ts, fx.ts, outbox.ts, recurring.ts, budgets.ts,
 │  │  │  │  │                                # notifications.ts, maintenance.ts
 │  │  │  │  ├─ ports/                        # unit-of-work.ts, repositories.ts, rates-gateway.ts,
-│  │  │  │  │                                # email-gateway.ts, auth-gateway.ts, clock.ts, id-generator.ts
+│  │  │  │  │                                # email-gateway.ts, auth-gateway.ts, clock.ts, id-generator.ts,
+│  │  │  │  │                                # job-runs.ts
 │  │  │  │  └─ errors.ts                     # AppError + catálogo de códigos (ADR-09)
 │  │  │  ├─ domain/                          # CAPA 3 · reexporta packages/domain + tipos de entidad
 │  │  │  └─ infrastructure/                  # CAPA 4 · detalles técnicos
@@ -305,6 +306,7 @@ flowchart LR
 │  │  │     ├─ persistence/
 │  │  │     │  ├─ prisma-client.ts           # cliente + extensión de aislamiento (ADR-05)
 │  │  │     │  ├─ unit-of-work.ts            # transacción, withUserLock, repositorios ligados a tx y userId
+│  │  │     │  ├─ job-runs.ts                # lease de los jobs en job_run (implementa ports/job-runs.ts)
 │  │  │     │  └─ repositories/              # <entidad>.repository.ts (implementan ports/repositories.ts)
 │  │  │     ├─ auth/better-auth.ts           # implementa AuthGateway (ADR-08)
 │  │  │     ├─ integrations/                 # paralelo-bo.ts, bcb.ts, resend.ts y sus .fake.ts (CI)
@@ -950,11 +952,12 @@ CREATE TABLE notification_preference (
   PRIMARY KEY (user_id, type)
 );
 
-CREATE TABLE job_run (                                     -- monitoreo; la exclusión usa advisory locks
+CREATE TABLE job_run (                                     -- monitoreo y exclusión entre corridas (lease, §4.0)
   job              varchar(64) PRIMARY KEY,
   last_started_at  timestamptz,
   last_finished_at timestamptz,
-  last_error       text
+  last_error       text,
+  locked_until     timestamptz                             -- lease vigente; NULL = libre (migración 0011_job_run_lease)
 );
 ```
 
@@ -1002,7 +1005,7 @@ function call<I, O>(e: Endpoint<I, O>, input: I, opts?: { background?: boolean; 
   "code": "NEGATIVE_BALANCE", "data": { "accountId": "…", "resultingBalance": "-5.00" }, "traceId": "…" }
 ```
 
-**Catálogo común de errores:** `VALIDATION_ERROR 400` · `SESSION_EXPIRED 401` · `NOT_FOUND 404` · `IDEMPOTENCY_CONFLICT 409` · `LIMIT_REACHED 409` · `RELEASE_NOT_AVAILABLE 404` · `INTERNAL_ERROR 500`.
+**Catálogo común de errores:** `VALIDATION_ERROR 400` · `SESSION_EXPIRED 401` · `NOT_FOUND 404` · `IDEMPOTENCY_CONFLICT 409` · `LIMIT_REACHED 409` · `RELEASE_NOT_AVAILABLE 404` · `INTERNAL_ERROR 500` · `UNSUPPORTED_MEDIA_TYPE 415` (mutación sin cuerpo JSON, `requireJson`) · `ORIGIN_NOT_ALLOWED 403` (`Origin` ajeno a `WEB_ORIGIN`, `checkOrigin`). Con estos dos, el catálogo completo tiene 81 códigos. Una mutación sin cabecera `Origin` (cliente que no es un navegador) no se rechaza: la sesión viaja en cookie `SameSite=Lax`. Los errores del parser JSON (cuerpo mal formado, demasiado grande o con charset inválido) responden `VALIDATION_ERROR 400`.
 
 **Servicios compartidos del API** (capa de aplicación; la transacción y el bloqueo los da el puerto `UnitOfWork`, implementado en infraestructura):
 
@@ -1041,10 +1044,12 @@ LedgerHooks.afterChange(tx, userId, change: { dates: LocalDate[]; categoryIds: s
 9. `maintenance` (purga de borrados y deshacer vencidos, descarte de registros sin confirmar, retención de avisos y logs)
 
 Cada job:
-- toma `pg_try_advisory_lock(job)`; si ya está corriendo, lo salta;
+- toma su *lease* en `job_run` con `JobRuns.tryAcquire(job, now)`: `INSERT … ON CONFLICT (job) DO NOTHING` y después `UPDATE job_run SET locked_until = now + 5 min, last_started_at = now WHERE job = $1 AND (locked_until IS NULL OR locked_until < now)`. Si no se actualizó ninguna fila, otra corrida lo tiene y lo salta. Al terminar, con éxito o con error, `JobRuns.finish(job, now, error?)` vuelve `locked_until` a NULL y registra el fin y el error. Si el proceso muere, el lease vence solo a los 5 minutos;
 - recorre a los usuarios por lotes, con `withUserLock` por usuario;
 - es idempotente gracias a claves únicas y transiciones condicionadas;
 - registra su ejecución en `job_run`.
+
+**Por qué un lease y no `pg_try_advisory_lock`:** un *advisory lock* de sesión vive en una conexión. Con el pool de Prisma, y en producción con el pooler de Neon (PgBouncer en modo transacción), tomarlo y soltarlo pueden caer en conexiones distintas: el bloqueo queda tomado y el job se salta para siempre. El lease es una fila con vencimiento y funciona con cualquier conexión. Los bloqueos de transacción (`pg_advisory_xact_lock`, el bloqueo por usuario) no tienen este problema, porque se liberan con su transacción.
 
 La primera petición autenticada de cada usuario en el día ejecuta `catchUpUser(userId)`, que corre los mismos jobs solo para él (ADR-01).
 
@@ -1220,7 +1225,7 @@ gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 - **Moneda Activa → Inactiva:** `SELECT … FOR UPDATE` sobre `currency` → cada módulo responde a `currencyUsage.check(tx, userId, code)` (cuentas activas, metas no archivadas, presupuestos activos o pausados, deudas activas, reglas no eliminadas) → `UPDATE … SET status = 'inactive'`. Toda creación con esa moneda toma `FOR SHARE` y verifica `status = 'active'`, así no hay carreras.
 - **Inactiva → Activa:** exige una tasa nueva → inserta `custom_rate`.
 - **Valor manual:** se activa o desactiva con una transacción que actualiza `user_settings` e inserta el evento. Nunca vence solo.
-- **Una sola actualización a la vez:** `pg_try_advisory_lock(hashtext('fx_refresh'))`. Si la fuente falla, se conserva el último valor (EC-M3-01).
+- **Una sola actualización a la vez:** el lease `fx_refresh` de `job_run` (§4.0), también cuando la actualización es a pedido. Si la fuente falla, se conserva el último valor (EC-M3-01).
 - **Sin ninguna tasa (EC-M3-02):** si `resolveUsdRate` devuelve null y el movimiento no es en BOB → `RATE_REQUIRED 409`. El cliente reenvía con `manualUsdRate`, que en la misma transacción activa el valor manual y queda como tasa del movimiento. Sin tasa, los equivalentes se muestran como "Sin tipo de cambio" (EC-M8-04).
 - **Cambiar la referencia o la base (RF-M3-11):** nada se reescribe. El cliente invalida todas las consultas.
 

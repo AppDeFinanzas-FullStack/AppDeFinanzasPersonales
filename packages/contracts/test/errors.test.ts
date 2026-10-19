@@ -63,6 +63,7 @@ const TABLE: ReadonlyArray<readonly [string, number]> = [
   ['NOT_FOUND', 404],
   ['NOT_LAST_PAYMENT', 409],
   ['ONBOARDING_DONE', 409],
+  ['ORIGIN_NOT_ALLOWED', 403],
   ['PARENT_ARCHIVED', 409],
   ['PAYMENT_EXCEEDS_BALANCE', 422],
   ['PRINCIPAL_BELOW_PAID', 422],
@@ -81,6 +82,7 @@ const TABLE: ReadonlyArray<readonly [string, number]> = [
   ['TO_GOAL_NOT_ALLOWED', 422],
   ['TYPE_CHANGE_INVALID', 422],
   ['UNDO_EXPIRED', 410],
+  ['UNSUPPORTED_MEDIA_TYPE', 415],
   ['VALIDATION_ERROR', 400],
 ];
 
@@ -100,8 +102,13 @@ describe('ErrorCode (plan 4.0, ADR-09)', () => {
     expect(codes[code]).toBe(status);
   });
 
-  it('TASK-022 la tabla tiene los 79 códigos del plan', () => {
-    expect(TABLE).toHaveLength(79);
+  it('TASK-034 la tabla tiene los 81 códigos del plan', () => {
+    expect(TABLE).toHaveLength(81);
+  });
+
+  it('TASK-034 UNSUPPORTED_MEDIA_TYPE es 415 y ORIGIN_NOT_ALLOWED es 403', () => {
+    expect(codes.UNSUPPORTED_MEDIA_TYPE).toBe(415);
+    expect(codes.ORIGIN_NOT_ALLOWED).toBe(403);
   });
 
   it('TASK-022 el catálogo no tiene códigos fuera de la tabla', () => {
