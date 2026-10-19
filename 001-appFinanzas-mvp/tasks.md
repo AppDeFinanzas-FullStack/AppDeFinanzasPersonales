@@ -825,9 +825,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/shared/user-bootstrap.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/user.factory.ts`
     - `apps/api/test/integration/user-bootstrap.test.ts`
-  - **Especificación de Implementación:** Dentro de la transacción del registro crea: las monedas BOB y USD de sistema, `user_settings` con sus valores por defecto (`dashboard_blocks` en el orden de spec §2.8.1), las categorías precargadas y las del sistema, y las preferencias de avisos por defecto de plan §4.15.1. `user.factory` pasa a usar este servicio.
+  - **Especificación de Implementación:** Dentro de la transacción del registro crea: las monedas BOB y USD de sistema, `user_settings` con sus valores por defecto (`dashboard_blocks` en el orden de spec §2.8.1), las categorías precargadas y las del sistema, y las preferencias de avisos por defecto de plan §4.15.1. `user.factory` pasa a usar este servicio. `bootstrapUser(repos, userId)` lee `repos.users`, que expone `createUserRepository(tx)`; `container.ts` lo construye en `buildRepositories`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-01`: BOB y USD quedan activas y marcadas de sistema.
     - `RF-M5-05`: se crean todas las categorías precargadas y las del sistema.
