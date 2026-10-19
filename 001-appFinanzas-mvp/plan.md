@@ -1527,7 +1527,7 @@ ResetSettingsInput = z.object({ section: z.enum(['general','currencies','registe
 SettingsDto = { …todos los campos, favorites: { expense: string[]; income: string[] } }
 ```
 
-**`packages/domain/format`:** `formatMoney(amount, symbol, numberFormat)` → "Bs 1.234,56" o "Bs 1,234.56" (RF-M9-02); `formatDate(date, dateFormat)`; `relativeDay(date, today, weekStart)` → "Hoy", "Ayer", "Lun 13" (RF-M9-03).
+**`packages/domain/format`:** `formatMoney(amount, symbol, numberFormat)` → "Bs 1.234,56" o "Bs 1,234.56" (RF-M9-02); `formatDate(date, dateFormat)`; `relativeDay(date, today, weekStart, dateFormat)` → "Hoy", "Ayer", "Lun 13", y fuera de la semana la fecha con `formatDate` (RF-M9-03); `weekDays(weekStart)` da el orden de los días del calendario (RF-M9-04).
 
 #### 4.9.2 Endpoints
 
