@@ -1,0 +1,55 @@
+import type { Express } from 'express';
+import { uuidv7 } from 'uuidv7';
+
+import type { Clock } from '../application/ports/clock.js';
+import type { IdGenerator } from '../application/ports/id-generator.js';
+import type { Repositories } from '../application/ports/repositories.js';
+import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { todayFor } from '../domain/index.js';
+import type { Env } from '../infrastructure/config/env.js';
+import {
+  buildPrismaClient,
+  type PrismaClient,
+} from '../infrastructure/persistence/prisma-client.js';
+import { createUnitOfWork } from '../infrastructure/persistence/unit-of-work.js';
+import { createApp as createExpressApp } from '../presentation/app.js';
+
+/**
+ * Composition root (plan §1.4, ADR-19): the only place that knows every layer. It builds the
+ * implementations of the application ports once and hands them to services and controllers.
+ */
+export interface Container {
+  readonly env: Env;
+  readonly prisma: PrismaClient;
+  readonly uow: UnitOfWork;
+  readonly clock: Clock;
+  readonly ids: IdGenerator;
+}
+
+/** System clock: the current instant, and today's date in the user's timezone (RN-07). */
+const systemClock: Clock = {
+  now: () => new Date(),
+  todayFor: (timezone) => todayFor(timezone, new Date()),
+};
+
+/** UUID v7 ids, time ordered like the ones the clients generate (ADR-11). */
+const uuidv7Ids: IdGenerator = {
+  next: () => uuidv7(),
+};
+
+/** Repositories of one transaction; each module adds its own here (plan §1.4). */
+const buildRepositories = (): Repositories => ({});
+
+export const buildContainer = (env: Env): Container => {
+  const prisma = buildPrismaClient(env);
+  return {
+    env,
+    prisma,
+    uow: createUnitOfWork(prisma, buildRepositories),
+    clock: systemClock,
+    ids: uuidv7Ids,
+  };
+};
+
+export const createApp = (container: Container): Express =>
+  createExpressApp({ webOrigin: container.env.WEB_ORIGIN });

@@ -575,7 +575,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-03`: con `RELEASE=1.0`, una ruta de M11 responde 404 `RELEASE_NOT_AVAILABLE`; con `1.1` pasa.
 
-- [ ] **`TASK-036`: Raíz de composición y arranque del API**
+- [x] **`TASK-036`: Raíz de composición y arranque del API**
   - **Dependencias:** Requiere TASK-033, TASK-034, TASK-035
   - **Trazabilidad SDD:** plan §1.4 (composición), ADR-19
   - **Archivos en Alcance:**
