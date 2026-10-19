@@ -2,6 +2,7 @@
   "hooks": {
     "SubagentStop": [
       {
+        "matcher": "^(test-author|implementer|sdd-auditor)$",
         "hooks": [
           {
             "type": "command",
@@ -18,7 +19,8 @@
       "Bash(node tools/sdd/state.mjs:*)",
       "Bash(node tools/sdd/context.mjs:*)",
       "Bash(node tools/sdd/task-parse.mjs:*)",
-      "Bash(node tools/sdd/audit.mjs:*)"
+      "Bash(node tools/sdd/audit.mjs:*)",
+      "Bash(node tools/sdd/check.mjs:*)"
     ]
   }
 }

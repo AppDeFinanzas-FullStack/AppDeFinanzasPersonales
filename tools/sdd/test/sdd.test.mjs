@@ -7,6 +7,7 @@ import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } fro
 import { readText, sh, posixShell } from '../lib/repo.mjs';
 import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
 import { wrapText, SECRETS, MAX_LINE } from '../lib/message.mjs';
+import { stopLine, PHASE_AGENT } from '../lib/gates.mjs';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -229,6 +230,30 @@ test('huecos de alcance: lockfile y tsconfig del paquete', () => {
   assert.deepEqual(scopeProblems(tasks[4], tasks), []); // el JS de configuración se revisa sin tipos
   assert.equal(workspaceOf('apps/web/src/a.tsx'), 'apps/web');
   assert.equal(workspaceOf('eslint.config.js'), '');
+});
+
+test('huecos de alcance: un global-setup de Vitest exige el vitest.config.ts de su paquete', () => {
+  const t = (id, scope) => ({ id, scope });
+  const tasks = [
+    t('TASK-001', ['apps/api/tsconfig.json', 'apps/api/test/integration/setup/global-setup.ts']),
+    t('TASK-002', ['apps/api/vitest.config.ts', 'apps/api/test/integration/setup/global-setup.ts']),
+  ];
+  assert.deepEqual(scopeProblems(tasks[0], tasks), [
+    'crea apps/api/test/integration/setup/global-setup.ts, pero no tiene apps/api/vitest.config.ts en su alcance para registrarlo.',
+  ]);
+  assert.deepEqual(scopeProblems(tasks[1], tasks), []);
+});
+
+test('gate: paradas válidas y subagente de cada fase', () => {
+  assert.deepEqual(stopLine('NEEDS_CLARIFICATION: ¿se redondea antes o después?'), { kind: 'NEEDS_CLARIFICATION', text: '¿se redondea antes o después?' });
+  assert.deepEqual(stopLine('\nSCOPE_CHANGE_REQUEST: apps/api/vitest.config.ts · registrar el globalSetup'), {
+    kind: 'SCOPE_CHANGE_REQUEST',
+    text: 'apps/api/vitest.config.ts · registrar el globalSetup',
+  });
+  // Solo cuenta si abre la respuesta: una mención en medio del informe no es una parada.
+  assert.equal(stopLine('TESTS_READY\nNo hizo falta ningún SCOPE_CHANGE_REQUEST.'), null);
+  assert.equal(stopLine(undefined), null);
+  assert.deepEqual(PHASE_AGENT, { tests: 'test-author', implement: 'implementer', audit: 'sdd-auditor' });
 });
 
 test('ninguna tarea abierta del tasks.md real tiene huecos de alcance', () => {
