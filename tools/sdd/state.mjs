@@ -23,9 +23,9 @@ function toPhase(next) {
 
   switch (next) {
     case 'tests':
-      // Reapertura: solo si el Gate B falla por un defecto de las propias pruebas (p. ej. lint), que
+      // Reapertura: solo si el Gate B aún no pasó, por un defecto de las propias pruebas (p. ej. lint), que
       // el implementer no puede corregir porque están bloqueadas. Reinicia ambos gates.
-      if (from === 'implement' && state.gates.B.attempts > 0 && !state.gates.B.passed) {
+      if (from === 'implement' && !state.gates.B.passed) {
         state.gates = { A: { attempts: 0, passed: false }, B: { attempts: 0, passed: false } };
         break;
       }
