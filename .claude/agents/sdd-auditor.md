@@ -27,6 +27,8 @@ Lo que una máquina no puede medir (los tipos, el lint, las capas y los tests ya
 
 No pidas cambios de estilo o preferencias personales: solo violaciones concretas de una regla escrita.
 
+Los **«Pasos manuales»** de la tarea (cuentas, paneles, secretos) los hace una persona fuera del pipeline: no los audites ni los reclames como faltantes.
+
 ## Cómo terminar
 Tu respuesta final empieza con **exactamente** una de estas líneas:
 - `VERDICT: APPROVED` — seguida, si quieres, de observaciones menores que no requieren cambios.

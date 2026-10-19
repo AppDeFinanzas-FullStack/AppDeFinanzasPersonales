@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { loadState, clearState, verdicts, taskDir } from './lib/state.mjs';
 import { allTasks, setDone, tasksPath } from './lib/tasks.mjs';
 import { outOfScope } from './lib/scope.mjs';
-import { changedFiles, readText, abs, writeText, git, gitOut, fail, printJson } from './lib/repo.mjs';
+import { changedFiles, readText, abs, writeText, git, gitOut, sh, fail, printJson } from './lib/repo.mjs';
 import { wrapText } from './lib/message.mjs';
 
 const TYPES = ['feat', 'fix', 'test', 'chore', 'build', 'ci', 'refactor', 'perf', 'docs'];
@@ -60,6 +60,13 @@ const message = [
 ].join('\n').replace(/\n{3,}/g, '\n\n');
 const msgFile = join(taskDir(state.task), 'commit-msg.txt');
 writeText(msgFile, `${message}\n`);
+
+// El mensaje se valida antes del commit: si no, el error aparece recién en el pre-push.
+const commitlint = sh(`pnpm exec commitlint --edit "${msgFile}"`);
+if (commitlint.code !== 0) {
+  writeText(abs(tasksFile), original);
+  fail(`El mensaje del commit no pasa commitlint (no se hizo el commit):\n${commitlint.output}`);
+}
 
 const add = git(`add -A -- ${[...changes, tasksFile].map((f) => `"${f}"`).join(' ')}`);
 const commit = add.code === 0 ? git(`commit -F "${msgFile}"`) : add;

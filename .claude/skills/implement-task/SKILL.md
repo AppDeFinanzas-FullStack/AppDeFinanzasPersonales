@@ -39,7 +39,7 @@ Las tareas de interfaz escriben pantallas, componentes o estilos de `apps/web`. 
 2. Lanza el subagente **test-author** con:
    > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo. Escribe las pruebas en estos archivos y en ningún otro: `<testFiles>`. `<Si verificationOnly: "Es una tarea de verificación: las pruebas deben pasar.">`
 3. Al terminar, revisa su respuesta y `node tools/sdd/state.mjs show`:
-   - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**.
+   - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**. El hook ya dejó la tarea `blocked` con ese motivo y no gastó intentos.
    - `status: blocked` (el Gate A agotó sus intentos) → ve a **Detenerse** con el final de `gate.log`.
    - `gates.A.passed: true` → sigue. (Si no pasó y no está bloqueado, el subagente terminó sin que el gate lo aprobara: relánzalo una vez con el mismo mensaje; si se repite, **Detenerse**.)
 
@@ -70,8 +70,9 @@ Las tareas de interfaz escriben pantallas, componentes o estilos de `apps/web`. 
    ```
    node tools/sdd/close.mjs --type <tipo> --scope <scope> --summary "<resumen>" --body "<2-4 líneas de lo implementado>" --trailer "<línea de atribución de commits de esta sesión, si la hay>"
    ```
-   El script marca `[x]` en `tasks.md`, hace el commit con los trailers `Task:` y `Audit: approved` y limpia el estado.
+   El script marca `[x]` en `tasks.md`, hace el commit con los trailers `Task:` y `Audit: approved` y limpia el estado. El resumen va **sin** el ID de la tarea (lo pone el script), y el cuerpo se corta solo a 100 columnas. Antes del commit, el script pasa el mensaje por commitlint: si falla, no hace nada y te dice por qué.
 4. Informa al usuario en pocas líneas: tarea, commit, archivos, pruebas y cuántas rondas de corrección hubo.
+   - Si la tarea tiene **«Pasos manuales»** (en su bloque de `context.md`), muéstraselos al usuario como una lista para marcar y recuérdale que quedan pendientes: el pipeline no los hace.
 5. Si la respuesta trae `lastOfPhase: true`, ofrece (sin hacerlo todavía) subir la rama y abrir el PR hacia `develop`:
    `git push -u origin <branch>` (corre el hook `pre-push`) y `gh pr create --base develop`, con la lista de tareas de la fase y los IDs cubiertos en la descripción. Hazlo solo si el usuario lo confirma.
 

@@ -53,8 +53,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      - name: 1. Install dependencies
-        run: pnpm install --frozen-lockfile
+      # Lint and typecheck read the Prisma client types, so the client is generated right after install.
+      - name: 1. Install dependencies and generate the Prisma client
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @finanzas/db generate
 
       - name: 2. Commitlint (pull request commits)
         if: github.event_name == 'pull_request'
@@ -78,7 +81,6 @@ jobs:
 
       - name: 7. Integration tests (Postgres 16)
         run: |
-          pnpm --filter @finanzas/db generate
           pnpm --filter @finanzas/db migrate:deploy
           pnpm test:integration
 
