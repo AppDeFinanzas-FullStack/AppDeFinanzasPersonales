@@ -499,7 +499,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `INTEGRATIONS=fake` con `NODE_ENV=production` falla.
     - `RELEASE` solo admite `1.0`, `1.1` o `1.2`.
 
-- [ ] **`TASK-031`: `AppError` y puertos de la capa de aplicación**
+- [x] **`TASK-031`: `AppError` y puertos de la capa de aplicación**
   - **Dependencias:** Requiere TASK-022, TASK-030
   - **Trazabilidad SDD:** plan §1.4 (reglas de diseño), plan §4.0 (`UnitOfWork`, `Clock`), ADR-09, ADR-19
   - **Archivos en Alcance:**
