@@ -1,8 +1,9 @@
 import { LocalDate, TransactionKind, Uuid } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
+import { ChevronLeft } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { RouteObject } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, type RouteObject } from 'react-router';
 import { z } from 'zod';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
@@ -19,6 +20,8 @@ import { DayGroups } from './components/day-groups';
 import { FiltersBar, type ListFiltersValue } from './components/filters-bar';
 import { MonthSelector } from './components/month-selector';
 import { TotalsBar } from './components/totals-bar';
+import { isGone, TransactionDetail, useTransaction } from './components/transaction-detail';
+import { TransactionEditForm } from './components/transaction-edit-form';
 import { useTransactions } from './hooks/use-transactions';
 
 // The feature registers its own namespace (RNF-07).
@@ -190,7 +193,99 @@ export function TransactionsPage() {
   );
 }
 
+/** Whether the detail shows its edit form; it lives in the URL so Back closes it (ADR-16). */
+const DetailSearch = z.object({ editar: z.literal('1').optional() });
+
+/** `/movimientos/:id`: the detail, and its edit form (plan §4.6.4). */
+export function TransactionDetailPage() {
+  const { t } = useTranslation('transactions');
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [search, setSearch] = useValidatedSearch(DetailSearch);
+  const detail = useTransaction(id);
+  const base = useCurrentRate().data?.base ?? 'BOB';
+  const active = useAccounts('active');
+  const archived = useAccounts('archived');
+  const accountNames = new Map(
+    [...(active.data?.items ?? []), ...(archived.data?.items ?? [])].map((account) => [
+      account.id,
+      account.name,
+    ]),
+  );
+
+  /** Back to where the user came from; a direct visit has nowhere to go back to. */
+  const back = (fallback: () => void) => {
+    if (location.key === 'default') fallback();
+    else void navigate(-1);
+  };
+  const closeEdit = () => {
+    back(() => {
+      setSearch({ editar: undefined }, { replace: true });
+    });
+  };
+
+  if (detail.data === undefined) {
+    if (isGone(detail.error)) {
+      // EC-M6-02: deleted in another context.
+      return (
+        <div className="flex flex-col items-start gap-3">
+          <p role="alert">{t('detail.gone')}</p>
+          <Link to="/movimientos" className="text-sm font-medium text-primary underline">
+            {t('detail.goneBack')}
+          </Link>
+        </div>
+      );
+    }
+    return detail.isError ? (
+      <p role="alert" className="text-sm text-destructive">
+        {t('detail.loadError')}
+      </p>
+    ) : (
+      <p className="text-sm text-muted-foreground" aria-busy="true">
+        {t('loading')}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-11 self-start px-2"
+        onClick={() => {
+          back(() => {
+            void navigate('/movimientos');
+          });
+        }}
+      >
+        <ChevronLeft aria-hidden="true" />
+        {t('detail.back')}
+      </Button>
+      {search.editar === '1' ? (
+        <TransactionEditForm
+          key={detail.data.id}
+          transaction={detail.data}
+          onDone={closeEdit}
+          onCancel={closeEdit}
+        />
+      ) : (
+        <TransactionDetail
+          transaction={detail.data}
+          base={base}
+          accountNames={accountNames}
+          onEdit={() => {
+            setSearch({ editar: '1' });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 /** Private routes of the movements (plan §4.6.4). */
 export const transactionsRoutes: RouteObject[] = [
   { path: 'movimientos', element: <TransactionsPage /> },
+  { path: 'movimientos/:id', element: <TransactionDetailPage /> },
 ];

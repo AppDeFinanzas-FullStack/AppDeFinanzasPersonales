@@ -2044,7 +2044,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-13`: eliminar 3 seleccionados con 1 vinculado informa "1 quedó fuera".
     - `RNF-06`: la selección funciona solo con el teclado.
 
-- [ ] **`TASK-131`: Web: detalle y edición de un movimiento**
+- [x] **`TASK-131`: Web: detalle y edición de un movimiento**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos/:id`); RF-M6-07, RF-M6-09, RF-M3-10, EC-M6-02, EC-M6-07
   - **Archivos en Alcance:**
