@@ -2180,7 +2180,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-04`: con el mismo origen y destino, "Guardar" está deshabilitado.
     - `RF-M3-08`: editar el monto que llega cambia la tasa mostrada.
 
-- [ ] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
+- [x] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
   - **Dependencias:** Requiere TASK-136, TASK-138
   - **Trazabilidad SDD:** plan §4.7.4 (`SecondLevel`); RF-M7-10, RF-M7-13, RF-M6-05, EC-M6-08, EC-M7-06
   - **Archivos en Alcance:**
