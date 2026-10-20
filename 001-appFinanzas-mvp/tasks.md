@@ -1529,6 +1529,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/account.factory.ts`
     - `apps/api/test/factories/ledger.factory.ts`
     - `apps/api/test/integration/account-ledger-repositories.test.ts`
