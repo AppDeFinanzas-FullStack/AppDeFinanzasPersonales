@@ -123,5 +123,51 @@
     "building-2": "Edificio",
     "shield": "Escudo",
     "star": "Estrella"
+  },
+  "detail": {
+    "archived": "Archivada",
+    "actions": "Acciones de la cuenta",
+    "edit": "Editar",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "noLimit": "Sin límite",
+    "noDay": "Sin definir",
+    "creditAvailable": "Crédito disponible",
+    "overLimit": "Superaste el límite de esta tarjeta. Puedes seguir registrando gastos.",
+    "archiveTitle": "¿Archivar {{name}}?",
+    "archiveNonZero": "Su saldo es {{balance}}. Una cuenta archivada no suma en tus totales, pero conserva su historia.",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Solo se puede eliminar una cuenta sin movimientos. También se borran sus atajos. Esta acción no se puede deshacer.",
+    "renameTitle": "Elige otro nombre",
+    "renameDescription": "Ya tienes una cuenta activa llamada {{name}}. Escribe un nombre nuevo para restaurarla."
+  },
+  "adjust": {
+    "title": "Ajustar saldo",
+    "description": "Escribe el saldo real. Se crea un ajuste por la diferencia, que no cuenta como ingreso ni como gasto.",
+    "realBalance": "Saldo real",
+    "realDebt": "Monto real",
+    "kinds": {
+      "debt": "Deuda real",
+      "credit": "Saldo a favor real"
+    },
+    "note": "Nota (opcional)",
+    "submit": "Ajustar",
+    "matches": "El saldo ya coincide. No se creó ningún ajuste.",
+    "errors": {
+      "amount": "Escribe un monto con hasta dos decimales, por ejemplo 1250,50. Usa el signo menos si es negativo."
+    }
+  },
+  "chart": {
+    "title": "Evolución del saldo",
+    "from": "Desde",
+    "to": "Hasta",
+    "balance": "Saldo",
+    "alt": "Saldo al {{date}}: {{amount}}.",
+    "altEmpty": "Todavía no hay saldos en este rango.",
+    "invalidRange": "La fecha \"Desde\" tiene que ser anterior o igual a \"Hasta\".",
+    "loadError": "No se pudo cargar la evolución del saldo. Revisa tu conexión y vuelve a intentarlo."
   }
 }
