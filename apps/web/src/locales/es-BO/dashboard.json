@@ -1,0 +1,16 @@
+{
+  "loadError": "No pudimos cargar el Inicio. Revisa tu conexión e inténtalo de nuevo.",
+  "cards": {
+    "income": "Ingresos",
+    "expense": "Gastos",
+    "balance": "Balance",
+    "savingsRate": "Tasa de ahorro"
+  },
+  "variation": {
+    "up": "Subió",
+    "down": "Bajó",
+    "same": "Sin cambio",
+    "none": "—",
+    "versus": "frente al mes anterior"
+  }
+}

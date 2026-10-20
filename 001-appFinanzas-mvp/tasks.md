@@ -2306,7 +2306,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-10`: un bloque oculto no viene en la respuesta.
     - `RNF-14`: el usuario B nunca ve datos de A.
 
-- [ ] **`TASK-147`: Web: Inicio, selector de mes y tarjetas**
+- [x] **`TASK-147`: Web: Inicio, selector de mes y tarjetas**
   - **Dependencias:** Requiere TASK-107, TASK-129, TASK-146
   - **Trazabilidad SDD:** plan §4.8.4 (`/`); RF-M8-01, RF-M8-03, RF-M8-04, RF-M8-11, EC-M8-01, EC-M8-02
   - **Archivos en Alcance:**
