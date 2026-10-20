@@ -25,6 +25,10 @@ import {
 } from '../application/services/fx-settings.service.js';
 import { createRatesService, type RatesService } from '../application/services/rates.service.js';
 import {
+  createShortcutsService,
+  type ShortcutsService,
+} from '../application/services/shortcuts.service.js';
+import {
   createAccountsService,
   type AccountsService,
 } from '../application/services/accounts.service.js';
@@ -83,6 +87,7 @@ import { createUserFxEventRepository } from '../infrastructure/persistence/repos
 import { createAccountRepository } from '../infrastructure/persistence/repositories/account.repository.js';
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
 import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
+import { createShortcutRepository } from '../infrastructure/persistence/repositories/shortcut.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -123,6 +128,7 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
   readonly categoryTree: CategoryTreeReader;
@@ -175,6 +181,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   undoActions: createUndoActionRepository(tx, userId ?? NO_USER),
   categories: createCategoryRepository(tx, userId ?? NO_USER),
   userSettings: createUserSettingsRepository(tx),
+  shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -467,6 +474,7 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    shortcutsService: createShortcutsService({ uow }),
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
@@ -525,6 +533,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    shortcuts: { shortcutsService: container.shortcutsService, session },
     readiness: container.readiness,
   });
 };

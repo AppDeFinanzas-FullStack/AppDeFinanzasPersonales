@@ -25,10 +25,8 @@ import {
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
-import {
-  transactionsRouter,
-  type TransactionsRoutesDeps,
-} from './routes/transactions.routes.js';
+import { shortcutsRouter, type ShortcutsRoutesDeps } from './routes/shortcuts.routes.js';
+import { transactionsRouter, type TransactionsRoutesDeps } from './routes/transactions.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
@@ -50,6 +48,8 @@ export interface AppDeps {
   currencies?: CurrenciesRoutesDeps;
   /** The routes `/api/accounts` (plan §4.4.2). */
   accounts?: AccountsRoutesDeps;
+  /** The routes `/api/shortcuts` (plan §4.7.2). */
+  shortcuts?: ShortcutsRoutesDeps;
   /** The routes `/api/categories` (plan §4.5.2). */
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
@@ -115,6 +115,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.accounts !== undefined) {
     app.use('/api/accounts', accountsRouter(deps.accounts));
+  }
+  if (deps.shortcuts !== undefined) {
+    app.use('/api/shortcuts', shortcutsRouter(deps.shortcuts));
   }
   if (deps.categories !== undefined) {
     app.use('/api/categories', categoriesRouter(deps.categories));

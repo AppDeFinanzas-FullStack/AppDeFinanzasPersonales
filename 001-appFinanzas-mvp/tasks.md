@@ -2119,7 +2119,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-03` / `RF-M4-12` / `EC-M7-05`: sin cuenta por defecto, la última usada; si se archiva, la primera activa.
     - `RF-M7-07`: `todayRecent` trae los 3 últimos creados hoy, aunque su fecha sea pasada.
 
-- [ ] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
+- [x] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
   - **Dependencias:** Requiere TASK-037, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`/api/shortcuts`), plan §4.7.3 (atajo visible ⇄ oculto); RF-M7-09, RF-M7-10, EC-M7-06, RNF-28
   - **Archivos en Alcance:**
