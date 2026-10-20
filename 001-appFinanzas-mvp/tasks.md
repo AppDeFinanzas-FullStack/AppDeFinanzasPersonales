@@ -1897,13 +1897,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 - [ ] **`TASK-123`: `TransactionsService.update`: editar movimientos**
   - **Dependencias:** Requiere TASK-122
-  - **Trazabilidad SDD:** plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
+  - **Trazabilidad SDD:** plan §4.6.1 (`UpdateTransactionInput`), plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-04, RF-M6-05, RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `packages/contracts/src/transactions.ts`
     - `apps/api/test/integration/transactions-update.test.ts`
-  - **Especificación de Implementación:** `LedgerRepository` gana `updateTransaction`, que reescribe en su lugar la cabecera y los asientos de un movimiento del usuario que no esté eliminado (sin copias ni historial) y devuelve `false` si no hubo coincidencia. Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
+    - `packages/contracts/test/transactions.test.ts`
+  - **Especificación de Implementación:** `LedgerRepository` gana `updateTransaction`, que reescribe en su lugar la cabecera y los asientos de un movimiento del usuario que no esté eliminado (sin copias ni historial) y devuelve `false` si no hubo coincidencia. `UpdateTransactionInput` suma `fromAccountId` y `toAccountId` (plan §4.6.1): en una transferencia, cada uno cambia a una cuenta activa de la misma moneda que la que reemplaza y distinta de la otra (`VALIDATION_ERROR` con `SAME_ACCOUNT` o `CURRENCY_MISMATCH`, `ACCOUNT_ARCHIVED`); `accountId` en una transferencia, o `fromAccountId`/`toAccountId` en otro tipo, da `VALIDATION_ERROR`. La comisión acompaña la fecha y el origen, y su monto no se edita (RF-M6-05). Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-04` / `RF-M3-10`: cambiar la fecha de un gasto en $ conserva su tasa.
     - `EC-M6-02` / `RNF-09`: editar un movimiento eliminado da `NOT_FOUND`.
@@ -1912,6 +1914,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-08`: bajar un ingreso que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
     - `EC-M6-01` / `RNF-08`: con dos PATCH seguidos gana el último.
     - `RNF-24`: no existe ninguna tabla ni columna de historial de ediciones.
+    - `RF-M6-07` / `RF-M6-04`: cambiar el origen o el destino de una transferencia a otra cuenta de la misma moneda mueve el asiento (y la comisión, si cambia el origen); a otra moneda o a la otra cuenta de la transferencia da `VALIDATION_ERROR`.
+    - `RF-M6-05`: cambiar la fecha de una transferencia cambia la de su comisión, y su monto se conserva.
 
 - [ ] **`TASK-124`: Eliminar y deshacer movimientos**
   - **Dependencias:** Requiere TASK-123
