@@ -867,11 +867,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-01` / `EC-M1-02`: los enlaces vencidos, invalidados o usados dan su error.
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta la cierra y abre la nueva.
 
-- [ ] **`TASK-056`: Inicio y cierre de sesión**
+- [x] **`TASK-056`: Inicio y cierre de sesión**
   - **Dependencias:** Requiere TASK-052, TASK-055
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-signin.test.ts`
   - **Especificación de Implementación:** Con una espera vigente → `LOGIN_LOCKED {retryAfterSeconds}`. Verifica la contraseña; si el correo no existe, usa un hash de prueba para igualar el tiempo. Ante un fallo, registra el intento y, como máximo una vez por hora, encola `login_alert` si el correo tiene cuenta. Ante un éxito, reinicia el contador; si el correo no está confirmado, responde `EMAIL_NOT_CONFIRMED` sin crear sesión. `signOut` cierra la sesión actual y `signOutAll`, todas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -881,11 +883,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: correo inexistente y contraseña incorrecta dan el mismo error.
     - `RF-M1-07`: `signOutAll` deja 0 sesiones.
 
-- [ ] **`TASK-057`: Recuperar y cambiar la contraseña**
+- [x] **`TASK-057`: Recuperar y cambiar la contraseña**
   - **Dependencias:** Requiere TASK-056
   - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-password.test.ts`
   - **Especificación de Implementación:** `forgot` crea un enlace de 1 h y siempre responde 202. `reset` consume el enlace, cambia el hash, borra todas las sesiones, crea una nueva, confirma el correo si no lo estaba y encola `password_changed`. `change` verifica la contraseña actual (si falla, `INVALID_CURRENT_PASSWORD`), cambia el hash, revoca las demás sesiones y encola `password_changed`.
   - **Criterios de Verificación (Tests & DoD):**

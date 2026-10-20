@@ -1,6 +1,6 @@
 import { uuidv7 } from 'uuidv7';
 
-import type { UserRepository } from '../../../application/ports/repositories.js';
+import type { UserAccount, UserRepository } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 /** Prisma implementation of the initial rows of a new user, bound to the transaction `tx`. */
@@ -10,6 +10,45 @@ export function createUserRepository(tx: TransactionClient): UserRepository {
       const rows = await tx.$queryRaw<{ id: string; emailVerified: boolean }[]>`
         SELECT id::text AS id, email_verified AS "emailVerified" FROM auth_user WHERE email = ${email} FOR UPDATE`;
       return rows[0] ?? null;
+    },
+
+    async findCredential(email) {
+      const rows = await tx.$queryRaw<
+        { id: string; emailVerified: boolean; passwordHash: string | null }[]
+      >`
+        SELECT u.id::text AS id, u.email_verified AS "emailVerified", a.password AS "passwordHash"
+          FROM auth_user u
+          JOIN auth_account a ON a.user_id = u.id AND a.provider_id = 'credential'
+         WHERE u.email = ${email}`;
+      const row = rows[0];
+      if (row === undefined || row.passwordHash === null) {
+        return null;
+      }
+      return { id: row.id, emailVerified: row.emailVerified, passwordHash: row.passwordHash };
+    },
+
+    async findAccount(userId) {
+      const rows = await tx.$queryRaw<UserAccount[]>`
+        SELECT u.id::text AS id, u.email AS email, u.email_verified AS "emailVerified",
+               a.password AS "passwordHash",
+               (s.onboarding_completed_at IS NOT NULL) AS "onboardingCompleted"
+          FROM auth_user u
+          LEFT JOIN auth_account a ON a.user_id = u.id AND a.provider_id = 'credential'
+          LEFT JOIN user_settings s ON s.user_id = u.id
+         WHERE u.id = ${userId}::uuid`;
+      return rows[0] ?? null;
+    },
+
+    async setPassword(userId, passwordHash) {
+      await tx.$executeRaw`
+        UPDATE auth_account SET password = ${passwordHash}, updated_at = now()
+         WHERE user_id = ${userId}::uuid AND provider_id = 'credential'`;
+    },
+
+    async markEmailVerified(userId) {
+      await tx.$executeRaw`
+        UPDATE auth_user SET email_verified = true, updated_at = now()
+         WHERE id = ${userId}::uuid AND NOT email_verified`;
     },
 
     async createUnconfirmed(user) {

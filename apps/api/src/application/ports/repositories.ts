@@ -122,10 +122,35 @@ export interface NewUnconfirmedUser {
   passwordHash: string;
 }
 
+/** The password credential of a user, to check a sign-in against. */
+export interface UserCredential {
+  id: string;
+  emailVerified: boolean;
+  passwordHash: string;
+}
+
+/** A user with its email, its password credential and whether it finished the onboarding. */
+export interface UserAccount {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  /** `null` when the user has no password credential. */
+  passwordHash: string | null;
+  onboardingCompleted: boolean;
+}
+
 /** Writes the initial rows of a new user (plan §3.4, §4.5.3, §4.15.1). */
 export interface UserRepository {
   /** The user with that normalized email, or `null`. */
   findByEmail(email: string): Promise<{ id: string; emailVerified: boolean } | null>;
+  /** The password credential of the user with that normalized email, or `null`. */
+  findCredential(email: string): Promise<UserCredential | null>;
+  /** The user with that id, or `null`. */
+  findAccount(userId: string): Promise<UserAccount | null>;
+  /** Replaces the password hash of the user's credential (RF-M1-10). */
+  setPassword(userId: string, passwordHash: string): Promise<void>;
+  /** Marks the email of the user as verified, which makes the account active (EC-M1-10). */
+  markEmailVerified(userId: string): Promise<void>;
   /**
    * Creates an unconfirmed user with its credential, accepting the terms now. Returns `false`
    * when the email is already taken (unique index), without failing the transaction.
