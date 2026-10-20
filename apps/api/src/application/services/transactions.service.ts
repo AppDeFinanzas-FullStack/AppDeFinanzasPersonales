@@ -1,5 +1,7 @@
 import {
   Amount,
+  type BatchDeleteInput,
+  type BatchRecategorizeInput,
   type CreateTransactionInput,
   type UpdateTransactionInput,
 } from '@finanzas/contracts';
@@ -65,6 +67,16 @@ export interface UndoRecategorizePayload {
   categories: PreviousCategory[];
 }
 
+/** The outcome of a batch action over the selected movements (RF-M6-13). */
+export interface BatchResult {
+  /** Selected movements the action was applied to. */
+  processed: number;
+  /** Selected movements left out: linked, of a kind it does not apply to or blocked (RF-M6-13). */
+  skipped: number;
+  /** The single `undo_action` of the batch; `null` when nothing changed. */
+  undoToken: string | null;
+}
+
 export interface TransactionsService {
   /**
    * Creates an expense, an income or a transfer with its fee, idempotent by the client's id
@@ -90,6 +102,16 @@ export interface TransactionsService {
    * deleted and a recategorization gets its categories back (plan §4.6.2).
    */
   undo(ctx: RatesContext, undoToken: string): Promise<void>;
+  /**
+   * Deletes the selected movements with their fees, leaving out the linked ones and those that
+   * would leave an account below zero; one `undo` restores them all (RF-M6-13, plan §4.6.2).
+   */
+  batchDelete(ctx: RatesContext, input: BatchDeleteInput): Promise<BatchResult>;
+  /**
+   * Moves the selected expenses or incomes to the category, leaving out transfers, adjustments
+   * and the linked ones in a system category; one `undo` restores them all (RF-M6-13).
+   */
+  batchRecategorize(ctx: RatesContext, input: BatchRecategorizeInput): Promise<BatchResult>;
 }
 
 export interface TransactionsServiceDeps {
@@ -452,6 +474,27 @@ async function restoreMovements(
   await repos.ledger.restore(movements.map((movement) => movement.id));
 }
 
+/** Rewrites the movement with another category; its date, rates and entries stay as they are. */
+async function recategorize(
+  repos: Repositories,
+  movement: LedgerTransactionView,
+  categoryId: string,
+): Promise<void> {
+  await rewrite(
+    repos,
+    movement.id,
+    {
+      date: movement.date,
+      note: movement.note,
+      categoryId,
+      rateCurBob: movement.rateCurBob,
+      rateUsdBob: movement.rateUsdBob,
+      declaredRate: movement.declaredRate,
+    },
+    movement.entries.map(({ accountId, amount }) => ({ accountId, amount })),
+  );
+}
+
 /** Gives each movement back the category it had; the balances do not change. */
 async function restoreCategories(
   repos: Repositories,
@@ -464,19 +507,7 @@ async function restoreCategories(
     if (movement === null || movement.categoryId === categoryId) {
       continue;
     }
-    await rewrite(
-      repos,
-      movement.id,
-      {
-        date: movement.date,
-        note: movement.note,
-        categoryId,
-        rateCurBob: movement.rateCurBob,
-        rateUsdBob: movement.rateUsdBob,
-        declaredRate: movement.declaredRate,
-      },
-      movement.entries.map(({ accountId, amount }) => ({ accountId, amount })),
-    );
+    await recategorize(repos, movement, categoryId);
     movements.push(movement);
     restored.push(categoryId);
   }
@@ -485,6 +516,23 @@ async function restoreCategories(
   }
   const change = changeOf(movements);
   return { ...change, categoryIds: distinct([...change.categoryIds, ...restored]) };
+}
+
+/** Expenses and incomes, the only movements with a category (plan §3.5). */
+function isCategorized(kind: TransactionKind): kind is 'expense' | 'income' {
+  return kind === 'expense' || kind === 'income';
+}
+
+/** A linked movement in a system category keeps it (RF-M6-09, RF-M6-13). */
+async function keepsSystemCategory(
+  repos: Repositories,
+  movement: LedgerTransactionView,
+): Promise<boolean> {
+  return (
+    !UNLINKED_ORIGINS.has(movement.origin) &&
+    movement.categoryId !== null &&
+    (await repos.categories.get(movement.categoryId))?.isSystem === true
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1201,6 +1249,100 @@ export function createTransactionsService({
     }
   }
 
+  async function batchDeleteMovements(
+    repos: Repositories,
+    ctx: RatesContext,
+    ids: string[],
+  ): Promise<BatchResult> {
+    const selected = distinct(ids);
+    const deleted = new Set<string>();
+    const movements: LedgerTransactionView[] = [];
+    for (const id of selected) {
+      const existing = await repos.ledger.get(id);
+      // Deleted meanwhile, another user's, or linked: deleted only from its origin (RF-M6-13).
+      if (existing === null || !UNLINKED_ORIGINS.has(existing.origin)) {
+        continue;
+      }
+      // Each one is checked against the balances the previous ones already left (RF-M6-13).
+      const items = withFee(existing);
+      const deltas = await entryDeltas(repos, items, 'remove');
+      if ((await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'batch' })) === 'skip') {
+        continue;
+      }
+      for (const removed of await repos.ledger.softDelete(items.map((item) => item.id))) {
+        deleted.add(removed);
+      }
+      movements.push(...items);
+    }
+
+    // A fee selected with its transfer counts as processed, whatever their order.
+    const processed = selected.filter((id) => deleted.has(id)).length;
+    if (deleted.size === 0) {
+      return { processed, skipped: selected.length - processed, undoToken: null };
+    }
+    await ledgerHooks.afterChange(repos, ctx.userId, changeOf(movements));
+    const payload: UndoMovementsPayload = { transactionIds: [...deleted] };
+    const undo = await repos.undoActions.create('delete', payload);
+    return { processed, skipped: selected.length - processed, undoToken: undo.id };
+  }
+
+  async function batchRecategorizeMovements(
+    repos: Repositories,
+    ctx: RatesContext,
+    input: BatchRecategorizeInput,
+  ): Promise<BatchResult> {
+    const selected = distinct(input.ids);
+    const candidates: LedgerTransactionDetail[] = [];
+    for (const id of selected) {
+      const movement = await repos.ledger.get(id);
+      // Deleted meanwhile or another user's; transfers and adjustments have no category.
+      if (movement !== null && isCategorized(movement.kind)) {
+        candidates.push(movement);
+      }
+    }
+    const kinds = distinct(candidates.map((movement) => movement.kind)).filter(isCategorized);
+    if (kinds.length > 1) {
+      throw new AppError('MIXED_KINDS');
+    }
+    const kind = kinds[0];
+    if (kind === undefined) {
+      return { processed: 0, skipped: selected.length, undoToken: null };
+    }
+    await assertCategory(repos, input.categoryId, kind);
+
+    // The balances do not change, so no movement can be blocked by a negative (RF-M6-13).
+    let processed = 0;
+    const previous: PreviousCategory[] = [];
+    const changed: LedgerTransactionView[] = [];
+    for (const movement of candidates) {
+      if (await keepsSystemCategory(repos, movement)) {
+        continue;
+      }
+      processed += 1;
+      if (movement.categoryId === input.categoryId) {
+        continue;
+      }
+      if (movement.categoryId === null) {
+        throw new Error('An expense or income has no category');
+      }
+      await recategorize(repos, movement, input.categoryId);
+      previous.push({ transactionId: movement.id, categoryId: movement.categoryId });
+      changed.push(movement);
+    }
+
+    if (changed.length === 0) {
+      return { processed, skipped: selected.length - processed, undoToken: null };
+    }
+    const change = changeOf(changed);
+    await ledgerHooks.afterChange(repos, ctx.userId, {
+      ...change,
+      categoryIds: distinct([...change.categoryIds, input.categoryId]),
+    });
+    const payload: UndoRecategorizePayload = { categories: previous };
+    const undo = await repos.undoActions.create('recategorize', payload);
+    return { processed, skipped: selected.length - processed, undoToken: undo.id };
+  }
+
   return {
     async create(ctx, input) {
       return uow.run(
@@ -1222,6 +1364,18 @@ export function createTransactionsService({
 
     async undo(ctx, undoToken) {
       return uow.run((repos) => undoAction(repos, ctx, undoToken), { userLock: ctx.userId });
+    },
+
+    async batchDelete(ctx, input) {
+      return uow.run((repos) => batchDeleteMovements(repos, ctx, input.ids), {
+        userLock: ctx.userId,
+      });
+    },
+
+    async batchRecategorize(ctx, input) {
+      return uow.run((repos) => batchRecategorizeMovements(repos, ctx, input), {
+        userLock: ctx.userId,
+      });
     },
   };
 }

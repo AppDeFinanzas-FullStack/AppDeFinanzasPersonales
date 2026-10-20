@@ -1949,7 +1949,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-03`: un `undo` que dejaría el efectivo en negativo da `NEGATIVE_BALANCE`.
     - `RF-M7-07`: el `undo` de una creación elimina el movimiento con las mismas validaciones.
 
-- [ ] **`TASK-125`: Acciones en lote: eliminar y recategorizar**
+- [x] **`TASK-125`: Acciones en lote: eliminar y recategorizar**
   - **Dependencias:** Requiere TASK-124
   - **Trazabilidad SDD:** plan §4.6.2 (`batch-delete`, `batch-recategorize`); RF-M6-13
   - **Archivos en Alcance:**
