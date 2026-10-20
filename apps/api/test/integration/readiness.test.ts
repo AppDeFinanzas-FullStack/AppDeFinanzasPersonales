@@ -21,14 +21,17 @@ const HEALTH_PATH = '/api/health';
 /** The criterion: an unreachable database answers in less than 3 s. */
 const MAX_UNREACHABLE_MS = 3_000;
 
+/** A fake password the 503 must never reveal. */
+const FAKE_PASSWORD = 'ready-password';
+
 /**
  * A non-routable address: the TCP connection neither opens nor gets refused, it just hangs, so only
  * the probe's 2 s limit can end the request in time.
  */
-const BLACKHOLE_DATABASE_URL = 'postgresql://ready:ready-password@10.255.255.1:5432/finanzas';
+const BLACKHOLE_DATABASE_URL = `postgresql://ready:${FAKE_PASSWORD}@10.255.255.1:5432/finanzas`;
 
 /** A local port where nothing listens: the connection is refused. */
-const REFUSED_DATABASE_URL = 'postgresql://ready:ready-password@127.0.0.1:1/finanzas';
+const REFUSED_DATABASE_URL = `postgresql://ready:${FAKE_PASSWORD}@127.0.0.1:1/finanzas`;
 
 const envSource = (databaseUrl: string): Record<string, string> => ({
   NODE_ENV: 'test',
@@ -45,7 +48,7 @@ const envSource = (databaseUrl: string): Record<string, string> => ({
 
 /** Fragments that would reveal internals of the failed connection (constitución §4). */
 const INTERNAL_DETAILS = [
-  'ready-password',
+  FAKE_PASSWORD,
   '10.255.255.1',
   '127.0.0.1',
   'postgresql://',
