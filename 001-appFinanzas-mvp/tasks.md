@@ -2166,7 +2166,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-12`: el formulario se completa y se guarda solo con Tab y Enter.
     - `RF-M7-06`: "Guardar" está deshabilitado sin categoría.
 
-- [ ] **`TASK-138`: Web: transferencias en Registrar**
+- [x] **`TASK-138`: Web: transferencias en Registrar**
   - **Dependencias:** Requiere TASK-137
   - **Trazabilidad SDD:** plan §4.7.3, plan §4.6.1 (convención de la tasa declarada); RF-M7-03, RF-M7-06, RF-M3-07, RF-M3-08, RF-M6-04
   - **Archivos en Alcance:**

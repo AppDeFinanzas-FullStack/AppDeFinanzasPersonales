@@ -1,5 +1,18 @@
-import { Amount, type CategoryChip } from '@finanzas/contracts';
-import { BOLIVIA_TIME_ZONE, parseAmountInput, todayFor } from '@finanzas/domain';
+import {
+  Amount,
+  Rate,
+  type CategoryChip,
+  type CreateTransactionInput,
+} from '@finanzas/contracts';
+import {
+  amountInFrom,
+  BOLIVIA_TIME_ZONE,
+  parseAmountInput,
+  parseMoney,
+  rateFromAmounts,
+  todayFor,
+  transferPrefill,
+} from '@finanzas/domain';
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +21,7 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { useMe } from '@/features/auth/hooks/use-me';
+import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { useSettings } from '@/features/settings/hooks/use-settings';
 import { ApiError } from '@/lib/api-client';
 import { useDraft } from '@/lib/drafts';
@@ -21,6 +35,7 @@ import { AmountInput } from './amount-input';
 import { CategoryGrid } from './category-grid';
 import { DateChips } from './date-chips';
 import { KindToggle, type RegisterKind } from './kind-toggle';
+import { TransferFields } from './transfer-fields';
 
 interface RegisterValues {
   /** The UUID v7 of the movement, kept in the draft so a retry is idempotent (ADR-11). */
@@ -29,6 +44,11 @@ interface RegisterValues {
   amount: string;
   categoryId: string;
   date: string;
+  /** Transfer only: origin and destination, and between two currencies the rate and what arrives. */
+  fromAccountId: string;
+  toAccountId: string;
+  rate: string;
+  amountIn: string;
 }
 
 const RegisterDraft = z
@@ -38,11 +58,18 @@ const RegisterDraft = z
     amount: z.string(),
     categoryId: z.string(),
     date: z.string(),
+    fromAccountId: z.string(),
+    toAccountId: z.string(),
+    rate: z.string(),
+    amountIn: z.string(),
   })
   .partial();
 
-/** The kinds of this form: an expense or an income. */
-const KINDS: readonly RegisterKind[] = ['expense', 'income'];
+/** The kinds of this form (plan §4.7.4). */
+const KINDS: readonly RegisterKind[] = ['expense', 'income', 'transfer'];
+
+/** A typed amount as decimal text with 2 decimals, or `null`. */
+const decimalText = (raw: string): string | null => parseAmountInput(raw)?.toFixed(2) ?? null;
 
 /** After this long the context is refreshed in the background once the user starts typing. */
 const CONTEXT_FRESH_MS = 60_000;
@@ -66,13 +93,31 @@ export function RegisterForm() {
   const [picked, setPicked] = useState<CategoryChip | undefined>(undefined);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const rates = useCurrentRate();
+  const emptyTransfer = { fromAccountId: '', toAccountId: '', rate: '', amountIn: '' };
   const form = useForm<RegisterValues>({
-    defaultValues: { id: firstId, kind: 'expense', amount: '', categoryId: '', date: today },
+    defaultValues: {
+      id: firstId,
+      kind: 'expense',
+      amount: '',
+      categoryId: '',
+      date: today,
+      ...emptyTransfer,
+    },
   });
   const draft = useDraft('register', form, { userId: me.data?.id ?? '', schema: RegisterDraft });
-  const [kind, amount, categoryId, date] = useWatch({
+  const [kind, amount, categoryId, date, fromAccountId, toAccountId, rate, amountIn] = useWatch({
     control: form.control,
-    name: ['kind', 'amount', 'categoryId', 'date'],
+    name: [
+      'kind',
+      'amount',
+      'categoryId',
+      'date',
+      'fromAccountId',
+      'toAccountId',
+      'rate',
+      'amountIn',
+    ],
   });
 
   // RF-M7-02: the focus starts on the amount.
@@ -88,11 +133,95 @@ export function RegisterForm() {
   const account = data?.accounts.find((item) => item.id === accountId);
   const parsed = parseAmountInput(amount);
   const amountText = parsed === null ? null : parsed.toFixed(2);
+  const amountOk = amountText !== null && Amount.safeParse(amountText).success;
+
+  // A transfer opens with the last pair used, else the account above and another one (plan §4.7.3).
+  const accounts = data?.accounts ?? [];
+  const pair = data?.lastUsed.transferPair ?? null;
+  const fromId = fromAccountId !== '' ? fromAccountId : (pair?.from ?? accountId ?? '');
+  const toId =
+    toAccountId !== ''
+      ? toAccountId
+      : (pair?.to ?? accounts.find((item) => item.id !== fromId)?.id ?? '');
+  const from = accounts.find((item) => item.id === fromId);
+  const to = accounts.find((item) => item.id === toId);
+  const crossCurrency =
+    from !== undefined && to !== undefined && from.currencyCode !== to.currencyCode;
+
+  // RF-M3-07: the declared rate is prefilled from the reference in use, by direction.
+  const prefill = (out: string, into: string): string => {
+    const current = rates.data;
+    if (current === undefined) return '';
+    const bid = current.references.parallel_bid?.value;
+    const ask = current.references.parallel_ask?.value;
+    const manual =
+      current.inUse.kind === 'manual' && current.inUse.value !== null ? current.inUse.value : null;
+    const value = transferPrefill({
+      from: out,
+      to: into,
+      date,
+      manual: manual === null ? null : parseMoney(manual),
+      parallel:
+        bid === undefined || ask === undefined
+          ? null
+          : { bid: parseMoney(bid), ask: parseMoney(ask) },
+      customRates: {},
+    });
+    return value === null ? '' : value.toFixed(2);
+  };
+  const shownRate =
+    crossCurrency && rate === '' ? prefill(from.currencyCode, to.currencyCode) : rate;
+  const rateDecimal = parseAmountInput(shownRate);
+  const shownAmountIn =
+    amountIn !== '' || !crossCurrency || parsed === null || rateDecimal === null || rateDecimal.isZero()
+      ? amountIn
+      : amountInFrom(parsed, rateDecimal, from.currencyCode).toFixed(2);
+  const amountInText = decimalText(shownAmountIn);
+  const rateText = rateDecimal === null ? null : rateDecimal.toFixed(2);
+
+  const transferReady =
+    amountOk &&
+    from !== undefined &&
+    to !== undefined &&
+    fromId !== toId &&
+    (!crossCurrency ||
+      (rateText !== null &&
+        Rate.safeParse(rateText).success &&
+        amountInText !== null &&
+        Amount.safeParse(amountInText).success));
+
   const ready =
-    amountText !== null &&
-    Amount.safeParse(amountText).success &&
-    categoryId !== '' &&
-    account !== undefined;
+    kind === 'transfer'
+      ? transferReady
+      : amountOk && categoryId !== '' && account !== undefined;
+
+  const setTransfer = (name: 'fromAccountId' | 'toAccountId' | 'rate' | 'amountIn', value: string) => {
+    form.setValue(name, value, { shouldDirty: true });
+  };
+  const onFrom = (id: string) => {
+    setTransfer('fromAccountId', id);
+    setTransfer('toAccountId', toId);
+    setTransfer('rate', '');
+    setTransfer('amountIn', '');
+  };
+  const onTo = (id: string) => {
+    setTransfer('fromAccountId', fromId);
+    setTransfer('toAccountId', id);
+    setTransfer('rate', '');
+    setTransfer('amountIn', '');
+  };
+  const onRate = (next: string) => {
+    setTransfer('rate', next);
+    setTransfer('amountIn', '');
+  };
+  // RF-M3-08: what arrives sets the rate.
+  const onAmountIn = (next: string) => {
+    setTransfer('amountIn', next);
+    const into = parseAmountInput(next);
+    if (from !== undefined && parsed !== null && into !== null && !into.isZero()) {
+      setTransfer('rate', rateFromAmounts(parsed, into, from.currencyCode).toFixed(2));
+    }
+  };
 
   const onAmount = (next: string) => {
     form.setValue('amount', next, { shouldDirty: true });
@@ -118,21 +247,42 @@ export function RegisterForm() {
   };
 
   const save = (values: RegisterValues) => {
-    if (!ready || account === undefined || amountText === null) return;
+    if (!ready || amountText === null) return;
+    if (values.kind !== 'transfer' && account === undefined) return;
     setFormError(null);
-    create.mutate(
-      {
-        kind: chipKind,
-        id: values.id,
-        accountId: account.id,
-        categoryId: values.categoryId,
-        amount: amountText,
-        date: values.date,
-      },
-      {
+    const input: CreateTransactionInput =
+      values.kind === 'transfer'
+        ? {
+            kind: 'transfer' as const,
+            id: values.id,
+            fromAccountId: fromId,
+            toAccountId: toId,
+            amountOut: amountText,
+            date: values.date,
+            ...(crossCurrency && rateText !== null && amountInText !== null
+              ? { declaredRate: rateText, amountIn: amountInText }
+              : {}),
+          }
+        : {
+            kind: chipKind,
+            id: values.id,
+            accountId: account?.id ?? '',
+            categoryId: values.categoryId,
+            amount: amountText,
+            date: values.date,
+          };
+    create.mutate(input, {
         onSuccess: () => {
-          // A new movement starts with a new id (plan §4.7.3).
-          form.reset({ id: uuidv7(), kind: values.kind, amount: '', categoryId: '', date: today });
+          // A new movement starts with a new id (plan §4.7.3); a transfer keeps its pair.
+          form.reset({
+            id: uuidv7(),
+            kind: values.kind,
+            amount: '',
+            categoryId: '',
+            date: today,
+            ...emptyTransfer,
+            ...(values.kind === 'transfer' ? { fromAccountId: fromId, toAccountId: toId } : {}),
+          });
           draft.clear();
           setPicked(undefined);
           amountRef.current?.focus();
@@ -156,7 +306,23 @@ export function RegisterForm() {
       >
         <KindToggle value={kind} kinds={KINDS} onChange={onKind} />
         <AmountInput id="register-amount" value={amount} onChange={onAmount} inputRef={amountRef} />
-        <AccountChip account={account} kind={kind} loading={context.isPending} />
+        {kind !== 'transfer' && (
+          <AccountChip account={account} kind={kind} loading={context.isPending} />
+        )}
+        {kind === 'transfer' && (
+          <TransferFields
+            accounts={accounts}
+            fromId={fromId}
+            toId={toId}
+            onFrom={onFrom}
+            onTo={onTo}
+            exchange={
+              crossCurrency
+                ? { rate: shownRate, amountIn: shownAmountIn, onRate, onAmountIn }
+                : null
+            }
+          />
+        )}
         {context.isError && data === undefined && (
           <div className="flex flex-col items-start gap-2">
             <p role="alert" className="text-sm text-destructive">
@@ -174,16 +340,18 @@ export function RegisterForm() {
             </Button>
           </div>
         )}
-        <CategoryGrid
-          chips={data?.grid[chipKind] ?? []}
-          extra={picked}
-          selectedId={categoryId}
-          loading={context.isPending}
-          onSelect={onCategory}
-          onShowAll={() => {
-            setSheetOpen(true);
-          }}
-        />
+        {kind !== 'transfer' && (
+          <CategoryGrid
+            chips={data?.grid[chipKind] ?? []}
+            extra={picked}
+            selectedId={categoryId}
+            loading={context.isPending}
+            onSelect={onCategory}
+            onShowAll={() => {
+              setSheetOpen(true);
+            }}
+          />
+        )}
         <DateChips
           value={date}
           today={today}

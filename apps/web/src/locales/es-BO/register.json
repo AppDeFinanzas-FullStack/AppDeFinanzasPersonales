@@ -34,6 +34,13 @@
     "calendar": "Calendario",
     "pick": "Elegir una fecha de hoy o anterior"
   },
+  "transfer": {
+    "from": "Desde",
+    "to": "Hacia",
+    "sameAccount": "Elige una cuenta de destino distinta a la de origen.",
+    "rate": "Tipo de cambio usado",
+    "amountIn": "Monto que llega"
+  },
   "save": "Guardar",
   "saving": "Guardando…",
   "loading": "Cargando tus cuentas y categorías…",
