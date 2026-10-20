@@ -13,6 +13,7 @@ import {
   todayFor,
   transferPrefill,
 } from '@finanzas/domain';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -20,18 +21,25 @@ import { uuidv7 } from 'uuidv7';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
+import { QuickAccountForm } from '@/features/accounts/components/quick-account-form';
+import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
-import { useSettings } from '@/features/settings/hooks/use-settings';
+import { useFormatters, useSettings } from '@/features/settings/hooks/use-settings';
 import { ApiError } from '@/lib/api-client';
 import { useDraft } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
 
-import { useCreateTransaction, useRegisterContext } from '../hooks/use-register-context';
+import {
+  REGISTER_CONTEXT_KEY,
+  useCreateTransaction,
+  useRegisterContext,
+} from '../hooks/use-register-context';
 
 import { AccountChip } from './account-chip';
 import { AllCategoriesSheet } from './all-categories-sheet';
 import { AmountInput } from './amount-input';
+import { AskRateDialog } from './ask-rate-dialog';
 import { CategoryGrid } from './category-grid';
 import { DateChips } from './date-chips';
 import { KindToggle, type RegisterKind } from './kind-toggle';
@@ -42,6 +50,8 @@ interface RegisterValues {
   id: string;
   kind: RegisterKind;
   amount: string;
+  /** The account the user chose; empty takes the preselected one (RF-M7-03). */
+  accountId: string;
   categoryId: string;
   date: string;
   /** Transfer only: origin and destination, and between two currencies the rate and what arrives. */
@@ -56,6 +66,7 @@ const RegisterDraft = z
     id: z.string(),
     kind: z.enum(['expense', 'income', 'transfer']),
     amount: z.string(),
+    accountId: z.string(),
     categoryId: z.string(),
     date: z.string(),
     fromAccountId: z.string(),
@@ -65,19 +76,25 @@ const RegisterDraft = z
   })
   .partial();
 
+/** An expense or an income as Registrar sends it. */
+type SimpleInput = Extract<CreateTransactionInput, { kind: 'expense' | 'income' }>;
+
 /** The kinds of this form (plan §4.7.4). */
 const KINDS: readonly RegisterKind[] = ['expense', 'income', 'transfer'];
-
-/** A typed amount as decimal text with 2 decimals, or `null`. */
-const decimalText = (raw: string): string | null => parseAmountInput(raw)?.toFixed(2) ?? null;
 
 /** After this long the context is refreshed in the background once the user starts typing. */
 const CONTEXT_FRESH_MS = 60_000;
 
+/** A typed amount as decimal text with 2 decimals, or `null`. */
+const decimalText = (raw: string): string | null => parseAmountInput(raw)?.toFixed(2) ?? null;
+
+const EMPTY_TRANSFER = { fromAccountId: '', toAccountId: '', rate: '', amountIn: '' };
+
 /**
  * The form of `/registrar` (plan §4.7.3, §4.7.4): it opens as an expense with the focus on the
  * amount, or restores the `register` draft with its kind (RF-M7-02, RF-M7-08). "Guardar" is
- * enabled with an amount over 0 and a category (RF-M7-06), and Enter in the amount saves.
+ * enabled with an amount over 0 and a category (RF-M7-06), and Enter in the amount saves. A
+ * transfer takes origin and destination instead, and between two currencies a declared rate.
  */
 export function RegisterForm() {
   const { t } = useTranslation('register');
@@ -85,6 +102,7 @@ export function RegisterForm() {
   const settings = useSettings();
   const context = useRegisterContext();
   const create = useCreateTransaction();
+  const rates = useCurrentRate();
   const today = todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date());
   const amountRef = useRef<HTMLInputElement>(null);
   const refreshed = useRef(false);
@@ -92,25 +110,40 @@ export function RegisterForm() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [picked, setPicked] = useState<CategoryChip | undefined>(undefined);
   const [formError, setFormError] = useState<string | null>(null);
+  /** The movement waiting for a rate (EC-M7-04). */
+  const [askRate, setAskRate] = useState<SimpleInput | null>(null);
+  const queryClient = useQueryClient();
+  const formatters = useFormatters();
+  const symbolOf = useCurrencySymbol();
 
-  const rates = useCurrentRate();
-  const emptyTransfer = { fromAccountId: '', toAccountId: '', rate: '', amountIn: '' };
   const form = useForm<RegisterValues>({
     defaultValues: {
       id: firstId,
       kind: 'expense',
       amount: '',
+      accountId: '',
       categoryId: '',
       date: today,
-      ...emptyTransfer,
+      ...EMPTY_TRANSFER,
     },
   });
   const draft = useDraft('register', form, { userId: me.data?.id ?? '', schema: RegisterDraft });
-  const [kind, amount, categoryId, date, fromAccountId, toAccountId, rate, amountIn] = useWatch({
+  const [
+    kind,
+    amount,
+    chosenAccountId,
+    categoryId,
+    date,
+    fromAccountId,
+    toAccountId,
+    rate,
+    amountIn,
+  ] = useWatch({
     control: form.control,
     name: [
       'kind',
       'amount',
+      'accountId',
       'categoryId',
       'date',
       'fromAccountId',
@@ -119,6 +152,7 @@ export function RegisterForm() {
       'amountIn',
     ],
   });
+  const accountIssue = form.formState.errors.accountId?.message;
 
   // RF-M7-02: the focus starts on the amount.
   useEffect(() => {
@@ -127,9 +161,23 @@ export function RegisterForm() {
 
   const chipKind = kind === 'income' ? 'income' : 'expense';
   const data = context.data;
-  // RF-M7-03: the default account of the settings, else the last one used for the kind (the API
-  // already falls back to the first active one).
-  const accountId = data === undefined ? null : (data.defaultAccountId ?? data.lastUsed[chipKind]);
+
+  // EC-M7-08, RF-M2-11: a draft whose account is no longer active empties it and marks it.
+  useEffect(() => {
+    if (data === undefined || chosenAccountId === '') return;
+    if (data.accounts.some((item) => item.id === chosenAccountId)) return;
+    form.setValue('accountId', '', { shouldDirty: true });
+    form.setError('accountId', { type: 'reselect', message: t('account.reselect') });
+  }, [data, chosenAccountId, form, t]);
+
+  // RF-M7-03: the account the user chose, else the default one of the settings, else the last one
+  // used for the kind (the API already falls back to the first active one).
+  const accountId =
+    chosenAccountId !== ''
+      ? chosenAccountId
+      : data === undefined
+        ? null
+        : (data.defaultAccountId ?? data.lastUsed[chipKind]);
   const account = data?.accounts.find((item) => item.id === accountId);
   const parsed = parseAmountInput(amount);
   const amountText = parsed === null ? null : parsed.toFixed(2);
@@ -173,7 +221,11 @@ export function RegisterForm() {
     crossCurrency && rate === '' ? prefill(from.currencyCode, to.currencyCode) : rate;
   const rateDecimal = parseAmountInput(shownRate);
   const shownAmountIn =
-    amountIn !== '' || !crossCurrency || parsed === null || rateDecimal === null || rateDecimal.isZero()
+    amountIn !== '' ||
+    !crossCurrency ||
+    parsed === null ||
+    rateDecimal === null ||
+    rateDecimal.isZero()
       ? amountIn
       : amountInFrom(parsed, rateDecimal, from.currencyCode).toFixed(2);
   const amountInText = decimalText(shownAmountIn);
@@ -191,11 +243,12 @@ export function RegisterForm() {
         Amount.safeParse(amountInText).success));
 
   const ready =
-    kind === 'transfer'
-      ? transferReady
-      : amountOk && categoryId !== '' && account !== undefined;
+    kind === 'transfer' ? transferReady : amountOk && categoryId !== '' && account !== undefined;
 
-  const setTransfer = (name: 'fromAccountId' | 'toAccountId' | 'rate' | 'amountIn', value: string) => {
+  const setTransfer = (
+    name: 'fromAccountId' | 'toAccountId' | 'rate' | 'amountIn',
+    value: string,
+  ) => {
     form.setValue(name, value, { shouldDirty: true });
   };
   const onFrom = (id: string) => {
@@ -246,54 +299,98 @@ export function RegisterForm() {
     setPicked(category);
   };
 
+  /** The text of an error; a negative balance shows the amount in its account's currency. */
+  const errorText = (error: unknown): string => {
+    if (!(error instanceof ApiError)) return messageForError({ code: '' });
+    const balance = error.data?.['resultingBalance'];
+    const currency = data?.accounts.find((item) => item.id === error.data?.['accountId'])
+      ?.currencyCode;
+    if (error.code === 'NEGATIVE_BALANCE' && typeof balance === 'string' && currency !== undefined) {
+      return messageForError({
+        code: error.code,
+        data: { ...error.data, resultingBalance: formatters.money(balance, symbolOf(currency)) },
+      });
+    }
+    return messageForError(error);
+  };
+
+  const send = (input: CreateTransactionInput) => {
+    setFormError(null);
+    create.mutate(input, {
+      onSuccess: () => {
+        setAskRate(null);
+        // A new movement starts with a new id (plan §4.7.3); a transfer keeps its pair.
+        form.reset({
+          id: uuidv7(),
+          kind: input.kind,
+          amount: '',
+          accountId: '',
+          categoryId: '',
+          date: today,
+          ...EMPTY_TRANSFER,
+          ...(input.kind === 'transfer'
+            ? { fromAccountId: input.fromAccountId, toAccountId: input.toAccountId }
+            : {}),
+        });
+        draft.clear();
+        setPicked(undefined);
+        amountRef.current?.focus();
+      },
+      onError: (error) => {
+        // EC-M7-04: without any rate, ask for the dollar and resend with the same id.
+        if (
+          error instanceof ApiError &&
+          error.code === 'RATE_REQUIRED' &&
+          input.kind !== 'transfer' &&
+          input.manualUsdRate === undefined
+        ) {
+          setAskRate(input);
+          return;
+        }
+        setAskRate(null);
+        // The form keeps what the user wrote (EC-M7-02).
+        setFormError(errorText(error));
+      },
+    });
+  };
+
   const save = (values: RegisterValues) => {
     if (!ready || amountText === null) return;
-    if (values.kind !== 'transfer' && account === undefined) return;
-    setFormError(null);
-    const input: CreateTransactionInput =
-      values.kind === 'transfer'
-        ? {
-            kind: 'transfer' as const,
-            id: values.id,
-            fromAccountId: fromId,
-            toAccountId: toId,
-            amountOut: amountText,
-            date: values.date,
-            ...(crossCurrency && rateText !== null && amountInText !== null
-              ? { declaredRate: rateText, amountIn: amountInText }
-              : {}),
-          }
-        : {
-            kind: chipKind,
-            id: values.id,
-            accountId: account?.id ?? '',
-            categoryId: values.categoryId,
-            amount: amountText,
-            date: values.date,
-          };
-    create.mutate(input, {
-        onSuccess: () => {
-          // A new movement starts with a new id (plan §4.7.3); a transfer keeps its pair.
-          form.reset({
-            id: uuidv7(),
-            kind: values.kind,
-            amount: '',
-            categoryId: '',
-            date: today,
-            ...emptyTransfer,
-            ...(values.kind === 'transfer' ? { fromAccountId: fromId, toAccountId: toId } : {}),
-          });
-          draft.clear();
-          setPicked(undefined);
-          amountRef.current?.focus();
-        },
-        onError: (error) => {
-          // The form keeps what the user wrote (EC-M7-02).
-          setFormError(messageForError(error instanceof ApiError ? error : { code: '' }));
-        },
-      },
-    );
+    if (values.kind === 'transfer') {
+      send({
+        kind: 'transfer',
+        id: values.id,
+        fromAccountId: fromId,
+        toAccountId: toId,
+        amountOut: amountText,
+        date: values.date,
+        ...(crossCurrency && rateText !== null && amountInText !== null
+          ? { declaredRate: rateText, amountIn: amountInText }
+          : {}),
+      });
+      return;
+    }
+    if (account === undefined) return;
+    send({
+      kind: chipKind,
+      id: values.id,
+      accountId: account.id,
+      categoryId: values.categoryId,
+      amount: amountText,
+      date: values.date,
+    });
   };
+
+  // EC-M7-01: without accounts, the minimal account form takes the place of Registrar.
+  if (data !== undefined && data.accounts.length === 0) {
+    return (
+      <QuickAccountForm
+        onCreated={() => {
+          void queryClient.invalidateQueries({ queryKey: REGISTER_CONTEXT_KEY });
+        }}
+      />
+    );
+  }
 
   return (
     <>
@@ -322,6 +419,11 @@ export function RegisterForm() {
                 : null
             }
           />
+        )}
+        {accountIssue !== undefined && (
+          <p role="status" className="text-sm text-destructive">
+            {accountIssue}
+          </p>
         )}
         {context.isError && data === undefined && (
           <div className="flex flex-col items-start gap-2">
@@ -375,6 +477,17 @@ export function RegisterForm() {
         selectedId={categoryId}
         onOpenChange={setSheetOpen}
         onSelect={onCategory}
+      />
+      <AskRateDialog
+        key={askRate?.id ?? 'none'}
+        open={askRate !== null}
+        pending={create.isPending}
+        onConfirm={(value) => {
+          if (askRate !== null) send({ ...askRate, manualUsdRate: value });
+        }}
+        onCancel={() => {
+          setAskRate(null);
+        }}
       />
     </>
   );

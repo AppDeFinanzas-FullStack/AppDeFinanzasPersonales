@@ -2,6 +2,7 @@ import type { CategoryChip, CategoryNode } from '@finanzas/contracts';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -125,13 +126,26 @@ function CategoryList({
       </p>
     ) : null;
   }
+  const active = categories.data.filter((node) => node.status === 'active');
+  if (active.length === 0) {
+    // EC-M7-07, EC-M10-03: no category of the kind; the user can create one.
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <p className="text-muted-foreground">{t(`category.empty.${kind}`)}</p>
+        <Link
+          to="/categorias/nueva"
+          className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          {t('category.create')}
+        </Link>
+      </div>
+    );
+  }
   return (
     <ul className="flex flex-col gap-1 overflow-y-auto">
-      {categories.data
-        .filter((node) => node.status === 'active')
-        .map((node) => (
-          <ParentRow key={node.id} node={node} selectedId={selectedId} onSelect={onSelect} />
-        ))}
+      {active.map((node) => (
+        <ParentRow key={node.id} node={node} selectedId={selectedId} onSelect={onSelect} />
+      ))}
     </ul>
   );
 }
