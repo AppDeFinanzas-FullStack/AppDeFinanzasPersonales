@@ -964,6 +964,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/me.service.ts`
     - `apps/api/src/presentation/routes/me.routes.ts`
     - `apps/api/src/presentation/controllers/me.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/me-delete.test.ts`
   - **Especificación de Implementación:** Verifica la contraseña (si falla, `INVALID_PASSWORD`) y la palabra (si no coincide, `CONFIRMATION_MISMATCH`). Con `withUserLock`, encola `account_deleted` y borra `auth_user` en cascada.
   - **Criterios de Verificación (Tests & DoD):**
