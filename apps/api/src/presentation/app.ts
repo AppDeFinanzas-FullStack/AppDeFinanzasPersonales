@@ -12,6 +12,8 @@ export interface AppDeps {
   webOrigin: string;
   /** The internal tick endpoint (ADR-01); an app built without it does not expose it. */
   jobs?: JobsControllerDeps;
+  /** Per-user catch-up (ADR-01); it runs after the session is resolved. */
+  catchUp?: RequestHandler;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -44,6 +46,9 @@ export const createApp = (deps: AppDeps): Express => {
   app.use(checkOrigin(deps.webOrigin));
   app.use(requireJson);
   app.use(express.json());
+  if (deps.catchUp !== undefined) {
+    app.use(deps.catchUp);
+  }
   app.use('/api', healthRouter());
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

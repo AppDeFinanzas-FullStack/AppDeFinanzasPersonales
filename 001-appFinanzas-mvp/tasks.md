@@ -987,7 +987,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-03`: después del descarte, el mismo correo se registra como nuevo.
     - `RNF-26`: las purgas respetan 24 h y 1 h.
 
-- [ ] **`TASK-064`: Puesta al día por usuario (`catchUpUser`)**
+- [x] **`TASK-064`: Puesta al día por usuario (`catchUpUser`)**
   - **Dependencias:** Requiere TASK-058, TASK-063
   - **Trazabilidad SDD:** ADR-01 (respaldo con la primera petición del usuario), plan §4.0; RNF-13
   - **Archivos en Alcance:**
