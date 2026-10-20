@@ -12,9 +12,22 @@ import {
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
+import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
+import { categoriesRouter, type CategoriesRoutesDeps } from './routes/categories.routes.js';
+import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
+import {
+  fxRouter,
+  ratesRouter,
+  type FxRoutesDeps,
+  type RatesRoutesDeps,
+} from './routes/fx.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
+import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
+import { registerRouter, type RegisterRoutesDeps } from './routes/register.routes.js';
+import { shortcutsRouter, type ShortcutsRoutesDeps } from './routes/shortcuts.routes.js';
+import { transactionsRouter, type TransactionsRoutesDeps } from './routes/transactions.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
@@ -26,6 +39,24 @@ export interface AppDeps {
   auth?: AuthRoutesDeps;
   /** The routes `/api/me` (plan §4.1.2). */
   me?: MeRoutesDeps;
+  /** The routes `/api/settings` (plan §4.9.2). */
+  settings?: SettingsRoutesDeps;
+  /** The routes `/api/rates` (plan §4.3.2). */
+  rates?: RatesRoutesDeps;
+  /** The routes `/api/fx-settings` and `/api/fx/manual` (plan §4.3.2). */
+  fx?: FxRoutesDeps;
+  /** The routes `/api/currencies` (plan §4.3.2). */
+  currencies?: CurrenciesRoutesDeps;
+  /** The routes `/api/accounts` (plan §4.4.2). */
+  accounts?: AccountsRoutesDeps;
+  /** The routes `/api/shortcuts` (plan §4.7.2). */
+  shortcuts?: ShortcutsRoutesDeps;
+  /** The routes `/api/register` (plan §4.7.2). */
+  register?: RegisterRoutesDeps;
+  /** The routes `/api/categories` (plan §4.5.2). */
+  categories?: CategoriesRoutesDeps;
+  /** The routes `/api/transactions` (plan §4.6.2). */
+  transactions?: TransactionsRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -72,6 +103,33 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.me !== undefined) {
     app.use('/api/me', meRouter(deps.me));
+  }
+  if (deps.settings !== undefined) {
+    app.use('/api/settings', settingsRouter(deps.settings));
+  }
+  if (deps.rates !== undefined) {
+    app.use('/api/rates', ratesRouter(deps.rates));
+  }
+  if (deps.fx !== undefined) {
+    app.use('/api', fxRouter(deps.fx));
+  }
+  if (deps.currencies !== undefined) {
+    app.use('/api/currencies', currenciesRouter(deps.currencies));
+  }
+  if (deps.accounts !== undefined) {
+    app.use('/api/accounts', accountsRouter(deps.accounts));
+  }
+  if (deps.shortcuts !== undefined) {
+    app.use('/api/shortcuts', shortcutsRouter(deps.shortcuts));
+  }
+  if (deps.register !== undefined) {
+    app.use('/api/register', registerRouter(deps.register));
+  }
+  if (deps.categories !== undefined) {
+    app.use('/api/categories', categoriesRouter(deps.categories));
+  }
+  if (deps.transactions !== undefined) {
+    app.use('/api/transactions', transactionsRouter(deps.transactions));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
