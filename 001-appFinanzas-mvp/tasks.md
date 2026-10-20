@@ -1393,7 +1393,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
     - Reactivar exige una tasa nueva.
 
-- [ ] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
+- [x] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
   - **Dependencias:** Requiere TASK-060, TASK-084
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: tasas fijas), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
