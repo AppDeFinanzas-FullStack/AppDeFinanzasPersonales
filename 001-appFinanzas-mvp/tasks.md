@@ -939,6 +939,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-060`: con `INTEGRATIONS=real`, las dos rutas responden 404.
     - Con `fake`, el buzón devuelve el enlace de confirmación de un registro.
+    - Con `fake`, el usuario creado inicia sesión y su `me.onboarding.completed` (contrato `MeDto`, anidado) vale `true`.
 
 - [x] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
   - **Dependencias:** Requiere TASK-059
