@@ -1,0 +1,3 @@
+#!/bin/sh
+# Compuerta de la fase antes de subir (docs/execution-protocol.md §4.2).
+exec node "$(git rev-parse --show-toplevel)/tools/sdd/pre-push.mjs" "$@"

@@ -1,0 +1,24 @@
+{
+  "name": "@finanzas/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test:unit": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@date-fns/tz": "1.5.0",
+    "date-fns": "4.4.0",
+    "decimal.js": "10.6.0"
+  },
+  "devDependencies": {
+    "@finanzas/config": "workspace:*",
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
