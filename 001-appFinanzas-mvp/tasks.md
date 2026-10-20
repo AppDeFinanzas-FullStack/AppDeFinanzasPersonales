@@ -1015,9 +1015,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/auth/routes.tsx`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/auth.json`
+    - `apps/api/src/presentation/controllers/auth.controller.ts`
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `e2e/fixtures/mailbox.ts`
     - `e2e/m1-sign-up.spec.ts`
-  - **Especificación de Implementación:** `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
+  - **Especificación de Implementación:** Corrige además el API: el registro debe guardar la zona horaria que recibe (hoy `signUp` la descarta); una zona inválida o ausente cae a America/La_Paz. `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-03`: el registro muestra el mensaje neutro y lleva a "Revisa tu correo".
     - `RF-M1-11`: el usuario creado tiene la zona horaria del navegador.
