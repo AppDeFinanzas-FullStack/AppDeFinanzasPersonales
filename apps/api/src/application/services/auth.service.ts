@@ -109,8 +109,11 @@ export interface AuthServiceDeps {
   webOrigin: string;
 }
 
-/** Every sign-up takes at least this long, so the time does not tell the three cases apart. */
-const MIN_SIGN_UP_MILLISECONDS = 300;
+/**
+ * Every sign-up takes at least this long, so the time does not tell the three cases apart.
+ * It must exceed the real work (password hash plus the account set-up), or it equalizes nothing.
+ */
+const MIN_SIGN_UP_MILLISECONDS = 900;
 
 /** Resend limits of the confirmation (RF-M1-05). */
 const RESEND_MIN_INTERVAL_SECONDS = 60;
@@ -154,7 +157,12 @@ export function createAuthService({
   ): Promise<void> {
     await repos.loginThrottle.recordFailure(emailHmac);
     if (hasAccount && (await repos.loginThrottle.claimAlert(emailHmac))) {
-      await repos.emailOutbox.enqueue({ id: uuidv7(), to: email, kind: 'login_alert', payload: {} });
+      await repos.emailOutbox.enqueue({
+        id: uuidv7(),
+        to: email,
+        kind: 'login_alert',
+        payload: {},
+      });
     }
   }
 
@@ -329,9 +337,7 @@ export function createAuthService({
       const hash = credential?.passwordHash ?? (await dummyHashOnce());
       const valid = await auth.verifyPassword(hash, input.password);
       if (!valid || credential === null) {
-        await uow.run((repos) =>
-          recordSignInFailure(repos, email, emailHmac, credential !== null),
-        );
+        await uow.run((repos) => recordSignInFailure(repos, email, emailHmac, credential !== null));
         throw new AppError('INVALID_CREDENTIALS');
       }
 
