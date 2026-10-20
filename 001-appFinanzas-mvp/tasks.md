@@ -2324,7 +2324,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-04`: una variación de gastos positiva se muestra en rojo, con un texto accesible que no depende solo del color.
     - `EC-M8-02`: en un mes vacío, la tasa de ahorro no aparece.
 
-- [ ] **`TASK-148`: Web: bloques del Inicio y navegación**
+- [x] **`TASK-148`: Web: bloques del Inicio y navegación**
   - **Dependencias:** Requiere TASK-147
   - **Trazabilidad SDD:** plan §4.8.4 (orden de `dashboard_blocks`, navegación); RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, EC-M8-04
   - **Archivos en Alcance:**

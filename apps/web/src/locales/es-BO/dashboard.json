@@ -6,6 +6,36 @@
     "balance": "Balance",
     "savingsRate": "Tasa de ahorro"
   },
+  "register": "Registrar",
+  "cardLinks": "Ver movimientos del mes",
+  "byCategory": {
+    "title": "Gasto por categoría",
+    "empty": "Aún no tienes gastos este mes.",
+    "others": "Otras"
+  },
+  "pace": {
+    "title": "Ritmo del gasto",
+    "empty": "Aún no hay gastos para comparar.",
+    "current": "Este mes",
+    "previous": "Mes anterior"
+  },
+  "balances": {
+    "title": "Saldos por cuenta",
+    "asOfToday": "Saldos al día de hoy",
+    "noRate": "Sin tipo de cambio",
+    "seeAll": "Ver todas"
+  },
+  "recent": {
+    "title": "Últimos movimientos",
+    "empty": "Aún no tienes movimientos.",
+    "seeAll": "Ver todos",
+    "kind": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia",
+      "adjustment": "Ajuste"
+    }
+  },
   "variation": {
     "up": "Subió",
     "down": "Bajó",

@@ -1,7 +1,7 @@
 import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams, type RouteObject } from 'react-router';
+import { Link, useSearchParams, type RouteObject } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { QuickAccountForm } from '@/features/accounts/components/quick-account-form';
@@ -11,6 +11,7 @@ import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { MonthSelector } from '@/features/transactions/components/month-selector';
 import dashboard from '@/locales/es-BO/dashboard.json';
 
+import { DashboardBlocks } from './components/dashboard-blocks';
 import { SummaryCards } from './components/summary-cards';
 import { useDashboard } from './hooks/use-dashboard';
 
@@ -29,6 +30,8 @@ function DashboardContent() {
     requested !== null && /^\d{4}-\d{2}$/.test(requested) ? requested : today.slice(0, 7);
   const query = useDashboard(month);
   const currentMonth = query.data?.range.currentMonth ?? today.slice(0, 7);
+  const baseCode = rates.data?.base ?? 'BOB';
+  const symbol = symbolOf(baseCode);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,7 +43,27 @@ function DashboardContent() {
         }}
       />
       {query.data !== undefined ? (
-        <SummaryCards cards={query.data.cards} symbol={symbolOf(rates.data?.base ?? 'BOB')} />
+        <>
+          <SummaryCards cards={query.data.cards} symbol={symbol} />
+          <nav aria-label={t('cardLinks')} className="flex gap-4">
+            {(['income', 'expense'] as const).map((kind) => (
+              <Link
+                key={kind}
+                to={`/movimientos?month=${month}&kind=${kind}`}
+                className="flex min-h-11 items-center text-sm font-medium text-primary underline"
+              >
+                {t(`cards.${kind}`)}
+              </Link>
+            ))}
+          </nav>
+          <DashboardBlocks
+            data={query.data}
+            month={month}
+            baseCode={baseCode}
+            otherCode={baseCode === 'BOB' ? 'USD' : 'BOB'}
+            symbol={symbol}
+          />
+        </>
       ) : query.isError ? (
         <p role="alert" className="text-sm text-destructive">
           {t('loadError')}
