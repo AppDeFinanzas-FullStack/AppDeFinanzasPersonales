@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import type { RateHistoryQuery } from '@finanzas/contracts';
+import { Decimal } from 'decimal.js';
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
@@ -12,6 +14,41 @@ import {
   type MeService,
   type MeStore,
 } from '../application/services/me.service.js';
+import { createFxJobs, type FxJobs } from '../application/jobs/fx.js';
+import {
+  createCurrenciesService,
+  type CurrenciesService,
+} from '../application/services/currencies.service.js';
+import {
+  createFxSettingsService,
+  type FxSettingsService,
+} from '../application/services/fx-settings.service.js';
+import { createRatesService, type RatesService } from '../application/services/rates.service.js';
+import {
+  createShortcutsService,
+  type ShortcutsService,
+} from '../application/services/shortcuts.service.js';
+import {
+  createAccountsService,
+  type AccountsService,
+} from '../application/services/accounts.service.js';
+import {
+  createCategoriesService,
+  type CategoriesService,
+} from '../application/services/categories.service.js';
+import {
+  createSettingsService,
+  type SettingsService,
+} from '../application/services/settings.service.js';
+import {
+  createRegisterService,
+  type RegisterService,
+  type RegisterUsageReader,
+} from '../application/services/register.service.js';
+import {
+  createTransactionsService,
+  type TransactionsService,
+} from '../application/services/transactions.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -19,12 +56,23 @@ import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
-import { todayFor } from '../domain/index.js';
+import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
 import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
 import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
 import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
+import {
+  createFakeBcbGateway,
+  type FakeBcbGateway,
+} from '../infrastructure/integrations/bcb.fake.js';
+import { createBcbGateway } from '../infrastructure/integrations/bcb.js';
+import {
+  createFakeRatesGateway,
+  type FakeRatesGateway,
+} from '../infrastructure/integrations/paralelo-bo.fake.js';
+import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
 import {
@@ -36,17 +84,30 @@ import { createEmailLinkRepository } from '../infrastructure/persistence/reposit
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createUserSettingsRepository } from '../infrastructure/persistence/repositories/user-settings.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
+import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
+import { createMarketRateRepository } from '../infrastructure/persistence/repositories/market-rate.repository.js';
+import { createUserFxEventRepository } from '../infrastructure/persistence/repositories/user-fx-event.repository.js';
+import { createAccountRepository } from '../infrastructure/persistence/repositories/account.repository.js';
+import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
+import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
+import { createShortcutRepository } from '../infrastructure/persistence/repositories/shortcut.repository.js';
+import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 import type {
+  TestRatesInput,
   TestSupportControllerDeps,
   TestUserCredentials,
 } from '../presentation/internal/test-support.controller.js';
 import type { MeReader } from '../presentation/controllers/auth.controller.js';
+import type { BalanceSeriesReader } from '../presentation/controllers/accounts.controller.js';
+import type { CategoryTreeReader } from '../presentation/controllers/categories.controller.js';
+import type { RateHistoryReader } from '../presentation/controllers/fx.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
 import type { SessionActivity } from '../presentation/middlewares/require-session.js';
 
@@ -62,9 +123,28 @@ export interface Container {
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
   readonly jobs: Jobs;
+  /** Reactions to ledger changes; each module registers its handler here (plan §4.0). */
+  readonly ledgerHooks: LedgerHooks;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  readonly settingsService: SettingsService;
+  readonly ratesService: RatesService;
+  readonly fxSettingsService: FxSettingsService;
+  readonly currenciesService: CurrenciesService;
+  readonly accountsService: AccountsService;
+  readonly shortcutsService: ShortcutsService;
+  readonly categoriesService: CategoriesService;
+  /** The category tree of `GET /api/categories` (plan §4.5.2). */
+  readonly categoryTree: CategoryTreeReader;
+  readonly transactionsService: TransactionsService;
+  readonly registerService: RegisterService;
+  /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
+  readonly balanceSeries: BalanceSeriesReader;
+  /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
+  readonly rateHistory: RateHistoryReader;
+  /** Starts `fx.fetchParallel` in the background, at most one at a time (RNF-04, RF-M3-04). */
+  readonly refreshParallel: () => void;
 
   /** Test-support routes (plan §1.5); `null` unless `INTEGRATIONS=fake`. */
   readonly testSupport: TestSupportControllerDeps | null;
@@ -91,13 +171,221 @@ const createEmailGateway = (env: Env, fake: FakeEmailGateway | null): EmailGatew
   fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
-const buildRepositories = (tx: TransactionClient): Repositories => ({
+const NO_USER = '00000000-0000-0000-0000-000000000000';
+
+const buildRepositories = (tx: TransactionClient, userId: string | undefined): Repositories => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
   users: createUserRepository(tx),
+  marketRates: createMarketRateRepository(tx),
+  currencies: createCurrencyRepository(tx, userId ?? NO_USER),
+  userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
+  accounts: createAccountRepository(tx, userId ?? NO_USER),
+  ledger: createLedgerRepository(tx, userId ?? NO_USER),
+  undoActions: createUndoActionRepository(tx, userId ?? NO_USER),
+  categories: createCategoryRepository(tx, userId ?? NO_USER),
+  userSettings: createUserSettingsRepository(tx),
+  shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
 });
+
+const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
+const BCB_URL = 'https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php';
+const SOURCE_TIMEOUT_MS = 10_000;
+
+interface FakeRateSources {
+  rates: FakeRatesGateway;
+  bcb: FakeBcbGateway;
+}
+
+/**
+ * Real sources (paralelo.bo and the BCB) or their fakes, by `env.INTEGRATIONS` (plan §1.4). The
+ * fakes are also returned in `fake`, so the test-support routes can set them.
+ */
+const buildRateSources = (env: Env) => {
+  if (env.INTEGRATIONS === 'real') {
+    return {
+      rates: createParaleloBoGateway({ url: PARALELO_BO_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      bcb: createBcbGateway({ url: BCB_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      fake: null,
+    };
+  }
+  const fake: FakeRateSources = { rates: createFakeRatesGateway(), bcb: createFakeBcbGateway() };
+  return { rates: fake.rates, bcb: fake.bcb, fake };
+};
+
+/**
+ * `POST /internal/test/rates` (plan §1.5): sets the fake sources and forces `fx.fetchParallel`. A
+ * missing rate keeps its last value; `failure` makes paralelo.bo fail until it is set to `null`.
+ */
+const createTestRatesSetter = (deps: { fake: FakeRateSources; fxJobs: FxJobs; clock: Clock }) => {
+  let current: TestRatesInput = {};
+  return async (input: TestRatesInput): Promise<void> => {
+    current = {
+      bid: input.bid ?? current.bid,
+      ask: input.ask ?? current.ask,
+      median: input.median ?? current.median,
+      official: input.official ?? current.official,
+      failure: input.failure === undefined ? current.failure : input.failure,
+    };
+    const observedAt = deps.clock.now();
+    const decimal = (value: string | undefined) =>
+      value === undefined ? null : new Decimal(value);
+    const median = decimal(current.median);
+    deps.fake.rates.configure({
+      failure: current.failure ?? null,
+      ...(median === null
+        ? {}
+        : {
+            parallel: {
+              median,
+              bid: decimal(current.bid),
+              ask: decimal(current.ask),
+              observedAt,
+            },
+          }),
+    });
+    const official = decimal(current.official);
+    if (official !== null) {
+      const quote = { value: official, effectiveDate: null, observedAt };
+      deps.fake.rates.configure({ official: quote });
+      deps.fake.bcb.configure({ official: quote });
+    }
+    await deps.fxJobs.fetchParallel({ force: true });
+  };
+};
+
+const HISTORY_DAYS: Record<RateHistoryQuery['range'], number> = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+  '1y': 365,
+};
+
+/** The date `days` days before `date`, on the calendar (no timezone involved). */
+const daysBefore = (date: LocalDate, days: number): LocalDate =>
+  new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
+
+/** One row per day of the range, ending today in the user's timezone (RN-07). */
+const createRateHistoryReader = (uow: UnitOfWork): RateHistoryReader => ({
+  daily(query, timezone, now) {
+    const to = todayFor(timezone, now);
+    const from = daysBefore(to, HISTORY_DAYS[query.range] - 1);
+    return uow.run((repos) => repos.marketRates.series(query.kind, from, to), { readOnly: true });
+  },
+});
+
+/** The row of the composite query of Registrar; `json` columns come already parsed. */
+interface RegisterUsageRecord {
+  categoryUses: { categoryId: string; uses: number; lastUsedAt: string }[];
+  seeded: string[];
+  lastExpense: string | null;
+  lastIncome: string | null;
+  lastTransfer: { from: string; to: string } | null;
+}
+
+/**
+ * The reads of Registrar (plan §4.7.2): one composite query for the grid and the preselected
+ * accounts, always bound to the user (RN-09). Uses count the live movements of the last 60 days by
+ * exact category; the last account is the one of the last movement created of each kind.
+ */
+const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader => ({
+  async read(userId, today) {
+    const rows = await prisma.$queryRaw<RegisterUsageRecord[]>`
+      SELECT
+        (SELECT COALESCE(json_agg(json_build_object(
+                  'categoryId', u.category_id::text, 'uses', u.uses, 'lastUsedAt', u.last_used)),
+                '[]'::json)
+           FROM (SELECT t.category_id, count(*)::int AS uses, max(t.created_at) AS last_used
+                   FROM ledger_transaction t
+                  WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL
+                    AND t.kind IN ('expense', 'income') AND t.category_id IS NOT NULL
+                    AND t.date > ${today}::date - 60
+                  GROUP BY t.category_id) u) AS "categoryUses",
+        (SELECT COALESCE(json_agg(c.id::text ORDER BY c.seed_order), '[]'::json)
+           FROM category c
+          WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
+            AND c.status = 'active') AS seeded,
+        (SELECT e.account_id::text
+           FROM ledger_transaction t
+           JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'expense'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastExpense",
+        (SELECT e.account_id::text
+           FROM ledger_transaction t
+           JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'income'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastIncome",
+        (SELECT json_build_object('from', o.account_id::text, 'to', i.account_id::text)
+           FROM ledger_transaction t
+           JOIN ledger_entry o ON o.user_id = t.user_id AND o.transaction_id = t.id AND o.amount < 0
+           JOIN ledger_entry i ON i.user_id = t.user_id AND i.transaction_id = t.id AND i.amount > 0
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'transfer'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastTransfer"`;
+    const row = rows[0];
+    return {
+      categoryUses: (row?.categoryUses ?? []).map((use) => ({
+        categoryId: use.categoryId,
+        uses: use.uses,
+        lastUsedAt: new Date(use.lastUsedAt),
+      })),
+      seeded: row?.seeded ?? [],
+      lastAccount: { expense: row?.lastExpense ?? null, income: row?.lastIncome ?? null },
+      lastTransfer: row?.lastTransfer ?? null,
+    };
+  },
+
+  async createdSince(userId, since, limit) {
+    // A fee is shown with its transfer, not on its own (RF-M6-05).
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT t.id::text AS id
+        FROM ledger_transaction t
+       WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.origin <> 'fee'
+         AND t.created_at >= ${since}::timestamptz
+       ORDER BY t.created_at DESC, t.id DESC
+       LIMIT ${limit}::int`;
+    return rows.map((row) => row.id);
+  },
+});
+
+/** The user's category tree of a kind and status. */
+const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
+  tree(userId, kind, status) {
+    return uow.run((repos) => repos.categories.tree(kind, status), {
+      userLock: userId,
+      readOnly: true,
+    });
+  },
+});
+
+/** Daily balances of one of the user's accounts; `null` when the user has no such account. */
+const createBalanceSeriesReader = (uow: UnitOfWork): BalanceSeriesReader => ({
+  daily(userId, accountId, from, to) {
+    return uow.run(
+      async (repos) =>
+        (await repos.accounts.get(accountId)) === null
+          ? null
+          : repos.ledger.balanceSeries(accountId, from, to),
+      { userLock: userId, readOnly: true },
+    );
+  },
+});
+
+/** Runs `fx.fetchParallel` on demand without waiting for it; a run in flight is not repeated. */
+const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
+  let running = false;
+  return () => {
+    if (running) return;
+    running = true;
+    fxJobs
+      .fetchParallel({ force: true })
+      .catch(() => undefined)
+      .finally(() => {
+        running = false;
+      });
+  };
+};
 
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
@@ -194,11 +482,18 @@ export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
   const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
-  const jobs = createJobs({
-    jobRuns: createJobRuns(prisma),
+  const jobRuns = createJobRuns(prisma);
+  const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
+  const rateSources = buildRateSources(env);
+  const fxJobs = createFxJobs({
+    rates: rateSources.rates,
+    bcb: rateSources.bcb,
+    uow,
+    jobRuns,
     clock: systemClock,
-    release: env.RELEASE,
   });
+  jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
+  jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
   jobs.registerJob(
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
@@ -215,9 +510,29 @@ export const buildContainer = (env: Env): Container => {
     webOrigin: env.WEB_ORIGIN,
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
+  const settingsService = createSettingsService({ uow });
+  const ratesService = createRatesService({ uow });
+  const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
+  const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
+  const ledgerHooks = createLedgerHooks();
+  const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
+  const transactionsService = createTransactionsService({
+    uow,
+    rates: ratesService,
+    ledgerHooks,
+  });
+  const shortcutsService = createShortcutsService({ uow });
+  const registerService = createRegisterService({
+    uow,
+    usage: createRegisterUsageReader(prisma),
+    accounts: accountsService,
+    shortcuts: shortcutsService,
+    transactions: transactionsService,
+  });
 
+  const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
-    fakeEmail === null
+    fakeEmail === null || fakeRates === null
       ? null
       : {
           // Nothing else ticks in the end-to-end run: reading the mailbox also sends what is due,
@@ -227,6 +542,7 @@ export const buildContainer = (env: Env): Container => {
             return fakeEmail.inboxOf(to);
           },
           createUser: createTestUserFactory({ prisma, uow, auth }),
+          setRates: createTestRatesSetter({ fake: fakeRates, fxJobs, clock: systemClock }),
         };
   return {
     testSupport,
@@ -236,9 +552,23 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
+    ledgerHooks,
     auth,
     authService,
     meService,
+    settingsService,
+    ratesService,
+    fxSettingsService,
+    currenciesService,
+    accountsService,
+    shortcutsService,
+    categoriesService: createCategoriesService({ uow }),
+    categoryTree: createCategoryTreeReader(uow),
+    transactionsService,
+    registerService,
+    balanceSeries: createBalanceSeriesReader(uow),
+    rateHistory: createRateHistoryReader(uow),
+    refreshParallel: createParallelRefresher(fxJobs),
     readiness: createReadinessProbe(prisma),
   };
 };
@@ -261,6 +591,39 @@ export const createApp = (container: Container): Express => {
       session,
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
+    settings: { settingsService: container.settingsService, session },
+    rates: {
+      ratesService: container.ratesService,
+      rateHistory: container.rateHistory,
+      refreshParallel: container.refreshParallel,
+      clock: container.clock,
+      session,
+    },
+    fx: { fxSettingsService: container.fxSettingsService, clock: container.clock, session },
+    currencies: {
+      currenciesService: container.currenciesService,
+      clock: container.clock,
+      session,
+    },
+    categories: {
+      categoriesService: container.categoriesService,
+      categoryTree: container.categoryTree,
+      session,
+    },
+    accounts: {
+      accountsService: container.accountsService,
+      balanceSeries: container.balanceSeries,
+      clock: container.clock,
+      session,
+    },
+    transactions: {
+      transactionsService: container.transactionsService,
+      register: container.registerService,
+      clock: container.clock,
+      session,
+    },
+    shortcuts: { shortcutsService: container.shortcutsService, session },
+    register: { registerService: container.registerService, clock: container.clock, session },
     readiness: container.readiness,
   });
 };

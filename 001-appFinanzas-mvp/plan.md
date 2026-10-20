@@ -1225,12 +1225,38 @@ UpdateCurrencyInput = z.object({ symbol: z.string().trim().min(1).max(5).optiona
 **Funciones de `packages/domain/fx`:**
 
 ```ts
+// Tipos de entrada (se declaran y exportan desde packages/domain/src/fx.ts; no dependen de Prisma)
+type FxEvent = {                      // fila de user_fx_event (§3.4), ya en camelCase
+  kind: 'reference_set' | 'manual_usd_on' | 'manual_usd_off' | 'custom_rate';
+  currencyCode: string | null;        // 'USD' en manual_usd_*; la moneda agregada en custom_rate
+  reference: UsdReference | null;     // solo en reference_set
+  value: Decimal | null;              // null en reference_set y manual_usd_off
+  effectiveAt: Instant;
+};
+type MarketSeries = Record<UsdReference, ReadonlyArray<{ rateDate: LocalDate; value: Decimal }>>; // filas de market_rate por kind, orden libre
+// Estado del usuario al final del día D = eventos con effectiveAt < startOfDayInstant(D + 1, tz). Hoy y fechas pasadas usan
+// la misma regla (no hay eventos futuros). Sin reference_set, la referencia es 'parallel_median'. D se usa tal cual como
+// rate_date (calendario de Bolivia). Los eventos pueden llegar sin ordenar.
+
 classifyBidAsk(a: Decimal, b: Decimal): { bid: Decimal; ask: Decimal };     // compra = menor, venta = mayor
 resolveUsdRate(input: { events: FxEvent[]; series: MarketSeries; date: LocalDate; tz: string; now: Instant }): Decimal | null;
 // hoy: referencia en uso o manual activo · fecha pasada: estado del usuario al final de D (manual si estaba activo;
 // si no, la referencia de ese día) → valor de D en el calendario de Bolivia → si falta compra o venta, mediana de D
 // → si D no tiene datos, el día anterior más cercano → antes del primer dato, el primer valor conocido (RF-M3-06, RF-M3-13)
-transferPrefill(input: { from: CurrencyCode; to: CurrencyCode; date: LocalDate; ... }): Decimal | null;   // RF-M3-07
+transferPrefill(input: { from: CurrencyCode; to: CurrencyCode; date: LocalDate; manual: Decimal | null;
+  parallel: { bid: Decimal; ask: Decimal } | null; customRates: Record<CurrencyCode, Decimal> }): Decimal | null;   // RF-M3-07
+// Quien llama resuelve lo de `date` (manual activo ese día, bid/ask del día, tasas con customRateOn); la función no consulta nada.
+// Devuelve la tasa declarada (§4.6.1) o null si falta alguna. Bs por unidad: BOB = 1; USD = manual, o ask si se compra USD (to) y bid si se
+// vende (from); otra moneda = customRates[code]. De BOB a X: Bs(X). De X a BOB: Bs(X). Entre dos monedas no BOB: Bs(from) ÷ Bs(to), round2.
+// from = to → null.
+amountInFrom(amountOut: Decimal, rate: Decimal, from: CurrencyCode): Decimal;             // from BOB: amountOut ÷ rate; si no: amountOut × rate; round2
+rateFromAmounts(amountOut: Decimal, amountIn: Decimal, from: CurrencyCode): Decimal;      // inversa: from BOB: amountOut ÷ amountIn; si no: amountIn ÷ amountOut; round2
+// La tasa recalculada se redondea a 2 decimales (RN-06), así que no siempre reproduce el monto que llega: el error de amountInFrom(amountOut, rate)
+// puede llegar a amountOut × 0,005. La diferencia máxima de 0,01 de RF-M3-08 solo se garantiza para montos pequeños (amountOut ≤ 2 en la moneda
+// de origen no BOB); las pruebas no deben exigirla con montos grandes. El monto que llega que el usuario editó es el que se guarda.
+customRateOn(events: FxEvent[], code: CurrencyCode, date: LocalDate, tz: string): Decimal | null;
+// Equivale a user_rate_on (§3.4): último custom_rate de `code` con effectiveAt antes del inicio de D+1 en tz; si ninguno, el primero conocido;
+// null si la moneda no tiene ningún custom_rate.
 convert(amount: Decimal, rateCurBob: Decimal, rateBaseBob: Decimal): Decimal; // ROUND_HALF_UP alejado del cero, 2 decimales
 gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 ```
@@ -1251,6 +1277,49 @@ gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 - `fx.fetchParallel`: corre si la última captura tiene más de 60 min, o a pedido. Llama a `get_current_rate`, valida (> 0, ≤ 2 decimales, ≥ 0,01; EC-M3-04), clasifica compra y venta y hace `INSERT … ON CONFLICT (kind, rate_date) DO UPDATE … WHERE excluded.observed_at > market_rate.observed_at`.
 - `fx.fetchOfficial`: una vez al día. Usa `convert_currency direction=official`; si falla, el widget del BCB. Guarda en la fecha de vigencia y reintenta en cada tick hasta lograrlo.
 - Script `fx-backfill` (una vez): la mediana diaria desde el 01/01/2024 (1 consulta por segundo) y el oficial (6,96 hasta el 26/06/2026; la serie del BCB desde el 27/06/2026).
+
+**Script `fx-backfill` (`packages/db/scripts/fx-backfill.ts`).** `packages/db` no puede importar de `apps/api`, así que el script define su propio cliente y escribe con SQL propio:
+
+```ts
+interface BackfillClient {
+  parallelMedianOn(date: LocalDate): Promise<Decimal | null>;                          // null si la fuente no tiene dato ese día
+  officialSeries(): Promise<ReadonlyArray<{ effectiveDate: LocalDate; value: Decimal }>>;  // TCO del BCB desde el 27/06/2026, una entrada por vigencia
+}
+runFxBackfill(input: { db: PrismaClient; client: BackfillClient; from: LocalDate; to: LocalDate; now?: () => Date;
+                       sleep?: (ms: number) => Promise<void> }): Promise<{ parallel: number; official: number }>;
+```
+- Una fila por día de `from` a `to` para cada tipo. `parallel_median`: `parallelMedianOn(día)` (se omite el día si da `null`), fuente `paralelo_bo`. Entre consultas espera 1 s con `sleep` (el valor por defecto es el real; las pruebas lo reemplazan).
+- `official`: hasta el 26/06/2026 es 6,96 con fuente `seed`. Desde el 27/06/2026, el valor de la serie con la `effectiveDate` más reciente que sea ≤ al día, con fuente `bcb`; si la serie no tiene ninguna anterior, se omite el día.
+- `observed_at` determinista: el menor entre `now()` y el inicio del día siguiente en La Paz. Se escribe con `INSERT … ON CONFLICT (kind, rate_date) DO UPDATE … WHERE excluded.observed_at > market_rate.observed_at`, así que correrlo dos veces no duplica nada y no pisa lo que ya escribieron los jobs.
+- Cliente real (solo en la ejecución desde la línea de comandos, sin pruebas): `parallelMedianOn` llama a `get_historical_rate` de paralelo.bo; `officialSeries` lee la fila «BANCOS (MEDIANA PONDERADA POR MONTO)» de la primera tabla de `https://www.bcb.gob.bo/bcb_tco_publico_evolutivo.php` (cabeceras `d-mes` por fecha de corte; el año sale del título «Fecha de corte dd/mm/aaaa → dd/mm/aaaa») y fija `effectiveDate` = día siguiente a la fecha de corte.
+
+**Puerto `RatesGateway` (`application/ports/rates-gateway.ts`) y sus adaptadores.** Una fuente que falla no lanza: devuelve un resultado.
+
+```ts
+type RateFailure = 'TIMEOUT' | 'INVALID_VALUE' | 'SOURCE_ERROR';   // SOURCE_ERROR: red, HTTP no 200, error JSON-RPC o isError
+type RateResult<T> = { ok: true; value: T } | { ok: false; reason: RateFailure };
+type ParallelQuote = { median: Decimal; bid: Decimal | null; ask: Decimal | null; observedAt: Date };  // bid/ask ya con classifyBidAsk
+type OfficialQuote = { value: Decimal; effectiveDate: LocalDate | null; observedAt: Date };            // vigencia de la tasa, si la fuente la dice
+interface RatesGateway {
+  fetchParallel(): Promise<RateResult<ParallelQuote>>;
+  fetchOfficial(): Promise<RateResult<OfficialQuote>>;
+  fetchParallelOn(date: LocalDate): Promise<RateResult<{ median: Decimal; date: LocalDate }>>;          // para fx-backfill
+}
+createParaleloBoGateway(opts: { url: string; timeoutMs: number; fetch?: typeof fetch; now?: () => Date }): RatesGateway;
+createFakeRatesGateway(opts?: { parallel?: ParallelQuote; official?: OfficialQuote; failure?: RateFailure | null; delayMs?: number }):
+  RatesGateway & { configure(patch: Partial<NonNullable<typeof opts>>): void; calls: { parallel: number; official: number; parallelOn: number } };
+```
+
+Respuestas reales de `https://paralelo.bo/mcp` (JSON-RPC 2.0 por POST, sin sesión ni autenticación; cabeceras `Content-Type: application/json` y `Accept: application/json, text/event-stream`; verificadas el 2026-10-19). Los datos útiles vienen en `result.structuredContent`; el texto de `result.content[0].text` solo se lee para la vigencia del oficial:
+- `get_current_rate {}` → `{ median: 11.83, buy: 11.85, sell: 11.81, timestamp: "2026-10-19T23:04:58.836Z", … }`. Números JSON. `buy` puede ser mayor que `sell`, por eso se clasifica con `classifyBidAsk`. `observedAt` = `timestamp`. La mediana debe ser válida (si no, `INVALID_VALUE`); si `buy` o `sell` no es válido, `bid` y `ask` quedan en `null` y se usa la mediana (RF-M3-13).
+- `get_historical_rate { date: "YYYY-MM-DD" }` → `{ date, median, requestedDate, illustrative: false }`. Si `illustrative` es `true`, se trata como `INVALID_VALUE`. Con un parámetro inválido responde `result.isError: true`.
+- `convert_currency { amount: 1, from: "USD", to: "BOB", direction: "official" }` → `{ result: 11.69, rate: 11.69, … }`, y el texto trae «(vigencia 2026-10-17)», de donde sale `effectiveDate` (expresión `vigencia (\d{4}-\d{2}-\d{2})`; `null` si no aparece). `observedAt` = ahora. El valor es `rate`.
+- Valor válido: número finito, ≥ 0,01 y con a lo sumo 2 decimales (EC-M3-04). Si no, `INVALID_VALUE`. El *timeout* da `TIMEOUT`.
+
+**Respaldo del BCB (`infrastructure/integrations/bcb.ts`).** `createBcbGateway(opts: { url: string; timeoutMs: number; fetch?: typeof fetch; now?: () => Date }): Pick<RatesGateway, 'fetchOfficial'>` y `createFakeBcbGateway(opts?: { official?: OfficialQuote; failure?: RateFailure | null; delayMs?: number })` con la misma forma que el *fake* de paralelo.bo (`configure`, `calls.official`). La URL es `https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php`: un `GET` que devuelve un fragmento de HTML (sin autenticación), verificado el 2026-10-19. Se lee con expresiones regulares, sin analizador de HTML:
+- Valor: el texto de `<div class="tco-public-value">Bs 11,69/$us</div>`; la coma decimal se convierte en punto y se valida como en paralelo.bo.
+- Vigencia: `<span class="tco-public-vigencia">VIGENCIA: DEL SÁBADO 17 DE OCTUBRE DE 2026 AL LUNES 19 DE OCTUBRE DE 2026</span>`. `effectiveDate` es la primera fecha («17 de octubre de 2026» → `2026-10-17`), con los meses en español sin importar mayúsculas o acentos; `null` si no se puede leer.
+- Si falta el elemento del valor (HTML inesperado) → `SOURCE_ERROR`; si está pero no es un valor válido → `INVALID_VALUE`. HTTP distinto de 200 o error de red → `SOURCE_ERROR`; *timeout* → `TIMEOUT`. `observedAt` = ahora.
 
 #### 4.3.3 Ciclo de vida y concurrencia
 - **Moneda Activa → Inactiva:** `SELECT … FOR UPDATE` sobre `currency` → cada módulo responde a `currencyUsage.check(tx, userId, code)` (cuentas activas, metas no archivadas, presupuestos activos o pausados, deudas activas, reglas no eliminadas) → `UPDATE … SET status = 'inactive'`. Toda creación con esa moneda toma `FOR SHARE` y verifica `status = 'active'`, así no hay carreras.
@@ -1400,8 +1469,10 @@ CreateTransactionInput = z.discriminatedUnion('kind', [
              earmarkWithdrawals: EarmarkWithdrawals.optional() })
 ]).refine(t => t.kind !== 'transfer' || t.fromAccountId !== t.toAccountId, 'SAME_ACCOUNT');                  // RF-M6-04
 UpdateTransactionInput = z.object({ amount: Amount, accountId: z.string().uuid(), amountInNewCurrency: Amount,
+  fromAccountId: z.string().uuid(), toAccountId: z.string().uuid(),                  // solo transferencias (RF-M6-07)
   categoryId: z.string().uuid(), date: LocalDate, note: Note.nullable(), rateUsdBob: Rate, rateCurBob: Rate,
-  declaredRate: Rate, earmarkWithdrawals: EarmarkWithdrawals }).partial().strict();
+  declaredRate: Rate, earmarkWithdrawals: EarmarkWithdrawals }).partial().strict()
+  .refine(t => !t.fromAccountId || t.fromAccountId !== t.toAccountId, 'SAME_ACCOUNT');                      // RF-M6-04
 ListQuery = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), from: LocalDate.optional(), to: LocalDate.optional(),
   accountId: z.string().uuid().optional(), categoryId: z.string().uuid().optional(),
   kind: z.enum(['expense','income','transfer','adjustment']).optional(), q: z.string().trim().max(60).optional(),
@@ -1425,7 +1496,7 @@ TransactionDto = { id, kind, date, note, category?, entries: { accountId, amount
 | `GET /api/transactions` | Paginación por cursor `(date, created_at, id)`. La búsqueda `q` es por nota (`unaccent(lower(note)) LIKE unaccent(lower('%q%'))`) o, si `q` es un monto, por monto exacto en la moneda original. `categoryId` incluye las hijas. Incluye `dayNets` de los días de la página, sin RN-02 (RF-M6-12). | — |
 | `GET /api/transactions/summary` | Los mismos filtros → `{income, expense, net}` en la base, con las tasas guardadas, sin RN-02. | — |
 | `GET /api/transactions/:id` | Detalle con su comisión y el origen para "Ir a…". | `NOT_FOUND 404` |
-| `PATCH /api/transactions/:id` | Gana la última edición (EC-M6-01). La tasa se conserva aunque cambien la fecha o la cuenta; solo cambia si llega `rateUsdBob` o `rateCurBob` (RF-M3-10). Cambio a una cuenta de otra moneda: exige `amountInNewCurrency`, que el cliente precarga con la tasa guardada (RF-M6-07). Vinculados: monto, cuenta y fecha bloqueados (RF-M6-09). Recalcula los asientos con `BalanceGuard` y los hooks. | `NOT_FOUND 404` (EC-M6-02, RNF-09) · `LINKED_FIELD_LOCKED 422 {originType, originId}` · `NEGATIVE_BALANCE` · `EARMARK_CONFIRMATION_REQUIRED` · `AMOUNT_OUT_OF_RANGE 422` |
+| `PATCH /api/transactions/:id` | Gana la última edición (EC-M6-01). La tasa se conserva aunque cambien la fecha o la cuenta; solo cambia si llega `rateUsdBob` o `rateCurBob` (RF-M3-10). Cambio a una cuenta de otra moneda: exige `amountInNewCurrency`, que el cliente precarga con la tasa guardada (RF-M6-07). Transferencias: las cuentas cambian con `fromAccountId` y `toAccountId` (no con `accountId`), cada una a una cuenta activa de la misma moneda que la que reemplaza y distinta de la otra (RF-M6-04, RF-M6-07); la comisión acompaña la fecha y el origen, y su monto no se edita (RF-M6-05). Vinculados: monto, cuenta y fecha bloqueados (RF-M6-09). Recalcula los asientos con `BalanceGuard` y los hooks. | `NOT_FOUND 404` (EC-M6-02, RNF-09) · `LINKED_FIELD_LOCKED 422 {originType, originId}` · `NEGATIVE_BALANCE` · `EARMARK_CONFIRMATION_REQUIRED` · `AMOUNT_OUT_OF_RANGE 422` · `ACCOUNT_ARCHIVED 409` · `VALIDATION_ERROR 400` (`SAME_ACCOUNT`, `CURRENCY_MISMATCH` o un campo que no corresponde al tipo) |
 | `DELETE /api/transactions/:id` | `deleted_at = now()` en la transacción y su comisión (EC-M6-05), con `BalanceGuard` (quitar un ingreso puede dejar el efectivo en negativo, EC-M4-01) y los hooks → `undo_action(delete)`. Un vinculado (pago de deuda, transferencia de meta) solo se elimina desde su origen. | `LINKED_DELETE_FORBIDDEN 422` · `NEGATIVE_BALANCE` · `EARMARK_CONFIRMATION_REQUIRED` |
 | `POST /api/transactions/undo` | `UPDATE undo_action SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL AND expires_at > now()` (un solo uso). Revierte según el tipo: delete → `deleted_at = NULL`; create → eliminación; recategorize → restaura las categorías. Pasa por `BalanceGuard` y los hooks. | `UNDO_EXPIRED 410` · `NEGATIVE_BALANCE 422` (EC-M6-03) |
 | `POST /api/transactions/batch-delete` · `/batch-recategorize` | Por cada id: omite los vinculados (al eliminar), las transferencias, los ajustes y los de la categoría del sistema (al recategorizar), y los que violarían un negativo o un apartado (`BalanceGuard` en modo batch). Un solo `undo_action` (RF-M6-13). | `MIXED_KINDS 422` · `CATEGORY_KIND_MISMATCH 422` |

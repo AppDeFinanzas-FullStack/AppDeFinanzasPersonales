@@ -1,0 +1,132 @@
+{
+  "chip": {
+    "noRate": "$ —",
+    "manual": "Manual",
+    "label": "Dólar: {{value}}. Ver tipo de cambio",
+    "labelManual": "Dólar: {{value}}, valor manual. Ver tipo de cambio",
+    "labelNoRate": "Sin tipo de cambio del dólar. Ver tipo de cambio"
+  },
+  "kinds": {
+    "parallel_bid": "Paralelo compra",
+    "parallel_ask": "Paralelo venta",
+    "parallel_median": "Paralelo mediana",
+    "official": "Oficial",
+    "manual": "Tu valor manual"
+  },
+  "current": {
+    "title": "Tasas del dólar",
+    "noValue": "Sin dato",
+    "inUse": "En uso",
+    "source": "Fuente:",
+    "sources": {
+      "paralelo_bo": "paralelo.bo",
+      "bcb": "BCB",
+      "seed": "valor inicial"
+    },
+    "updated": {
+      "justNow": "actualizado hace un momento",
+      "minutes_one": "actualizado hace {{count}} minuto",
+      "minutes_other": "actualizado hace {{count}} minutos",
+      "hours_one": "actualizado hace {{count}} hora",
+      "hours_other": "actualizado hace {{count}} horas",
+      "days_one": "actualizado hace {{count}} día",
+      "days_other": "actualizado hace {{count}} días"
+    },
+    "loadError": "No se pudieron cargar las tasas. Revisa tu conexión y vuelve a abrir esta pantalla."
+  },
+  "gap": {
+    "title": "Brecha con el oficial",
+    "compared": "{{kind}} contra el oficial",
+    "pct": "{{value}} %",
+    "empty": "Todavía no se puede calcular la brecha: hace falta la tasa oficial y la tasa en uso."
+  },
+  "reference": {
+    "title": "Referencia del dólar",
+    "label": "Referencia para convertir",
+    "placeholder": "Elige una referencia",
+    "hint": "Se usa para convertir saldos y totales. Tus movimientos guardan su propio tipo de cambio.",
+    "manualHint": "Mientras tengas un valor manual activo, se usa ese valor en lugar de la referencia."
+  },
+  "manual": {
+    "title": "Valor manual",
+    "hint": "Úsalo si cambias dólares a otro valor. Tiene prioridad sobre cualquier referencia.",
+    "label": "Valor del dólar en Bs",
+    "submit": "Usar este valor",
+    "submitting": "Guardando…",
+    "clear": "Dejar de usar el valor manual",
+    "clearing": "Quitando…",
+    "errors": {
+      "value": "Escribe un valor mayor a 0 con hasta dos decimales, por ejemplo 10,25."
+    }
+  },
+  "banner": {
+    "sinceToday": "Usando tu valor manual ({{value}}) desde hoy",
+    "since_one": "Usando tu valor manual ({{value}}) desde hace {{count}} día",
+    "since_other": "Usando tu valor manual ({{value}}) desde hace {{count}} días",
+    "noSince": "Usando tu valor manual ({{value}})"
+  },
+  "history": {
+    "title": "Evolución: {{kind}}",
+    "rangesLabel": "Rango del gráfico",
+    "ranges": {
+      "7d": "7d",
+      "30d": "30d",
+      "90d": "90d",
+      "1y": "1a"
+    },
+    "alt": "{{kind}} en {{range}}: último valor {{value}} el {{date}}.",
+    "altEmpty": "{{kind}} en {{range}}: todavía no hay datos en este rango.",
+    "loadError": "No se pudo cargar la evolución. Revisa tu conexión y elige el rango de nuevo."
+  },
+  "currencies": {
+    "title": "Monedas agregadas",
+    "empty": "Todavía no agregaste monedas. Usa Agregar moneda para llevar cuentas en otra moneda.",
+    "loadError": "No se pudieron cargar tus monedas. Revisa tu conexión y vuelve a abrir esta pantalla.",
+    "inactive": "Desactivada",
+    "deactivate": "Desactivar {{code}}",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "saving": "Guardando…",
+    "fields": {
+      "code": "Código",
+      "codeHint": "3 letras, por ejemplo EUR.",
+      "symbol": "Símbolo",
+      "rate": "Valor en Bs"
+    },
+    "add": {
+      "open": "Agregar moneda",
+      "title": "Agregar moneda",
+      "description": "Indica cuántos bolivianos vale una unidad de la moneda.",
+      "submit": "Agregar",
+      "submitting": "Agregando…",
+      "taken": "Ya tienes la moneda {{code}}. Si la desactivaste, puedes reactivarla con este valor.",
+      "reactivate": "Reactivar {{code}} con este valor"
+    },
+    "edit": {
+      "open": "Editar tasa de {{code}}",
+      "title": "Tasa de {{code}}",
+      "description": "Los movimientos ya registrados conservan su tasa.",
+      "submit": "Guardar"
+    },
+    "activate": {
+      "open": "Reactivar {{code}}",
+      "title": "Reactivar {{code}}",
+      "description": "Para reactivarla, indica su valor actual en Bs.",
+      "submit": "Reactivar"
+    },
+    "usedBy": {
+      "accounts": "cuentas",
+      "goals": "metas",
+      "budgets": "presupuestos",
+      "debts": "deudas",
+      "rules": "reglas"
+    },
+    "errors": {
+      "code": "Escribe un código de 3 letras, por ejemplo EUR.",
+      "symbol": "Escribe un símbolo de 1 a 5 caracteres, por ejemplo €.",
+      "rate": "Escribe un valor en Bs con hasta dos decimales, por ejemplo 11,20.",
+      "belowMinimum": "No se admiten monedas que valgan menos de Bs 0,01. Escribe un valor de 0,01 o más.",
+      "inUseBy": "No se puede desactivar: la usan tus {{modules}}. Deja de usarla ahí y vuelve a intentarlo."
+    }
+  }
+}

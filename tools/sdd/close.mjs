@@ -25,12 +25,16 @@ function args() {
 }
 
 const opts = args();
+// Modo rápido (skill fast-task): sin subagentes, sin gates ni auditoría. El commit lleva "Audit: skipped".
+const fast = opts.mode === 'fast';
 const state = loadState();
 if (!state) fail('No hay ninguna tarea activa.');
-if (state.phase !== 'commit') fail(`La tarea está en la fase "${state.phase}". Pasa a "commit" con state.mjs después de la auditoría aprobada.`);
-if (verdicts(state.task).at(-1)?.verdict !== 'APPROVED') fail('La última auditoría no está aprobada.');
-const gateOk = state.verificationOnly ? state.gates.A.passed : state.gates.B.passed;
-if (!gateOk) fail('El gate de la última etapa no está aprobado.');
+if (!fast) {
+  if (state.phase !== 'commit') fail(`La tarea está en la fase "${state.phase}". Pasa a "commit" con state.mjs después de la auditoría aprobada.`);
+  if (verdicts(state.task).at(-1)?.verdict !== 'APPROVED') fail('La última auditoría no está aprobada.');
+  const gateOk = state.verificationOnly ? state.gates.A.passed : state.gates.B.passed;
+  if (!gateOk) fail('El gate de la última etapa no está aprobado.');
+}
 if (!TYPES.includes(opts.type)) fail(`--type debe ser uno de: ${TYPES.join(', ')}.`);
 if (!opts.scope || !/^[a-z0-9-]+$/.test(opts.scope)) fail('--scope es obligatorio (minúsculas, números y guiones).');
 if (!opts.summary) fail('--summary es obligatorio.');
@@ -55,7 +59,7 @@ const message = [
   wrapText(opts.body ?? ''),
   '',
   `Task: ${state.task}`,
-  'Audit: approved',
+  fast ? 'Audit: skipped' : 'Audit: approved',
   ...opts.trailer,
 ].join('\n').replace(/\n{3,}/g, '\n\n');
 const msgFile = join(taskDir(state.task), 'commit-msg.txt');
