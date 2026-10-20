@@ -187,6 +187,16 @@ El texto lo arma `lib/brief.mjs`, una función pura con sus pruebas. El hook sol
 - **Un PR a `develop`** al cerrar la última tarea de la fase. Antes corre el `pre-push`, y el PR se fusiona con CI en verde.
 - Corregir `tasks.md`, `plan.md` o `spec.md` es un commit `docs:` aparte, nunca mezclado con código (constitución §6).
 
+### 5.1 Ramas de grupo
+
+Para trabajar en paralelo una cadena de fases, varias fases pueden repartirse entre **ramas de grupo**, definidas en [`tools/sdd/branch-groups.json`](../tools/sdd/branch-groups.json). Cada grupo tiene su rama y la lista de sus tareas (con rangos como `TASK-068..TASK-076`). Una tarea está como mucho en un grupo; las que no están en ninguno siguen la regla de una rama por fase.
+
+- **Preflight:** una tarea de un grupo se hace en la rama del grupo. Desde `develop`, el preflight cambia a esa rama: la local, la de `origin` (con seguimiento) o, si no existe, una nueva. Una tarea que ya estaba a medio hacer se retoma en la rama donde empezó.
+- **Dependencias entre grupos:** el preflight sigue exigiendo que las dependencias estén `[x]` en el `tasks.md` de la rama. Si una tarea depende de otra que se cerró en el otro grupo, se trae esa rama con un merge (`git merge origin/<rama-del-otro-grupo>`).
+- **Cierre y PR:** `close.mjs` responde `lastOfPhase: true` cuando no quedan tareas abiertas en la rama (todo el grupo), y ahí se abre el PR a `develop`. Se puede abrir antes un PR parcial si el otro grupo necesita algo con urgencia.
+- **Resumen de sesión:** en una rama de grupo, el resumen muestra el avance del grupo y solo sus tareas disponibles.
+- Cambiar el reparto es editar `branch-groups.json` en un commit `chore(sdd):` aparte y avisar al equipo.
+
 ---
 
 ## 6. Formato de `tasks.md` que leen los scripts

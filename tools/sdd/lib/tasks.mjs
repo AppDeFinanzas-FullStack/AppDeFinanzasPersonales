@@ -127,6 +127,28 @@ export function phaseBranch(phase) {
   return `feature/${String(phase.number).padStart(2, '0')}-${words.join('-')}`;
 }
 
+export const BRANCH_GROUPS = 'tools/sdd/branch-groups.json';
+
+/** Expande "TASK-068..TASK-076" a cada ID del rango; un ID suelto queda igual. */
+export function expandTaskRange(entry) {
+  const m = entry.match(/^TASK-(\d{3})\.\.TASK-(\d{3})$/);
+  if (!m) return [entry];
+  const ids = [];
+  for (let n = Number(m[1]); n <= Number(m[2]); n++) ids.push(`TASK-${String(n).padStart(3, '0')}`);
+  return ids;
+}
+
+/** Grupos de ramas de varias fases (protocolo §5.1), con sus tareas expandidas. Sin archivo, ninguno. */
+export function loadBranchGroups() {
+  if (!existsSync(abs(BRANCH_GROUPS))) return [];
+  return JSON.parse(readText(BRANCH_GROUPS)).groups.map((g) => ({ ...g, tasks: g.tasks.flatMap(expandTaskRange) }));
+}
+
+/** Rama donde se hace una tarea: la de su grupo, si está en uno, o la de su fase. */
+export function taskBranch(task, groups = loadBranchGroups()) {
+  return groups.find((g) => g.tasks.includes(task.id))?.branch ?? phaseBranch(task.phase);
+}
+
 /** Marca o desmarca una tarea en el texto de tasks.md. */
 export function setDone(text, id, done) {
   const re = new RegExp(`^- \\[( |x)\\] \\*\\*\`${id}\``, 'm');
