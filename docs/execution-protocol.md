@@ -1,6 +1,6 @@
 # Protocolo de Ejecución de Tareas con Agentes
 
-**Versión:** 1.2 · **Fecha:** 2026-10-19
+**Versión:** 1.3 · **Fecha:** 2026-10-20
 **Deriva de:** `docs/constitution.md` §8 · **Aplica a:** toda feature `NNN-nombre/`
 
 Este documento es el detalle operativo de la constitución §8: cómo se implementa una tarea de `tasks.md` con la skill orquestadora, sus subagentes y sus hooks. `tasks.md` no menciona nada de esto; solo lista tareas.
@@ -12,11 +12,12 @@ Este documento es el detalle operativo de la constitución §8: cómo se impleme
 | Pieza | Ruta | Qué es |
 |---|---|---|
 | Skill orquestadora | `.claude/skills/implement-task/SKILL.md` | `/implement-task TASK-XXX`. La corre la sesión principal. Es la única que hace commit. |
+| Skill de coordinación | `.claude/skills/coordinar-fases/SKILL.md` | `/coordinar-fases`: hace en bucle las tareas asignadas a la persona en las ramas de grupo, con `/implement-task` (§5.2). |
 | Subagentes | `.claude/agents/test-author.md` · `implementer.md` · `sdd-auditor.md` | Una etapa del pipeline cada uno (§3). |
 | Hook de agente | `.claude/settings.json` → `SubagentStop` | Ejecuta `tools/sdd/gate.mjs` (§4.1), solo para `test-author`, `implementer` y `sdd-auditor`. |
 | Hook de sesión | `.claude/settings.json` → `SessionStart` | Ejecuta `tools/sdd/session-brief.mjs` (§4.3): al abrir Claude, un resumen de la rama, la tarea activa, el avance y las tareas disponibles. |
 | Hook de git | `.githooks/pre-push` | Ejecuta `tools/sdd/pre-push.mjs` (§4.2). Se activa con `git config core.hooksPath .githooks`. |
-| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `check` (corre los controles del gate sin gastar intentos), `close` (marca `[x]` y hace el commit), `session-brief` (resumen al abrir una sesión) y `pre-push`. Los controles de los gates viven en `lib/gates.mjs` y los comparten `gate` y `check`. Los usan los hooks, los subagentes y la skill. Sus pruebas: `node --test tools/sdd/test/sdd.test.mjs`. |
+| Scripts | `tools/sdd/*.mjs` | Node, sin dependencias: `task-parse`, `preflight`, `context`, `state` (único punto de cambio del estado), `audit` (registra veredictos), `gate`, `check` (corre los controles del gate sin gastar intentos), `close` (marca `[x]` y hace el commit), `session-brief` (resumen al abrir una sesión), `coordinate` (qué tarea le toca a cada persona, §5.2) y `pre-push`. Los controles de los gates viven en `lib/gates.mjs` y los comparten `gate` y `check`. Los usan los hooks, los subagentes y la skill. Sus pruebas: `node --test tools/sdd/test/*.test.mjs`. |
 | Estado de ejecución | `.claude/run/` (ignorado por git) | `active-task.json` y una carpeta por tarea (§2.2). |
 
 ---
@@ -196,6 +197,19 @@ Para trabajar en paralelo una cadena de fases, varias fases pueden repartirse en
 - **Cierre y PR:** `close.mjs` responde `lastOfPhase: true` cuando no quedan tareas abiertas en la rama (todo el grupo), y ahí se abre el PR a `develop`. Se puede abrir antes un PR parcial si el otro grupo necesita algo con urgencia.
 - **Resumen de sesión:** en una rama de grupo, el resumen muestra el avance del grupo y solo sus tareas disponibles.
 - Cambiar el reparto es editar `branch-groups.json` en un commit `chore(sdd):` aparte y avisar al equipo.
+
+### 5.2 Asignaciones y coordinación entre personas
+
+En las ramas de grupo trabajan varias personas a la vez, cada una con su Claude Code. Cada tarea tiene una sola persona, y nadie elige tareas: las asigna la tabla de [`docs/asignaciones.md`](asignaciones.md) (`| TASK-NNN..TASK-MMM | @usuario |`, con el usuario de GitHub). Una persona puede tener tareas en las dos ramas de grupo.
+
+- **Qué me toca:** `node tools/sdd/coordinate.mjs next` hace `git fetch` y decide con el `tasks.md` de cada rama de grupo y de `develop` en `origin`: una tarea está cerrada si está `[x]` en alguna. Devuelve la primera tarea propia con todas sus dependencias cerradas, su rama y las ramas que hay que traer con un merge (`implement`); o qué tareas propias esperan a cuáles, de quién y en qué rama (`wait`); o que una espera a una tarea sin persona (`stuck`). La lógica es `lib/coordination.mjs`, una función pura con sus pruebas.
+- **Quién soy:** `git config sdd.member <usuario-de-github>`, una vez por copia. Si no está, el script usa el usuario de `gh`.
+- **La señal es el push:** una tarea está hecha para los demás cuando su `[x]` llega a `origin`. Por eso `/coordinar-fases` sube cada tarea apenas `close.mjs` hace el commit, y si el push se rechaza trae los cambios con un merge (nunca rebase) y reintenta.
+- **Esperar sin gastar:** `node tools/sdd/coordinate.mjs wait` repite el `fetch` cada 3 minutos y termina cuando la acción deja de ser `wait` (o a las 12 horas). La skill lo corre en segundo plano y retoma cuando termina.
+- **Estado del equipo:** `node tools/sdd/coordinate.mjs status` dice qué le toca a cada persona y qué tareas abiertas de un grupo no tienen a nadie.
+- **Paradas:** si `/implement-task` se detiene, un merge choca o el `pre-push` falla, `/coordinar-fases` se detiene y la persona decide. Quien espera esa tarea sigue esperando hasta que se suba.
+- **Cambiar el reparto:** las asignaciones se leen de la copia local, que `/coordinar-fases` actualiza con un `pull` antes de cada tarea. Se cambian con un commit `chore(sdd):` aparte que se sube a las dos ramas de grupo, avisando al equipo.
+- **Permisos:** `git switch`, `pull`, `merge` y `push` piden permiso en el modo normal. Para que el bucle no se frene, cada persona elige su modo de permisos (por ejemplo, el automático).
 
 ---
 
