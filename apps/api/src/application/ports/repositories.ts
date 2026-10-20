@@ -96,8 +96,29 @@ export interface NewNotificationPreference {
   weekdays: number[] | null;
 }
 
+export interface NewUnconfirmedUser {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+}
+
 /** Writes the initial rows of a new user (plan §3.4, §4.5.3, §4.15.1). */
 export interface UserRepository {
+  /** The user with that normalized email, or `null`. */
+  findByEmail(email: string): Promise<{ id: string; emailVerified: boolean } | null>;
+  /**
+   * Creates an unconfirmed user with its credential, accepting the terms now. Returns `false`
+   * when the email is already taken (unique index), without failing the transaction.
+   */
+  createUnconfirmed(user: NewUnconfirmedUser): Promise<boolean>;
+  /**
+   * Replaces the name and the password hash of the unconfirmed user with that email and restarts
+   * its 7 day period. Returns the user id, or `null` when there is no unconfirmed user.
+   */
+  replaceUnconfirmed(email: string, name: string, passwordHash: string): Promise<string | null>;
+  /** `true` when no `register_attempt` went out for that email in the last hour; records it. Atomic. */
+  claimRegisterAttempt(emailHmac: string): Promise<boolean>;
   /** Creates BOB and USD, active and marked as system (RF-M3-01). */
   createSystemCurrencies(userId: string): Promise<void>;
   /** Creates `user_settings` with the column defaults and the given dashboard blocks. */

@@ -834,7 +834,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-05`: se crean todas las categorías precargadas y las del sistema.
     - `RF-M15-02`: las preferencias quedan activas salvo `log_day` (21:00) y `goal_progress`.
 
-- [ ] **`TASK-054`: Registro de usuario (`signUp`)**
+- [x] **`TASK-054`: Registro de usuario (`signUp`)**
   - **Dependencias:** Requiere TASK-047, TASK-049, TASK-050, TASK-051, TASK-053
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/auth/sign-up`), plan §4.1.3; RF-M1-01, RF-M1-03, RF-M1-06, RF-M1-17, EC-M1-03, EC-M1-09, RNF-15
   - **Archivos en Alcance:**

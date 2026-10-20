@@ -2,6 +2,7 @@ import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
 import { createOutboxSend } from '../application/jobs/outbox.js';
+import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -10,6 +11,7 @@ import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
+import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
 import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
 import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
@@ -39,6 +41,7 @@ export interface Container {
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
   readonly jobs: Jobs;
+  readonly authService: AuthService;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -81,6 +84,12 @@ export const buildContainer = (env: Env): Container => {
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env), clock: systemClock }),
   );
+  const authService = createAuthService({
+    uow,
+    auth: createBetterAuthGateway({ prisma, secret: env.AUTH_SECRET }),
+    hmacSecret: env.HMAC_SECRET,
+    webOrigin: env.WEB_ORIGIN,
+  });
   return {
     env,
     prisma,
@@ -88,6 +97,7 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
+    authService,
   };
 };
 

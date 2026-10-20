@@ -1,9 +1,59 @@
+import { uuidv7 } from 'uuidv7';
+
 import type { UserRepository } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 /** Prisma implementation of the initial rows of a new user, bound to the transaction `tx`. */
 export function createUserRepository(tx: TransactionClient): UserRepository {
   return {
+    async findByEmail(email) {
+      const rows = await tx.$queryRaw<{ id: string; emailVerified: boolean }[]>`
+        SELECT id::text AS id, email_verified AS "emailVerified" FROM auth_user WHERE email = ${email} FOR UPDATE`;
+      return rows[0] ?? null;
+    },
+
+    async createUnconfirmed(user) {
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        INSERT INTO auth_user (id, name, email, terms_accepted_at, registered_at)
+        VALUES (${user.id}::uuid, ${user.name}, ${user.email}, now(), now())
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id::text AS id`;
+      if (rows.length === 0) {
+        return false;
+      }
+      await tx.$executeRaw`
+        INSERT INTO auth_account (id, user_id, account_id, provider_id, password)
+        VALUES (${uuidv7()}::uuid, ${user.id}::uuid, ${user.id}, 'credential', ${user.passwordHash})`;
+      return true;
+    },
+
+    async replaceUnconfirmed(email, name, passwordHash) {
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE auth_user SET name = ${name}, registered_at = now()
+         WHERE email = ${email} AND NOT email_verified
+        RETURNING id::text AS id`;
+      const id = rows[0]?.id;
+      if (id === undefined) {
+        return null;
+      }
+      await tx.$executeRaw`
+        UPDATE auth_account SET password = ${passwordHash}
+         WHERE user_id = ${id}::uuid AND provider_id = 'credential'`;
+      return id;
+    },
+
+    async claimRegisterAttempt(emailHmac) {
+      const rows = await tx.$queryRaw<{ id: bigint }[]>`
+        INSERT INTO email_send_log (email_hmac, kind)
+        SELECT ${emailHmac}, 'register_attempt'::email_kind
+         WHERE NOT EXISTS (
+           SELECT 1 FROM email_send_log
+            WHERE email_hmac = ${emailHmac} AND kind = 'register_attempt'::email_kind
+              AND sent_at > now() - interval '1 hour')
+        RETURNING id`;
+      return rows.length > 0;
+    },
+
     async createSystemCurrencies(userId) {
       await tx.$executeRaw`
         INSERT INTO currency (user_id, code, symbol, is_system, status)
