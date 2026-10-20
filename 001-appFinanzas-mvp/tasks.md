@@ -1924,8 +1924,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.6.2 (`DELETE`, `undo`), plan §4.6.3; RF-M6-08, RF-M7-07, EC-M6-03, EC-M6-05, EC-M4-01
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
     - `apps/api/test/integration/transactions-delete-undo.test.ts`
-  - **Especificación de Implementación:** `delete` pone `deleted_at` en la transacción y su comisión, pasa por `BalanceGuard` y los *hooks* y crea un `undo_action(delete)`. Un vinculado de deuda o de meta da `LINKED_DELETE_FORBIDDEN`. `undo(token)` consume el token y revierte según el tipo: `delete` → restaura; `create` → elimina; `recategorize` → restaura las categorías. Pasa por `BalanceGuard`.
+  - **Especificación de Implementación:** `LedgerRepository` gana `softDelete(ids)` y `restore(ids)`, que ponen o quitan `deleted_at` en los movimientos del usuario que estén en el estado contrario y devuelven los ids que cambiaron, y una forma de leer con `get` un movimiento eliminado, para el `undo`. `delete` pone `deleted_at` en la transacción y su comisión, pasa por `BalanceGuard` y los *hooks* y crea un `undo_action(delete)`. Un vinculado de deuda o de meta da `LINKED_DELETE_FORBIDDEN`. `undo(token)` consume el token y revierte según el tipo: `delete` → restaura; `create` → elimina; `recategorize` → restaura las categorías. Pasa por `BalanceGuard`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Eliminar y deshacer": el saldo sube 35 al eliminar y el `undo` antes de 10 s lo restaura.
     - Un `undo` a los 13 s da `UNDO_EXPIRED`.
