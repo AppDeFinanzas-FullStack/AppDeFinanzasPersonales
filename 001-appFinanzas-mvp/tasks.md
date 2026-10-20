@@ -1496,7 +1496,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: `UpdateAccountInput` rechaza `initialBalance` e `initialBalanceDate`.
     - `RF-M4-08`: el día de corte o de pago fuera de 1–31 es inválido.
 
-- [ ] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
+- [x] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.4.2 (cambio de tipo), plan §4.4.3; RN-01, RN-12, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
