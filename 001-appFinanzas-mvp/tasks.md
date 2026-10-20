@@ -1109,7 +1109,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
 
-- [ ] **`TASK-071`: Web: guardas de rutas**
+- [x] **`TASK-071`: Web: guardas de rutas**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.2.4 (guardas), ADR-18; RF-M2-03, RF-M1-04
   - **Archivos en Alcance:**
