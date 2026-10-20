@@ -1,0 +1,26 @@
+{
+  "primaryLabel": "Navegación principal",
+  "sidebarLabel": "Navegación lateral",
+  "collapse": "Contraer barra lateral",
+  "expand": "Expandir barra lateral",
+  "sections": {
+    "plan": "Planificar",
+    "organize": "Organizar",
+    "account": "Cuenta"
+  },
+  "items": {
+    "home": "Inicio",
+    "movements": "Movimientos",
+    "register": "Registrar",
+    "accounts": "Cuentas",
+    "more": "Más",
+    "budgets": "Presupuestos",
+    "goals": "Metas de ahorro",
+    "debts": "Deudas y préstamos",
+    "recurring": "Recurrentes",
+    "categories": "Categorías",
+    "exchangeRate": "Tipo de cambio",
+    "profile": "Perfil",
+    "settings": "Ajustes"
+  }
+}

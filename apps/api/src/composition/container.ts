@@ -13,6 +13,10 @@ import {
   type MeStore,
 } from '../application/services/me.service.js';
 import { createFxJobs } from '../application/jobs/fx.js';
+import {
+  createSettingsService,
+  type SettingsService,
+} from '../application/services/settings.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -41,6 +45,7 @@ import { createEmailLinkRepository } from '../infrastructure/persistence/reposit
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createUserSettingsRepository } from '../infrastructure/persistence/repositories/user-settings.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
 import { createMarketRateRepository } from '../infrastructure/persistence/repositories/market-rate.repository.js';
@@ -73,6 +78,7 @@ export interface Container {
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  readonly settingsService: SettingsService;
 
   /** Test-support routes (plan §1.5); `null` unless `INTEGRATIONS=fake`. */
   readonly testSupport: TestSupportControllerDeps | null;
@@ -110,6 +116,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   marketRates: createMarketRateRepository(tx),
   currencies: createCurrencyRepository(tx, userId ?? NO_USER),
   userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
+  userSettings: createUserSettingsRepository(tx),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -241,6 +248,7 @@ export const buildContainer = (env: Env): Container => {
     webOrigin: env.WEB_ORIGIN,
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
+  const settingsService = createSettingsService({ uow });
 
   const testSupport: TestSupportControllerDeps | null =
     fakeEmail === null
@@ -265,6 +273,7 @@ export const buildContainer = (env: Env): Container => {
     auth,
     authService,
     meService,
+    settingsService,
     readiness: createReadinessProbe(prisma),
   };
 };
@@ -287,6 +296,7 @@ export const createApp = (container: Container): Express => {
       session,
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
+    settings: { settingsService: container.settingsService, session },
     readiness: container.readiness,
   });
 };
