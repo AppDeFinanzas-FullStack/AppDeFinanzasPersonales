@@ -2243,7 +2243,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 13 — M8 Inicio (V1.0)
 
-- [ ] **`TASK-143`: Contratos de M8**
+- [x] **`TASK-143`: Contratos de M8**
   - **Dependencias:** Requiere TASK-096, TASK-118
   - **Trazabilidad SDD:** plan §4.8.1; RF-M8-01, RF-M8-03
   - **Archivos en Alcance:**
