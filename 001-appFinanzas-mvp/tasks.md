@@ -2285,7 +2285,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-01`: el rango empieza en el mes del primer saldo inicial y no incluye meses futuros.
     - `RN-12`: un gasto anterior al saldo inicial cuenta en los gastos del mes.
 
-- [ ] **`TASK-146`: `DashboardService`: bloques y endpoint `/api/dashboard`**
+- [x] **`TASK-146`: `DashboardService`: bloques y endpoint `/api/dashboard`**
   - **Dependencias:** Requiere TASK-145
   - **Trazabilidad SDD:** plan §4.8.2 (`GET /api/dashboard`), plan §4.8.3; RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, RF-M5-03, RF-M5-09, EC-M8-04, RNF-14
   - **Archivos en Alcance:**
