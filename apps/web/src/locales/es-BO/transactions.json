@@ -1,0 +1,50 @@
+{
+  "title": "Movimientos",
+  "month": {
+    "previous": "Mes anterior",
+    "next": "Mes siguiente"
+  },
+  "filters": {
+    "more": "Filtros",
+    "search": "Buscar",
+    "searchPlaceholder": "Nota o monto",
+    "from": "Desde",
+    "to": "Hasta",
+    "account": "Cuenta",
+    "allAccounts": "Todas las cuentas",
+    "kind": "Tipo",
+    "allKinds": "Todos los tipos",
+    "category": "Filtrado por una categoría",
+    "clearCategory": "Quitar el filtro de categoría",
+    "clearRange": "Volver al mes",
+    "clear": "Limpiar filtros"
+  },
+  "kind": {
+    "expense": "Gastos",
+    "income": "Ingresos",
+    "transfer": "Transferencias",
+    "adjustment": "Ajustes"
+  },
+  "totals": {
+    "income": "Ingresos",
+    "expense": "Gastos",
+    "net": "Neto"
+  },
+  "day": {
+    "net": "Neto del día"
+  },
+  "row": {
+    "transfer": "Transferencia",
+    "adjustment": "Ajuste de saldo",
+    "transferAccounts": "{{from}} → {{to}}",
+    "beforeInitialBalance": "Anterior al saldo inicial",
+    "recurring": "De recurrente: {{name}}",
+    "inBase": "≈ {{amount}}",
+    "noRate": "Sin tasa para convertir"
+  },
+  "empty": "No hay movimientos con estos filtros. Cambia el mes o limpia los filtros.",
+  "loadError": "No se pudieron cargar los movimientos. Revisa tu conexión e inténtalo de nuevo.",
+  "retry": "Reintentar",
+  "loadMore": "Cargar más",
+  "loading": "Cargando movimientos…"
+}

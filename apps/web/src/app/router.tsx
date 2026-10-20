@@ -5,6 +5,7 @@ import { accountsRoutes } from '@/features/accounts/routes';
 import { authRoutes } from '@/features/auth/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
+import { transactionsRoutes } from '@/features/transactions/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
 import { AppShell } from './layout/app-shell';
@@ -54,7 +55,7 @@ export const router = createBrowserRouter([
                 element: <AppShell />,
                 children: [
                   { index: true },
-                  { path: 'movimientos' },
+                  ...transactionsRoutes,
                   { path: 'registrar' },
                   ...accountsRoutes,
                   { path: 'mas', element: <MoreMenu /> },

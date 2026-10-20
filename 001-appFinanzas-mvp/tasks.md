@@ -2004,7 +2004,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
     - Los `undo_action` vencidos desaparecen.
 
-- [ ] **`TASK-129`: Web: lista de movimientos**
+- [x] **`TASK-129`: Web: lista de movimientos**
   - **Dependencias:** Requiere TASK-073, TASK-127
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos`), ADR-16; RF-M6-02, RF-M6-10, RF-M6-12, RF-M4-03, RF-M9-03, RF-M2-04
   - **Archivos en Alcance:**
