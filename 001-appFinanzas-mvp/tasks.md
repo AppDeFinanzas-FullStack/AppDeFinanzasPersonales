@@ -1785,7 +1785,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-09` / `RN-11`: el gasto por categoría de un mes pasado cambia tras la fusión.
     - Repetir la fusión da `CATEGORY_NOT_FOUND`.
 
-- [ ] **`TASK-115`: Rutas HTTP de categorías**
+- [x] **`TASK-115`: Rutas HTTP de categorías**
   - **Dependencias:** Requiere TASK-113, TASK-114
   - **Trazabilidad SDD:** plan §4.5.2 (tabla de endpoints); RF-M5-05, RNF-14
   - **Archivos en Alcance:**
