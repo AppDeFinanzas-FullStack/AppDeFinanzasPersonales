@@ -728,7 +728,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 6 — M1 Acceso y cuenta de usuario (V1.0)
 
-- [ ] **`TASK-047`: Contratos de M1**
+- [x] **`TASK-047`: Contratos de M1**
   - **Dependencias:** Requiere TASK-021, TASK-023
   - **Trazabilidad SDD:** plan §4.1.1; RF-M1-01, RF-M1-02, RF-M1-11, RF-M1-13, EC-M1-08
   - **Archivos en Alcance:**
@@ -743,7 +743,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-13`: `UpdateMeInput` rechaza el campo `email`.
     - `EC-M1-08`: `DeleteAccountInput` solo acepta exactamente "ELIMINAR".
 
-- [ ] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
+- [x] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §1.4 (*fakes* de integraciones), plan §1.5 (buzón de prueba), ADR-08; RF-M1-16, RNF-25
   - **Archivos en Alcance:**
@@ -752,13 +752,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/infrastructure/integrations/resend.fake.ts`
     - `apps/api/src/infrastructure/integrations/email-templates.ts`
     - `apps/api/test/unit/email-templates.test.ts`
-  - **Especificación de Implementación:** `EmailGateway.send({ to, kind, payload })`. El adaptador real usa la API de Resend. El *fake* guarda los correos en memoria y permite leerlos por destinatario. Plantillas en español para los 6 tipos de `email_kind`: llevan solo el enlace o los datos imprescindibles, nunca contraseñas ni montos.
+  - **Especificación de Implementación:** `EmailGateway.send({ to, kind, payload })`. El adaptador real usa la API de Resend. El *fake* guarda los correos en memoria y permite leerlos por destinatario. Plantillas en español para los 6 tipos de `email_kind`: llevan solo el enlace o los datos imprescindibles, nunca contraseñas ni montos. Interfaz de `email-templates.ts`: `EMAIL_KINDS` (`as const`, los 6 tipos), `type EmailKind`, `emailTemplates: Record<EmailKind, (payload: EmailPayload) => RenderedEmail>` con exactamente 6 claves y `renderEmail(kind, payload): RenderedEmail`, donde `RenderedEmail = { subject, text, html }` y `EmailPayload = { link?: string }`. Solo `confirm` y `reset` usan `payload.link`; los otros cuatro no usan `payload`. Las plantillas ignoran cualquier otro campo del `payload`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-16`: hay exactamente una plantilla por cada tipo de `email_kind`.
     - `RNF-25`: existen las plantillas de intentos fallidos, cambio de contraseña y eliminación de la cuenta.
     - Ninguna plantilla incluye la contraseña ni el token en texto, fuera del enlace.
 
-- [ ] **`TASK-049`: Bandeja de salida de correos y job `outbox.send`**
+- [x] **`TASK-049`: Bandeja de salida de correos y job `outbox.send`**
   - **Dependencias:** Requiere TASK-038, TASK-048
   - **Trazabilidad SDD:** plan §3.3 (`email_outbox`), plan §4.1.3 (correo caído), plan §4.0 (tick); EC-M1-07, RNF-22
   - **Archivos en Alcance:**
@@ -772,7 +772,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-07`: con el *fake* fallando y un `Clock` falso, los reintentos siguen la secuencia 1, 5, 15 y 60 minutos.
     - `RNF-22`: un correo enviado borra su fila; uno pendiente sigue reintentándose.
 
-- [ ] **`TASK-050`: `AuthGateway` sobre Better Auth (prueba técnica S-1)**
+- [x] **`TASK-050`: `AuthGateway` sobre Better Auth (prueba técnica S-1)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** ADR-08, ADR-02, plan §1.3 (S-1), plan §3.3; RF-M1-07
   - **Archivos en Alcance:**
@@ -785,71 +785,80 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-07`: dos sesiones del mismo usuario coexisten.
     - `revokeSessions` con `exceptSessionId` conserva solo esa sesión.
 
-- [ ] **`TASK-051`: Enlaces de confirmación y recuperación (`email-links`)**
+- [x] **`TASK-051`: Enlaces de confirmación y recuperación (`email-links`)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §4.1.3 (enlace de un solo uso), plan §3.9 (tokens como SHA-256); RF-M1-05, RF-M1-09, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/email-link.repository.ts`
     - `apps/api/src/application/shared/email-links.ts`
+    - `apps/api/src/infrastructure/persistence/unit-of-work.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/email-links.test.ts`
-  - **Especificación de Implementación:** `create(tx, userId, purpose)` invalida el enlace vigente, genera un token aleatorio de 32 bytes y guarda solo su SHA-256, con 24 h de vigencia para la confirmación y 1 h para la recuperación. `consume(tx, token, purpose)` hace el `UPDATE … RETURNING` condicionado de plan §4.1.3; si no actualiza ninguna fila, devuelve el motivo.
+  - **Especificación de Implementación:** `createEmailLinkRepository(tx)` queda ligado a la transacción y se expone como `repos.emailLinks`, igual que el resto de repositorios. `create(userId, purpose)` invalida el enlace vigente, genera un token aleatorio de 32 bytes y guarda solo su SHA-256, con 24 h de vigencia para la confirmación y 1 h para la recuperación. `consume(token, purpose)` hace el `UPDATE … RETURNING` condicionado de plan §4.1.3; si no actualiza ninguna fila, devuelve el motivo. Para que cada repositorio nuevo no rompa a los que arman solo parte del conjunto, `BuildRepositories` devuelve `Partial<Repositories>` y `UnitOfWork.run` entrega `Repositories` completo a la capa de aplicación; `container.ts` construye también `emailLinks`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-09`: un enlace sirve una sola vez; dos consumos simultáneos dan un solo éxito.
     - `RF-M1-05`: crear un enlace nuevo invalida el anterior.
     - `EC-M1-01`: un enlace vencido o invalidado da `LINK_INVALID`.
     - `EC-M1-02`: un enlace ya usado da `LINK_ALREADY_USED`.
 
-- [ ] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
+- [x] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §4.1.3 (espera tras intentos fallidos), plan §3.9 (HMAC); RF-M1-08, EC-M1-04, EC-M1-12
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/login-throttle.repository.ts`
     - `apps/api/src/application/shared/login-throttle.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/login-throttle.test.ts`
-  - **Especificación de Implementación:** Clave HMAC-SHA256 del correo normalizado. `check(email)` devuelve los segundos que faltan. `fail(email)` hace el `INSERT … ON CONFLICT` atómico de plan §4.1.3 y fija `locked_until`. `reset(email)`. `shouldAlert(email)` permite como máximo una alerta por hora.
+  - **Especificación de Implementación:** `createLoginThrottleRepository(tx)` queda ligado a la transacción y se expone como `repos.loginThrottle`; `container.ts` lo construye en `buildRepositories`. `createLoginThrottle({ uow, hmacSecret })` devuelve `check`, `fail`, `reset` y `shouldAlert`. Clave HMAC-SHA256 del correo normalizado. `check(email)` devuelve los segundos que faltan. `fail(email)` hace el `INSERT … ON CONFLICT` atómico de plan §4.1.3 y fija `locked_until`. `reset(email)`. `shouldAlert(email)` permite como máximo una alerta por hora.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-08`: 5 fallos dan 60 s de espera, 10 fallos dan 15 min, y cada fallo posterior vuelve a dar 15 min.
     - `RF-M1-08`: el contador se reinicia con un éxito o tras 1 h sin intentos, y la alerta sale como máximo una vez por hora.
     - `EC-M1-04`: durante la espera, `check` informa el tiempo restante.
     - `EC-M1-12`: un correo sin cuenta recibe la misma espera.
 
-- [ ] **`TASK-053`: Datos iniciales de un usuario nuevo (`user-bootstrap`)**
+- [x] **`TASK-053`: Datos iniciales de un usuario nuevo (`user-bootstrap`)**
   - **Dependencias:** Requiere TASK-025, TASK-033
   - **Trazabilidad SDD:** plan §4.5.3 (seed), plan §4.15.1 (valores por defecto), plan §3.4; RF-M3-01, RF-M5-05, RF-M15-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/shared/user-bootstrap.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/user.factory.ts`
     - `apps/api/test/integration/user-bootstrap.test.ts`
-  - **Especificación de Implementación:** Dentro de la transacción del registro crea: las monedas BOB y USD de sistema, `user_settings` con sus valores por defecto (`dashboard_blocks` en el orden de spec §2.8.1), las categorías precargadas y las del sistema, y las preferencias de avisos por defecto de plan §4.15.1. `user.factory` pasa a usar este servicio.
+  - **Especificación de Implementación:** Dentro de la transacción del registro crea: las monedas BOB y USD de sistema, `user_settings` con sus valores por defecto (`dashboard_blocks` en el orden de spec §2.8.1), las categorías precargadas y las del sistema, y las preferencias de avisos por defecto de plan §4.15.1. `user.factory` pasa a usar este servicio. `bootstrapUser(repos, userId)` lee `repos.users`, que expone `createUserRepository(tx)`; `container.ts` lo construye en `buildRepositories`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-01`: BOB y USD quedan activas y marcadas de sistema.
     - `RF-M5-05`: se crean todas las categorías precargadas y las del sistema.
     - `RF-M15-02`: las preferencias quedan activas salvo `log_day` (21:00) y `goal_progress`.
 
-- [ ] **`TASK-054`: Registro de usuario (`signUp`)**
+- [x] **`TASK-054`: Registro de usuario (`signUp`)**
   - **Dependencias:** Requiere TASK-047, TASK-049, TASK-050, TASK-051, TASK-053
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/auth/sign-up`), plan §4.1.3; RF-M1-01, RF-M1-03, RF-M1-06, RF-M1-17, EC-M1-03, EC-M1-09, RNF-15
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/auth-signup.test.ts`
-  - **Especificación de Implementación:** Con un correo nuevo, crea el usuario sin confirmar, su credencial, los datos iniciales, el enlace (24 h) y el correo `confirm`. Con un correo Sin confirmar, reemplaza el nombre y la contraseña, fija `registered_at = now()`, invalida el enlace y envía uno nuevo. Con un correo Activo, encola `register_attempt` (como máximo uno por hora). Siempre devuelve `{ status: 'check_email' }` en un tiempo igualado. Si dos registros del mismo correo chocan en el índice único, el perdedor se reintenta por la rama Sin confirmar.
+  - **Especificación de Implementación:** `createAuthService({ uow, auth, hmacSecret, webOrigin })` expone `signUp({ name, email, password, termsAccepted })`. `UserRepository` gana `findByEmail`, `createUnconfirmed` y `replaceUnconfirmed`, y `claimRegisterAttempt` (un `register_attempt` por hora y por cuenta sobre `email_send_log`, con la clave HMAC del correo); el repositorio propio de `email_send_log` nace en TASK-055. `container.ts` cablea el servicio. Con un correo nuevo, crea el usuario sin confirmar, su credencial, los datos iniciales, el enlace (24 h) y el correo `confirm`. Con un correo Sin confirmar, reemplaza el nombre y la contraseña, fija `registered_at = now()`, invalida el enlace y envía uno nuevo. Con un correo Activo, encola `register_attempt` (como máximo uno por hora). Siempre devuelve `{ status: 'check_email' }` en un tiempo igualado. Si dos registros del mismo correo chocan en el índice único, el perdedor se reintenta por la rama Sin confirmar.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registro con correo ya existente no revela la cuenta": la respuesta es la misma, se encola `register_attempt` y sigue habiendo un solo `auth_user`.
     - `RF-M1-17`: dos intentos en menos de 1 h encolan un solo aviso.
     - `EC-M1-09`: un registro repetido Sin confirmar reemplaza los datos, invalida el enlace anterior y reinicia el plazo de 7 días (`RF-M1-06`).
     - `RF-M1-03`: la respuesta es idéntica en los tres casos.
 
-- [ ] **`TASK-055`: Reenvío y confirmación del correo**
+- [x] **`TASK-055`: Reenvío y confirmación del correo**
   - **Dependencias:** Requiere TASK-054
   - **Trazabilidad SDD:** plan §4.1.2 (`confirmation/resend`, `confirm`); RF-M1-04, RF-M1-05, EC-M1-01, EC-M1-02, EC-M1-11
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/email-send-log.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/email-link.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/auth-confirm.test.ts`
   - **Especificación de Implementación:** `resendConfirmation` acepta el correo o un token (lo busca por hash aunque esté vencido), aplica los límites de 60 s y 5 por hora con `email_send_log` e invalida el enlace anterior; siempre responde 202. `confirm(token, currentSessionId?)` consume el enlace, marca el correo como verificado, cierra la sesión de otro usuario en el dispositivo y crea la sesión nueva.
   - **Criterios de Verificación (Tests & DoD):**
@@ -858,11 +867,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-01` / `EC-M1-02`: los enlaces vencidos, invalidados o usados dan su error.
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta la cierra y abre la nueva.
 
-- [ ] **`TASK-056`: Inicio y cierre de sesión**
+- [x] **`TASK-056`: Inicio y cierre de sesión**
   - **Dependencias:** Requiere TASK-052, TASK-055
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-signin.test.ts`
   - **Especificación de Implementación:** Con una espera vigente → `LOGIN_LOCKED {retryAfterSeconds}`. Verifica la contraseña; si el correo no existe, usa un hash de prueba para igualar el tiempo. Ante un fallo, registra el intento y, como máximo una vez por hora, encola `login_alert` si el correo tiene cuenta. Ante un éxito, reinicia el contador; si el correo no está confirmado, responde `EMAIL_NOT_CONFIRMED` sin crear sesión. `signOut` cierra la sesión actual y `signOutAll`, todas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -872,11 +883,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: correo inexistente y contraseña incorrecta dan el mismo error.
     - `RF-M1-07`: `signOutAll` deja 0 sesiones.
 
-- [ ] **`TASK-057`: Recuperar y cambiar la contraseña**
+- [x] **`TASK-057`: Recuperar y cambiar la contraseña**
   - **Dependencias:** Requiere TASK-056
   - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-password.test.ts`
   - **Especificación de Implementación:** `forgot` crea un enlace de 1 h y siempre responde 202. `reset` consume el enlace, cambia el hash, borra todas las sesiones, crea una nueva, confirma el correo si no lo estaba y encola `password_changed`. `change` verifica la contraseña actual (si falla, `INVALID_CURRENT_PASSWORD`), cambia el hash, revoca las demás sesiones y encola `password_changed`.
   - **Criterios de Verificación (Tests & DoD):**
@@ -885,7 +898,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-05`: tras `change`, la otra sesión deja de existir.
     - `RF-M1-09`: el enlace vence a la hora.
 
-- [ ] **`TASK-058`: Middlewares de sesión `requireSession` y `trackActivity`**
+- [x] **`TASK-058`: Middlewares de sesión `requireSession` y `trackActivity`**
   - **Dependencias:** Requiere TASK-050
   - **Trazabilidad SDD:** plan §4.1.2 (middlewares); RF-M1-07, RF-M2-08, EC-M1-05, EC-M1-06
   - **Archivos en Alcance:**
@@ -898,7 +911,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-08`: una sesión de más de 30 días sin actividad da `SESSION_EXPIRED 401`.
     - `EC-M1-05` / `EC-M1-06`: una sesión revocada da `SESSION_EXPIRED` en su siguiente acción.
 
-- [ ] **`TASK-059`: Rutas HTTP de autenticación**
+- [x] **`TASK-059`: Rutas HTTP de autenticación**
   - **Dependencias:** Requiere TASK-057, TASK-058
   - **Trazabilidad SDD:** plan §4.1.2 (tabla de endpoints de auth); RF-M1-03, RNF-15
   - **Archivos en Alcance:**
@@ -914,19 +927,21 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: `sign-up` y `password/forgot` dan el mismo cuerpo y estado con correos existentes e inexistentes, con una diferencia de tiempo p95 < 50 ms sobre 50 muestras.
     - La cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`.
 
-- [ ] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
+- [x] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
   - **Dependencias:** Requiere TASK-059
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: buzón de prueba y usuarios de prueba), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
     - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
   - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `GET /internal/test/mailbox?to=` devuelve los correos del *fake*, y `POST /internal/test/users` crea un usuario confirmado, con el Onboarding terminado, y devuelve sus credenciales. Con `INTEGRATIONS=real`, estas rutas no se montan.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-060`: con `INTEGRATIONS=real`, las dos rutas responden 404.
     - Con `fake`, el buzón devuelve el enlace de confirmación de un registro.
+    - Con `fake`, el usuario creado inicia sesión y su `me.onboarding.completed` (contrato `MeDto`, anidado) vale `true`.
 
-- [ ] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
+- [x] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
   - **Dependencias:** Requiere TASK-059
   - **Trazabilidad SDD:** plan §4.1.2 (`/api/me`); RF-M1-11, RF-M1-12, RF-M1-13, RN-09
   - **Archivos en Alcance:**
@@ -944,13 +959,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-11`: la zona horaria se puede cambiar.
     - `RN-09`: la respuesta usa solo la sesión, nunca un id del cliente.
 
-- [ ] **`TASK-062`: Eliminar la cuenta**
+- [x] **`TASK-062`: Eliminar la cuenta**
   - **Dependencias:** Requiere TASK-061
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/me/delete`), plan §4.1.3 (eliminación), plan §3.8; RF-M1-15, EC-M1-06, EC-M1-08, RNF-16, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/me.service.ts`
     - `apps/api/src/presentation/routes/me.routes.ts`
     - `apps/api/src/presentation/controllers/me.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/me-delete.test.ts`
   - **Especificación de Implementación:** Verifica la contraseña (si falla, `INVALID_PASSWORD`) y la palabra (si no coincide, `CONFIRMATION_MISMATCH`). Con `withUserLock`, encola `account_deleted` y borra `auth_user` en cascada.
   - **Criterios de Verificación (Tests & DoD):**
@@ -959,11 +975,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-06`: la sesión de otro dispositivo recibe `SESSION_EXPIRED`.
     - `RF-M1-15`: un job que toma el bloqueo del usuario no crea datos después de la eliminación.
 
-- [ ] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
+- [x] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
   - **Dependencias:** Requiere TASK-055
   - **Trazabilidad SDD:** plan §4.1.3 (descarte), plan §3.9 (retención); RF-M1-06, EC-M1-03, RNF-26
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/maintenance-auth.test.ts`
   - **Especificación de Implementación:** Borra los `auth_user` sin confirmar con `registered_at` de hace más de 7 días, los `email_send_log` de más de 24 h y los `login_throttle` sin actividad desde hace más de 1 h. Se registra en el tick con el nombre `maintenance`.
@@ -972,7 +990,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-03`: después del descarte, el mismo correo se registra como nuevo.
     - `RNF-26`: las purgas respetan 24 h y 1 h.
 
-- [ ] **`TASK-064`: Puesta al día por usuario (`catchUpUser`)**
+- [x] **`TASK-064`: Puesta al día por usuario (`catchUpUser`)**
   - **Dependencias:** Requiere TASK-058, TASK-063
   - **Trazabilidad SDD:** ADR-01 (respaldo con la primera petición del usuario), plan §4.0; RNF-13
   - **Archivos en Alcance:**
@@ -985,7 +1003,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-13`: dos peticiones el mismo día disparan una sola puesta al día, y un día nuevo la vuelve a disparar.
     - Un error en la puesta al día no cambia la respuesta de la petición.
 
-- [ ] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
+- [x] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
   - **Dependencias:** Requiere TASK-046, TASK-060
   - **Trazabilidad SDD:** plan §4.1.4 (rutas públicas), plan §4.2.4 (guardas); RF-M1-01, RF-M1-03, RF-M1-05, RF-M1-11, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**
@@ -997,9 +1015,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/auth/routes.tsx`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/auth.json`
+    - `apps/api/src/presentation/controllers/auth.controller.ts`
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `e2e/fixtures/mailbox.ts`
     - `e2e/m1-sign-up.spec.ts`
-  - **Especificación de Implementación:** `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
+  - **Especificación de Implementación:** Corrige además el API: el registro debe guardar la zona horaria que recibe (hoy `signUp` la descarta); una zona inválida o ausente cae a America/La_Paz. `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-03`: el registro muestra el mensaje neutro y lleva a "Revisa tu correo".
     - `RF-M1-11`: el usuario creado tiene la zona horaria del navegador.
@@ -1007,7 +1030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-02`: un enlace ya usado lleva al inicio de sesión.
     - `RF-M1-05`: el reenvío queda deshabilitado durante 60 s.
 
-- [ ] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
+- [x] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.1.4 (`/entrar`); RF-M1-04, RF-M1-08, EC-M1-04, RNF-15
   - **Archivos en Alcance:**
@@ -1016,13 +1039,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/locales/es-BO/auth.json`
     - `e2e/fixtures/auth.ts`
     - `e2e/m1-sign-in.spec.ts`
-  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` e inicia sesión.
+  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` (con `data: {}`, porque `requireJson` responde 415 a un `POST` sin cuerpo JSON) e inicia sesión.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-15`: con credenciales incorrectas se muestra "Correo o contraseña incorrectos", sin decir cuál falló.
     - `RF-M1-04`: un usuario sin confirmar ve "Revisa tu correo".
     - `EC-M1-04`: tras 5 fallos se ve el tiempo restante.
 
-- [ ] **`TASK-067`: Web: recuperar la contraseña**
+- [x] **`TASK-067`: Web: recuperar la contraseña**
   - **Dependencias:** Requiere TASK-066
   - **Trazabilidad SDD:** plan §4.1.4 (`/olvide-mi-contrasena`, `/restablecer`); RF-M1-09, RF-M1-10, RNF-15
   - **Archivos en Alcance:**

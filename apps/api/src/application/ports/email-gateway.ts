@@ -1,10 +1,21 @@
-export interface AccountEmail {
+export type EmailKind =
+  | 'confirm'
+  | 'register_attempt'
+  | 'reset'
+  | 'password_changed'
+  | 'login_alert'
+  | 'account_deleted';
+
+export interface EmailPayload {
+  link?: string;
+}
+
+export interface SendEmailInput {
   to: string;
-  subject: string;
-  html: string;
-  text: string;
+  kind: EmailKind;
+  payload: EmailPayload;
 }
 
 export interface EmailGateway {
-  send(email: AccountEmail): Promise<void>;
+  send(input: SendEmailInput): Promise<void>;
 }

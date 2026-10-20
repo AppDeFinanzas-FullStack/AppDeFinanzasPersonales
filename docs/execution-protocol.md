@@ -114,7 +114,7 @@ Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea
 
 - **A quién juzga:** el *matcher* del hook lo limita a los tres subagentes del pipeline. Además, el gate lee `agent_type` de la entrada del hook y solo juzga al subagente de la fase vigente: `test-author` en `tests`, `implementer` en `implement` y `sdd-auditor` en `audit`. Un subagente de exploración que termine durante una tarea no consume intentos.
 - **Paradas:** si `last_assistant_message` empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` (§3.2), no corre los controles: bloquea la tarea con ese motivo y deja terminar al subagente.
-- **Autoverificación:** antes de terminar, el test-author y el implementer corren `node tools/sdd/check.mjs`. Aplica los mismos controles del gate de la fase (`lib/gates.mjs`), pero sin gastar intentos ni tocar el estado, y sale con código 0 si el gate pasaría. Así, la mayoría de los errores (tipos, lint, comandos, alcance) se corrigen antes de que cuente un intento.
+- **Autoverificación:** antes de terminar, el test-author y el implementer corren `node tools/sdd/check.mjs`. Aplica los mismos controles del gate de la fase (`lib/gates.mjs`), pero sin gastar intentos, y sale con código 0 si el gate pasaría. Si el Gate B pasaría y el árbol de trabajo no cambió mientras corría, anota su huella en el estado y el hook de cierre reutiliza ese resultado en lugar de repetir los controles (basta que cambie un archivo, o que haya otra ronda, para que se corran de nuevo). Así, la mayoría de los errores (tipos, lint, comandos, alcance) se corrigen antes de que cuente un intento.
 
 **Gate A (`phase = tests`):**
 1. Los archivos cambiados o nuevos (`git status --porcelain`) son solo archivos de test del alcance.
@@ -147,9 +147,8 @@ Revisa los commits que se van a subir (los que no están en el remoto) y su diff
 2. **Secretos:** ningún archivo `.env*` salvo `.env.example`, y ningún valor con forma de clave, token o URL de base de datos con contraseña.
 3. **Trazabilidad:** cada commit con el trailer `Task: TASK-XXX` tiene esa tarea en `[x]` en `tasks.md` y el trailer `Audit: approved`.
 4. **Cobertura de IDs:** cada RF y EC citado en la Trazabilidad de las tareas cerradas aparece en el nombre de al menos un test del repositorio (plan §5.4.1).
-5. **Suite completa:** lint, typecheck, dependency-cruiser, unitarios e integración. Detecta las regresiones entre tareas, porque el Gate B solo corre las pruebas relacionadas.
 
-Si el push solo cambia documentación (`docs/` o `NNN-*/*.md`), corren solo los controles 1 y 2. Los E2E completos, axe y rendimiento corren en CI (`qa-e2e.yml`).
+Son controles de segundos. La suite completa (lint, typecheck, dependency-cruiser, unitarios e integración) no corre en el `pre-push`: la corre CI en cada push y PR (§4.4), y la protección de `develop` exige que pase antes de fusionar. Ahí se detectan las regresiones entre tareas, porque el Gate B solo corre las pruebas relacionadas. Los E2E completos, axe y rendimiento también corren en CI (`qa-e2e.yml`).
 
 ### 4.3 `SessionStart` → `tools/sdd/session-brief.mjs`
 
@@ -185,7 +184,7 @@ El texto lo arma `lib/brief.mjs`, una función pura con sus pruebas. El hook sol
 
   El tipo es `feat`, `test`, `chore`, `build` o `ci` según la tarea, y el scope es el módulo o el paquete. `close.mjs` pone el ID de la tarea, corta el cuerpo a 100 columnas y pasa el mensaje por commitlint antes de hacer el commit, así un mensaje inválido no aparece recién en el `pre-push`.
 - **Traer `develop` a la rama** con un merge es válido: el `pre-push` y commitlint no revisan el asunto de los merges que escribe git.
-- **Un PR a `develop`** al cerrar la última tarea de la fase. Antes corre el `pre-push`.
+- **Un PR a `develop`** al cerrar la última tarea de la fase. Antes corre el `pre-push`, y el PR se fusiona con CI en verde.
 - Corregir `tasks.md`, `plan.md` o `spec.md` es un commit `docs:` aparte, nunca mezclado con código (constitución §6).
 
 ---
@@ -215,5 +214,5 @@ Un archivo es de test si coincide con `**/*.test.ts`, `**/*.test.tsx`, `**/*.spe
 ## 7. Arranque
 
 - La skill, los subagentes, los hooks y `tools/sdd/` se construyen en una sesión dedicada **antes de TASK-001**, fuera de `tasks.md`, porque el pipeline no puede construirse a sí mismo. Esa sesión también agrega `.claude/run/` a `.gitignore`.
-- Hasta que existan el monorepo y sus scripts, `gate.mjs` y `pre-push.mjs` saltan con aviso los controles cuya herramienta todavía no está instalada (typecheck, lint, dependency-cruiser, Vitest).
+- Hasta que existan el monorepo y sus scripts, `gate.mjs` salta con aviso los controles cuya herramienta todavía no está instalada (typecheck, lint, dependency-cruiser, Vitest).
 - Durante el arranque, `core.hooksPath` se configura a mano. Desde la Fase 0, lo hace el script `prepare` del `package.json` raíz.

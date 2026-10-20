@@ -1,6 +1,7 @@
 # Estado local del pipeline de tareas (docs/execution-protocol.md)
 .claude/run/
 .claude/settings.local.json
+.claude/worktrees/
 
 # Dependencias
 node_modules/
