@@ -2255,7 +2255,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-01`: `month` exige el formato AAAA-MM.
     - `RF-M8-03`: `savingsRatePct` admite `null`.
 
-- [ ] **`TASK-144`: Dominio `dashboard`: comparación, variación y tasa de ahorro**
+- [x] **`TASK-144`: Dominio `dashboard`: comparación, variación y tasa de ahorro**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.8.1 (`packages/domain/dashboard`); RF-M8-03, RF-M8-04, EC-M8-03
   - **Archivos en Alcance:**
