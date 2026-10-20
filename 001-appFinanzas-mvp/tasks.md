@@ -1473,6 +1473,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/fx/hooks/use-rate-history.ts`
     - `apps/web/src/features/fx/components/rate-history-chart.tsx`
     - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
     - `e2e/m3-rate-history.spec.ts`
   - **Especificación de Implementación:** Gráfico de Recharts con pestañas 7d, 30d, 90d y 1a, con un punto por día. La conversión a `number` ocurre solo dentro del gráfico. Tiene un texto alternativo con el último valor.
   - **Criterios de Verificación (Tests & DoD):**
