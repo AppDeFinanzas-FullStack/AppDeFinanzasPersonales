@@ -146,5 +146,30 @@ export function createAccountRepository(tx: TransactionClient, userId: string): 
         ) AS found`;
       return rows[0]?.found ?? false;
     },
+
+    async archive(id: string): Promise<boolean> {
+      const updated = await tx.$executeRaw`
+        UPDATE account
+           SET status = 'archived'::lifecycle_status, archived_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'active'`;
+      return updated > 0;
+    },
+
+    async restore(id: string, name: string): Promise<boolean> {
+      const updated = await tx.$executeRaw`
+        UPDATE account
+           SET status = 'active'::lifecycle_status, archived_at = NULL, name = ${name}
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'archived'`;
+      return updated > 0;
+    },
+
+    async remove(id: string): Promise<void> {
+      await tx.$executeRaw`
+        DELETE FROM shortcut
+         WHERE user_id = ${userId}::uuid
+           AND (account_id = ${id}::uuid OR dest_account_id = ${id}::uuid)`;
+      await tx.$executeRaw`
+        DELETE FROM account WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
   };
 }

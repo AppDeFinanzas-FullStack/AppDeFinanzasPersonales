@@ -215,6 +215,16 @@ export interface UserFxSettings {
   manualUsdSince: Date | null;
 }
 
+/**
+ * Exchange-rate settings to write; absent fields stay as they are. `manualUsd: null` turns the
+ * manual value off, an object turns it on from `since` (plan §4.3.3).
+ */
+export interface UserFxSettingsChanges {
+  baseCurrency?: string;
+  usdReference?: MarketRateKind;
+  manualUsd?: { value: Decimal; since: Date } | null;
+}
+
 /** Reads and writes the `user_settings` row of the user the transaction is locked to. */
 export interface UserSettingsRepository {
   /** The settings of the user, or `null` when it has none. */
@@ -223,8 +233,12 @@ export interface UserSettingsRepository {
   fxSettings(userId: string): Promise<UserFxSettings | null>;
   /** Updates only the given fields; the last write wins (EC-M9-01). */
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
+  /** Clears the default account of the user when it is that account (RF-M4-12, EC-M7-05). */
+  clearDefaultAccount(userId: string, accountId: string): Promise<void>;
   /** Turns the manual USD value on with its start, or off with `null` (plan §4.3.3, RF-M3-03). */
   setManualUsd(userId: string, manual: { value: Decimal; since: Date } | null): Promise<void>;
+  /** Updates only the given exchange-rate fields of `user_settings`. */
+  updateFx(userId: string, changes: UserFxSettingsChanges): Promise<void>;
 }
 
 /**
@@ -287,6 +301,10 @@ export interface CurrencyRepository {
   lockForUpdate(code: string): Promise<CurrencyRow | null>;
   lockForShare(code: string): Promise<CurrencyRow | null>;
   insert(currency: { code: string; symbol: string }): Promise<void>;
+  /** Replaces the symbol of the user's currency with that code. */
+  updateSymbol(code: string, symbol: string): Promise<void>;
+  /** Sets the status of the user's currency with that code (plan §4.3.3). */
+  setStatus(code: string, status: CurrencyStatus): Promise<void>;
 }
 
 export interface UserFxEventRow {
@@ -354,6 +372,12 @@ export interface AccountRepository {
   count(): Promise<number>;
   /** `true` when the account has any entry, including those of deleted transactions. */
   hasEntries(id: string): Promise<boolean>;
+  /** Archives the account if it is active (`UPDATE … WHERE status = 'active'`); `false` otherwise. */
+  archive(id: string): Promise<boolean>;
+  /** Restores the archived account with that name; `false` when it was not archived. */
+  restore(id: string, name: string): Promise<boolean>;
+  /** Deletes the account; its shortcuts go with it (RF-M4-13). */
+  remove(id: string): Promise<void>;
 }
 
 export type TransactionKind = 'expense' | 'income' | 'transfer' | 'adjustment';

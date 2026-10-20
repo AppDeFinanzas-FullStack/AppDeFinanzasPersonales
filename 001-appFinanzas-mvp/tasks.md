@@ -1193,7 +1193,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-08`: con la sesión vencida, iniciar sesión con el mismo usuario vuelve a la misma pantalla con el borrador.
     - `EC-M2-01`: si entra otro usuario, el borrador anterior se descarta.
 
-- [ ] **`TASK-076`: Web: eliminar la cuenta**
+- [x] **`TASK-076`: Web: eliminar la cuenta**
   - **Dependencias:** Requiere TASK-062, TASK-074
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil/eliminar`); RF-M1-15, EC-M1-08
   - **Archivos en Alcance:**
@@ -1331,7 +1331,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-06`: un movimiento en BOB guarda igualmente la tasa boliviano-dólar.
     - `EC-M3-02`: `ratesForMovement` lanza `RATE_REQUIRED` cuando el movimiento no es en BOB y `resolveUsdRate` devuelve `null` (plan §4.3.3). La prueba de ese error queda en TASK-121 (escenario "Sin ninguna tasa disponible"), porque el archivo de pruebas de esta tarea ya quedó cerrado.
 
-- [ ] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
+- [x] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
   - **Dependencias:** Requiere TASK-084, TASK-085
   - **Trazabilidad SDD:** plan §4.3.2; RF-M3-04, RF-M3-05, RNF-04, RNF-27
   - **Archivos en Alcance:**
@@ -1348,7 +1348,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-27` / `RF-M3-05`: cada valor incluye su fuente y su `observedAt`.
     - `history` con `range=30d` devuelve como máximo 30 puntos.
 
-- [ ] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
+- [x] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`PATCH /api/fx-settings`, `/api/fx/manual`), plan §4.3.3; RF-M3-03, RF-M3-11, RF-M3-13
   - **Archivos en Alcance:**
@@ -1356,15 +1356,19 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/fx.routes.ts`
     - `apps/api/src/presentation/controllers/fx.controller.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
     - `apps/api/test/http/fx-settings.test.ts`
-  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe.
+  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe. `app.ts` monta el router de fx en `/api`; `UserSettingsRepository` suma un método (p. ej. `updateFx`) que escribe `base_currency`, `usd_reference` y el valor manual dentro de `uow.run`. `requireJson` deja pasar las mutaciones sin cuerpo (p. ej. `DELETE /api/fx/manual`); una con cuerpo que no es JSON sigue dando 415 y `checkOrigin` sigue aplicando.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-11`: cambiar la referencia o la base no modifica ninguna fila de `ledger_transaction`.
     - `RF-M3-13`: cada cambio de referencia queda en `user_fx_event`.
     - `RF-M3-03`: el valor manual activo no vence solo.
     - Una base inactiva da `CURRENCY_INACTIVE`.
 
-- [ ] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
+- [x] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`/api/currencies`), plan §4.3.3; RF-M3-01, RF-M3-02, EC-M3-07, RF-M3-13
   - **Archivos en Alcance:**
@@ -1374,8 +1378,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/currencies.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/test/http/currencies.test.ts`
-  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente.
+  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente. `CurrencyRepository` suma un método (p. ej. `updateSymbol`) que escribe `currency.symbol` del usuario dentro de `uow.run`, en la misma transacción que el `custom_rate`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-02`: un código repetido da `CURRENCY_CODE_TAKEN`.
     - `EC-M3-07`: una tasa menor que Bs 0,01 da `RATE_BELOW_MINIMUM`.
@@ -1383,7 +1389,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-01`: cambiar la tasa de USD da `SYSTEM_CURRENCY`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
+- [x] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
   - **Dependencias:** Requiere TASK-088
   - **Trazabilidad SDD:** plan §4.3.3 (Activa → Inactiva), plan §4.0 (servicios compartidos); RF-M3-01, EC-M3-05
   - **Archivos en Alcance:**
@@ -1391,8 +1397,11 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/currencies.service.ts`
     - `apps/api/src/presentation/routes/currencies.routes.ts`
     - `apps/api/src/presentation/controllers/currencies.controller.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
     - `apps/api/test/http/currencies-deactivate.test.ts`
-  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`.
+  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`. `CurrencyRepository` suma un método (p. ej. `setStatus`) que escribe `currency.status` del usuario dentro de `uow.run`. `requireJson` trata `Content-Length: 0` como una petición sin cuerpo, para que `POST /:code/deactivate` no dé `UNSUPPORTED_MEDIA_TYPE`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-01`: desactivar BOB o USD da `SYSTEM_CURRENCY`, y desactivar la base, `BASE_CURRENCY`.
     - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
@@ -1421,7 +1430,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-091`: con un cliente simulado de 10 días, inserta 10 medianas y el oficial correcto a cada lado del 27/06/2026; correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
+- [x] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
   - **Dependencias:** Requiere TASK-072, TASK-086, TASK-090
   - **Trazabilidad SDD:** plan §4.3.4 (`RateChip`, estado), plan §4.2.4; spec §2.2.1 (cabecera); RF-M3-04
   - **Archivos en Alcance:**
@@ -1437,7 +1446,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Con la fuente caída y sin datos, muestra "$ —".
     - Con el valor manual activo, muestra el distintivo.
 
-- [ ] **`TASK-093`: Web: panel de Tipo de cambio**
+- [x] **`TASK-093`: Web: panel de Tipo de cambio**
   - **Dependencias:** Requiere TASK-087, TASK-092
   - **Trazabilidad SDD:** plan §4.3.4 (`/tipo-de-cambio`); RF-M3-03, RF-M3-05, RF-M3-11, RF-M3-12, RNF-27
   - **Archivos en Alcance:**
@@ -1457,20 +1466,21 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-05`: cada tasa muestra "actualizado hace X".
     - Sin violaciones de axe.
 
-- [ ] **`TASK-094`: Web: gráfico de evolución de las tasas**
+- [x] **`TASK-094`: Web: gráfico de evolución de las tasas**
   - **Dependencias:** Requiere TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`RateHistoryChart`), ADR-03 (solo los gráficos usan `number`); spec §2.3.1 (consultar el panel)
   - **Archivos en Alcance:**
     - `apps/web/src/features/fx/hooks/use-rate-history.ts`
     - `apps/web/src/features/fx/components/rate-history-chart.tsx`
     - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
     - `e2e/m3-rate-history.spec.ts`
   - **Especificación de Implementación:** Gráfico de Recharts con pestañas 7d, 30d, 90d y 1a, con un punto por día. La conversión a `number` ocurre solo dentro del gráfico. Tiene un texto alternativo con el último valor.
   - **Criterios de Verificación (Tests & DoD):**
     - Cambiar de pestaña pide el rango correcto y el gráfico se dibuja.
     - Las pestañas se manejan con el teclado.
 
-- [ ] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
+- [x] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
   - **Dependencias:** Requiere TASK-089, TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`CurrenciesList`, `AddCurrencyDialog`); RF-M3-02, EC-M3-05, EC-M3-07
   - **Archivos en Alcance:**
@@ -1558,12 +1568,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-10`: dos aplicaciones concurrentes de −20 sobre 30 dan un éxito y un error.
     - `EC-M4-01`: quitar un ingreso que deja el efectivo en −50 se rechaza.
 
-- [ ] **`TASK-101`: `AccountsService`: crear, listar y resumen**
+- [x] **`TASK-101`: `AccountsService`: crear, listar y resumen**
   - **Dependencias:** Requiere TASK-037, TASK-085, TASK-089, TASK-096, TASK-098, TASK-100
   - **Trazabilidad SDD:** plan §4.4.2 (`GET` y `POST /api/accounts`), ADR-11; RF-M4-01, RF-M4-02, RF-M4-09, RF-M4-10, RNF-28, RN-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/accounts-create-list.test.ts`
   - **Especificación de Implementación:** `create` es idempotente (ADR-11), usa `withUserLock`, `assertLimit(50)` y `FOR SHARE` sobre la moneda (que debe estar activa), y guarda la deuda de la tarjeta como negativa. `list(status)` trae los saldos, sus equivalentes y los datos de tarjeta. `summary` da el total neto y el desglose con la tasa vigente. Registra en `CurrencyUsage` el uso por cuentas activas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1574,7 +1585,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-09`: las archivadas no suman en el total.
     - `EC-M3-05`: desactivar una moneda usada por una cuenta activa da `CURRENCY_IN_USE` con "accounts".
 
-- [ ] **`TASK-102`: `AccountsService`: editar y reordenar**
+- [x] **`TASK-102`: `AccountsService`: editar y reordenar**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`PATCH /api/accounts/:id`, `PUT /api/accounts/order`); RF-M4-06, RF-M4-07, RF-M4-11, EC-M4-02, RNF-08
   - **Archivos en Alcance:**
@@ -1587,7 +1598,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-11`: el orden se guarda y `list` lo respeta.
     - `EC-M4-02`: enviar el saldo inicial da `VALIDATION_ERROR`.
 
-- [ ] **`TASK-103`: Ajustar el saldo de una cuenta**
+- [x] **`TASK-103`: Ajustar el saldo de una cuenta**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`POST /api/accounts/:id/adjust`); RF-M4-05, EC-M4-08, RN-02, RN-01
   - **Archivos en Alcance:**
@@ -1599,11 +1610,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M4-08`: con el mismo saldo no se crea nada.
     - Un ajuste que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
 
-- [ ] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
+- [x] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
   - **Dependencias:** Requiere TASK-102
   - **Trazabilidad SDD:** plan §4.4.2 (`archive`, `restore`, `DELETE`), plan §4.7.3 (cuenta por defecto archivada); RF-M4-09, RF-M4-12, RF-M4-13, EC-M4-04, EC-M4-05, EC-M4-07, EC-M7-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/accounts-lifecycle.test.ts`
   - **Especificación de Implementación:** Archivar es un `UPDATE … WHERE status = 'active'`; con un saldo distinto de 0 exige `confirmNonZero` (si no, `ARCHIVE_CONFIRMATION_REQUIRED {balance}`) y pone `default_account_id = NULL` si era la cuenta por defecto. Restaurar exige un nombre libre (`NAME_TAKEN`; acepta `newName`) y la moneda activa (`CURRENCY_INACTIVE`). Eliminar solo procede sin asientos, incluidos los que están dentro de la ventana de deshacer (si no, `ACCOUNT_HAS_MOVEMENTS`), quita la cuenta por defecto y borra sus atajos. Las reglas de apartados, cuenta dedicada y recurrentes se agregan en TASK-188 y TASK-232.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1613,7 +1627,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-13`: eliminar una cuenta sin movimientos borra sus atajos.
     - `RF-M4-09`: una archivada no aparece en `list('active')` y conserva su historia.
 
-- [ ] **`TASK-105`: Rutas HTTP de cuentas**
+- [x] **`TASK-105`: Rutas HTTP de cuentas**
   - **Dependencias:** Requiere TASK-103, TASK-104
   - **Trazabilidad SDD:** plan §4.4.2 (tabla de endpoints); RN-09, RNF-14
   - **Archivos en Alcance:**
