@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, type RouteObject } from 'react-router';
+import { Link, useNavigate, type RouteObject } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import profile from '@/locales/es-BO/profile.json';
 
 import { signOutAllEndpoint, signOutEndpoint } from './api';
 import { ChangePasswordForm } from './components/change-password-form';
+import { DeleteAccount } from './components/delete-account';
 import { ProfileForm } from './components/profile-form';
 
 // The feature registers its own namespace (RNF-07).
@@ -82,6 +83,7 @@ function SessionActions({ userId }: { userId: string }) {
 
 /** `/perfil` (plan §4.1.4). */
 export function ProfilePage() {
+  const { t } = useTranslation('profile');
   const me = useMe();
   if (!me.data) return null;
   return (
@@ -91,9 +93,23 @@ export function ProfilePage() {
       <ChangePasswordForm />
       <Separator />
       <SessionActions userId={me.data.id} />
+      <Separator />
+      <Link to="/perfil/eliminar" className="text-sm text-destructive underline">
+        {t('delete.link')}
+      </Link>
     </div>
   );
 }
 
+/** `/perfil/eliminar` (plan §4.1.4). */
+export function DeleteAccountPage() {
+  const me = useMe();
+  if (!me.data) return null;
+  return <DeleteAccount userId={me.data.id} />;
+}
+
 /** Private routes of the profile (plan §4.1.4). */
-export const profileRoutes: RouteObject[] = [{ path: 'perfil', element: <ProfilePage /> }];
+export const profileRoutes: RouteObject[] = [
+  { path: 'perfil', element: <ProfilePage /> },
+  { path: 'perfil/eliminar', element: <DeleteAccountPage /> },
+];
