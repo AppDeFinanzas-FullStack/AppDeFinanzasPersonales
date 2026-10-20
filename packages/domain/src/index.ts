@@ -23,3 +23,5 @@ export {
 export type { DateRange, Instant, LocalDate, YearMonth } from './dates.js';
 export { formatMoney, parseAmountInput } from './format.js';
 export type { NumberFormat } from './format.js';
+export { formatDate, relativeDay, weekDays } from './format.js';
+export type { DateFormat, WeekDay, WeekStart } from './format.js';

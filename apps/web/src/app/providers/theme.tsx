@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 
+import { useSettings } from '@/features/settings/hooks/use-settings';
+
 export type ThemeMode = 'system' | 'light' | 'dark';
 
 const THEME_STORAGE_KEY = 'ui:theme';
@@ -24,6 +26,14 @@ export function applyTheme(mode: ThemeMode): void {
   document.documentElement.classList.toggle('dark', dark);
 }
 
+export function storeTheme(mode: ThemeMode): void {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+  } catch {
+    // The localStorage copy is only a first-paint hint; ignore storage failures.
+  }
+}
+
 // Plan §4.9.3: the first paint uses the localStorage copy to avoid a flash;
 // the server value takes over once settings load (TASK-070).
 export function applyStoredTheme(): ThemeMode {
@@ -33,7 +43,17 @@ export function applyStoredTheme(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode] = useState<ThemeMode>(applyStoredTheme);
+  const [storedMode] = useState<ThemeMode>(applyStoredTheme);
+  const { data } = useSettings();
+  const serverMode = data?.theme;
+  const mode = serverMode ?? storedMode;
+
+  // RF-M9-01: the server value replaces the localStorage copy once loaded.
+  useEffect(() => {
+    if (serverMode === undefined) return;
+    storeTheme(serverMode);
+    applyTheme(serverMode);
+  }, [serverMode]);
 
   useEffect(() => {
     if (mode !== 'system') return;

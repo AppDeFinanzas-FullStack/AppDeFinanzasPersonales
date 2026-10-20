@@ -1087,7 +1087,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-01` / `RNF-08`: con dos `PATCH` seguidos gana el último.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
+- [x] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
   - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
