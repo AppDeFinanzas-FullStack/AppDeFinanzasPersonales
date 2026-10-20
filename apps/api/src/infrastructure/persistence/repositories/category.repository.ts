@@ -195,5 +195,25 @@ export function createCategoryRepository(
       await tx.$executeRaw`
         DELETE FROM category WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[])`;
     },
+
+    async countMovements(id: string): Promise<number> {
+      const rows = await tx.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM ledger_transaction
+         WHERE user_id = ${userId}::uuid AND category_id = ${id}::uuid AND deleted_at IS NULL`;
+      return rows[0]?.n ?? 0;
+    },
+
+    async moveUsage(fromId: string, toId: string): Promise<void> {
+      // Deleted transactions still in the undo window move too, so the source can be deleted.
+      await tx.$executeRaw`
+        UPDATE ledger_transaction SET category_id = ${toId}::uuid
+         WHERE user_id = ${userId}::uuid AND category_id = ${fromId}::uuid`;
+      await tx.$executeRaw`
+        UPDATE recurring_rule SET category_id = ${toId}::uuid
+         WHERE user_id = ${userId}::uuid AND category_id = ${fromId}::uuid`;
+      await tx.$executeRaw`
+        UPDATE shortcut SET category_id = ${toId}::uuid
+         WHERE user_id = ${userId}::uuid AND category_id = ${fromId}::uuid`;
+    },
   };
 }

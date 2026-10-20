@@ -1770,7 +1770,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-07`: usada por un presupuesto o una regla (insertados en la prueba), da `CATEGORY_IN_USE {budgets, recurring}`.
     - Sin uso, se elimina con sus atajos.
 
-- [ ] **`TASK-114`: Fusionar categorías**
+- [x] **`TASK-114`: Fusionar categorías**
   - **Dependencias:** Requiere TASK-112
   - **Trazabilidad SDD:** plan §4.5.2 (`merge-preview`, `merge`), plan §4.5.3 (fusión); RF-M5-08, RF-M5-09, EC-M5-02, RN-11
   - **Archivos en Alcance:**
