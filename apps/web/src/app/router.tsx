@@ -5,6 +5,7 @@ import { authRoutes } from '@/features/auth/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
 import { AppShell } from './layout/app-shell';
+import { MoreMenu } from './layout/more-menu';
 
 function RootLayout() {
   return (
@@ -53,7 +54,7 @@ export const router = createBrowserRouter([
                   { path: 'movimientos' },
                   { path: 'registrar' },
                   { path: 'cuentas' },
-                  { path: 'mas' },
+                  { path: 'mas', element: <MoreMenu /> },
                   { path: 'categorias' },
                   { path: 'tipo-de-cambio' },
                   { path: 'perfil' },

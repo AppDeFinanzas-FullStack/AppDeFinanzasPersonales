@@ -1,37 +1,38 @@
 import { isReleased } from '@finanzas/contracts';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router';
+import { Link } from 'react-router';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useSettings, useUpdateSettings } from '@/features/settings/hooks/use-settings';
 import { cn } from '@/lib/utils';
 
+import { useTabLink } from './bottom-tab-bar';
 import { MAIN_ITEMS, SECTION_ITEMS, SECTION_ORDER, type NavItem } from './nav-items';
 
 function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const { t } = useTranslation('navigation');
   const label = t(`items.${item.key}`);
   const Icon = item.icon;
+  const { to, active, onClick } = useTabLink(item);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <NavLink
-          to={item.path}
-          end={item.end}
+        <Link
+          to={to}
+          onClick={onClick}
+          aria-current={active ? 'page' : undefined}
           aria-label={collapsed ? label : undefined}
-          className={({ isActive }) =>
-            cn(
-              'flex min-h-11 items-center gap-3 rounded-md px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              collapsed && 'justify-center',
-              isActive ? 'font-semibold text-primary' : 'text-foreground',
-            )
-          }
+          className={cn(
+            'flex min-h-11 items-center gap-3 rounded-md px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            collapsed && 'justify-center',
+            active ? 'font-semibold text-primary' : 'text-foreground',
+          )}
         >
           <Icon aria-hidden="true" className="size-5 shrink-0" />
           {collapsed ? null : <span>{label}</span>}
-        </NavLink>
+        </Link>
       </TooltipTrigger>
       {collapsed ? <TooltipContent side="right">{label}</TooltipContent> : null}
     </Tooltip>
@@ -72,10 +73,13 @@ export function Sidebar() {
             const items = visible(SECTION_ITEMS[section]);
             if (items.length === 0) return null;
             return (
-              <div key={section} className="mt-4 border-t border-border pt-4">
-                {collapsed ? null : (
-                  <p className="px-3 pb-1 text-sm text-muted-foreground">{t(`sections.${section}`)}</p>
-                )}
+              <div
+                key={section}
+                role="group"
+                aria-label={t(`sections.${section}`)}
+                data-label={collapsed ? undefined : t(`sections.${section}`)}
+                className="mt-4 border-t border-border pt-4 data-[label]:before:block data-[label]:before:px-3 data-[label]:before:pb-1 data-[label]:before:text-sm data-[label]:before:text-muted-foreground data-[label]:before:content-[attr(data-label)]"
+              >
                 <ul className="space-y-1">
                   {items.map((item) => (
                     <li key={item.key}>

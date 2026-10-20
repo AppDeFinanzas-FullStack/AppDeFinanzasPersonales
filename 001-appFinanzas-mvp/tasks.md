@@ -1142,7 +1142,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M2-03`: cambiar el tamaño de 360 a 1280 px no pierde el estado.
     - `RNF-06`: sin violaciones de axe.
 
-- [ ] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
+- [x] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
   - **Dependencias:** Requiere TASK-044, TASK-072
   - **Trazabilidad SDD:** plan §4.2.3 (memoria por módulo, botón Atrás), plan §4.2.4; RF-M2-04, RF-M2-05, RF-M2-06, RF-M2-12
   - **Archivos en Alcance:**
