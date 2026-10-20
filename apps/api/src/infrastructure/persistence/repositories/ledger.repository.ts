@@ -5,12 +5,14 @@ import { AppError } from '../../../application/errors.js';
 import type {
   BalancePoint,
   DayNet,
+  LedgerEntryChange,
   LedgerEntryInput,
   LedgerEntryView,
   LedgerListFilters,
   LedgerPage,
   LedgerRepository,
   LedgerTotals,
+  LedgerTransactionChanges,
   LedgerTransactionDetail,
   LedgerTransactionHeader,
   LedgerTransactionView,
@@ -272,6 +274,49 @@ export function createLedgerRepository(tx: TransactionClient, userId: string): L
                  ${header.date}::date
             FROM unnest(${ids}::uuid[], ${accountIds}::uuid[], ${amounts}::numeric[])
                  AS entry(id, account_id, amount)`;
+      }
+      return true;
+    },
+
+    async updateTransaction(
+      id: string,
+      changes: LedgerTransactionChanges,
+      entries: LedgerEntryChange[],
+    ): Promise<boolean> {
+      const updated = await tx.$executeRaw`
+        UPDATE ledger_transaction
+           SET date = ${changes.date}::date, note = ${changes.note},
+               category_id = ${changes.categoryId}::uuid,
+               rate_cur_bob = ${changes.rateCurBob.toFixed(2)}::numeric,
+               rate_usd_bob = ${rate(changes.rateUsdBob)}::numeric,
+               declared_rate = ${rate(changes.declaredRate)}::numeric,
+               updated_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND deleted_at IS NULL`;
+      if (updated === 0) {
+        return false;
+      }
+      const stored = await tx.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n
+          FROM ledger_entry
+         WHERE user_id = ${userId}::uuid AND transaction_id = ${id}::uuid`;
+      if ((stored[0]?.n ?? 0) !== entries.length) {
+        throw new Error('The entries of the edit do not match the stored entries');
+      }
+      if (entries.length > 0) {
+        const accountIds = entries.map((entry) => entry.accountId);
+        const amounts = entries.map((entry) => entry.amount.toFixed(2));
+        // Each stored entry, by id as `get` reads them, takes the change in the same position.
+        await tx.$executeRaw`
+          UPDATE ledger_entry e
+             SET account_id = incoming.account_id, amount = incoming.amount,
+                 date = ${changes.date}::date
+            FROM (SELECT id, row_number() OVER (ORDER BY id ASC) AS position
+                    FROM ledger_entry
+                   WHERE user_id = ${userId}::uuid AND transaction_id = ${id}::uuid) positioned
+            JOIN unnest(${accountIds}::uuid[], ${amounts}::numeric[])
+                 WITH ORDINALITY AS incoming(account_id, amount, position)
+              ON incoming.position = positioned.position
+           WHERE e.id = positioned.id`;
       }
       return true;
     },

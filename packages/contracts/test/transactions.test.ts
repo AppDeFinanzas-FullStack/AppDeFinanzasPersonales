@@ -140,6 +140,29 @@ describe('UpdateTransactionInput', () => {
   it('TASK-118 rechaza campos desconocidos (strict)', () => {
     expect(ok(UpdateTransactionInput, { foo: 1 })).toBe(false);
   });
+
+  it('RF-M6-07 acepta fromAccountId y toAccountId para cambiar el origen y el destino de una transferencia', () => {
+    expect(ok(UpdateTransactionInput, { fromAccountId: id })).toBe(true);
+    expect(ok(UpdateTransactionInput, { toAccountId: id2 })).toBe(true);
+    expect(ok(UpdateTransactionInput, { fromAccountId: id, toAccountId: id2 })).toBe(true);
+    expect(ok(UpdateTransactionInput, { fromAccountId: id, date: '2026-10-02' })).toBe(true);
+  });
+
+  it('RF-M6-07 fromAccountId y toAccountId deben ser UUID', () => {
+    expect(ok(UpdateTransactionInput, { fromAccountId: 'abc' })).toBe(false);
+    expect(ok(UpdateTransactionInput, { toAccountId: 'abc' })).toBe(false);
+  });
+
+  it('RF-M6-04 fromAccountId igual a toAccountId es invalido (SAME_ACCOUNT)', () => {
+    const result = UpdateTransactionInput.safeParse({ fromAccountId: id, toAccountId: id });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.message)).toContain('SAME_ACCOUNT');
+  });
+
+  it('EC-M6-07 amountInNewCurrency no puede superar 999999999.99', () => {
+    expect(ok(UpdateTransactionInput, { amountInNewCurrency: '999999999.99' })).toBe(true);
+    expect(ok(UpdateTransactionInput, { amountInNewCurrency: '1000000000.00' })).toBe(false);
+  });
 });
 
 describe('ListQuery', () => {

@@ -45,6 +45,9 @@ export const UpdateTransactionInput = z
     amount: Amount,
     accountId: Uuid,
     amountInNewCurrency: Amount,
+    // Only transfers change their origin and destination (RF-M6-07).
+    fromAccountId: Uuid,
+    toAccountId: Uuid,
     categoryId: Uuid,
     date: LocalDate,
     note: Note.nullable(),
@@ -54,7 +57,10 @@ export const UpdateTransactionInput = z
     earmarkWithdrawals: EarmarkWithdrawals,
   })
   .partial()
-  .strict();
+  .strict()
+  .refine((t) => t.fromAccountId === undefined || t.fromAccountId !== t.toAccountId, {
+    message: 'SAME_ACCOUNT',
+  });
 export type UpdateTransactionInput = z.infer<typeof UpdateTransactionInput>;
 
 export const TransactionKind = z.enum(['expense', 'income', 'transfer', 'adjustment']);

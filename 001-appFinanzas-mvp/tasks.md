@@ -1895,7 +1895,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-08`: sin "Comisiones bancarias" da `FEE_CATEGORY_REQUIRED`.
     - `RF-M6-05`: la comisión puede ser mayor que el monto.
 
-- [ ] **`TASK-123`: `TransactionsService.update`: editar movimientos**
+- [x] **`TASK-123`: `TransactionsService.update`: editar movimientos**
   - **Dependencias:** Requiere TASK-122
   - **Trazabilidad SDD:** plan §4.6.1 (`UpdateTransactionInput`), plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-04, RF-M6-05, RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
   - **Archivos en Alcance:**

@@ -1,4 +1,8 @@
-import type { CreateTransactionInput } from '@finanzas/contracts';
+import {
+  Amount,
+  type CreateTransactionInput,
+  type UpdateTransactionInput,
+} from '@finanzas/contracts';
 import { amountInFrom, customRateOn, isFutureFor, rateFromAmounts } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
 import { uuidv7 } from 'uuidv7';
@@ -6,9 +10,15 @@ import { uuidv7 } from 'uuidv7';
 import { AppError } from '../errors.js';
 import type {
   AccountRow,
+  LedgerEntryChange,
   LedgerEntryInput,
+  LedgerEntryView,
+  LedgerTransactionChanges,
   LedgerTransactionDetail,
+  LedgerTransactionView,
   Repositories,
+  TransactionKind,
+  TransactionOrigin,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { BalanceGuard, type BalanceDelta } from '../shared/balance-guard.js';
@@ -38,6 +48,15 @@ export interface TransactionsService {
    * (ADR-11, plan §4.6.2).
    */
   create(ctx: RatesContext, input: CreateTransactionInput): Promise<CreateTransactionResult>;
+  /**
+   * Edits the user's movement in place, with its fee: the last edit wins and no history is kept
+   * (EC-M6-01, RNF-24, plan §4.6.2).
+   */
+  update(
+    ctx: RatesContext,
+    id: string,
+    input: UpdateTransactionInput,
+  ): Promise<LedgerTransactionDetail>;
 }
 
 export interface TransactionsServiceDeps {
@@ -195,6 +214,129 @@ interface TransferAmounts {
   amountIn: Decimal;
   /** `null` between accounts of the same currency. */
   declaredRate: Decimal | null;
+}
+
+type UpdateField = keyof UpdateTransactionInput;
+
+/** The fields of `UpdateTransactionInput` that do not belong to each kind (plan §4.6.2). */
+const FIELDS_NOT_OF_KIND: Record<TransactionKind, readonly UpdateField[]> = {
+  expense: ['fromAccountId', 'toAccountId', 'declaredRate'],
+  income: ['fromAccountId', 'toAccountId', 'declaredRate'],
+  adjustment: ['fromAccountId', 'toAccountId', 'declaredRate', 'categoryId'],
+  transfer: ['accountId', 'amountInNewCurrency', 'categoryId'],
+};
+
+/** The amount, the account and the date of a linked movement change only from its origin (RF-M6-09). */
+const LINKED_LOCKED_FIELDS: readonly UpdateField[] = [
+  'amount',
+  'amountInNewCurrency',
+  'declaredRate',
+  'accountId',
+  'fromAccountId',
+  'toAccountId',
+  'date',
+];
+
+/** The origins whose movements are not linked (glosario, RF-M6-10). */
+const UNLINKED_ORIGINS: ReadonlySet<TransactionOrigin> = new Set<TransactionOrigin>([
+  'manual',
+  'recurring',
+]);
+
+function invalidField(path: string, code: string): AppError {
+  return new AppError('VALIDATION_ERROR', { issues: [{ path, code }] });
+}
+
+/** A field that does not belong to the kind of the movement is rejected (plan §4.6.2). */
+function assertFieldsOfKind(kind: TransactionKind, input: UpdateTransactionInput): void {
+  const issues = FIELDS_NOT_OF_KIND[kind]
+    .filter((field) => input[field] !== undefined)
+    .map((path) => ({ path, code: 'unrecognized_keys' }));
+  if (issues.length > 0) {
+    throw new AppError('VALIDATION_ERROR', { issues });
+  }
+}
+
+/** Within the range of RF-M6-01, else `AMOUNT_OUT_OF_RANGE` (EC-M6-07). */
+function assertAmountInRange(amount: Decimal): void {
+  if (!Amount.safeParse(amount.toFixed(2)).success) {
+    throw new AppError('AMOUNT_OUT_OF_RANGE');
+  }
+}
+
+/** The only entry of an expense, an income, an adjustment or a fee. */
+function singleEntry(movement: LedgerTransactionView): LedgerEntryView {
+  const entry = movement.entries[0];
+  if (movement.entries.length !== 1 || entry === undefined) {
+    throw new Error('The movement was expected to have a single entry');
+  }
+  return entry;
+}
+
+/** An account the movement already uses, whatever its status. */
+async function storedAccount(repos: Repositories, accountId: string): Promise<AccountRow> {
+  const account = await repos.accounts.get(accountId);
+  if (account === null) {
+    throw new AppError('NOT_FOUND');
+  }
+  return account;
+}
+
+/**
+ * The account that replaces a side of a transfer: the same one, or an active account of the same
+ * currency (RF-M6-04, RF-M6-07).
+ */
+async function replacementAccount(
+  repos: Repositories,
+  current: AccountRow,
+  accountId: string,
+  path: 'fromAccountId' | 'toAccountId',
+): Promise<AccountRow> {
+  if (accountId === current.id) {
+    return current;
+  }
+  const account = await activeAccount(repos, accountId);
+  if (account.currencyCode !== current.currencyCode) {
+    throw invalidField(path, 'CURRENCY_MISMATCH');
+  }
+  return account;
+}
+
+/**
+ * The rates of a transfer between currencies whose declared rate changes (RF-M3-09, plan §4.6.1):
+ * in BOB↔USD it is the `rate_usd_bob`, and it is the origin's rate when the destination is BOB.
+ * Otherwise the stored rates are kept (RF-M3-10).
+ */
+function declaredTransferRates(
+  from: string,
+  to: string,
+  stored: MovementRates,
+  declaredRate: Decimal | null,
+): MovementRates {
+  if (declaredRate === null || (from !== 'BOB' && to !== 'BOB')) {
+    return stored;
+  }
+  return {
+    rateCurBob: from === 'BOB' ? new Decimal(1) : declaredRate,
+    rateUsdBob: from === 'USD' || to === 'USD' ? declaredRate : stored.rateUsdBob,
+  };
+}
+
+/** Each value once, without the `null` ones. */
+function distinct<T>(values: (T | null)[]): T[] {
+  return [...new Set(values.filter((value): value is T => value !== null))];
+}
+
+/** Rewrites the movement in place; it no longer exists when it was deleted meanwhile (RNF-09). */
+async function rewrite(
+  repos: Repositories,
+  id: string,
+  changes: LedgerTransactionChanges,
+  entries: LedgerEntryChange[],
+): Promise<void> {
+  if (!(await repos.ledger.updateTransaction(id, changes, entries))) {
+    throw new AppError('NOT_FOUND');
+  }
 }
 
 export function createTransactionsService({
@@ -479,6 +621,331 @@ export function createTransactionsService({
     });
   }
 
+  /**
+   * The rates an edited movement of `currencyCode` stores (RF-M3-10): the stored ones, unless the
+   * user edits them by hand. A movement that moves to another currency takes the rate of the new
+   * currency from its stored USD rate or, without it, from the history on its date (RF-M6-07).
+   */
+  async function editedRates(
+    repos: Repositories,
+    ctx: RatesContext,
+    stored: MovementRates,
+    currencyCode: string,
+    currencyChanged: boolean,
+    date: string,
+    input: UpdateTransactionInput,
+  ): Promise<MovementRates> {
+    const manualUsd = input.rateUsdBob === undefined ? null : new Decimal(input.rateUsdBob);
+    const manualCur = input.rateCurBob === undefined ? null : new Decimal(input.rateCurBob);
+
+    if (currencyCode === 'BOB') {
+      if (manualCur !== null) {
+        throw invalidField('rateCurBob', 'unrecognized_keys');
+      }
+      return { rateCurBob: new Decimal(1), rateUsdBob: manualUsd ?? stored.rateUsdBob };
+    }
+
+    if (currencyCode === 'USD') {
+      if (manualUsd !== null && manualCur !== null && !manualUsd.equals(manualCur)) {
+        throw invalidField('rateCurBob', 'custom');
+      }
+      const manual = manualCur ?? manualUsd;
+      if (manual !== null) {
+        return { rateCurBob: manual, rateUsdBob: manual };
+      }
+      if (!currencyChanged) {
+        return stored;
+      }
+      if (stored.rateUsdBob !== null) {
+        return { rateCurBob: stored.rateUsdBob, rateUsdBob: stored.rateUsdBob };
+      }
+      return rates.ratesForMovement(repos, ctx, 'USD', date);
+    }
+
+    const rateUsdBob = manualUsd ?? stored.rateUsdBob;
+    if (manualCur !== null) {
+      return { rateCurBob: manualCur, rateUsdBob };
+    }
+    if (!currencyChanged) {
+      return { rateCurBob: stored.rateCurBob, rateUsdBob };
+    }
+    const events = await repos.userFxEvents.eventsUntil(ctx.now);
+    const rateCurBob = customRateOn(events, currencyCode, date, ctx.timezone);
+    if (rateCurBob === null) {
+      throw new AppError('RATE_REQUIRED');
+    }
+    return { rateCurBob, rateUsdBob };
+  }
+
+  /**
+   * The amount of an edited single-entry movement in the currency of its account, with the sign of
+   * the stored entry. A change to an account of another currency needs `amountInNewCurrency`
+   * (RF-M6-07), within the range of RF-M6-01 (EC-M6-07).
+   */
+  async function editedAmount(
+    repos: Repositories,
+    entry: LedgerEntryView,
+    account: AccountRow,
+    currencyChanged: boolean,
+    input: UpdateTransactionInput,
+  ): Promise<Decimal> {
+    let value: Decimal;
+    if (currencyChanged) {
+      if (input.amount !== undefined) {
+        throw invalidField('amount', 'unrecognized_keys');
+      }
+      if (input.amountInNewCurrency === undefined) {
+        throw invalidField('amountInNewCurrency', 'invalid_type');
+      }
+      value = new Decimal(input.amountInNewCurrency);
+      assertAmountInRange(value);
+      await assertActiveCurrency(repos, account.currencyCode);
+    } else {
+      if (input.amountInNewCurrency !== undefined) {
+        throw invalidField('amountInNewCurrency', 'unrecognized_keys');
+      }
+      value = input.amount === undefined ? entry.amount.abs() : new Decimal(input.amount);
+    }
+    return entry.amount.isNegative() ? value.negated() : value;
+  }
+
+  /** Edits an expense, an income, an adjustment or a fee; returns what the edit touched. */
+  async function updateSimple(
+    repos: Repositories,
+    ctx: RatesContext,
+    existing: LedgerTransactionDetail,
+    input: UpdateTransactionInput,
+  ): Promise<LedgerChange> {
+    const entry = singleEntry(existing);
+    const previousAccount = await storedAccount(repos, entry.accountId);
+    const account =
+      input.accountId === undefined || input.accountId === previousAccount.id
+        ? previousAccount
+        : await activeAccount(repos, input.accountId);
+
+    const categoryId = input.categoryId ?? existing.categoryId;
+    if (
+      input.categoryId !== undefined &&
+      input.categoryId !== existing.categoryId &&
+      (existing.kind === 'expense' || existing.kind === 'income')
+    ) {
+      await assertCategory(repos, input.categoryId, existing.kind);
+    }
+
+    const currencyChanged = account.currencyCode !== previousAccount.currencyCode;
+    const amount = await editedAmount(repos, entry, account, currencyChanged, input);
+    const date = input.date ?? existing.date;
+    const { rateCurBob, rateUsdBob } = await editedRates(
+      repos,
+      ctx,
+      { rateCurBob: existing.rateCurBob, rateUsdBob: existing.rateUsdBob },
+      account.currencyCode,
+      currencyChanged,
+      date,
+      input,
+    );
+
+    // The stored entry leaves its account and the edited one comes in (RF-M6-08).
+    await BalanceGuard.apply(
+      repos,
+      ctx.userId,
+      [
+        ...deltaFor(previousAccount, existing.date, entry.amount.negated()),
+        ...deltaFor(account, date, amount),
+      ],
+      { mode: 'interactive' },
+    );
+
+    await rewrite(
+      repos,
+      existing.id,
+      {
+        date,
+        note: input.note === undefined ? existing.note : input.note,
+        categoryId,
+        rateCurBob,
+        rateUsdBob,
+        declaredRate: existing.declaredRate,
+      },
+      [{ accountId: account.id, amount }],
+    );
+
+    return {
+      dates: distinct([existing.date, date]),
+      categoryIds: distinct([existing.categoryId, categoryId]),
+      accountIds: distinct([previousAccount.id, account.id]),
+    };
+  }
+
+  /**
+   * Edits a transfer and its fee, which follows its date and its origin and keeps its amount
+   * (RF-M6-05). Each side changes only to an active account of the same currency (RF-M6-07).
+   */
+  async function updateTransfer(
+    repos: Repositories,
+    ctx: RatesContext,
+    existing: LedgerTransactionDetail,
+    input: UpdateTransactionInput,
+  ): Promise<LedgerChange> {
+    const out = existing.entries.find((entry) => entry.amount.isNegative());
+    const arrival = existing.entries.find((entry) => !entry.amount.isNegative());
+    if (existing.entries.length !== 2 || out === undefined || arrival === undefined) {
+      throw new Error('The transfer was expected to have an outgoing and an incoming entry');
+    }
+
+    const fromId = input.fromAccountId ?? out.accountId;
+    const toId = input.toAccountId ?? arrival.accountId;
+    if (fromId === toId) {
+      throw invalidField(
+        input.toAccountId === undefined ? 'fromAccountId' : 'toAccountId',
+        'SAME_ACCOUNT',
+      );
+    }
+    const previousFrom = await storedAccount(repos, out.accountId);
+    const previousTo = await storedAccount(repos, arrival.accountId);
+    const from = await replacementAccount(repos, previousFrom, fromId, 'fromAccountId');
+    const to = await replacementAccount(repos, previousTo, toId, 'toAccountId');
+
+    const crossCurrency = from.currencyCode !== to.currencyCode;
+    if (!crossCurrency && input.declaredRate !== undefined) {
+      throw invalidField('declaredRate', 'unrecognized_keys');
+    }
+    if (crossCurrency && input.rateUsdBob !== undefined) {
+      throw invalidField('rateUsdBob', 'unrecognized_keys');
+    }
+    if (crossCurrency && input.rateCurBob !== undefined) {
+      throw invalidField('rateCurBob', 'unrecognized_keys');
+    }
+
+    const amountOut = input.amount === undefined ? out.amount.negated() : new Decimal(input.amount);
+    const declaredRate =
+      input.declaredRate === undefined ? existing.declaredRate : new Decimal(input.declaredRate);
+    let amountIn = crossCurrency ? arrival.amount : amountOut;
+    if (crossCurrency && (input.amount !== undefined || input.declaredRate !== undefined)) {
+      // The declared rate is kept unless the user edits it (RF-M3-10).
+      if (declaredRate === null) {
+        throw new AppError('RATE_REQUIRED');
+      }
+      amountIn = amountInFrom(amountOut, declaredRate, from.currencyCode);
+      assertAmountInRange(amountIn);
+    }
+
+    const date = input.date ?? existing.date;
+    const stored = { rateCurBob: existing.rateCurBob, rateUsdBob: existing.rateUsdBob };
+    const { rateCurBob, rateUsdBob } = crossCurrency
+      ? declaredTransferRates(
+          from.currencyCode,
+          to.currencyCode,
+          stored,
+          input.declaredRate === undefined ? null : declaredRate,
+        )
+      : await editedRates(repos, ctx, stored, from.currencyCode, false, date, input);
+    const ratesEdited =
+      input.declaredRate !== undefined ||
+      input.rateUsdBob !== undefined ||
+      input.rateCurBob !== undefined;
+
+    const fee = existing.fee;
+    const feeEntry = fee === null ? null : singleEntry(fee);
+
+    // The amount and the fee are checked together against the negative block (RF-M6-05, RF-M6-08).
+    const deltas: BalanceDelta[] = [
+      ...deltaFor(previousFrom, existing.date, out.amount.negated()),
+      ...deltaFor(previousTo, existing.date, arrival.amount.negated()),
+      ...deltaFor(from, date, amountOut.negated()),
+      ...deltaFor(to, date, amountIn),
+    ];
+    if (fee !== null && feeEntry !== null) {
+      deltas.push(
+        ...deltaFor(previousFrom, fee.date, feeEntry.amount.negated()),
+        ...deltaFor(from, date, feeEntry.amount),
+      );
+    }
+    await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+
+    await rewrite(
+      repos,
+      existing.id,
+      {
+        date,
+        note: input.note === undefined ? existing.note : input.note,
+        categoryId: existing.categoryId,
+        rateCurBob,
+        rateUsdBob,
+        declaredRate,
+      },
+      existing.entries.map((entry) =>
+        entry === out
+          ? { accountId: from.id, amount: amountOut.negated() }
+          : { accountId: to.id, amount: amountIn },
+      ),
+    );
+    if (fee !== null && feeEntry !== null) {
+      await rewrite(
+        repos,
+        fee.id,
+        {
+          date,
+          note: fee.note,
+          categoryId: fee.categoryId,
+          rateCurBob: ratesEdited ? rateCurBob : fee.rateCurBob,
+          rateUsdBob: ratesEdited ? rateUsdBob : fee.rateUsdBob,
+          declaredRate: fee.declaredRate,
+        },
+        [{ accountId: from.id, amount: feeEntry.amount }],
+      );
+    }
+
+    return {
+      dates: distinct([existing.date, date, fee?.date ?? null]),
+      categoryIds: distinct([fee?.categoryId ?? null]),
+      accountIds: distinct([previousFrom.id, previousTo.id, from.id, to.id]),
+    };
+  }
+
+  async function updateMovement(
+    repos: Repositories,
+    ctx: RatesContext,
+    id: string,
+    input: UpdateTransactionInput,
+  ): Promise<LedgerTransactionDetail> {
+    const existing = await repos.ledger.get(id);
+    if (existing === null) {
+      // Deleted in another device, or another user's (EC-M6-02, RNF-09).
+      throw new AppError('NOT_FOUND');
+    }
+    assertFieldsOfKind(existing.kind, input);
+
+    if (!UNLINKED_ORIGINS.has(existing.origin)) {
+      const lockedCategory =
+        input.categoryId !== undefined &&
+        existing.categoryId !== null &&
+        input.categoryId !== existing.categoryId &&
+        (await repos.categories.get(existing.categoryId))?.isSystem === true;
+      if (lockedCategory || LINKED_LOCKED_FIELDS.some((field) => input[field] !== undefined)) {
+        throw new AppError('LINKED_FIELD_LOCKED', {
+          originType: existing.origin,
+          originId: existing.originId,
+        });
+      }
+    }
+    if (input.date !== undefined && isFutureFor(input.date, ctx.timezone, ctx.now)) {
+      throw new AppError('FUTURE_DATE');
+    }
+
+    const change =
+      existing.kind === 'transfer'
+        ? await updateTransfer(repos, ctx, existing, input)
+        : await updateSimple(repos, ctx, existing, input);
+    await ledgerHooks.afterChange(repos, ctx.userId, change);
+
+    const transaction = await repos.ledger.get(id);
+    if (transaction === null) {
+      throw new Error('The edited transaction could not be read back');
+    }
+    return transaction;
+  }
+
   return {
     async create(ctx, input) {
       return uow.run(
@@ -488,6 +955,10 @@ export function createTransactionsService({
             : createSimple(repos, ctx, input),
         { userLock: ctx.userId },
       );
+    },
+
+    async update(ctx, id, input) {
+      return uow.run((repos) => updateMovement(repos, ctx, id, input), { userLock: ctx.userId });
     },
   };
 }

@@ -384,6 +384,15 @@ export interface LedgerEntryInput {
   amount: Decimal;
 }
 
+/** What an edit rewrites of the header of a movement; its kind and origin never change (RF-M6-06). */
+export type LedgerTransactionChanges = Pick<
+  LedgerTransactionHeader,
+  'date' | 'note' | 'categoryId' | 'rateCurBob' | 'rateUsdBob' | 'declaredRate'
+>;
+
+/** An entry of an edited movement: its account and its signed amount (ADR-04). */
+export type LedgerEntryChange = Omit<LedgerEntryInput, 'id'>;
+
 export interface BalancePoint {
   date: LocalDate;
   balance: Decimal;
@@ -467,6 +476,17 @@ export interface LedgerRepository {
    * exists is left as it is, with no new entries (ADR-11). Returns `true` when it was inserted.
    */
   insertTransaction(header: LedgerTransactionHeader, entries: LedgerEntryInput[]): Promise<boolean>;
+  /**
+   * Rewrites in place the header of the user's movement that is not deleted and its entries, which
+   * take the header's date: the entries, in the order `get` returns them, take the account and the
+   * amount of the change in the same position. No copy nor history is kept (RNF-24). Returns
+   * `false` when the user has no such movement.
+   */
+  updateTransaction(
+    id: string,
+    changes: LedgerTransactionChanges,
+    entries: LedgerEntryChange[],
+  ): Promise<boolean>;
   /**
    * Balance of each of the user's accounts among the ids: initial balance plus the entries from the
    * initial balance date on, without deleted transactions (RN-01).
