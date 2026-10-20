@@ -1991,7 +1991,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-11`: un reintento con el mismo id responde 200 sin crear una fila.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un movimiento de A, también como `accountId` o `categoryId` de una creación.
 
-- [ ] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
+- [x] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
   - **Dependencias:** Requiere TASK-063, TASK-124
   - **Trazabilidad SDD:** plan §4.6.3 (eliminado definitivo), ADR-07; EC-M6-06
   - **Archivos en Alcance:**

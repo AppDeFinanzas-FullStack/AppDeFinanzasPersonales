@@ -8,4 +8,11 @@ export interface MaintenanceStore {
   deleteSendLogs(sentBefore: Instant): Promise<void>;
   /** Deletes the login throttle rows whose last failure is before the cutoff (RNF-26). */
   deleteLoginThrottles(lastFailureBefore: Instant): Promise<void>;
+  /**
+   * Deletes for good the movements deleted before the cutoff; their entries and fees go with them
+   * (plan §4.6.3, ADR-07).
+   */
+  deleteRemovedTransactions(deletedBefore: Instant): Promise<void>;
+  /** Deletes the undo actions that expired before the cutoff (ADR-07). */
+  deleteExpiredUndoActions(expiredBefore: Instant): Promise<void>;
 }

@@ -21,5 +21,16 @@ export function createMaintenanceStore(prisma: PrismaClient): MaintenanceStore {
       await prisma.$executeRaw`
         DELETE FROM login_throttle WHERE last_failure_at < ${lastFailureBefore}::timestamptz`;
     },
+
+    async deleteRemovedTransactions(deletedBefore: Instant): Promise<void> {
+      // The entries and the fee of each one go with it by `ON DELETE CASCADE` (plan §3.5).
+      await prisma.$executeRaw`
+        DELETE FROM ledger_transaction WHERE deleted_at < ${deletedBefore}::timestamptz`;
+    },
+
+    async deleteExpiredUndoActions(expiredBefore: Instant): Promise<void> {
+      await prisma.$executeRaw`
+        DELETE FROM undo_action WHERE expires_at < ${expiredBefore}::timestamptz`;
+    },
   };
 }
