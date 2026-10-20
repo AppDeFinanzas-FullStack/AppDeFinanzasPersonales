@@ -1039,7 +1039,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/locales/es-BO/auth.json`
     - `e2e/fixtures/auth.ts`
     - `e2e/m1-sign-in.spec.ts`
-  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` e inicia sesión.
+  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` (con `data: {}`, porque `requireJson` responde 415 a un `POST` sin cuerpo JSON) e inicia sesión.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-15`: con credenciales incorrectas se muestra "Correo o contraseña incorrectos", sin decir cuál falló.
     - `RF-M1-04`: un usuario sin confirmar ve "Revisa tu correo".
