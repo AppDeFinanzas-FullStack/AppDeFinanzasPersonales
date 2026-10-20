@@ -14,6 +14,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
+import { categoriesRouter, type CategoriesRoutesDeps } from './routes/categories.routes.js';
 import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
 import {
   fxRouter,
@@ -49,6 +50,8 @@ export interface AppDeps {
   currencies?: CurrenciesRoutesDeps;
   /** The routes `/api/accounts` (plan §4.4.2). */
   accounts?: AccountsRoutesDeps;
+  /** The routes `/api/categories` (plan §4.5.2). */
+  categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
 
@@ -112,6 +115,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.accounts !== undefined) {
     app.use('/api/accounts', accountsRouter(deps.accounts));
+  }
+  if (deps.categories !== undefined) {
+    app.use('/api/categories', categoriesRouter(deps.categories));
   }
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));

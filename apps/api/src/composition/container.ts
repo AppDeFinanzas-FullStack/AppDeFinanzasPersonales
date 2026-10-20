@@ -29,6 +29,10 @@ import {
   type AccountsService,
 } from '../application/services/accounts.service.js';
 import {
+  createCategoriesService,
+  type CategoriesService,
+} from '../application/services/categories.service.js';
+import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
@@ -92,6 +96,7 @@ import type {
 } from '../presentation/internal/test-support.controller.js';
 import type { MeReader } from '../presentation/controllers/auth.controller.js';
 import type { BalanceSeriesReader } from '../presentation/controllers/accounts.controller.js';
+import type { CategoryTreeReader } from '../presentation/controllers/categories.controller.js';
 import type { RateHistoryReader } from '../presentation/controllers/fx.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
 import type { SessionActivity } from '../presentation/middlewares/require-session.js';
@@ -118,6 +123,9 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  readonly categoriesService: CategoriesService;
+  /** The category tree of `GET /api/categories` (plan §4.5.2). */
+  readonly categoryTree: CategoryTreeReader;
   readonly transactionsService: TransactionsService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
@@ -252,6 +260,16 @@ const createRateHistoryReader = (uow: UnitOfWork): RateHistoryReader => ({
     const to = todayFor(timezone, now);
     const from = daysBefore(to, HISTORY_DAYS[query.range] - 1);
     return uow.run((repos) => repos.marketRates.series(query.kind, from, to), { readOnly: true });
+  },
+});
+
+/** The user's category tree of a kind and status. */
+const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
+  tree(userId, kind, status) {
+    return uow.run((repos) => repos.categories.tree(kind, status), {
+      userLock: userId,
+      readOnly: true,
+    });
   },
 });
 
@@ -449,6 +467,8 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    categoriesService: createCategoriesService({ uow }),
+    categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
@@ -487,6 +507,11 @@ export const createApp = (container: Container): Express => {
     currencies: {
       currenciesService: container.currenciesService,
       clock: container.clock,
+      session,
+    },
+    categories: {
+      categoriesService: container.categoriesService,
+      categoryTree: container.categoryTree,
       session,
     },
     accounts: {

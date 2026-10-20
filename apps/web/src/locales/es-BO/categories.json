@@ -1,0 +1,21 @@
+{
+  "title": "Categorías",
+  "tabs": {
+    "expense": "Gastos",
+    "income": "Ingresos"
+  },
+  "system": "Del sistema",
+  "archive": "Archivar",
+  "expand": "Mostrar las subcategorías de {{name}}",
+  "collapse": "Ocultar las subcategorías de {{name}}",
+  "reorder": {
+    "drag": "Arrastrar {{name}} para reordenar",
+    "up": "Subir {{name}}",
+    "down": "Bajar {{name}}"
+  },
+  "archived": "Ver las categorías archivadas",
+  "archivedTitle": "Categorías archivadas",
+  "back": "Volver a las categorías",
+  "empty": "No hay categorías aquí.",
+  "loadError": "No se pudieron cargar las categorías. Vuelve a intentarlo."
+}
