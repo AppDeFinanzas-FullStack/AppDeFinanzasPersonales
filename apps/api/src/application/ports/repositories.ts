@@ -233,6 +233,8 @@ export interface UserSettingsRepository {
   fxSettings(userId: string): Promise<UserFxSettings | null>;
   /** Updates only the given fields; the last write wins (EC-M9-01). */
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
+  /** Clears the default account of the user when it is that account (RF-M4-12, EC-M7-05). */
+  clearDefaultAccount(userId: string, accountId: string): Promise<void>;
   /** Turns the manual USD value on with its start, or off with `null` (plan §4.3.3, RF-M3-03). */
   setManualUsd(userId: string, manual: { value: Decimal; since: Date } | null): Promise<void>;
   /** Updates only the given exchange-rate fields of `user_settings`. */
@@ -370,6 +372,12 @@ export interface AccountRepository {
   count(): Promise<number>;
   /** `true` when the account has any entry, including those of deleted transactions. */
   hasEntries(id: string): Promise<boolean>;
+  /** Archives the account if it is active (`UPDATE … WHERE status = 'active'`); `false` otherwise. */
+  archive(id: string): Promise<boolean>;
+  /** Restores the archived account with that name; `false` when it was not archived. */
+  restore(id: string, name: string): Promise<boolean>;
+  /** Deletes the account; its shortcuts go with it (RF-M4-13). */
+  remove(id: string): Promise<void>;
 }
 
 export type TransactionKind = 'expense' | 'income' | 'transfer' | 'adjustment';

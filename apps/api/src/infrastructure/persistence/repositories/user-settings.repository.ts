@@ -79,6 +79,13 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
          WHERE user_id = ${userId}::uuid`;
     },
 
+    async clearDefaultAccount(userId, accountId) {
+      await tx.$executeRaw`
+        UPDATE user_settings
+           SET default_account_id = NULL
+         WHERE user_id = ${userId}::uuid AND default_account_id = ${accountId}::uuid`;
+    },
+
     async setManualUsd(userId, manual) {
       await tx.$executeRaw`
         UPDATE user_settings

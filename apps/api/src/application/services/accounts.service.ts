@@ -2,8 +2,10 @@ import {
   UpdateAccountInput,
   type AccountDto,
   type AdjustInput,
+  type ArchiveInput,
   type CreateAccountInput,
   type ReorderInput,
+  type RestoreInput,
 } from '@finanzas/contracts';
 import {
   cardView,
@@ -68,6 +70,21 @@ export interface AccountsService {
     id: string,
     input: AdjustInput,
   ): Promise<{ created: boolean; transaction: LedgerTransactionDetail | null }>;
+  /**
+   * Archives an active account (RF-M4-09); a balance other than 0 needs `confirmNonZero`. It stops
+   * being the default account (RF-M4-12, EC-M7-05). An archived account stays as it is.
+   */
+  archive(ctx: AccountsContext, id: string, input: ArchiveInput): Promise<AccountDto>;
+  /**
+   * Restores an archived account with a free name, or `newName` (EC-M4-04), in an active currency
+   * (EC-M4-07). An active account stays as it is.
+   */
+  restore(ctx: AccountsContext, id: string, input: RestoreInput): Promise<AccountDto>;
+  /**
+   * Deletes an account without entries, counting those of deleted movements still undoable; it
+   * stops being the default account and its shortcuts are deleted (RF-M4-13).
+   */
+  remove(ctx: AccountsContext, id: string): Promise<void>;
 }
 
 export interface AccountsServiceDeps {
@@ -181,6 +198,23 @@ async function requireActiveCurrency(repos: Repositories, code: string): Promise
   }
 }
 
+/** The user's account locked `FOR UPDATE` until the transaction ends, or `NOT_FOUND`. */
+async function lockedAccount(repos: Repositories, id: string): Promise<AccountRow> {
+  const [account] = await repos.accounts.lockForUpdate([id]);
+  if (account === undefined) {
+    throw new AppError('NOT_FOUND');
+  }
+  return account;
+}
+
+async function readBack(repos: Repositories, id: string): Promise<AccountRow> {
+  const account = await repos.accounts.get(id);
+  if (account === null) {
+    throw new AppError('INTERNAL_ERROR');
+  }
+  return account;
+}
+
 async function baseCurrencyOf(repos: Repositories, userId: string): Promise<string> {
   const settings = await repos.userSettings.fxSettings(userId);
   if (settings === null) {
@@ -267,6 +301,14 @@ export function createAccountsService({
       }
       return dto;
     });
+  };
+
+  const single = async (ctx: AccountsContext, snapshot: Snapshot): Promise<AccountDto> => {
+    const [account] = await toDtos(ctx, snapshot);
+    if (account === undefined) {
+      throw new AppError('INTERNAL_ERROR');
+    }
+    return account;
   };
 
   return {
@@ -528,6 +570,60 @@ export function createAccountsService({
             throw new AppError('INTERNAL_ERROR');
           }
           return { created: true, transaction };
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async archive(ctx, id, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const account = await lockedAccount(repos, id);
+          if (account.status === 'active') {
+            const balances = await repos.ledger.balances([id]);
+            const balance = balances.get(id) ?? account.initialBalance;
+            if (!balance.isZero() && !input.confirmNonZero) {
+              throw new AppError('ARCHIVE_CONFIRMATION_REQUIRED', {
+                balance: toMoneyString(balance),
+              });
+            }
+            await repos.accounts.archive(id);
+            await repos.userSettings.clearDefaultAccount(ctx.userId, id);
+          }
+          return snapshotOf(repos, ctx.userId, [await readBack(repos, id)]);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async restore(ctx, id, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const account = await lockedAccount(repos, id);
+          if (account.status === 'archived') {
+            const name = input.newName?.trim() ?? account.name;
+            await assertNameFree(repos, name, id);
+            await requireActiveCurrency(repos, account.currencyCode);
+            await repos.accounts.restore(id, name);
+          }
+          return snapshotOf(repos, ctx.userId, [await readBack(repos, id)]);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async remove(ctx, id) {
+      await uow.run(
+        async (repos) => {
+          await lockedAccount(repos, id);
+          // Entries of deleted movements still count: they may be undone (RF-M4-13).
+          if (await repos.accounts.hasEntries(id)) {
+            throw new AppError('ACCOUNT_HAS_MOVEMENTS');
+          }
+          await repos.userSettings.clearDefaultAccount(ctx.userId, id);
+          await repos.accounts.remove(id);
         },
         { userLock: ctx.userId },
       );

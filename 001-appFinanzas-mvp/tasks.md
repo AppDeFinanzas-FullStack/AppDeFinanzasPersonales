@@ -1610,7 +1610,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M4-08`: con el mismo saldo no se crea nada.
     - Un ajuste que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
 
-- [ ] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
+- [x] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
   - **Dependencias:** Requiere TASK-102
   - **Trazabilidad SDD:** plan §4.4.2 (`archive`, `restore`, `DELETE`), plan §4.7.3 (cuenta por defecto archivada); RF-M4-09, RF-M4-12, RF-M4-13, EC-M4-04, EC-M4-05, EC-M4-07, EC-M7-05
   - **Archivos en Alcance:**
