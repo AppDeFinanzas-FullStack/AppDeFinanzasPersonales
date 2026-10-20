@@ -1348,7 +1348,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-27` / `RF-M3-05`: cada valor incluye su fuente y su `observedAt`.
     - `history` con `range=30d` devuelve como máximo 30 puntos.
 
-- [ ] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
+- [x] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`PATCH /api/fx-settings`, `/api/fx/manual`), plan §4.3.3; RF-M3-03, RF-M3-11, RF-M3-13
   - **Archivos en Alcance:**

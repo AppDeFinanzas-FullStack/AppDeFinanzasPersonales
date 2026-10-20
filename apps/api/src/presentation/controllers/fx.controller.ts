@@ -1,9 +1,14 @@
-import { RateHistoryQuery } from '@finanzas/contracts';
+import { RateHistoryQuery, type FxSettingsInput, type ManualUsdInput } from '@finanzas/contracts';
+import { Decimal } from 'decimal.js';
 import type { Request, RequestHandler } from 'express';
 
 import { AppError } from '../../application/errors.js';
 import type { Clock } from '../../application/ports/clock.js';
 import type { MarketRateRow } from '../../application/ports/repositories.js';
+import type {
+  FxSettingsContext,
+  FxSettingsService,
+} from '../../application/services/fx-settings.service.js';
 import type { RatesContext, RatesService } from '../../application/services/rates.service.js';
 import type { SessionContext } from '../middlewares/require-session.js';
 import { FxPresenter } from '../presenters/fx.presenter.js';
@@ -79,6 +84,53 @@ export function createFxController({
       }
       const rows = await rateHistory.daily(parsed.data, session.timezone, clock.now());
       res.status(200).json(FxPresenter.history(rows));
+    },
+  };
+}
+
+export interface FxSettingsControllerDeps {
+  fxSettingsService: FxSettingsService;
+  clock: Pick<Clock, 'now'>;
+}
+
+export interface FxSettingsController {
+  updateSettings: RequestHandler;
+  setManual: RequestHandler;
+  clearManual: RequestHandler;
+}
+
+/**
+ * Handlers of `/api/fx-settings` and `/api/fx/manual` (plan §4.3.2). The bodies were validated by
+ * the router; the user always comes from the session.
+ */
+export function createFxSettingsController({
+  fxSettingsService,
+  clock,
+}: FxSettingsControllerDeps): FxSettingsController {
+  const contextOf = (req: Request): FxSettingsContext => ({
+    userId: sessionOf(req).userId,
+    now: clock.now(),
+  });
+
+  return {
+    async updateSettings(req, res) {
+      const body = req.body as FxSettingsInput;
+      await fxSettingsService.update(contextOf(req), {
+        ...(body.usdReference === undefined ? {} : { usdReference: body.usdReference }),
+        ...(body.baseCurrency === undefined ? {} : { baseCurrency: body.baseCurrency }),
+      });
+      res.status(204).end();
+    },
+
+    async setManual(req, res) {
+      const body = req.body as ManualUsdInput;
+      await fxSettingsService.setManual(contextOf(req), new Decimal(body.value));
+      res.status(204).end();
+    },
+
+    async clearManual(req, res) {
+      await fxSettingsService.clearManual(contextOf(req));
+      res.status(204).end();
     },
   };
 }

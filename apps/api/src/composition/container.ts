@@ -15,6 +15,10 @@ import {
   type MeStore,
 } from '../application/services/me.service.js';
 import { createFxJobs, type FxJobs } from '../application/jobs/fx.js';
+import {
+  createFxSettingsService,
+  type FxSettingsService,
+} from '../application/services/fx-settings.service.js';
 import { createRatesService, type RatesService } from '../application/services/rates.service.js';
 import {
   createSettingsService,
@@ -91,6 +95,7 @@ export interface Container {
   readonly meService: MeService;
   readonly settingsService: SettingsService;
   readonly ratesService: RatesService;
+  readonly fxSettingsService: FxSettingsService;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
   readonly rateHistory: RateHistoryReader;
   /** Starts `fx.fetchParallel` in the background, at most one at a time (RNF-04, RF-M3-04). */
@@ -361,6 +366,7 @@ export const buildContainer = (env: Env): Container => {
   const meService = createMeService({ store: createMeStore(prisma), auth });
   const settingsService = createSettingsService({ uow });
   const ratesService = createRatesService({ uow });
+  const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
 
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
@@ -389,6 +395,7 @@ export const buildContainer = (env: Env): Container => {
     meService,
     settingsService,
     ratesService,
+    fxSettingsService,
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
     readiness: createReadinessProbe(prisma),
@@ -421,6 +428,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    fx: { fxSettingsService: container.fxSettingsService, clock: container.clock, session },
     readiness: container.readiness,
   });
 };

@@ -78,5 +78,21 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
                dashboard_blocks = COALESCE(${blocks === undefined ? null : JSON.stringify(blocks)}::jsonb, dashboard_blocks)
          WHERE user_id = ${userId}::uuid`;
     },
+
+    async updateFx(userId, changes) {
+      const manual = changes.manualUsd;
+      const setManual = manual !== undefined;
+      await tx.$executeRaw`
+        UPDATE user_settings
+           SET base_currency = COALESCE(${changes.baseCurrency ?? null}::char(3), base_currency),
+               usd_reference = COALESCE(${changes.usdReference ?? null}::market_rate_kind, usd_reference),
+               manual_usd_value = CASE WHEN ${setManual}::boolean
+                                       THEN ${manual?.value.toFixed(2) ?? null}::numeric
+                                       ELSE manual_usd_value END,
+               manual_usd_since = CASE WHEN ${setManual}::boolean
+                                       THEN ${manual?.since ?? null}::timestamptz
+                                       ELSE manual_usd_since END
+         WHERE user_id = ${userId}::uuid`;
+    },
   };
 }

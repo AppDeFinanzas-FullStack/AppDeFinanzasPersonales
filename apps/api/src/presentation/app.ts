@@ -13,7 +13,12 @@ import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
-import { ratesRouter, type RatesRoutesDeps } from './routes/fx.routes.js';
+import {
+  fxRouter,
+  ratesRouter,
+  type FxRoutesDeps,
+  type RatesRoutesDeps,
+} from './routes/fx.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
@@ -32,6 +37,8 @@ export interface AppDeps {
   settings?: SettingsRoutesDeps;
   /** The routes `/api/rates` (plan §4.3.2). */
   rates?: RatesRoutesDeps;
+  /** The routes `/api/fx-settings` and `/api/fx/manual` (plan §4.3.2). */
+  fx?: FxRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -84,6 +91,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.rates !== undefined) {
     app.use('/api/rates', ratesRouter(deps.rates));
+  }
+  if (deps.fx !== undefined) {
+    app.use('/api', fxRouter(deps.fx));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
