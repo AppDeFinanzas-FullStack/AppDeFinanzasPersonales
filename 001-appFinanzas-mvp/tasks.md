@@ -1900,8 +1900,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
     - `apps/api/test/integration/transactions-update.test.ts`
-  - **Especificación de Implementación:** Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
+  - **Especificación de Implementación:** `LedgerRepository` gana `updateTransaction`, que reescribe en su lugar la cabecera y los asientos de un movimiento del usuario que no esté eliminado (sin copias ni historial) y devuelve `false` si no hubo coincidencia. Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-04` / `RF-M3-10`: cambiar la fecha de un gasto en $ conserva su tasa.
     - `EC-M6-02` / `RNF-09`: editar un movimiento eliminado da `NOT_FOUND`.
