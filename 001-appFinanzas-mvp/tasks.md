@@ -1539,7 +1539,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `balanceSeries` devuelve el saldo de cada día del rango.
     - `RN-09`: no se pueden leer ni bloquear cuentas de otro usuario.
 
-- [ ] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
+- [x] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`), plan §4.4.3; RF-M4-04, EC-M4-01, EC-M4-06, RNF-10
   - **Archivos en Alcance:**
