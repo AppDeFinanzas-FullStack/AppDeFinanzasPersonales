@@ -6,6 +6,7 @@ import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
+import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 
 export interface AppDeps {
@@ -14,6 +15,8 @@ export interface AppDeps {
   jobs?: JobsControllerDeps;
   /** Per-user catch-up (ADR-01); it runs after the session is resolved. */
   catchUp?: RequestHandler;
+  /** The routes `/api/auth/*` (plan §4.1.2); an app built without them does not expose them. */
+  auth?: AuthRoutesDeps;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -50,6 +53,9 @@ export const createApp = (deps: AppDeps): Express => {
     app.use(deps.catchUp);
   }
   app.use('/api', healthRouter());
+  if (deps.auth !== undefined) {
+    app.use('/api/auth', authRouter(deps.auth));
+  }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
   }

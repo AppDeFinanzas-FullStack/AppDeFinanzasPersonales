@@ -911,7 +911,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-08`: una sesión de más de 30 días sin actividad da `SESSION_EXPIRED 401`.
     - `EC-M1-05` / `EC-M1-06`: una sesión revocada da `SESSION_EXPIRED` en su siguiente acción.
 
-- [ ] **`TASK-059`: Rutas HTTP de autenticación**
+- [x] **`TASK-059`: Rutas HTTP de autenticación**
   - **Dependencias:** Requiere TASK-057, TASK-058
   - **Trazabilidad SDD:** plan §4.1.2 (tabla de endpoints de auth); RF-M1-03, RNF-15
   - **Archivos en Alcance:**

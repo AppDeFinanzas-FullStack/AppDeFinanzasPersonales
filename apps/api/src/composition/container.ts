@@ -3,6 +3,7 @@ import { uuidv7 } from 'uuidv7';
 
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
+import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
@@ -31,6 +32,9 @@ import {
   type TransactionClient,
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
+import type { MeReader } from '../presentation/controllers/auth.controller.js';
+import type { MeProfile } from '../presentation/presenters/me.presenter.js';
+import type { SessionActivity } from '../presentation/middlewares/require-session.js';
 
 /**
  * Composition root (plan §1.4, ADR-19): the only place that knows every layer. It builds the
@@ -44,6 +48,7 @@ export interface Container {
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
   readonly jobs: Jobs;
+  readonly auth: AuthGateway;
   readonly authService: AuthService;
 }
 
@@ -76,6 +81,37 @@ const buildRepositories = (tx: TransactionClient): Repositories => ({
   users: createUserRepository(tx),
 });
 
+/** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
+const createSessionActivity = (prisma: PrismaClient) => ({
+  async findActivity(sessionId: string): Promise<SessionActivity | null> {
+    const rows = await prisma.$queryRaw<SessionActivity[]>`
+      SELECT s.last_activity_at AS "lastActivityAt", u.timezone AS timezone
+        FROM auth_session s
+        JOIN auth_user u ON u.id = s.user_id
+       WHERE s.id = ${sessionId}::uuid`;
+    return rows[0] ?? null;
+  },
+  async touch(sessionId: string, at: Date): Promise<void> {
+    await prisma.$executeRaw`
+      UPDATE auth_session SET last_activity_at = ${at} WHERE id = ${sessionId}::uuid`;
+  },
+});
+
+/** The profile of the user behind a session, for the `MeDto` of the answers. */
+const createMeReader = (prisma: PrismaClient): MeReader => ({
+  async findBySession(sessionId) {
+    const rows = await prisma.$queryRaw<MeProfile[]>`
+      SELECT u.id::text AS id, u.name AS name, u.email AS email, u.timezone AS timezone,
+             COALESCE(st.onboarding_step, 1)::int AS "onboardingStep",
+             (st.onboarding_completed_at IS NOT NULL) AS "onboardingCompleted"
+        FROM auth_session s
+        JOIN auth_user u ON u.id = s.user_id
+        LEFT JOIN user_settings st ON st.user_id = u.id
+       WHERE s.id = ${sessionId}::uuid`;
+    return rows[0] ?? null;
+  },
+});
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
@@ -92,9 +128,10 @@ export const buildContainer = (env: Env): Container => {
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
   );
+  const auth = createBetterAuthGateway({ prisma, secret: env.AUTH_SECRET });
   const authService = createAuthService({
     uow,
-    auth: createBetterAuthGateway({ prisma, secret: env.AUTH_SECRET }),
+    auth,
     hmacSecret: env.HMAC_SECRET,
     webOrigin: env.WEB_ORIGIN,
   });
@@ -105,6 +142,7 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
+    auth,
     authService,
   };
 };
@@ -113,4 +151,15 @@ export const createApp = (container: Container): Express =>
   createExpressApp({
     webOrigin: container.env.WEB_ORIGIN,
     jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
+    auth: {
+      authService: container.authService,
+      sessions: container.auth,
+      me: createMeReader(container.prisma),
+      release: container.env.RELEASE,
+      session: {
+        auth: container.auth,
+        sessions: createSessionActivity(container.prisma),
+        clock: container.clock,
+      },
+    },
   });
