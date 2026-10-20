@@ -968,7 +968,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-06`: la sesión de otro dispositivo recibe `SESSION_EXPIRED`.
     - `RF-M1-15`: un job que toma el bloqueo del usuario no crea datos después de la eliminación.
 
-- [ ] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
+- [x] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
   - **Dependencias:** Requiere TASK-055
   - **Trazabilidad SDD:** plan §4.1.3 (descarte), plan §3.9 (retención); RF-M1-06, EC-M1-03, RNF-26
   - **Archivos en Alcance:**

@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
@@ -15,6 +16,7 @@ import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
 import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
 import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
+import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
 import {
   buildPrismaClient,
   type PrismaClient,
@@ -85,6 +87,10 @@ export const buildContainer = (env: Env): Container => {
   jobs.registerJob(
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env), clock: systemClock }),
+  );
+  jobs.registerJob(
+    'maintenance',
+    createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
   );
   const authService = createAuthService({
     uow,
