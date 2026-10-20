@@ -1,0 +1,27 @@
+{
+  "description": "Ramas que agrupan tareas de varias fases (protocolo §5.1). Una tarea listada aquí se hace en la rama de su grupo y no en la de su fase. Los rangos (\"TASK-068..TASK-076\") incluyen los dos extremos.",
+  "groups": [
+    {
+      "branch": "feature/07-12-a-web-y-monedas",
+      "summary": "Fases 7 y 8 completas y la web de las Fases 9 a 12",
+      "tasks": [
+        "TASK-068..TASK-076",
+        "TASK-077..TASK-095",
+        "TASK-106..TASK-108",
+        "TASK-116..TASK-117",
+        "TASK-129..TASK-133",
+        "TASK-137..TASK-142"
+      ]
+    },
+    {
+      "branch": "feature/07-12-b-backend-nucleo",
+      "summary": "Backend de cuentas, categorías, movimientos y Registrar (Fases 9 a 12)",
+      "tasks": [
+        "TASK-096..TASK-105",
+        "TASK-109..TASK-115",
+        "TASK-118..TASK-128",
+        "TASK-134..TASK-136"
+      ]
+    }
+  ]
+}
