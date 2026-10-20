@@ -3,6 +3,7 @@ import { createBrowserRouter, Outlet } from 'react-router';
 
 import { accountsRoutes } from '@/features/accounts/routes';
 import { authRoutes } from '@/features/auth/routes';
+import { categoriesRoutes } from '@/features/categories/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
 import { transactionsRoutes } from '@/features/transactions/routes';
@@ -59,7 +60,7 @@ export const router = createBrowserRouter([
                   { path: 'registrar' },
                   ...accountsRoutes,
                   { path: 'mas', element: <MoreMenu /> },
-                  { path: 'categorias' },
+                  ...categoriesRoutes,
                   ...fxRoutes,
                   ...profileRoutes,
                   { path: 'ajustes' },

@@ -1801,7 +1801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida": `archive` sobre "Deudas y préstamos" da `SYSTEM_CATEGORY`, y un UPDATE directo por SQL también falla.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un recurso de A.
 
-- [ ] **`TASK-116`: Web: árbol de categorías**
+- [x] **`TASK-116`: Web: árbol de categorías**
   - **Dependencias:** Requiere TASK-073, TASK-115
   - **Trazabilidad SDD:** plan §4.5.4 (`/categorias`); RF-M5-01, RF-M5-05, RNF-06
   - **Archivos en Alcance:**
