@@ -619,6 +619,10 @@ export interface CategoryRepository {
   usage(id: string): Promise<CategoryUsage>;
   /** The id of the category and those of its subcategories; `[]` when it does not exist. */
   idsWithChildren(id: string): Promise<string[]>;
+  /** The subcategories of the category with that status, by `sortOrder`. */
+  children(id: string, status: LifecycleStatus): Promise<CategoryRow[]>;
+  /** Gives the categories that status, stamping or clearing `archivedAt` to match. */
+  setStatus(ids: string[], status: LifecycleStatus): Promise<void>;
 }
 
 export type UndoKind = 'delete' | 'recategorize' | 'create';

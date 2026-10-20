@@ -1741,7 +1741,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-03`: mover una hija cambia el total del padre anterior desde ese momento.
     - `RNF-28`: la categoría 301 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-112`: Archivar y restaurar categorías**
+- [x] **`TASK-112`: Archivar y restaurar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
   - **Archivos en Alcance:**
