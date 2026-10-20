@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Express } from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildContainer, createApp, type Container } from '../../src/composition/container.js';
 import { parseEnv } from '../../src/infrastructure/config/env.js';
@@ -13,6 +13,12 @@ import { disconnectTestPrisma, testPrisma } from '../integration/setup/db.js';
  * `INTEGRATIONS=fake`. `GET /internal/test/mailbox?to=` returns the emails the fake gateway holds
  * and `POST /internal/test/users` creates a confirmed user with the Onboarding finished and
  * returns its credentials (`email` and `password`). With `INTEGRATIONS=real` neither is mounted.
+ *
+ * TASK-090 (plan §1.5, §1.4): `POST /internal/test/rates` takes `{ bid?, ask?, median?, official?,
+ * failure? }` (rates as decimal text, ADR-03; `failure` is a `RateFailure` of the port or `null`),
+ * sets the fake rate source the container built and forces `fx.fetchParallel`. It answers 204, and
+ * an invalid body gives `VALIDATION_ERROR`. The parallel rows are stored at the Bolivian day
+ * (America/La_Paz) of the system clock.
  */
 const WEB_ORIGIN = 'http://localhost:5173';
 const JOBS_SECRET = 'jobs-secret-value-0123456789abcdef0123456789';
@@ -34,6 +40,13 @@ const envSource = (integrations: 'fake' | 'real'): Record<string, string> => ({
 interface Credentials {
   email?: unknown;
   password?: unknown;
+}
+interface Problem {
+  code?: unknown;
+}
+interface RateRow {
+  kind: string;
+  value: string;
 }
 interface SignInBody {
   me?: { onboarding?: { completed?: unknown }; email?: unknown };
@@ -57,6 +70,7 @@ afterAll(async () => {
   const db = testPrisma();
   await db.$executeRaw`DELETE FROM auth_user WHERE email = ANY(${emails}::text[])`;
   await db.$executeRaw`DELETE FROM email_outbox WHERE to_address = ANY(${emails}::text[])`;
+  await clearTodayParallelRates();
   await disconnectTestPrisma();
   await fakeContainer.prisma.$disconnect();
   await realContainer.prisma.$disconnect();
@@ -67,6 +81,37 @@ const freshEmail = (): string => {
   usedEmails.add(email);
   return email;
 };
+
+const PARALLEL_KINDS = ['parallel_median', 'parallel_bid', 'parallel_ask'];
+
+/** Today in Bolivia, the day of the parallel rates. */
+const boliviaToday = (): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/La_Paz',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+const clearTodayParallelRates = async (): Promise<void> => {
+  const db = testPrisma();
+  await db.$executeRaw`
+    DELETE FROM market_rate
+     WHERE rate_date = ${boliviaToday()}::date
+       AND kind::text = ANY(${PARALLEL_KINDS}::text[])`;
+  await db.$executeRaw`DELETE FROM job_run WHERE job = 'fx_refresh'`;
+};
+
+const todayParallelRates = (): Promise<RateRow[]> =>
+  testPrisma().$queryRaw<RateRow[]>`
+    SELECT kind::text AS kind, value::text AS value
+      FROM market_rate
+     WHERE rate_date = ${boliviaToday()}::date
+       AND kind::text = ANY(${PARALLEL_KINDS}::text[])
+     ORDER BY kind::text`;
+
+const setRates = (app: Express, body: unknown) =>
+  request(app).post('/internal/test/rates').set('Origin', WEB_ORIGIN).send(body as object);
 
 const tick = (app: Express) =>
   request(app)
@@ -170,5 +215,100 @@ describe('INTEGRATIONS=fake', () => {
     usedEmails.add(second.email as string);
 
     expect(first.email).not.toBe(second.email);
+  });
+});
+
+describe('POST /internal/test/rates', () => {
+  beforeEach(async () => {
+    await clearTodayParallelRates();
+  });
+
+  it('TASK-090 con INTEGRATIONS=real la ruta responde 404 y no escribe tasas', async () => {
+    const res = await setRates(realApp, { bid: '10.10', ask: '10.30', median: '10.20' });
+
+    expect(res.status).toBe(404);
+    expect(await todayParallelRates()).toEqual([]);
+  });
+
+  it('TASK-090 después de fijar 10,10 y 10,30, parallel_bid y parallel_ask del día valen 10,10 y 10,30', async () => {
+    const res = await setRates(fakeApp, {
+      bid: '10.10',
+      ask: '10.30',
+      median: '10.20',
+      failure: null,
+    });
+
+    expect(res.status).toBe(204);
+    const rows = await todayParallelRates();
+    const valueOf = (kind: string) => rows.find((row) => row.kind === kind)?.value;
+    expect(valueOf('parallel_bid')).toBe('10.10');
+    expect(valueOf('parallel_ask')).toBe('10.30');
+    expect(valueOf('parallel_median')).toBe('10.20');
+  });
+
+  it('TASK-090 fijar tasas nuevas el mismo día fuerza la captura y reemplaza las del día', async () => {
+    const first = await setRates(fakeApp, {
+      bid: '10.10',
+      ask: '10.30',
+      median: '10.20',
+      failure: null,
+    });
+    expect(first.status).toBe(204);
+
+    const second = await setRates(fakeApp, { bid: '11.10', ask: '11.30', median: '11.20' });
+
+    expect(second.status).toBe(204);
+    const rows = await todayParallelRates();
+    const valueOf = (kind: string) => rows.find((row) => row.kind === kind)?.value;
+    expect(valueOf('parallel_bid')).toBe('11.10');
+    expect(valueOf('parallel_ask')).toBe('11.30');
+  });
+
+  it('TASK-090 con failure fijado la llamada no escribe filas nuevas', async () => {
+    const res = await setRates(fakeApp, {
+      bid: '10.10',
+      ask: '10.30',
+      median: '10.20',
+      failure: 'TIMEOUT',
+    });
+
+    expect(res.status).toBe(204);
+    expect(await todayParallelRates()).toEqual([]);
+  });
+
+  it('TASK-090 failure null quita la falla y la siguiente llamada vuelve a escribir', async () => {
+    const failing = await setRates(fakeApp, {
+      bid: '10.10',
+      ask: '10.30',
+      median: '10.20',
+      failure: 'SOURCE_ERROR',
+    });
+    expect(failing.status).toBe(204);
+    expect(await todayParallelRates()).toEqual([]);
+
+    const res = await setRates(fakeApp, {
+      bid: '10.10',
+      ask: '10.30',
+      median: '10.20',
+      failure: null,
+    });
+
+    expect(res.status).toBe(204);
+    const rows = await todayParallelRates();
+    const valueOf = (kind: string) => rows.find((row) => row.kind === kind)?.value;
+    expect(valueOf('parallel_bid')).toBe('10.10');
+    expect(valueOf('parallel_ask')).toBe('10.30');
+  });
+
+  it.each([
+    ['una tasa numérica en vez de texto decimal', { bid: 10.1 }],
+    ['una tasa que no es decimal', { ask: 'diez' }],
+    ['una falla que no existe en el puerto', { failure: 'BROKEN' }],
+  ])('TASK-090 un cuerpo inválido (%s) responde VALIDATION_ERROR y no escribe tasas', async (_label, body) => {
+    const res = await setRates(fakeApp, body);
+
+    expect(res.status).toBe(400);
+    expect((res.body as Problem).code).toBe('VALIDATION_ERROR');
+    expect(await todayParallelRates()).toEqual([]);
   });
 });
