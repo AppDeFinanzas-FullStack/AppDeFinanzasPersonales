@@ -1,4 +1,10 @@
-import { Amount, Rate, type CategoryChip, type CreateTransactionInput } from '@finanzas/contracts';
+import {
+  Amount,
+  Rate,
+  type CategoryChip,
+  type CreateTransactionInput,
+  type ShortcutDto,
+} from '@finanzas/contracts';
 import {
   amountInFrom,
   BOLIVIA_TIME_ZONE,
@@ -40,7 +46,11 @@ import { AmountInput } from './amount-input';
 import { AskRateDialog } from './ask-rate-dialog';
 import { CategoryGrid } from './category-grid';
 import { DateChips } from './date-chips';
+import { FeeField } from './fee-field';
 import { KindToggle, type RegisterKind } from './kind-toggle';
+import { SaveAsShortcutDialog, type ShortcutDraft } from './save-as-shortcut-dialog';
+import { NoteField, SecondLevel } from './second-level';
+import { ShortcutChips } from './shortcut-chips';
 import { TodayRecent } from './today-recent';
 import { TransferFields } from './transfer-fields';
 
@@ -58,6 +68,10 @@ interface RegisterValues {
   toAccountId: string;
   rate: string;
   amountIn: string;
+  /** Second level (plan §4.7.4): the note and, for a transfer, its fee. */
+  note: string;
+  feeAmount: string;
+  feeCategoryId: string;
 }
 
 const RegisterDraft = z
@@ -72,6 +86,9 @@ const RegisterDraft = z
     toAccountId: z.string(),
     rate: z.string(),
     amountIn: z.string(),
+    note: z.string(),
+    feeAmount: z.string(),
+    feeCategoryId: z.string(),
   })
   .partial();
 
@@ -88,6 +105,7 @@ const CONTEXT_FRESH_MS = 60_000;
 const decimalText = (raw: string): string | null => parseAmountInput(raw)?.toFixed(2) ?? null;
 
 const EMPTY_TRANSFER = { fromAccountId: '', toAccountId: '', rate: '', amountIn: '' };
+const EMPTY_SECOND = { note: '', feeAmount: '', feeCategoryId: '' };
 
 /**
  * The form of `/registrar` (plan §4.7.3, §4.7.4): it opens as an expense with the focus on the
@@ -111,6 +129,9 @@ export function RegisterForm() {
   const [formError, setFormError] = useState<string | null>(null);
   /** The movement waiting for a rate (EC-M7-04). */
   const [askRate, setAskRate] = useState<SimpleInput | null>(null);
+  /** EC-M6-08: the API asked for the category of the fee. */
+  const [feeAskCategory, setFeeAskCategory] = useState(false);
+  const [shortcut, setShortcut] = useState<ShortcutDraft | null>(null);
   const queryClient = useQueryClient();
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
@@ -124,6 +145,7 @@ export function RegisterForm() {
       categoryId: '',
       date: today,
       ...EMPTY_TRANSFER,
+      ...EMPTY_SECOND,
     },
   });
   const draft = useDraft('register', form, { userId: me.data?.id ?? '', schema: RegisterDraft });
@@ -137,6 +159,9 @@ export function RegisterForm() {
     toAccountId,
     rate,
     amountIn,
+    note,
+    feeAmount,
+    feeCategoryId,
   ] = useWatch({
     control: form.control,
     name: [
@@ -149,6 +174,9 @@ export function RegisterForm() {
       'toAccountId',
       'rate',
       'amountIn',
+      'note',
+      'feeAmount',
+      'feeCategoryId',
     ],
   });
   const accountIssue = form.formState.errors.accountId?.message;
@@ -241,8 +269,19 @@ export function RegisterForm() {
         amountInText !== null &&
         Amount.safeParse(amountInText).success));
 
+  // RF-M6-05: an optional fee, valid when given; without its category the API asks for one.
+  const feeText = feeAmount.trim() === '' ? null : decimalText(feeAmount);
+  const feeOk =
+    feeAmount.trim() === '' ||
+    (feeText !== null &&
+      Amount.safeParse(feeText).success &&
+      (!feeAskCategory || feeCategoryId !== ''));
+  const noteText = note.trim();
+
   const ready =
-    kind === 'transfer' ? transferReady : amountOk && categoryId !== '' && account !== undefined;
+    kind === 'transfer'
+      ? transferReady && feeOk
+      : amountOk && categoryId !== '' && account !== undefined;
 
   const setTransfer = (
     name: 'fromAccountId' | 'toAccountId' | 'rate' | 'amountIn',
@@ -354,15 +393,20 @@ export function RegisterForm() {
           categoryId: '',
           date: today,
           ...EMPTY_TRANSFER,
+          ...EMPTY_SECOND,
           ...(input.kind === 'transfer'
             ? { fromAccountId: input.fromAccountId, toAccountId: input.toAccountId }
             : {}),
         });
         draft.clear();
         setPicked(undefined);
+        setFeeAskCategory(false);
         amountRef.current?.focus();
       },
       onError: (error) => {
+        if (error instanceof ApiError && error.code === 'FEE_CATEGORY_REQUIRED') {
+          setFeeAskCategory(true);
+        }
         // EC-M7-04: without any rate, ask for the dollar and resend with the same id.
         if (
           error instanceof ApiError &&
@@ -393,6 +437,16 @@ export function RegisterForm() {
         ...(crossCurrency && rateText !== null && amountInText !== null
           ? { declaredRate: rateText, amountIn: amountInText }
           : {}),
+        ...(noteText === '' ? {} : { note: noteText }),
+        ...(feeText === null
+          ? {}
+          : {
+              fee: {
+                id: uuidv7(),
+                amount: feeText,
+                ...(feeCategoryId === '' ? {} : { categoryId: feeCategoryId }),
+              },
+            }),
       });
       return;
     }
@@ -404,7 +458,50 @@ export function RegisterForm() {
       categoryId: values.categoryId,
       amount: amountText,
       date: values.date,
+      ...(noteText === '' ? {} : { note: noteText }),
     });
+  };
+
+  /** What the form holds now, as a shortcut of its kind (RF-M7-10). */
+  const shortcutDraft = (): ShortcutDraft | null => {
+    const base = {
+      ...(amountOk && amountText !== null ? { amount: amountText } : {}),
+      ...(noteText === '' ? {} : { note: noteText }),
+    };
+    if (kind === 'transfer') {
+      if (from === undefined || to === undefined || fromId === toId) return null;
+      return { kind: 'transfer', accountId: fromId, destAccountId: toId, ...base };
+    }
+    if (account === undefined || categoryId === '') return null;
+    return { kind: chipKind, accountId: account.id, categoryId, ...base };
+  };
+  // RF-M7-09: a shortcut fills the form without saving; without an amount the focus stays on it.
+  const onShortcut = (shortcut: ShortcutDto) => {
+    const set = (name: keyof RegisterValues, value: string) => {
+      form.setValue(name, value, { shouldDirty: true });
+    };
+    set('kind', shortcut.kind);
+    set('amount', shortcut.amount ?? '');
+    set('note', shortcut.note ?? '');
+    if (shortcut.kind === 'transfer') {
+      set('fromAccountId', shortcut.accountId);
+      set('toAccountId', shortcut.destAccountId ?? '');
+      set('rate', '');
+      set('amountIn', '');
+      set('categoryId', '');
+      setPicked(undefined);
+    } else {
+      set('accountId', shortcut.accountId);
+      set('categoryId', shortcut.categoryId ?? '');
+      setPicked(
+        data?.grid[shortcut.kind].find((chip) => chip.id === shortcut.categoryId) ?? undefined,
+      );
+    }
+    if (shortcut.amount === null) amountRef.current?.focus();
+  };
+  const alwaysShowNote = settings.data?.alwaysShowNote ?? false;
+  const setNote = (next: string) => {
+    form.setValue('note', next, { shouldDirty: true });
   };
 
   // EC-M7-01: without accounts, the minimal account form takes the place of Registrar.
@@ -428,6 +525,10 @@ export function RegisterForm() {
         }}
       >
         <KindToggle value={kind} kinds={KINDS} onChange={onKind} />
+        <ShortcutChips
+          shortcuts={(data?.shortcuts ?? []).filter((item) => item.kind === kind)}
+          onPick={onShortcut}
+        />
         <AmountInput id="register-amount" value={amount} onChange={onAmount} inputRef={amountRef} />
         {kind !== 'transfer' && (
           <AccountChip account={account} kind={kind} loading={context.isPending} />
@@ -488,6 +589,44 @@ export function RegisterForm() {
             form.setValue('date', next, { shouldDirty: true });
           }}
         />
+        {alwaysShowNote && <NoteField value={note} onChange={setNote} />}
+        <SecondLevel
+          note={alwaysShowNote ? null : { value: note, onChange: setNote }}
+          account={
+            kind === 'transfer' || account === undefined
+              ? null
+              : {
+                  accounts,
+                  value: account.id,
+                  onChange: (id) => {
+                    form.setValue('accountId', id, { shouldDirty: true });
+                  },
+                }
+          }
+          fee={
+            kind === 'transfer' ? (
+              <FeeField
+                amount={feeAmount}
+                onAmount={(next) => {
+                  form.setValue('feeAmount', next, { shouldDirty: true });
+                }}
+                askCategory={feeAskCategory}
+                categoryId={feeCategoryId}
+                onCategory={(id) => {
+                  form.setValue('feeCategoryId', id, { shouldDirty: true });
+                }}
+              />
+            ) : null
+          }
+          onSaveAsShortcut={() => {
+            const next = shortcutDraft();
+            if (next === null) {
+              setFormError(t('shortcut.incomplete'));
+              return;
+            }
+            setShortcut(next);
+          }}
+        />
         {formError !== null && (
           <p role="alert" className="text-sm text-destructive">
             {formError}
@@ -509,6 +648,14 @@ export function RegisterForm() {
         onOpenChange={setSheetOpen}
         onSelect={onCategory}
       />
+      {shortcut !== null && (
+        <SaveAsShortcutDialog
+          shortcut={shortcut}
+          onClose={() => {
+            setShortcut(null);
+          }}
+        />
+      )}
       <AskRateDialog
         key={askRate?.id ?? 'none'}
         open={askRate !== null}
