@@ -872,6 +872,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-signin.test.ts`
   - **Especificación de Implementación:** Con una espera vigente → `LOGIN_LOCKED {retryAfterSeconds}`. Verifica la contraseña; si el correo no existe, usa un hash de prueba para igualar el tiempo. Ante un fallo, registra el intento y, como máximo una vez por hora, encola `login_alert` si el correo tiene cuenta. Ante un éxito, reinicia el contador; si el correo no está confirmado, responde `EMAIL_NOT_CONFIRMED` sin crear sesión. `signOut` cierra la sesión actual y `signOutAll`, todas.
   - **Criterios de Verificación (Tests & DoD):**
