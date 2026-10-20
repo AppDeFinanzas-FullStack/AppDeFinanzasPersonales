@@ -8,15 +8,18 @@ de reparto se hace en un commit `chore(sdd):` aparte, se sube a las dos ramas de
 Formato de cada fila: `| TASK-NNN | @usuario |` o un rango `TASK-NNN..TASK-MMM` (incluye los dos extremos).
 Una tarea va en una sola fila. Las tareas ya cerradas pueden quedarse en la tabla.
 
-El reparto sale de las cadenas de dependencias de `tasks.md`: la Fase 7 es de Sebastián, que ya la
-estaba haciendo, y las otras 57 tareas se reparten 19 por persona. Las que dependen entre sí van a la misma
-persona cuando se puede, y nadie se queda sin trabajo esperando a otro si las tareas duran lo mismo. A grandes
-rasgos: Alejandro lleva tasas, monedas y cuentas; Sebastián, el dominio de saldos, categorías y atajos;
-Matías, repositorios, movimientos y Registrar.
+El reparto sale de las cadenas de dependencias de `tasks.md`. La Fase 7 es de Sebastián, que ya la
+estaba haciendo, salvo TASK-074 (Alejandro) y TASK-075 (Matías). Las otras 57 tareas se reparten 19 por
+persona: las que dependen entre sí van a la misma persona cuando se puede, y nadie se queda sin trabajo
+esperando a otro si las tareas duran lo mismo. A grandes rasgos: Alejandro lleva tasas, monedas y cuentas;
+Sebastián, el dominio de saldos, categorías y atajos; Matías, repositorios, movimientos y Registrar.
 
 | Tareas             | Persona           | Fase | Qué son                                                            |
 | ------------------ | ----------------- | ---- | ------------------------------------------------------------------ |
-| TASK-068..TASK-076 | @SebastianCatunta | 7    | Fase 7 completa: ajustes, navegación, perfil y eliminar la cuenta  |
+| TASK-068..TASK-073 | @SebastianCatunta | 7    | Ajustes, guardas de rutas, AppShell y menú «Más»                   |
+| TASK-074           | @alejandrorozich  | 7    | Web: pantalla de perfil                                            |
+| TASK-075           | @matiasmm1011     | 7    | Web: bloqueo sin conexión y diálogo de sesión vencida              |
+| TASK-076           | @SebastianCatunta | 7    | Web: eliminar la cuenta                                            |
 | TASK-085..TASK-090 | @alejandrorozich  | 8    | RatesService, endpoints de tasas, dólar de referencia y monedas    |
 | TASK-092..TASK-095 | @alejandrorozich  | 8    | Web: ficha del dólar, panel de Tipo de cambio, gráfico y monedas   |
 | TASK-096..TASK-098 | @SebastianCatunta | 9    | Contratos de M4 y dominio `balance`                                |
