@@ -1480,7 +1480,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cambiar de pestaña pide el rango correcto y el gráfico se dibuja.
     - Las pestañas se manejan con el teclado.
 
-- [ ] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
+- [x] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
   - **Dependencias:** Requiere TASK-089, TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`CurrenciesList`, `AddCurrencyDialog`); RF-M3-02, EC-M3-05, EC-M3-07
   - **Archivos en Alcance:**

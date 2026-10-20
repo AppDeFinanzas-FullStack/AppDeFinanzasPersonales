@@ -5,6 +5,7 @@ import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Separator } from '@/components/ui/separator';
 import fx from '@/locales/es-BO/fx.json';
 
+import { CurrenciesList } from './components/currencies-list';
 import { CurrentRatesCard } from './components/current-rates-card';
 import { GapCard } from './components/gap-card';
 import { ManualValueCard } from './components/manual-value-card';
@@ -40,6 +41,8 @@ export function ExchangeRatePage() {
       <ReferenceSelector inUse={inUse} />
       <Separator />
       <ManualValueCard inUse={inUse} now={rates.dataUpdatedAt} />
+      <Separator />
+      <CurrenciesList />
     </div>
   );
 }
