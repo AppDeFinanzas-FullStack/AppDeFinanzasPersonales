@@ -1510,7 +1510,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-08`: con límite 5.000 y deuda 5.200, el crédito disponible es −200 y está superado.
     - `RF-M4-07`: no se puede pasar a efectivo una cuenta con saldo inicial negativo, ni a tarjeta una cuenta dedicada.
 
-- [ ] **`TASK-098`: Dominio `balance`: total neto y desglose**
+- [x] **`TASK-098`: Dominio `balance`: total neto y desglose**
   - **Dependencias:** Requiere TASK-080, TASK-097
   - **Trazabilidad SDD:** plan §4.4.2 (`GET /api/accounts`); RF-M4-10, RN-05, RN-06
   - **Archivos en Alcance:**

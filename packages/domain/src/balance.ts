@@ -1,3 +1,5 @@
+import { Decimal } from 'decimal.js';
+import { convert } from './fx.js';
 import type { LocalDate } from './dates.js';
 import { isGreaterThan, isLessThan, parseMoney, toMoneyString } from './money.js';
 
@@ -85,4 +87,62 @@ export function validateTypeChange(input: TypeChangeInput): RuleResult {
     return { ok: false, reason: 'CARD_CANNOT_BE_DEDICATED_OR_EARMARKED' };
   }
   return { ok: true };
+}
+
+export interface NetWorthAccount {
+  type: AccountType;
+  currencyCode: string;
+  balance: string;
+}
+
+export interface NetWorthRates {
+  baseCurrency: string;
+  otherCurrency: string;
+  /** Bs per unit of each currency (BOB = 1), like `convert` in fx.ts. */
+  bobPerUnit: Record<string, Decimal | null>;
+}
+
+export interface NetWorthResult {
+  netWorth: { base: string | null; other: string | null };
+  breakdown: {
+    liquid: string | null;
+    savings: string | null;
+    cardDebt: string | null;
+    earmarked: string | null;
+  };
+}
+
+/** Sum of each balance converted and rounded per account into one currency; null if a rate is missing. */
+function totalIn(accounts: readonly NetWorthAccount[], rates: NetWorthRates, target: string, pick: (a: NetWorthAccount) => boolean): string | null {
+  const targetRate = rates.bobPerUnit[target];
+  if (!targetRate) {
+    return null;
+  }
+  let total = new Decimal(0);
+  for (const account of accounts) {
+    const rate = rates.bobPerUnit[account.currencyCode];
+    if (!rate) {
+      return null;
+    }
+    if (pick(account)) {
+      total = total.plus(convert(parseMoney(account.balance), rate, targetRate));
+    }
+  }
+  return toMoneyString(total);
+}
+
+/** Net worth in the base and the other currency, with the breakdown in the base (RF-M4-10, RN-05, RN-06). */
+export function netWorth(accounts: readonly NetWorthAccount[], rates: NetWorthRates): NetWorthResult {
+  const base = rates.baseCurrency;
+  const group = (types: readonly AccountType[]) => totalIn(accounts, rates, base, (a) => types.includes(a.type));
+  const hasBase = totalIn(accounts, rates, base, () => true);
+  return {
+    netWorth: { base: hasBase, other: totalIn(accounts, rates, rates.otherCurrency, () => true) },
+    breakdown: {
+      liquid: group(['cash', 'bank', 'ewallet', 'other']),
+      savings: group(['savings']),
+      cardDebt: group(['credit_card']),
+      earmarked: hasBase === null ? null : '0.00',
+    },
+  };
 }
