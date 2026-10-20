@@ -1775,6 +1775,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.5.2 (`merge-preview`, `merge`), plan §4.5.3 (fusión); RF-M5-08, RF-M5-09, EC-M5-02, RN-11
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-merge.test.ts`
   - **Especificación de Implementación:** Con `withUserLock`, valida que sean del mismo tipo, que A no tenga hijas, que B esté activa y que ninguna sea del sistema (si no, `MERGE_INVALID {reason}`). Mueve a B los movimientos, las reglas y los atajos de A y elimina A. Repetir la fusión da `CATEGORY_NOT_FOUND`. La resolución de presupuestos y `MERGE_PENDING_CLOSE` se agregan en TASK-203.
   - **Criterios de Verificación (Tests & DoD):**
