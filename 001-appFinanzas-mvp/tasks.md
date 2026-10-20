@@ -1697,6 +1697,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/category.factory.ts`
     - `apps/api/test/integration/category-repository.test.ts`
   - **Especificación de Implementación:** `tree(kind, status)` (dos niveles, en orden), `get`, `insert`, `update`, `setOrder`, `count`, `hasMovements` (incluye las eliminadas que siguen en la ventana de deshacer), `usage(id)` (presupuestos, reglas y atajos) y `idsWithChildren(id)`.
