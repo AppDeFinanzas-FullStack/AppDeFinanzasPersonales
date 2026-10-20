@@ -139,11 +139,3 @@ export function commands(list) {
   });
 }
 
-/** Script raíz de package.json (para la suite completa del pre-push). */
-export function rootScript(name) {
-  const pkg = packageJson('');
-  if (!pkg?.scripts?.[name] || !depsInstalled()) return skip(`pnpm ${name}`, 'el script todavía no existe');
-  const r = sh(`pnpm run ${name}`, { timeoutMs: 30 * 60_000 });
-  return r.code === 0 ? ok(`pnpm ${name}`) : bad(`pnpm ${name}`, r.output);
-}
-

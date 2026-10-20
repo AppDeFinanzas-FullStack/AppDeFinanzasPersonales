@@ -145,7 +145,7 @@ flowchart LR
 | ---------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SubagentStop` → `tools/sdd/gate.mjs`          | Cuando termina un subagente del pipeline | Aplica el gate de la etapa: alcance de archivos, IDs en las pruebas, tipos, lint, capas, pruebas y comandos. Si falla, el subagente sigue trabajando, con un máximo de 3 intentos |
 | `SessionStart` → `tools/sdd/session-brief.mjs` | Al abrir o retomar una sesión de Claude  | Resume la rama, la tarea activa, el avance y las próximas tareas disponibles                                                                                                      |
-| `pre-push` de git → `tools/sdd/pre-push.mjs`   | Antes de cada push                       | Commitlint, secretos, trazabilidad de las tareas y la suite completa                                                                                                              |
+| `pre-push` de git → `tools/sdd/pre-push.mjs`   | Antes de cada push                       | Commitlint, secretos y trazabilidad de las tareas, en segundos. La suite completa la corre CI                                                                                     |
 
 Antes de terminar, cada subagente corre `node tools/sdd/check.mjs`, que aplica los mismos controles del gate sin gastar intentos. El detalle está en el [protocolo de ejecución](docs/execution-protocol.md).
 
