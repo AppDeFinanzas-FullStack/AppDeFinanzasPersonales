@@ -194,6 +194,7 @@ export interface Repositories {
   userFxEvents: UserFxEventRepository;
   accounts: AccountRepository;
   ledger: LedgerRepository;
+  undoActions: UndoActionRepository;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -352,4 +353,22 @@ export interface LedgerRepository {
   balances(accountIds: string[]): Promise<Map<string, Decimal>>;
   /** Balance at the end of each day of the range, both ends included, in ascending order (RN-01). */
   balanceSeries(accountId: string, from: LocalDate, to: LocalDate): Promise<BalancePoint[]>;
+}
+
+export type UndoKind = 'delete' | 'recategorize' | 'create';
+
+export interface UndoAction {
+  kind: UndoKind;
+  payload: unknown;
+}
+
+/** Single-use undo tokens of the user bound to the transaction (ADR-07, RN-09). */
+export interface UndoActionRepository {
+  /** Stores the action; its `id` is the undoToken and it expires 12 seconds later. */
+  create(kind: UndoKind, payload: unknown): Promise<{ id: string; expiresAt: Date }>;
+  /**
+   * Marks the action as used and returns it, or `null` when it is unknown, already used, expired
+   * or of another user. Of simultaneous calls, only one succeeds.
+   */
+  consume(id: string): Promise<UndoAction | null>;
 }

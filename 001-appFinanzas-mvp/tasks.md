@@ -1840,7 +1840,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - "35" encuentra 35,00 pero no 135; "cafe" encuentra "Café".
     - `RF-M5-03`: filtrar por un padre incluye sus hijas.
 
-- [ ] **`TASK-120`: `LedgerHooks` y registro de deshacer**
+- [x] **`TASK-120`: `LedgerHooks` y registro de deshacer**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §4.0 (`LedgerHooks.afterChange`), ADR-07, plan §3.5 (`undo_action`)
   - **Archivos en Alcance:**

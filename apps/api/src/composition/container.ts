@@ -20,6 +20,7 @@ import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -47,6 +48,7 @@ import { createMarketRateRepository } from '../infrastructure/persistence/reposi
 import { createUserFxEventRepository } from '../infrastructure/persistence/repositories/user-fx-event.repository.js';
 import { createAccountRepository } from '../infrastructure/persistence/repositories/account.repository.js';
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
+import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
@@ -72,6 +74,8 @@ export interface Container {
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
   readonly jobs: Jobs;
+  /** Reactions to ledger changes; each module registers its handler here (plan §4.0). */
+  readonly ledgerHooks: LedgerHooks;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
@@ -114,6 +118,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
   accounts: createAccountRepository(tx, userId ?? NO_USER),
   ledger: createLedgerRepository(tx, userId ?? NO_USER),
+  undoActions: createUndoActionRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -266,6 +271,7 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
+    ledgerHooks: createLedgerHooks(),
     auth,
     authService,
     meService,
