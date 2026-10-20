@@ -894,7 +894,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-05`: tras `change`, la otra sesión deja de existir.
     - `RF-M1-09`: el enlace vence a la hora.
 
-- [ ] **`TASK-058`: Middlewares de sesión `requireSession` y `trackActivity`**
+- [x] **`TASK-058`: Middlewares de sesión `requireSession` y `trackActivity`**
   - **Dependencias:** Requiere TASK-050
   - **Trazabilidad SDD:** plan §4.1.2 (middlewares); RF-M1-07, RF-M2-08, EC-M1-05, EC-M1-06
   - **Archivos en Alcance:**
