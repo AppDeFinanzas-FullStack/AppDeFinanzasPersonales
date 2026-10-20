@@ -1389,7 +1389,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-01`: cambiar la tasa de USD da `SYSTEM_CURRENCY`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
+- [x] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
   - **Dependencias:** Requiere TASK-088
   - **Trazabilidad SDD:** plan §4.3.3 (Activa → Inactiva), plan §4.0 (servicios compartidos); RF-M3-01, EC-M3-05
   - **Archivos en Alcance:**

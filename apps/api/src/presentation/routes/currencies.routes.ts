@@ -33,6 +33,9 @@ const validateRate =
     validate(schema)(req, res, next);
   };
 
+/** `{rate}` of a reactivation: the rate of `UpdateCurrencyInput`, but required (plan §4.3.3). */
+const ActivateCurrencyInput = UpdateCurrencyInput.pick({ rate: true }).required();
+
 /** `/api/currencies` (plan §4.3.2). */
 export const currenciesRouter = (deps: CurrenciesRoutesDeps): Router => {
   const controller = createCurrenciesController(deps);
@@ -42,6 +45,13 @@ export const currenciesRouter = (deps: CurrenciesRoutesDeps): Router => {
   router.get('/', ...withSession, controller.list);
   router.post('/', ...withSession, validateRate(CreateCurrencyInput), controller.create);
   router.patch('/:code', ...withSession, validateRate(UpdateCurrencyInput), controller.update);
+  router.post('/:code/deactivate', ...withSession, controller.deactivate);
+  router.post(
+    '/:code/activate',
+    ...withSession,
+    validateRate(ActivateCurrencyInput),
+    controller.activate,
+  );
 
   return router;
 };

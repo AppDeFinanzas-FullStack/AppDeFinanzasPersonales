@@ -20,6 +20,13 @@ export interface CurrenciesController {
   list: RequestHandler;
   create: RequestHandler;
   update: RequestHandler;
+  deactivate: RequestHandler;
+  activate: RequestHandler;
+}
+
+/** The body of `POST /api/currencies/:code/activate`, validated by the router. */
+export interface ActivateCurrencyBody {
+  rate: string;
 }
 
 const sessionOf = (req: Request): SessionContext => {
@@ -69,6 +76,17 @@ export function createCurrenciesController({
         ...(body.symbol === undefined ? {} : { symbol: body.symbol }),
         ...(body.rate === undefined ? {} : { rate: new Decimal(body.rate) }),
       });
+      res.status(204).end();
+    },
+
+    async deactivate(req, res) {
+      await currenciesService.deactivate(contextOf(req), codeOf(req));
+      res.status(204).end();
+    },
+
+    async activate(req, res) {
+      const body = req.body as ActivateCurrencyBody;
+      await currenciesService.activate(contextOf(req), codeOf(req), new Decimal(body.rate));
       res.status(204).end();
     },
   };

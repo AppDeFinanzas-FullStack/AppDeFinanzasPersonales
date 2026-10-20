@@ -295,6 +295,8 @@ export interface CurrencyRepository {
   insert(currency: { code: string; symbol: string }): Promise<void>;
   /** Replaces the symbol of the user's currency with that code. */
   updateSymbol(code: string, symbol: string): Promise<void>;
+  /** Sets the status of the user's currency with that code (plan §4.3.3). */
+  setStatus(code: string, status: CurrencyStatus): Promise<void>;
 }
 
 export interface UserFxEventRow {

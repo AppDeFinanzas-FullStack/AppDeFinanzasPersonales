@@ -5,6 +5,7 @@ import { AppError } from '../errors.js';
 import type { IdGenerator } from '../ports/id-generator.js';
 import type { Repositories } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import { CurrencyUsage } from '../shared/currency-usage.js';
 
 /** Request context built from the session (plan §1.4). */
 export interface CurrenciesContext {
@@ -45,6 +46,17 @@ export interface CurrenciesService {
    * (RF-M3-13); BOB and USD have no rate of their own (`SYSTEM_CURRENCY`, RF-M3-01).
    */
   update(ctx: CurrenciesContext, code: string, changes: CurrencyChanges): Promise<void>;
+  /**
+   * Deactivates a currency (plan §4.3.3). BOB and USD give `SYSTEM_CURRENCY` (RF-M3-01), the base
+   * currency gives `BASE_CURRENCY` and a currency still in use gives `CURRENCY_IN_USE {usedBy}`
+   * (EC-M3-05).
+   */
+  deactivate(ctx: CurrenciesContext, code: string): Promise<void>;
+  /**
+   * Reactivates a currency with a new rate, recorded as a `custom_rate` event (plan §4.3.3). An
+   * already active currency stays as it is, so a repeated request records nothing new.
+   */
+  activate(ctx: CurrenciesContext, code: string, rate: Decimal): Promise<void>;
 }
 
 /** Lowest rate an added currency may have (RF-M3-02, EC-M3-07). */
@@ -141,6 +153,56 @@ export function createCurrenciesService({
           if (changes.rate !== undefined) {
             await insertRate(repos, ids, ctx, code, changes.rate);
           }
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async deactivate(ctx, code) {
+      await uow.run(
+        async (repos) => {
+          const currency = await repos.currencies.lockForUpdate(code);
+          if (currency === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (currency.isSystem) {
+            throw new AppError('SYSTEM_CURRENCY');
+          }
+          const settings = await repos.userSettings.fxSettings(ctx.userId);
+          if (settings === null) {
+            throw new AppError('SESSION_EXPIRED');
+          }
+          if (settings.baseCurrency === code) {
+            throw new AppError('BASE_CURRENCY');
+          }
+          const usedBy = await CurrencyUsage.check(repos, ctx.userId, code);
+          if (usedBy.length > 0) {
+            throw new AppError('CURRENCY_IN_USE', { usedBy });
+          }
+          if (currency.status !== 'inactive') {
+            await repos.currencies.setStatus(code, 'inactive');
+          }
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async activate(ctx, code, rate) {
+      checkMinimum(rate);
+      await uow.run(
+        async (repos) => {
+          const currency = await repos.currencies.lockForUpdate(code);
+          if (currency === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (currency.isSystem) {
+            throw new AppError('SYSTEM_CURRENCY');
+          }
+          if (currency.status === 'active') {
+            return;
+          }
+          await repos.currencies.setStatus(code, 'active');
+          await insertRate(repos, ids, ctx, code, rate);
         },
         { userLock: ctx.userId },
       );

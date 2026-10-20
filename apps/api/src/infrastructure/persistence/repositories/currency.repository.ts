@@ -1,4 +1,8 @@
-import type { CurrencyRepository, CurrencyRow } from '../../../application/ports/repositories.js';
+import type {
+  CurrencyRepository,
+  CurrencyRow,
+  CurrencyStatus,
+} from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 /** Prisma implementation over `currency`, always filtered by the user of the transaction (RN-09). */
@@ -59,6 +63,12 @@ export function createCurrencyRepository(
     async updateSymbol(code: string, symbol: string): Promise<void> {
       await tx.$executeRaw`
         UPDATE currency SET symbol = ${symbol}
+         WHERE user_id = ${userId}::uuid AND code = ${code}`;
+    },
+
+    async setStatus(code: string, status: CurrencyStatus): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE currency SET status = ${status}::currency_status
          WHERE user_id = ${userId}::uuid AND code = ${code}`;
     },
   };
