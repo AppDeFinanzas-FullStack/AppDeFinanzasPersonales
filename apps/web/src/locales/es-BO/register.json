@@ -1,0 +1,42 @@
+{
+  "kind": {
+    "label": "Tipo de movimiento",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "transfer": "Transferencia"
+  },
+  "amount": {
+    "label": "Monto"
+  },
+  "account": {
+    "label": "Cuenta",
+    "free": "Libre: {{amount}}",
+    "creditAvailable": "Crédito disponible: {{amount}}",
+    "debt": "Deuda: {{amount}}",
+    "goal": "Esto resta a tu meta {{name}}"
+  },
+  "category": {
+    "label": "Categoría",
+    "all": "Ver todas",
+    "allTitle": {
+      "expense": "Categorías de gasto",
+      "income": "Categorías de ingreso"
+    },
+    "allDescription": "Elige una categoría; abre un grupo para ver sus subcategorías.",
+    "expand": "Mostrar las subcategorías de {{name}}",
+    "collapse": "Ocultar las subcategorías de {{name}}",
+    "loadError": "No se pudieron cargar las categorías. Cierra y vuelve a abrir la lista."
+  },
+  "date": {
+    "label": "Fecha",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "calendar": "Calendario",
+    "pick": "Elegir una fecha de hoy o anterior"
+  },
+  "save": "Guardar",
+  "saving": "Guardando…",
+  "loading": "Cargando tus cuentas y categorías…",
+  "loadError": "No se pudieron cargar tus cuentas y categorías. Revisa tu conexión e inténtalo de nuevo.",
+  "retry": "Reintentar"
+}

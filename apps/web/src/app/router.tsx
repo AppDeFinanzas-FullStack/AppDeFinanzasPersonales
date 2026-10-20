@@ -6,6 +6,7 @@ import { authRoutes } from '@/features/auth/routes';
 import { categoriesRoutes } from '@/features/categories/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
+import { registerRoutes } from '@/features/register/routes';
 import { transactionsRoutes } from '@/features/transactions/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
@@ -57,7 +58,7 @@ export const router = createBrowserRouter([
                 children: [
                   { index: true },
                   ...transactionsRoutes,
-                  { path: 'registrar' },
+                  ...registerRoutes,
                   ...accountsRoutes,
                   { path: 'mas', element: <MoreMenu /> },
                   ...categoriesRoutes,

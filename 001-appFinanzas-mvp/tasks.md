@@ -2139,7 +2139,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un atajo con la categoría archivada no aparece en `register/context`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
+- [x] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
   - **Dependencias:** Requiere TASK-028, TASK-043, TASK-070, TASK-135
   - **Trazabilidad SDD:** plan §4.7.3 (formulario), plan §4.7.4 (`/registrar`, teclado, rendimiento); RF-M7-01, RF-M7-02, RF-M7-03, RF-M7-04, RF-M7-05, RF-M7-06, RF-M7-08, RF-M7-11, RF-M7-12, RF-M9-04, RNF-01
   - **Archivos en Alcance:**
