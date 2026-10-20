@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -30,18 +30,36 @@ export function useSignedMoney(): (amount: string, symbol: string) => string {
 /** The amount without its sign. */
 const unsigned = (amount: string): string => (amount.startsWith('-') ? amount.slice(1) : amount);
 
+/** How long a press must last on a phone to select a movement (plan §4.6.4). */
+const LONG_PRESS_MS = 500;
+
+interface RowSelection {
+  selected: boolean;
+  /** `true` once anything is selected: a tap then toggles instead of opening the detail. */
+  active: boolean;
+  onToggle: () => void;
+}
+
 interface TransactionRowProps {
   item: TransactionItem;
   /** The user's base currency. */
   base: string;
   accountNames: ReadonlyMap<string, string>;
+  selection?: RowSelection;
 }
 
 /**
  * A movement of the list, with the "anterior al saldo inicial" and "De recurrente: X" marks
- * (RF-M4-03, RF-M6-10); it opens its detail.
+ * (RF-M4-03, RF-M6-10); it opens its detail. With `selection`, it is selected with its checkbox
+ * on a desktop, a long press on a phone or the space key (RF-M6-13, RNF-06).
  */
-export function TransactionRow({ item, base, accountNames }: TransactionRowProps) {
+export function TransactionRow({ item, base, accountNames, selection }: TransactionRowProps) {
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const cancelPress = () => {
+    if (pressTimer.current !== null) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+  };
   const { t } = useTranslation('transactions');
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
@@ -81,10 +99,40 @@ export function TransactionRow({ item, base, accountNames }: TransactionRowProps
               : signed(item.amountInBase, symbolOf(base)),
           });
 
-  return (
+  const link = (
     <Link
       to={`/movimientos/${item.id}`}
-      className="flex min-h-14 items-start justify-between gap-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      aria-describedby={selection?.selected === true ? `selected-${item.id}` : undefined}
+      onKeyDown={(event) => {
+        if (selection !== undefined && event.key === ' ') {
+          event.preventDefault();
+          selection.onToggle();
+        }
+      }}
+      onPointerDown={() => {
+        if (selection === undefined) return;
+        longPressed.current = false;
+        pressTimer.current = setTimeout(() => {
+          longPressed.current = true;
+          selection.onToggle();
+        }, LONG_PRESS_MS);
+      }}
+      onPointerUp={cancelPress}
+      onPointerLeave={cancelPress}
+      onContextMenu={(event) => {
+        if (selection !== undefined) event.preventDefault();
+      }}
+      onClick={(event) => {
+        if (selection === undefined) return;
+        if (longPressed.current) {
+          event.preventDefault();
+          longPressed.current = false;
+        } else if (selection.active) {
+          event.preventDefault();
+          selection.onToggle();
+        }
+      }}
+      className="flex min-h-14 min-w-0 flex-1 items-start justify-between gap-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <div className="flex min-w-0 flex-col gap-1">
         <span className="truncate text-base font-medium">{title}</span>
@@ -109,5 +157,24 @@ export function TransactionRow({ item, base, accountNames }: TransactionRowProps
         {inBase !== null && <span className="text-sm text-muted-foreground">{inBase}</span>}
       </div>
     </Link>
+  );
+
+  if (selection === undefined) return link;
+  return (
+    <div className={`flex items-center gap-3 ${selection.selected ? 'bg-muted' : ''}`}>
+      <input
+        type="checkbox"
+        className="hidden h-4 w-4 shrink-0 lg:block"
+        checked={selection.selected}
+        aria-label={t('batch.select', { name: title })}
+        onChange={selection.onToggle}
+      />
+      {link}
+      {selection.selected && (
+        <span id={`selected-${item.id}`} className="sr-only">
+          {t('batch.selected')}
+        </span>
+      )}
+    </div>
   );
 }

@@ -2030,7 +2030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-04`: volver a Movimientos conserva el mes y los filtros.
     - Buscar "35" filtra la lista.
 
-- [ ] **`TASK-130`: Web: selección y acciones en lote**
+- [x] **`TASK-130`: Web: selección y acciones en lote**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`BatchToolbar`); RF-M6-13, RNF-06
   - **Archivos en Alcance:**

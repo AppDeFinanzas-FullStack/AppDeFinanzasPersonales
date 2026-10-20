@@ -1,5 +1,21 @@
 {
   "title": "Movimientos",
+  "batch": {
+    "toolbar": "Acciones con los movimientos seleccionados",
+    "select": "Seleccionar {{name}}",
+    "selected": "Seleccionado",
+    "count_one": "{{count}} movimiento seleccionado",
+    "count_other": "{{count}} movimientos seleccionados",
+    "delete": "Eliminar",
+    "category": "Elige una categoría",
+    "recategorize": "Cambiar categoría",
+    "clear": "Quitar la selección",
+    "done_one": "Se procesó {{count}} movimiento.",
+    "done_other": "Se procesaron {{count}} movimientos.",
+    "skipped_one": "{{count}} quedó fuera.",
+    "skipped_other": "{{count}} quedaron fuera.",
+    "undo": "Deshacer"
+  },
   "month": {
     "previous": "Mes anterior",
     "next": "Mes siguiente"

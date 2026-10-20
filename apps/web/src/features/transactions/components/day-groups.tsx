@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
@@ -5,6 +6,7 @@ import { useFormatters } from '@/features/settings/hooks/use-settings';
 
 import type { DayNet, TransactionItem } from '../api';
 
+import { BatchToolbar } from './batch-toolbar';
 import { TransactionRow, useSignedMoney } from './transaction-row';
 
 interface DayGroup {
@@ -36,13 +38,25 @@ interface DayGroupsProps {
   accountNames: ReadonlyMap<string, string>;
 }
 
-/** The days of the list, each with its net without what RN-02 leaves out (RF-M6-12). */
+/**
+ * The days of the list, each with its net without what RN-02 leaves out (RF-M6-12). Only the
+ * movements already loaded can be selected for the batch actions (RF-M6-13).
+ */
 export function DayGroups({ items, dayNets, base, today, accountNames }: DayGroupsProps) {
   const { t } = useTranslation('transactions');
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
   const signed = useSignedMoney();
   const nets = new Map(dayNets.map((day) => [day.date, day.net]));
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const loaded = new Set(items.map((item) => item.id));
+  const selectedIds = [...selected].filter((id) => loaded.has(id));
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,13 +79,30 @@ export function DayGroups({ items, dayNets, base, today, accountNames }: DayGrou
             <ul className="divide-y divide-border">
               {group.items.map((item) => (
                 <li key={item.id}>
-                  <TransactionRow item={item} base={base} accountNames={accountNames} />
+                  <TransactionRow
+                    item={item}
+                    base={base}
+                    accountNames={accountNames}
+                    selection={{
+                      selected: selected.has(item.id),
+                      active: selectedIds.length > 0,
+                      onToggle: () => {
+                        toggle(item.id);
+                      },
+                    }}
+                  />
                 </li>
               ))}
             </ul>
           </section>
         );
       })}
+      <BatchToolbar
+        ids={selectedIds}
+        onDone={() => {
+          setSelected(new Set());
+        }}
+      />
     </div>
   );
 }
