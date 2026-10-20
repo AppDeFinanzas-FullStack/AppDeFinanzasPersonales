@@ -24,6 +24,10 @@ import {
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
+import {
+  transactionsRouter,
+  type TransactionsRoutesDeps,
+} from './routes/transactions.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
@@ -45,6 +49,8 @@ export interface AppDeps {
   currencies?: CurrenciesRoutesDeps;
   /** The routes `/api/accounts` (plan §4.4.2). */
   accounts?: AccountsRoutesDeps;
+  /** The routes `/api/transactions` (plan §4.6.2). */
+  transactions?: TransactionsRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -106,6 +112,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.accounts !== undefined) {
     app.use('/api/accounts', accountsRouter(deps.accounts));
+  }
+  if (deps.transactions !== undefined) {
+    app.use('/api/transactions', transactionsRouter(deps.transactions));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

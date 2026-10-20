@@ -162,5 +162,26 @@ export function createCategoryRepository(
          ORDER BY (parent_id IS NOT NULL) ASC, sort_order ASC, id ASC`;
       return rows.map((row) => row.id);
     },
+
+    async children(id: string, status: LifecycleStatus): Promise<CategoryRow[]> {
+      return tx.$queryRaw<CategoryRow[]>`
+        SELECT ${COLUMNS}
+          FROM category c
+         WHERE c.user_id = ${userId}::uuid AND c.parent_id = ${id}::uuid
+           AND c.status = ${status}::lifecycle_status
+         ORDER BY c.sort_order ASC, c.id ASC`;
+    },
+
+    async setStatus(ids: string[], status: LifecycleStatus): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      await tx.$executeRaw`
+        UPDATE category
+           SET status = ${status}::lifecycle_status,
+               archived_at = CASE WHEN ${status}::lifecycle_status = 'archived'
+                                  THEN now() ELSE NULL END
+         WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[])`;
+    },
   };
 }

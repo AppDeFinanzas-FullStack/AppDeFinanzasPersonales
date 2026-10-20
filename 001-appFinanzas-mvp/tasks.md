@@ -1741,7 +1741,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-03`: mover una hija cambia el total del padre anterior desde ese momento.
     - `RNF-28`: la categoría 301 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-112`: Archivar y restaurar categorías**
+- [x] **`TASK-112`: Archivar y restaurar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
   - **Archivos en Alcance:**
@@ -1973,7 +1973,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-11`: los pendientes no aparecen (no existen en `ledger_transaction`).
     - `RF-M6-12`: los totales excluyen lo de RN-02.
 
-- [ ] **`TASK-127`: Rutas HTTP de movimientos**
+- [x] **`TASK-127`: Rutas HTTP de movimientos**
   - **Dependencias:** Requiere TASK-125, TASK-126
   - **Trazabilidad SDD:** plan §4.6.2 (tabla de endpoints), ADR-11; RNF-14, RNF-11
   - **Archivos en Alcance:**
@@ -1982,21 +1982,24 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/transactions.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/services/transactions.service.ts`
     - `apps/api/test/http/transactions.test.ts`
     - `apps/api/test/http/transactions.isolation.test.ts`
-  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
+  - **Especificación de Implementación:** `TransactionsService` gana `get(ctx, id)` (`NOT_FOUND` si no es del usuario), y `create`, `update`, `get` y `list` devuelven cada movimiento con lo que pide `TransactionDto`: el monto en la base, `beforeInitialBalance` y la categoría con su nombre (y su comisión en el detalle). Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-11`: un reintento con el mismo id responde 200 sin crear una fila.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un movimiento de A, también como `accountId` o `categoryId` de una creación.
 
-- [ ] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
+- [x] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
   - **Dependencias:** Requiere TASK-063, TASK-124
   - **Trazabilidad SDD:** plan §4.6.3 (eliminado definitivo), ADR-07; EC-M6-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/test/integration/maintenance-ledger.test.ts`
-  - **Especificación de Implementación:** Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
+  - **Especificación de Implementación:** `MaintenanceStore` gana un método para cada purga. Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
     - Los `undo_action` vencidos desaparecen.

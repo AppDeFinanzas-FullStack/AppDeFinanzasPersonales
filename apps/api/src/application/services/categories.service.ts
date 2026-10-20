@@ -1,6 +1,8 @@
 import type {
+  ArchiveImpactDto,
   CreateCategoryInput,
   ReorderCategoriesInput,
+  RestoreCategoryInput,
   UpdateCategoryInput,
 } from '@finanzas/contracts';
 
@@ -27,6 +29,12 @@ export interface CategoriesService {
   update(userId: string, id: string, input: UpdateCategoryInput): Promise<CategoryRow>;
   /** Reassigns `sortOrder` within the same kind and parent. */
   reorder(userId: string, input: ReorderCategoriesInput): Promise<void>;
+  /** What archiving the category affects (RF-M5-07). */
+  archiveImpact(userId: string, id: string): Promise<ArchiveImpactDto>;
+  /** Archives the category and its subcategories; the history stays (RF-M5-06). */
+  archive(userId: string, id: string): Promise<void>;
+  /** Restores the category and the chosen subcategories, optionally renaming it (EC-M5-04). */
+  restore(userId: string, id: string, input: RestoreCategoryInput): Promise<void>;
 }
 
 /** The parent of a category being created or moved must exist, be a root, of the same kind and active. */
@@ -171,6 +179,91 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
             }
           }
           await repos.categories.setOrder(movable);
+        },
+        { userLock: userId },
+      );
+    },
+
+    async archiveImpact(userId, id) {
+      return uow.run(
+        async (repos) => {
+          const current = await repos.categories.get(id);
+          if (current === null) {
+            throw new AppError('CATEGORY_NOT_FOUND');
+          }
+          const children = await repos.categories.children(id, 'active');
+          const budgets: { id: string }[] = [];
+          const recurring: { id: string; name: string }[] = [];
+          const shortcuts: { id: string; name: string }[] = [];
+          // Archiving the parent archives its active children, so their usage is affected too.
+          for (const affectedId of [id, ...children.map((child) => child.id)]) {
+            const usage = await repos.categories.usage(affectedId);
+            budgets.push(...usage.budgets);
+            recurring.push(...usage.recurring);
+            shortcuts.push(...usage.shortcuts);
+          }
+          return {
+            children: children.map((child) => ({ id: child.id, name: child.name })),
+            budgets,
+            recurring,
+            shortcuts,
+          };
+        },
+        { userLock: userId },
+      );
+    },
+
+    async archive(userId, id) {
+      await uow.run(
+        async (repos) => {
+          const current = await repos.categories.get(id);
+          if (current === null) {
+            throw new AppError('CATEGORY_NOT_FOUND');
+          }
+          if (current.isSystem) {
+            throw new AppError('SYSTEM_CATEGORY');
+          }
+          const children = await repos.categories.children(id, 'active');
+          const ids = children.map((child) => child.id);
+          if (current.status === 'active') {
+            ids.push(id);
+          }
+          await repos.categories.setStatus(ids, 'archived');
+        },
+        { userLock: userId },
+      );
+    },
+
+    async restore(userId, id, input) {
+      await uow.run(
+        async (repos) => {
+          const current = await repos.categories.get(id);
+          if (current === null) {
+            throw new AppError('CATEGORY_NOT_FOUND');
+          }
+          if (current.parentId !== null) {
+            const parent = await repos.categories.get(current.parentId);
+            if (parent !== null && parent.status !== 'active') {
+              throw new AppError('PARENT_ARCHIVED');
+            }
+          }
+
+          const name = input.newName?.trim() ?? current.name;
+          await assertNameFree(repos, current.kind, current.parentId, name, id);
+          if (name !== current.name) {
+            await repos.categories.update(id, { name });
+          }
+          await repos.categories.setStatus([id], 'active');
+
+          const archivedChildren = await repos.categories.children(id, 'archived');
+          for (const childId of input.childIds) {
+            const child = archivedChildren.find((candidate) => candidate.id === childId);
+            if (child === undefined) {
+              throw new AppError('HIERARCHY_INVALID');
+            }
+            await assertNameFree(repos, child.kind, id, child.name, childId);
+            await repos.categories.setStatus([childId], 'active');
+          }
         },
         { userLock: userId },
       );
