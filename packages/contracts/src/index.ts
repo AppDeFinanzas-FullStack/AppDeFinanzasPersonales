@@ -5,3 +5,4 @@ export * from './catalogs.js';
 export * from './auth.js';
 export * from './fx.js';
 export * from './accounts.js';
+export * from './categories.js';

@@ -1677,7 +1677,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 10 — M5 Categorías (V1.0)
 
-- [ ] **`TASK-109`: Contratos de M5**
+- [x] **`TASK-109`: Contratos de M5**
   - **Dependencias:** Requiere TASK-024
   - **Trazabilidad SDD:** plan §4.5.1; RF-M5-01, RF-M5-02, RF-M5-04
   - **Archivos en Alcance:**
