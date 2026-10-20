@@ -927,7 +927,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: `sign-up` y `password/forgot` dan el mismo cuerpo y estado con correos existentes e inexistentes, con una diferencia de tiempo p95 < 50 ms sobre 50 muestras.
     - La cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`.
 
-- [ ] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
+- [x] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
   - **Dependencias:** Requiere TASK-059
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: buzón de prueba y usuarios de prueba), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**

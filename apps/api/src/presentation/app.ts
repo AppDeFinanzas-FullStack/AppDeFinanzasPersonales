@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto';
 import express, { type Express, type RequestHandler } from 'express';
 
 import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.js';
+import {
+  testSupportRouter,
+  type TestSupportControllerDeps,
+} from './internal/test-support.controller.js';
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
@@ -20,6 +24,9 @@ export interface AppDeps {
   auth?: AuthRoutesDeps;
   /** The routes `/api/me` (plan §4.1.2). */
   me?: MeRoutesDeps;
+
+  /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
+  testSupport?: TestSupportControllerDeps;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -64,6 +71,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
+  }
+  if (deps.testSupport !== undefined) {
+    app.use('/internal/test', testSupportRouter(deps.testSupport));
   }
   app.use(errorHandler);
   return app;
