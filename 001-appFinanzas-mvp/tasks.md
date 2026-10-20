@@ -1157,7 +1157,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-12` (`@release-1.0`): con `RELEASE=1.0`, PLANIFICAR no aparece.
     - `RF-M2-04`: al cambiar de pestaña y volver, se restauran la URL y la posición.
     - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
-    - `RF-M2-06`: el botón Atrás cierra un diálogo abierto sin salir de la pantalla.
+    - `RF-M2-06`: el botón Atrás vuelve de un módulo abierto desde "Más" a `/mas`. Todavía no hay pantallas con diálogos: la prueba de que Atrás cierra un diálogo con `useBackToClose` sin salir de la pantalla la agrega la primera tarea que monte un diálogo (plan §4.2.3).
 
 - [ ] **`TASK-074`: Web: pantalla de perfil**
   - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073
