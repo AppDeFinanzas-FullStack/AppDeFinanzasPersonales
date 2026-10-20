@@ -1466,7 +1466,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-05`: cada tasa muestra "actualizado hace X".
     - Sin violaciones de axe.
 
-- [ ] **`TASK-094`: Web: gráfico de evolución de las tasas**
+- [x] **`TASK-094`: Web: gráfico de evolución de las tasas**
   - **Dependencias:** Requiere TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`RateHistoryChart`), ADR-03 (solo los gráficos usan `number`); spec §2.3.1 (consultar el panel)
   - **Archivos en Alcance:**

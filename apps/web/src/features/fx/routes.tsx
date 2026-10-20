@@ -8,6 +8,7 @@ import fx from '@/locales/es-BO/fx.json';
 import { CurrentRatesCard } from './components/current-rates-card';
 import { GapCard } from './components/gap-card';
 import { ManualValueCard } from './components/manual-value-card';
+import { RateHistoryChart } from './components/rate-history-chart';
 import { ReferenceSelector } from './components/reference-selector';
 import { useCurrentRate } from './hooks/use-current-rate';
 
@@ -32,6 +33,9 @@ export function ExchangeRatePage() {
       <CurrentRatesCard rates={rates.data} now={rates.dataUpdatedAt} />
       <Separator />
       <GapCard gap={gap} />
+      <Separator />
+      {/* With a manual value the chart follows the default reference (RF-M3-03). */}
+      <RateHistoryChart kind={inUse.kind === 'manual' ? 'parallel_median' : inUse.kind} />
       <Separator />
       <ReferenceSelector inUse={inUse} />
       <Separator />

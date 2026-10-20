@@ -64,5 +64,18 @@
     "since_one": "Usando tu valor manual ({{value}}) desde hace {{count}} día",
     "since_other": "Usando tu valor manual ({{value}}) desde hace {{count}} días",
     "noSince": "Usando tu valor manual ({{value}})"
+  },
+  "history": {
+    "title": "Evolución: {{kind}}",
+    "rangesLabel": "Rango del gráfico",
+    "ranges": {
+      "7d": "7d",
+      "30d": "30d",
+      "90d": "90d",
+      "1y": "1a"
+    },
+    "alt": "{{kind}} en {{range}}: último valor {{value}} el {{date}}.",
+    "altEmpty": "{{kind}} en {{range}}: todavía no hay datos en este rango.",
+    "loadError": "No se pudo cargar la evolución. Revisa tu conexión y elige el rango de nuevo."
   }
 }
