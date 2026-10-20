@@ -1598,7 +1598,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-11`: el orden se guarda y `list` lo respeta.
     - `EC-M4-02`: enviar el saldo inicial da `VALIDATION_ERROR`.
 
-- [ ] **`TASK-103`: Ajustar el saldo de una cuenta**
+- [x] **`TASK-103`: Ajustar el saldo de una cuenta**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`POST /api/accounts/:id/adjust`); RF-M4-05, EC-M4-08, RN-02, RN-01
   - **Archivos en Alcance:**

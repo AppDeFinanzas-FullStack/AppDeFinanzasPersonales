@@ -1,6 +1,7 @@
 import {
   UpdateAccountInput,
   type AccountDto,
+  type AdjustInput,
   type CreateAccountInput,
   type ReorderInput,
 } from '@finanzas/contracts';
@@ -8,21 +9,26 @@ import {
   cardView,
   convert,
   netWorth,
+  todayFor,
   toMoneyString,
   validateInitialBalance,
   validateTypeChange,
   type NetWorthResult,
 } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
+import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../errors.js';
 import type {
   AccountPatch,
   AccountRow,
+  LedgerTransactionDetail,
   LifecycleStatus,
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import { BalanceGuard } from '../shared/balance-guard.js';
+import type { LedgerHooks } from '../shared/ledger-hooks.js';
 import { assertLimit } from '../shared/limits.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
@@ -52,11 +58,22 @@ export interface AccountsService {
   update(ctx: AccountsContext, id: string, input: UpdateAccountInput): Promise<AccountDto>;
   /** Gives the user's accounts the order of `ids`, which must be exactly all of them (RF-M4-11). */
   reorder(ctx: AccountsContext, input: ReorderInput): Promise<void>;
+  /**
+   * Brings the balance to the real one with an adjustment dated today (RF-M4-05, RN-01), which is
+   * neither income nor expense (RN-02). The same balance creates nothing (EC-M4-08), and the same
+   * `transactionId` gives the adjustment already made (ADR-11).
+   */
+  adjust(
+    ctx: AccountsContext,
+    id: string,
+    input: AdjustInput,
+  ): Promise<{ created: boolean; transaction: LedgerTransactionDetail | null }>;
 }
 
 export interface AccountsServiceDeps {
   uow: UnitOfWork;
   rates: RatesService;
+  ledgerHooks: LedgerHooks;
 }
 
 /** Set aside for goals: nothing until V1.1 (RF-M4-10). */
@@ -89,6 +106,21 @@ function signedInitialBalance(input: CreateAccountInput): Decimal {
   }
   const amount = new Decimal(initialBalance.amount);
   return initialBalance.kind === 'debt' ? amount.negated() : amount;
+}
+
+/** The real balance as stored: on a card the user gives the real debt, kept as negative. */
+function signedRealBalance(
+  type: AccountRow['type'],
+  realBalance: AdjustInput['realBalance'],
+): Decimal {
+  if (typeof realBalance === 'string') {
+    return new Decimal(realBalance);
+  }
+  if (type !== 'credit_card') {
+    throw invalidField('realBalance', 'invalid_type');
+  }
+  const amount = new Decimal(realBalance.amount);
+  return realBalance.kind === 'debt' ? amount.negated() : amount;
 }
 
 /** Card fields are only kept for a card. */
@@ -166,7 +198,11 @@ async function snapshotOf(
   return { rows, balances, baseCurrency: await baseCurrencyOf(repos, userId) };
 }
 
-export function createAccountsService({ uow, rates }: AccountsServiceDeps): AccountsService {
+export function createAccountsService({
+  uow,
+  rates,
+  ledgerHooks,
+}: AccountsServiceDeps): AccountsService {
   /**
    * Bs per unit of each currency with the rate in force (RN-05). It runs after the snapshot's
    * transaction, since each rate takes the user lock in its own one.
@@ -418,6 +454,80 @@ export function createAccountsService({ uow, rates }: AccountsServiceDeps): Acco
             throw invalidField('ids', 'invalid_value');
           }
           await repos.accounts.setOrder(input.ids);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async adjust(ctx, id, input) {
+      return uow.run(
+        async (repos) => {
+          const existing = await repos.ledger.get(input.transactionId);
+          if (existing !== null) {
+            const sameAdjustment =
+              existing.kind === 'adjustment' &&
+              existing.entries.every((entry) => entry.accountId === id);
+            if (!sameAdjustment) {
+              throw new AppError('IDEMPOTENCY_CONFLICT');
+            }
+            return { created: false, transaction: existing };
+          }
+
+          const [account] = await repos.accounts.lockForUpdate([id]);
+          if (account === undefined) {
+            throw new AppError('NOT_FOUND');
+          }
+          const real = signedRealBalance(account.type, input.realBalance);
+          const balances = await repos.ledger.balances([id]);
+          const delta = real.minus(balances.get(id) ?? account.initialBalance);
+          if (delta.isZero()) {
+            return { created: false, transaction: null };
+          }
+
+          const today = todayFor(ctx.timezone, ctx.now);
+          await BalanceGuard.apply(repos, ctx.userId, [{ accountId: id, amount: delta }], {
+            mode: 'interactive',
+          });
+          // RN-04: the adjustment stores the rates of its day like any movement.
+          const { rateCurBob, rateUsdBob } = await rates.ratesForMovement(
+            repos,
+            ctx,
+            account.currencyCode,
+            today,
+          );
+          const inserted = await repos.ledger.insertTransaction(
+            {
+              id: input.transactionId,
+              kind: 'adjustment',
+              date: today,
+              note: input.note ?? null,
+              categoryId: null,
+              origin: 'manual',
+              originId: null,
+              parentTransactionId: null,
+              recurringRuleId: null,
+              recurringLabel: null,
+              rateCurBob,
+              rateUsdBob,
+              declaredRate: null,
+            },
+            [{ id: uuidv7(), accountId: id, amount: delta }],
+          );
+          if (!inserted) {
+            // The id is taken by a deleted movement or by another user's one (ADR-11).
+            throw new AppError('IDEMPOTENCY_CONFLICT');
+          }
+          await ledgerHooks.afterChange(repos, ctx.userId, {
+            dates: [today],
+            categoryIds: [],
+            accountIds: [id],
+          });
+
+          const transaction = await repos.ledger.get(input.transactionId);
+          if (transaction === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return { created: true, transaction };
         },
         { userLock: ctx.userId },
       );
