@@ -1193,7 +1193,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-08`: con la sesión vencida, iniciar sesión con el mismo usuario vuelve a la misma pantalla con el borrador.
     - `EC-M2-01`: si entra otro usuario, el borrador anterior se descarta.
 
-- [ ] **`TASK-076`: Web: eliminar la cuenta**
+- [x] **`TASK-076`: Web: eliminar la cuenta**
   - **Dependencias:** Requiere TASK-062, TASK-074
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil/eliminar`); RF-M1-15, EC-M1-08
   - **Archivos en Alcance:**
