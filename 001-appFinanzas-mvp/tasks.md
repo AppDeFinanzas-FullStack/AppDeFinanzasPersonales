@@ -973,6 +973,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.1.3 (descarte), plan §3.9 (retención); RF-M1-06, EC-M1-03, RNF-26
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/maintenance-auth.test.ts`
   - **Especificación de Implementación:** Borra los `auth_user` sin confirmar con `registered_at` de hace más de 7 días, los `email_send_log` de más de 24 h y los `login_throttle` sin actividad desde hace más de 1 h. Se registra en el tick con el nombre `maintenance`.
