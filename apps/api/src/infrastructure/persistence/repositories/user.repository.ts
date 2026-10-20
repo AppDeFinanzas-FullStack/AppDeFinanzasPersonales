@@ -12,6 +12,21 @@ export function createUserRepository(tx: TransactionClient): UserRepository {
       return rows[0] ?? null;
     },
 
+    async findCredential(email) {
+      const rows = await tx.$queryRaw<
+        { id: string; emailVerified: boolean; passwordHash: string | null }[]
+      >`
+        SELECT u.id::text AS id, u.email_verified AS "emailVerified", a.password AS "passwordHash"
+          FROM auth_user u
+          JOIN auth_account a ON a.user_id = u.id AND a.provider_id = 'credential'
+         WHERE u.email = ${email}`;
+      const row = rows[0];
+      if (row === undefined || row.passwordHash === null) {
+        return null;
+      }
+      return { id: row.id, emailVerified: row.emailVerified, passwordHash: row.passwordHash };
+    },
+
     async createUnconfirmed(user) {
       const rows = await tx.$queryRaw<{ id: string }[]>`
         INSERT INTO auth_user (id, name, email, terms_accepted_at, registered_at)

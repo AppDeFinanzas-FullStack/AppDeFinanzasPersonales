@@ -27,9 +27,28 @@ export interface ConfirmResult {
   session: CreatedSession;
 }
 
+export interface SignInInput {
+  email: string;
+  password: string;
+}
+
+export interface SignInResult {
+  session: CreatedSession;
+}
+
 export interface AuthService {
   /** Always answers the neutral `check_email`, whatever the state of the email (RF-M1-03). */
   signUp(input: SignUpInput): Promise<SignUpResult>;
+  /**
+   * Opens a session with the email and the password. Rejects with `LOGIN_LOCKED` while a wait is
+   * running (EC-M1-04), `INVALID_CREDENTIALS` whatever the wrong data (RNF-15), or
+   * `EMAIL_NOT_CONFIRMED` without opening a session (RF-M1-04). Counts failures (RF-M1-08).
+   */
+  signIn(input: SignInInput): Promise<SignInResult>;
+  /** Closes that session. */
+  signOut(sessionId: string): Promise<void>;
+  /** Closes every session of the user (RF-M1-07). */
+  signOutAll(userId: string): Promise<void>;
   /**
    * Sends a new confirmation link within the limits of 60 s and 5 per hour (RF-M1-05). Always
    * resolves, whether it sent anything or not.
@@ -67,6 +86,23 @@ export function createAuthService({
   webOrigin,
 }: AuthServiceDeps): AuthService {
   const hmacOf = (email: string) => createHmac('sha256', hmacSecret).update(email).digest('hex');
+
+  /** Hash checked when the email has no account, so the time does not reveal it (RNF-15). */
+  let dummyHash: Promise<string> | undefined;
+  const dummyHashOnce = () => (dummyHash ??= auth.hashPassword(uuidv7()));
+
+  /** Counts a failed sign-in and warns the owner, at most once per hour (RF-M1-08, RNF-25). */
+  async function recordSignInFailure(
+    repos: Repositories,
+    email: string,
+    emailHmac: string,
+    hasAccount: boolean,
+  ): Promise<void> {
+    await repos.loginThrottle.recordFailure(emailHmac);
+    if (hasAccount && (await repos.loginThrottle.claimAlert(emailHmac))) {
+      await repos.emailOutbox.enqueue({ id: uuidv7(), to: email, kind: 'login_alert', payload: {} });
+    }
+  }
 
   /** Issues a new confirmation link and leaves the `confirm` email in the outbox. */
   async function sendConfirmation(repos: Repositories, userId: string, email: string) {
@@ -173,6 +209,46 @@ export function createAuthService({
         await sleep(remaining);
       }
       return { status: 'check_email' };
+    },
+
+    async signIn(input) {
+      const email = input.email.trim().toLowerCase();
+      const emailHmac = hmacOf(email);
+
+      const { remaining, credential } = await uow.run(
+        async (repos) => ({
+          remaining: await repos.loginThrottle.remainingSeconds(emailHmac),
+          credential: await repos.users.findCredential(email),
+        }),
+        { readOnly: true },
+      );
+      if (remaining > 0) {
+        throw new AppError('LOGIN_LOCKED', { retryAfterSeconds: remaining });
+      }
+
+      const hash = credential?.passwordHash ?? (await dummyHashOnce());
+      const valid = await auth.verifyPassword(hash, input.password);
+      if (!valid || credential === null) {
+        await uow.run((repos) =>
+          recordSignInFailure(repos, email, emailHmac, credential !== null),
+        );
+        throw new AppError('INVALID_CREDENTIALS');
+      }
+
+      await uow.run((repos) => repos.loginThrottle.reset(emailHmac));
+      if (!credential.emailVerified) {
+        throw new AppError('EMAIL_NOT_CONFIRMED');
+      }
+      const session = await auth.createSession(credential.id);
+      return { session };
+    },
+
+    async signOut(sessionId) {
+      await auth.deleteSession(sessionId);
+    },
+
+    async signOutAll(userId) {
+      await auth.revokeSessions(userId);
     },
 
     async resendConfirmation(input) {

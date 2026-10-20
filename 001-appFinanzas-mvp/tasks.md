@@ -867,7 +867,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-01` / `EC-M1-02`: los enlaces vencidos, invalidados o usados dan su error.
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta la cierra y abre la nueva.
 
-- [ ] **`TASK-056`: Inicio y cierre de sesión**
+- [x] **`TASK-056`: Inicio y cierre de sesión**
   - **Dependencias:** Requiere TASK-052, TASK-055
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
   - **Archivos en Alcance:**
