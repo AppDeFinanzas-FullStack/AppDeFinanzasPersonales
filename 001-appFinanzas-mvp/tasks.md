@@ -1982,9 +1982,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/transactions.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/services/transactions.service.ts`
     - `apps/api/test/http/transactions.test.ts`
     - `apps/api/test/http/transactions.isolation.test.ts`
-  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
+  - **Especificación de Implementación:** `TransactionsService` gana `get(ctx, id)` (`NOT_FOUND` si no es del usuario), y `create`, `update`, `get` y `list` devuelven cada movimiento con lo que pide `TransactionDto`: el monto en la base, `beforeInitialBalance` y la categoría con su nombre (y su comisión en el detalle). Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-11`: un reintento con el mismo id responde 200 sin crear una fila.
