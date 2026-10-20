@@ -1827,7 +1827,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-01` / `RF-M6-03`: los límites de monto y nota.
     - `ListQuery.limit` va de 1 a 100.
 
-- [ ] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
+- [x] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
   - **Dependencias:** Requiere TASK-099, TASK-110
   - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`, `:id`); RF-M6-02, RF-M6-11, RF-M6-12, RN-02, RN-05, RF-M5-03
   - **Archivos en Alcance:**
