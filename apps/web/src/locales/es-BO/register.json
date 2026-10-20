@@ -13,7 +13,16 @@
     "free": "Libre: {{amount}}",
     "creditAvailable": "Crédito disponible: {{amount}}",
     "debt": "Deuda: {{amount}}",
-    "goal": "Esto resta a tu meta {{name}}"
+    "goal": "Esto resta a tu meta {{name}}",
+    "reselect": "La cuenta que habías elegido ya no está activa. Revisa la cuenta antes de guardar."
+  },
+  "askRate": {
+    "title": "No pudimos obtener el dólar. ¿A cuánto lo tomamos?",
+    "description": "Este valor queda como tipo de cambio del movimiento y como tu valor manual del dólar.",
+    "label": "Bs por $ 1",
+    "invalid": "Escribe un valor mayor que 0, con hasta 2 decimales.",
+    "confirm": "Usar este valor",
+    "cancel": "Cancelar"
   },
   "category": {
     "label": "Categoría",
@@ -25,7 +34,12 @@
     "allDescription": "Elige una categoría; abre un grupo para ver sus subcategorías.",
     "expand": "Mostrar las subcategorías de {{name}}",
     "collapse": "Ocultar las subcategorías de {{name}}",
-    "loadError": "No se pudieron cargar las categorías. Cierra y vuelve a abrir la lista."
+    "loadError": "No se pudieron cargar las categorías. Cierra y vuelve a abrir la lista.",
+    "empty": {
+      "expense": "No tienes categorías de gasto activas.",
+      "income": "No tienes categorías de ingreso activas."
+    },
+    "create": "Crear categoría"
   },
   "date": {
     "label": "Fecha",

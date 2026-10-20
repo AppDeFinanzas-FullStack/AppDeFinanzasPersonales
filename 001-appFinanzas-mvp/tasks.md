@@ -2209,7 +2209,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Atajo rellena sin guardar": el formulario queda completo y no hay ningún POST hasta tocar "Guardar".
     - `RF-M7-09`: un atajo sin monto deja el foco en el monto.
 
-- [ ] **`TASK-141`: Web: errores y estados vacíos de Registrar**
+- [x] **`TASK-141`: Web: errores y estados vacíos de Registrar**
   - **Dependencias:** Requiere TASK-107, TASK-137
   - **Trazabilidad SDD:** plan §4.7.3 (errores, sin tasa), plan §4.4.3 (sin cuentas activas); EC-M7-01, EC-M7-02, EC-M7-04, EC-M7-07, EC-M7-08, EC-M3-02, EC-M10-03
   - **Archivos en Alcance:**
