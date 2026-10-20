@@ -2197,7 +2197,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-06`: con 12 atajos, informa el límite y ofrece ir a gestionarlos.
     - `EC-M6-08`: sin "Comisiones bancarias", pide elegir otra categoría.
 
-- [ ] **`TASK-140`: Web: fichas de atajos**
+- [x] **`TASK-140`: Web: fichas de atajos**
   - **Dependencias:** Requiere TASK-139
   - **Trazabilidad SDD:** plan §4.7.4 (`ShortcutChips`); RF-M7-09, RF-M2-11
   - **Archivos en Alcance:**

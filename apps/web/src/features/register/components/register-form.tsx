@@ -3,6 +3,7 @@ import {
   Rate,
   type CategoryChip,
   type CreateTransactionInput,
+  type ShortcutDto,
 } from '@finanzas/contracts';
 import {
   amountInFrom,
@@ -46,6 +47,7 @@ import { FeeField } from './fee-field';
 import { KindToggle, type RegisterKind } from './kind-toggle';
 import { SaveAsShortcutDialog, type ShortcutDraft } from './save-as-shortcut-dialog';
 import { NoteField, SecondLevel } from './second-level';
+import { ShortcutChips } from './shortcut-chips';
 import { TransferFields } from './transfer-fields';
 
 interface RegisterValues {
@@ -442,6 +444,30 @@ export function RegisterForm() {
     if (account === undefined || categoryId === '') return null;
     return { kind: chipKind, accountId: account.id, categoryId, ...base };
   };
+  // RF-M7-09: a shortcut fills the form without saving; without an amount the focus stays on it.
+  const onShortcut = (shortcut: ShortcutDto) => {
+    const set = (name: keyof RegisterValues, value: string) => {
+      form.setValue(name, value, { shouldDirty: true });
+    };
+    set('kind', shortcut.kind);
+    set('amount', shortcut.amount ?? '');
+    set('note', shortcut.note ?? '');
+    if (shortcut.kind === 'transfer') {
+      set('fromAccountId', shortcut.accountId);
+      set('toAccountId', shortcut.destAccountId ?? '');
+      set('rate', '');
+      set('amountIn', '');
+      set('categoryId', '');
+      setPicked(undefined);
+    } else {
+      set('accountId', shortcut.accountId);
+      set('categoryId', shortcut.categoryId ?? '');
+      setPicked(
+        data?.grid[shortcut.kind].find((chip) => chip.id === shortcut.categoryId) ?? undefined,
+      );
+    }
+    if (shortcut.amount === null) amountRef.current?.focus();
+  };
   const alwaysShowNote = settings.data?.alwaysShowNote ?? false;
   const setNote = (next: string) => {
     form.setValue('note', next, { shouldDirty: true });
@@ -468,6 +494,10 @@ export function RegisterForm() {
         }}
       >
         <KindToggle value={kind} kinds={KINDS} onChange={onKind} />
+        <ShortcutChips
+          shortcuts={(data?.shortcuts ?? []).filter((item) => item.kind === kind)}
+          onPick={onShortcut}
+        />
         <AmountInput id="register-amount" value={amount} onChange={onAmount} inputRef={amountRef} />
         {kind !== 'transfer' && (
           <AccountChip account={account} kind={kind} loading={context.isPending} />
