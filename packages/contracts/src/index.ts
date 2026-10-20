@@ -4,3 +4,4 @@ export * from './releases.js';
 export * from './catalogs.js';
 export * from './auth.js';
 export * from './fx.js';
+export * from './accounts.js';

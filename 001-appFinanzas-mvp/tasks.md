@@ -1482,7 +1482,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 9 — M4 Cuentas (V1.0)
 
-- [ ] **`TASK-096`: Contratos de M4**
+- [x] **`TASK-096`: Contratos de M4**
   - **Dependencias:** Requiere TASK-024, TASK-077
   - **Trazabilidad SDD:** plan §4.4.1; RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
@@ -1496,7 +1496,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: `UpdateAccountInput` rechaza `initialBalance` e `initialBalanceDate`.
     - `RF-M4-08`: el día de corte o de pago fuera de 1–31 es inválido.
 
-- [ ] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
+- [x] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.4.2 (cambio de tipo), plan §4.4.3; RN-01, RN-12, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
@@ -1510,13 +1510,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-08`: con límite 5.000 y deuda 5.200, el crédito disponible es −200 y está superado.
     - `RF-M4-07`: no se puede pasar a efectivo una cuenta con saldo inicial negativo, ni a tarjeta una cuenta dedicada.
 
-- [ ] **`TASK-098`: Dominio `balance`: total neto y desglose**
+- [x] **`TASK-098`: Dominio `balance`: total neto y desglose**
   - **Dependencias:** Requiere TASK-080, TASK-097
   - **Trazabilidad SDD:** plan §4.4.2 (`GET /api/accounts`); RF-M4-10, RN-05, RN-06
   - **Archivos en Alcance:**
     - `packages/domain/src/balance.ts`
     - `packages/domain/test/net-worth.test.ts`
-  - **Especificación de Implementación:** `netWorth(accounts, rates)` convierte cada saldo a la base con la tasa vigente, redondea por cuenta y suma. El desglose da Líquido (efectivo, banco, billetera y otro), Ahorro, Deuda en tarjetas (la suma de todas las tarjetas; un saldo a favor la reduce) y Apartado para metas (0 hasta V1.1). También devuelve el equivalente en la otra moneda, o `null` sin tasa.
+  - **Especificación de Implementación:** `netWorth(accounts, rates)` convierte cada saldo a la base con la tasa vigente, redondea por cuenta y suma. El desglose da Líquido (efectivo, banco, billetera y otro), Ahorro, Deuda en tarjetas (la suma de todas las tarjetas; un saldo a favor la reduce) y Apartado para metas (0 hasta V1.1). También devuelve el equivalente en la otra moneda, o `null` sin tasa. Firma: `netWorth(accounts: { type: AccountType; currencyCode: string; balance: string }[], rates: { baseCurrency: string; otherCurrency: string; bobPerUnit: Record<string, Decimal | null> })`; quien llama pasa solo las cuentas activas, y `bobPerUnit` da los Bs por unidad de cada moneda (BOB = 1), igual que `convert` de `fx.ts`. Devuelve `{ netWorth: { base: string | null; other: string | null }, breakdown: { liquid, savings, cardDebt, earmarked } }` en texto decimal, como `AccountsSummaryDto`. `other` es la suma de cada cuenta convertida y redondeada a la otra moneda (RN-06). Si falta la tasa de alguna moneda necesaria para convertir a la base, `base` y los cuatro campos del desglose son `null`; si falta solo la de la otra moneda, solo `other` es `null`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M4-10`: una tarjeta con deuda resta del total, y un saldo a favor reduce la deuda en tarjetas.
     - `RN-06`: el total es la suma de las conversiones redondeadas de cada cuenta.
