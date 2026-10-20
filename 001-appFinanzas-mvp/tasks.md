@@ -1398,10 +1398,11 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: tasas fijas), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
-  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`.
+  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`. `container.ts` expone el *fake* que crea `buildRateSources` para pasárselo al controlador. Cuerpo: `{ bid?, ask?, median?, official?, failure? }`; las tasas van como texto decimal (ADR-03) y `failure` es un `RateFailure` del puerto (`'TIMEOUT' | 'INVALID_VALUE' | 'SOURCE_ERROR'`) o `null` para quitar la falla. Responde 204; un cuerpo inválido da `VALIDATION_ERROR`.
   - **Criterios de Verificación (Tests & DoD):**
-    - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
+    - `TASK-090`: después de fijar 10,10 y 10,30, las filas `parallel_bid` y `parallel_ask` de `market_rate` del día valen 10,10 y 10,30; con `failure` fijado, la llamada no escribe filas nuevas; con `INTEGRATIONS=real`, la ruta responde 404.
 
 - [x] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
   - **Dependencias:** Requiere TASK-083
