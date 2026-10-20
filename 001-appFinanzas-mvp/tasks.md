@@ -1121,7 +1121,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-04`: sin sesión, una ruta privada lleva a `/entrar`.
     - `RF-M2-03` (`@release-1.0`): `/presupuestos` muestra la página 404 con `RELEASE=1.0`.
 
-- [ ] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
+- [x] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
   - **Dependencias:** Requiere TASK-070, TASK-071
   - **Trazabilidad SDD:** plan §4.2.3 (disposición), plan §4.2.4 (árbol); RF-M2-01, RF-M2-02, RF-M2-03, RF-M2-09, RF-M7-01, EC-M2-03, RNF-05, RNF-06
   - **Archivos en Alcance:**

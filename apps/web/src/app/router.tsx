@@ -4,10 +4,19 @@ import { createBrowserRouter, Outlet } from 'react-router';
 import { authRoutes } from '@/features/auth/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
+import { AppShell } from './layout/app-shell';
 
 function RootLayout() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
+      <Outlet />
+    </div>
+  );
+}
+
+function PublicLayout() {
+  return (
+    <main>
       <Outlet />
     </main>
   );
@@ -27,15 +36,30 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RootLayout />,
     children: [
-      ...authRoutes.filter((route) => route.path !== 'perfil'),
+      {
+        element: <PublicLayout />,
+        children: authRoutes.filter((route) => route.path !== 'perfil'),
+      },
       {
         element: <RequireSession />,
         children: [
           {
             element: <RequireOnboardingDone />,
             children: [
-              { index: true },
-              { path: 'perfil' },
+              {
+                element: <AppShell />,
+                children: [
+                  { index: true },
+                  { path: 'movimientos' },
+                  { path: 'registrar' },
+                  { path: 'cuentas' },
+                  { path: 'mas' },
+                  { path: 'categorias' },
+                  { path: 'tipo-de-cambio' },
+                  { path: 'perfil' },
+                  { path: 'ajustes' },
+                ],
+              },
             ],
           },
         ],
