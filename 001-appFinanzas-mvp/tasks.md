@@ -1430,7 +1430,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-091`: con un cliente simulado de 10 días, inserta 10 medianas y el oficial correcto a cada lado del 27/06/2026; correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
+- [x] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
   - **Dependencias:** Requiere TASK-072, TASK-086, TASK-090
   - **Trazabilidad SDD:** plan §4.3.4 (`RateChip`, estado), plan §4.2.4; spec §2.2.1 (cabecera); RF-M3-04
   - **Archivos en Alcance:**

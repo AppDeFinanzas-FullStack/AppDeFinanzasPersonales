@@ -1,0 +1,9 @@
+{
+  "chip": {
+    "noRate": "$ —",
+    "manual": "Manual",
+    "label": "Dólar: {{value}}. Ver tipo de cambio",
+    "labelManual": "Dólar: {{value}}, valor manual. Ver tipo de cambio",
+    "labelNoRate": "Sin tipo de cambio del dólar. Ver tipo de cambio"
+  }
+}

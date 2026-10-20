@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
+import { RateChip } from '@/features/fx/components/rate-chip';
+
 import { ALL_ITEMS } from './nav-items';
 
 function titleKeyFor(pathname: string): string | undefined {
@@ -17,7 +19,7 @@ export function Header() {
   return (
     <header className="flex h-14 items-center justify-between border-b border-border px-4">
       <h1 className="text-2xl font-semibold">{key ? t(`items.${key}`) : ''}</h1>
-      <div data-slot="rate-chip" />
+      <RateChip />
     </header>
   );
 }
