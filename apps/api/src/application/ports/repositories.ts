@@ -469,6 +469,15 @@ export interface LedgerTotals {
   net: Decimal;
 }
 
+/** Which state of a movement `get` reads (plan §4.6.3, ADR-07). */
+export interface LedgerGetOptions {
+  /**
+   * `true` reads the movement only while it is deleted and not yet purged, with its fee only when
+   * it is deleted too, for the undo. By default only a movement that is not deleted is read.
+   */
+  deleted?: boolean;
+}
+
 /** Ledger of the user bound to the transaction (ADR-04, RN-09). */
 export interface LedgerRepository {
   /**
@@ -506,8 +515,21 @@ export interface LedgerRepository {
    * its stored rates (RN-05) and without what RN-02 leaves out (RF-M6-12).
    */
   summary(filters: LedgerListFilters, base: string): Promise<LedgerTotals>;
-  /** The movement with its entries and its fee, or `null` when the user has no such movement. */
-  get(id: string): Promise<LedgerTransactionDetail | null>;
+  /**
+   * The movement with its entries and its fee, or `null` when the user has no such movement in the
+   * state that `options` asks for (not deleted, by default).
+   */
+  get(id: string, options?: LedgerGetOptions): Promise<LedgerTransactionDetail | null>;
+  /**
+   * Sets `deleted_at` on the user's movements among the ids that are not deleted; their entries
+   * stay until the purge (plan §4.6.3). Returns the ids that changed.
+   */
+  softDelete(ids: string[]): Promise<string[]>;
+  /**
+   * Clears `deleted_at` on the user's movements among the ids that are deleted and not yet purged
+   * (ADR-07). Returns the ids that changed.
+   */
+  restore(ids: string[]): Promise<string[]>;
 }
 
 // ---------- Categorías (M5) ----------

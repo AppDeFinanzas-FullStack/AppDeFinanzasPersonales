@@ -1919,7 +1919,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-07` / `RF-M6-04`: cambiar el origen o el destino de una transferencia a otra cuenta de la misma moneda mueve el asiento (y la comisión, si cambia el origen); a otra moneda o a la otra cuenta de la transferencia da `VALIDATION_ERROR`.
     - `RF-M6-05`: cambiar la fecha de una transferencia cambia la de su comisión, y su monto se conserva.
 
-- [ ] **`TASK-124`: Eliminar y deshacer movimientos**
+- [x] **`TASK-124`: Eliminar y deshacer movimientos**
   - **Dependencias:** Requiere TASK-123
   - **Trazabilidad SDD:** plan §4.6.2 (`DELETE`, `undo`), plan §4.6.3; RF-M6-08, RF-M7-07, EC-M6-03, EC-M6-05, EC-M4-01
   - **Archivos en Alcance:**

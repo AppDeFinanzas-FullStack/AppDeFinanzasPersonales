@@ -13,12 +13,14 @@ import type {
   LedgerEntryChange,
   LedgerEntryInput,
   LedgerEntryView,
+  LedgerGetOptions,
   LedgerTransactionChanges,
   LedgerTransactionDetail,
   LedgerTransactionView,
   Repositories,
   TransactionKind,
   TransactionOrigin,
+  UndoAction,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { BalanceGuard, type BalanceDelta } from '../shared/balance-guard.js';
@@ -42,6 +44,27 @@ export interface CreateTransactionResult {
   undoToken: string | null;
 }
 
+export interface DeleteTransactionResult {
+  /** The `undo_action(delete)` that restores the movement with its fee (ADR-07). */
+  undoToken: string;
+}
+
+/** The payload of an `undo_action(create)` or `undo_action(delete)`: the movements it touched. */
+export interface UndoMovementsPayload {
+  transactionIds: string[];
+}
+
+/** The category a movement had before a recategorization. */
+export interface PreviousCategory {
+  transactionId: string;
+  categoryId: string;
+}
+
+/** The payload of an `undo_action(recategorize)`: the categories it replaced (plan §3.5). */
+export interface UndoRecategorizePayload {
+  categories: PreviousCategory[];
+}
+
 export interface TransactionsService {
   /**
    * Creates an expense, an income or a transfer with its fee, idempotent by the client's id
@@ -57,6 +80,16 @@ export interface TransactionsService {
     id: string,
     input: UpdateTransactionInput,
   ): Promise<LedgerTransactionDetail>;
+  /**
+   * Deletes the user's movement with its fee (EC-M6-05); it can be undone with the returned token
+   * until it expires (plan §4.6.2, §4.6.3).
+   */
+  delete(ctx: RatesContext, id: string): Promise<DeleteTransactionResult>;
+  /**
+   * Consumes the single-use token and reverts its action: a deletion is restored, a creation is
+   * deleted and a recategorization gets its categories back (plan §4.6.2).
+   */
+  undo(ctx: RatesContext, undoToken: string): Promise<void>;
 }
 
 export interface TransactionsServiceDeps {
@@ -339,6 +372,159 @@ async function rewrite(
   }
 }
 
+/** The movement and its fee, which is deleted and restored with it (RF-M6-05, EC-M6-05). */
+function withFee(movement: LedgerTransactionDetail): LedgerTransactionView[] {
+  return movement.fee === null ? [movement] : [movement, movement.fee];
+}
+
+/** What the movements touched, for the hooks (plan §4.0). */
+function changeOf(movements: LedgerTransactionView[]): LedgerChange {
+  return {
+    dates: distinct(movements.map((movement) => movement.date)),
+    categoryIds: distinct(movements.map((movement) => movement.categoryId)),
+    accountIds: distinct(
+      movements.flatMap((movement) => movement.entries.map((entry) => entry.accountId)),
+    ),
+  };
+}
+
+/** The movements of the ids in that state, each with its fee and each one once. */
+async function movementsOf(
+  repos: Repositories,
+  ids: string[],
+  options: LedgerGetOptions,
+): Promise<LedgerTransactionView[]> {
+  const byId = new Map<string, LedgerTransactionView>();
+  for (const id of ids) {
+    const movement = await repos.ledger.get(id, options);
+    for (const item of movement === null ? [] : withFee(movement)) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()];
+}
+
+/**
+ * The deltas of the entries of the movements when they come back (`restore`) or leave (`remove`),
+ * without the entries dated before the initial balance of their account (RN-12).
+ */
+async function entryDeltas(
+  repos: Repositories,
+  movements: LedgerTransactionView[],
+  direction: 'restore' | 'remove',
+): Promise<BalanceDelta[]> {
+  const accounts = new Map<string, AccountRow>();
+  const deltas: BalanceDelta[] = [];
+  for (const movement of movements) {
+    for (const entry of movement.entries) {
+      const account =
+        accounts.get(entry.accountId) ?? (await storedAccount(repos, entry.accountId));
+      accounts.set(account.id, account);
+      const amount = direction === 'restore' ? entry.amount : entry.amount.negated();
+      deltas.push(...deltaFor(account, movement.date, amount));
+    }
+  }
+  return deltas;
+}
+
+/**
+ * Deletes the movements, whose entries leave their accounts: removing an income can leave the
+ * cash below zero (EC-M4-01, RF-M6-08). Returns the ids that were deleted.
+ */
+async function removeMovements(
+  repos: Repositories,
+  ctx: RatesContext,
+  movements: LedgerTransactionView[],
+): Promise<string[]> {
+  const deltas = await entryDeltas(repos, movements, 'remove');
+  await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+  return repos.ledger.softDelete(movements.map((movement) => movement.id));
+}
+
+/** Restores the deleted movements as they were, checked against the negative block (EC-M6-03). */
+async function restoreMovements(
+  repos: Repositories,
+  ctx: RatesContext,
+  movements: LedgerTransactionView[],
+): Promise<void> {
+  const deltas = await entryDeltas(repos, movements, 'restore');
+  await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+  await repos.ledger.restore(movements.map((movement) => movement.id));
+}
+
+/** Gives each movement back the category it had; the balances do not change. */
+async function restoreCategories(
+  repos: Repositories,
+  previous: PreviousCategory[],
+): Promise<LedgerChange | null> {
+  const movements: LedgerTransactionView[] = [];
+  const restored: string[] = [];
+  for (const { transactionId, categoryId } of previous) {
+    const movement = await repos.ledger.get(transactionId);
+    if (movement === null || movement.categoryId === categoryId) {
+      continue;
+    }
+    await rewrite(
+      repos,
+      movement.id,
+      {
+        date: movement.date,
+        note: movement.note,
+        categoryId,
+        rateCurBob: movement.rateCurBob,
+        rateUsdBob: movement.rateUsdBob,
+        declaredRate: movement.declaredRate,
+      },
+      movement.entries.map(({ accountId, amount }) => ({ accountId, amount })),
+    );
+    movements.push(movement);
+    restored.push(categoryId);
+  }
+  if (movements.length === 0) {
+    return null;
+  }
+  const change = changeOf(movements);
+  return { ...change, categoryIds: distinct([...change.categoryIds, ...restored]) };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isPreviousCategory(value: unknown): value is PreviousCategory {
+  return (
+    isRecord(value) &&
+    typeof value.transactionId === 'string' &&
+    typeof value.categoryId === 'string'
+  );
+}
+
+/** The ids of an `undo_action(create)` or `undo_action(delete)`. */
+function movementIds(action: UndoAction): string[] {
+  const ids: unknown = isRecord(action.payload) ? action.payload.transactionIds : undefined;
+  if (!Array.isArray(ids)) {
+    throw new Error(`The payload of the undo action (${action.kind}) is malformed`);
+  }
+  const items: unknown[] = ids;
+  if (!items.every((id): id is string => typeof id === 'string')) {
+    throw new Error(`The payload of the undo action (${action.kind}) is malformed`);
+  }
+  return items;
+}
+
+/** The previous categories of an `undo_action(recategorize)`. */
+function previousCategories(action: UndoAction): PreviousCategory[] {
+  const categories: unknown = isRecord(action.payload) ? action.payload.categories : undefined;
+  if (!Array.isArray(categories)) {
+    throw new Error(`The payload of the undo action (${action.kind}) is malformed`);
+  }
+  const items: unknown[] = categories;
+  if (!items.every(isPreviousCategory)) {
+    throw new Error(`The payload of the undo action (${action.kind}) is malformed`);
+  }
+  return items;
+}
+
 export function createTransactionsService({
   uow,
   rates,
@@ -431,7 +617,8 @@ export function createTransactionsService({
     change: LedgerChange,
   ): Promise<CreateTransactionResult> {
     await ledgerHooks.afterChange(repos, ctx.userId, change);
-    const undo = await repos.undoActions.create('create', { transactionIds: [id] });
+    const payload: UndoMovementsPayload = { transactionIds: [id] };
+    const undo = await repos.undoActions.create('create', payload);
 
     const transaction = await repos.ledger.get(id);
     if (transaction === null) {
@@ -946,6 +1133,74 @@ export function createTransactionsService({
     return transaction;
   }
 
+  async function deleteMovement(
+    repos: Repositories,
+    ctx: RatesContext,
+    id: string,
+  ): Promise<DeleteTransactionResult> {
+    const existing = await repos.ledger.get(id);
+    if (existing === null) {
+      // Deleted in another device, or another user's (RNF-09).
+      throw new AppError('NOT_FOUND');
+    }
+    if (!UNLINKED_ORIGINS.has(existing.origin)) {
+      // A linked movement is deleted only from its origin (RF-M6-09, plan §4.6.2).
+      throw new AppError('LINKED_DELETE_FORBIDDEN');
+    }
+
+    const movements = withFee(existing);
+    const deleted = await removeMovements(repos, ctx, movements);
+    await ledgerHooks.afterChange(repos, ctx.userId, changeOf(movements));
+    const payload: UndoMovementsPayload = { transactionIds: deleted };
+    const undo = await repos.undoActions.create('delete', payload);
+    return { undoToken: undo.id };
+  }
+
+  /** Reverts the action; `null` when nothing is left to revert. */
+  async function revert(
+    repos: Repositories,
+    ctx: RatesContext,
+    action: UndoAction,
+  ): Promise<LedgerChange | null> {
+    switch (action.kind) {
+      case 'delete': {
+        const movements = await movementsOf(repos, movementIds(action), { deleted: true });
+        if (movements.length === 0) {
+          return null;
+        }
+        await restoreMovements(repos, ctx, movements);
+        return changeOf(movements);
+      }
+      case 'create': {
+        // The new movement is deleted with the same checks as a deletion (RF-M7-07).
+        const movements = await movementsOf(repos, movementIds(action), {});
+        if (movements.length === 0) {
+          return null;
+        }
+        await removeMovements(repos, ctx, movements);
+        return changeOf(movements);
+      }
+      case 'recategorize':
+        return restoreCategories(repos, previousCategories(action));
+    }
+  }
+
+  async function undoAction(
+    repos: Repositories,
+    ctx: RatesContext,
+    undoToken: string,
+  ): Promise<void> {
+    const action = await repos.undoActions.consume(undoToken);
+    if (action === null) {
+      // Unknown, already used, expired or another user's: a repeated undo does nothing (RNF-11).
+      throw new AppError('UNDO_EXPIRED');
+    }
+    const change = await revert(repos, ctx, action);
+    if (change !== null) {
+      await ledgerHooks.afterChange(repos, ctx.userId, change);
+    }
+  }
+
   return {
     async create(ctx, input) {
       return uow.run(
@@ -959,6 +1214,14 @@ export function createTransactionsService({
 
     async update(ctx, id, input) {
       return uow.run((repos) => updateMovement(repos, ctx, id, input), { userLock: ctx.userId });
+    },
+
+    async delete(ctx, id) {
+      return uow.run((repos) => deleteMovement(repos, ctx, id), { userLock: ctx.userId });
+    },
+
+    async undo(ctx, undoToken) {
+      return uow.run((repos) => undoAction(repos, ctx, undoToken), { userLock: ctx.userId });
     },
   };
 }

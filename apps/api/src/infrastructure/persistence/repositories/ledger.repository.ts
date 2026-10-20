@@ -8,6 +8,7 @@ import type {
   LedgerEntryChange,
   LedgerEntryInput,
   LedgerEntryView,
+  LedgerGetOptions,
   LedgerListFilters,
   LedgerPage,
   LedgerRepository,
@@ -421,11 +422,15 @@ export function createLedgerRepository(tx: TransactionClient, userId: string): L
       };
     },
 
-    async get(id: string): Promise<LedgerTransactionDetail | null> {
+    async get(id: string, options: LedgerGetOptions = {}): Promise<LedgerTransactionDetail | null> {
+      const state =
+        options.deleted === true
+          ? Prisma.sql`t.deleted_at IS NOT NULL`
+          : Prisma.sql`t.deleted_at IS NULL`;
       const records = await tx.$queryRaw<TransactionRecord[]>`
         SELECT ${TRANSACTION_COLUMNS}
           FROM ledger_transaction t
-         WHERE t.user_id = ${userId}::uuid AND t.id = ${id}::uuid AND t.deleted_at IS NULL`;
+         WHERE t.user_id = ${userId}::uuid AND t.id = ${id}::uuid AND ${state}`;
       const record = records[0];
       if (record === undefined) {
         return null;
@@ -434,7 +439,7 @@ export function createLedgerRepository(tx: TransactionClient, userId: string): L
         SELECT ${TRANSACTION_COLUMNS}
           FROM ledger_transaction t
          WHERE t.user_id = ${userId}::uuid AND t.parent_transaction_id = ${id}::uuid
-           AND t.origin = 'fee' AND t.deleted_at IS NULL
+           AND t.origin = 'fee' AND ${state}
          ORDER BY t.created_at ASC, t.id ASC
          LIMIT 1`;
       const fee = fees[0];
@@ -444,6 +449,30 @@ export function createLedgerRepository(tx: TransactionClient, userId: string): L
         ...toView(record, entries.get(record.id) ?? []),
         fee: fee === undefined ? null : toView(fee, entries.get(fee.id) ?? []),
       };
+    },
+
+    async softDelete(ids: string[]): Promise<string[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE ledger_transaction
+           SET deleted_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[]) AND deleted_at IS NULL
+        RETURNING id::text AS id`;
+      return rows.map((row) => row.id);
+    },
+
+    async restore(ids: string[]): Promise<string[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE ledger_transaction
+           SET deleted_at = NULL
+         WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[]) AND deleted_at IS NOT NULL
+        RETURNING id::text AS id`;
+      return rows.map((row) => row.id);
     },
   };
 }
