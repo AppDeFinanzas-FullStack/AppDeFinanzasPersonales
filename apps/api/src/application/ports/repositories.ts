@@ -259,6 +259,7 @@ export interface Repositories {
   undoActions: UndoActionRepository;
   categories: CategoryRepository;
   userSettings: UserSettingsRepository;
+  shortcuts: ShortcutRepository;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -647,4 +648,45 @@ export interface UndoActionRepository {
    * or of another user. Of simultaneous calls, only one succeeds.
    */
   consume(id: string): Promise<UndoAction | null>;
+}
+
+// ---------- Registrar: atajos (M7) ----------
+
+export type ShortcutKind = 'expense' | 'income' | 'transfer';
+
+export interface ShortcutRow {
+  id: string;
+  name: string;
+  kind: ShortcutKind;
+  amount: Decimal | null;
+  accountId: string;
+  /** Only in a transfer (RF-M7-09). */
+  destAccountId: string | null;
+  /** Never in a transfer (RF-M7-09). */
+  categoryId: string | null;
+  note: string | null;
+  sortOrder: number;
+}
+
+/** The fields of a shortcut that change; absent fields stay as they are. */
+export type ShortcutPatch = Partial<Omit<ShortcutRow, 'id' | 'sortOrder'>>;
+
+/** Shortcuts of the user bound to the transaction (RN-09). */
+export interface ShortcutRepository {
+  insert(shortcut: ShortcutRow): Promise<void>;
+  get(id: string): Promise<ShortcutRow | null>;
+  /** Every shortcut, hidden ones included, by `sortOrder`. */
+  list(): Promise<ShortcutRow[]>;
+  /**
+   * The visible shortcuts by `sortOrder`: their account, and their destination or their category,
+   * are active (plan §4.7.3).
+   */
+  listVisible(): Promise<ShortcutRow[]>;
+  update(id: string, patch: ShortcutPatch): Promise<void>;
+  /** Gives each shortcut the position of its id in the list as its `sortOrder`. */
+  setOrder(ids: string[]): Promise<void>;
+  /** Deletes the shortcut; `false` when the user has no such shortcut. */
+  remove(id: string): Promise<boolean>;
+  /** How many shortcuts the user has, hidden ones included (RF-M7-09). */
+  count(): Promise<number>;
 }

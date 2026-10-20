@@ -2088,7 +2088,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 12 — M7 Registrar (V1.0)
 
-- [ ] **`TASK-134`: Contratos de M7**
+- [x] **`TASK-134`: Contratos de M7**
   - **Dependencias:** Requiere TASK-096, TASK-118
   - **Trazabilidad SDD:** plan §4.7.1; RF-M7-04, RF-M7-07, RF-M7-09
   - **Archivos en Alcance:**
@@ -2100,7 +2100,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-09`: el nombre de un atajo va de 1 a 30 caracteres; una transferencia exige destino y no admite categoría; el monto es opcional.
     - `RF-M7-04`: `grid` tiene como máximo 8 categorías por tipo.
 
-- [ ] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
+- [x] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
   - **Dependencias:** Requiere TASK-127, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`GET /api/register/context`, `POST /api/transactions`), plan §1.2 (camino crítico); RF-M7-03, RF-M7-04, RF-M7-07, RF-M7-11, RF-M5-06, RF-M4-12, EC-M7-05
   - **Archivos en Alcance:**
@@ -2119,7 +2119,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-03` / `RF-M4-12` / `EC-M7-05`: sin cuenta por defecto, la última usada; si se archiva, la primera activa.
     - `RF-M7-07`: `todayRecent` trae los 3 últimos creados hoy, aunque su fecha sea pasada.
 
-- [ ] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
+- [x] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
   - **Dependencias:** Requiere TASK-037, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`/api/shortcuts`), plan §4.7.3 (atajo visible ⇄ oculto); RF-M7-09, RF-M7-10, EC-M7-06, RNF-28
   - **Archivos en Alcance:**
