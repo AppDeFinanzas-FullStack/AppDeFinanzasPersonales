@@ -206,10 +206,21 @@ export type UserSettingsChanges = Partial<
   >
 >;
 
+/** The exchange-rate settings of a user, as stored in `user_settings` (plan §3.4). */
+export interface UserFxSettings {
+  baseCurrency: string;
+  usdReference: MarketRateKind;
+  /** Active manual USD value, or `null` when the manual value is off. */
+  manualUsdValue: Decimal | null;
+  manualUsdSince: Date | null;
+}
+
 /** Reads and writes the `user_settings` row of the user the transaction is locked to. */
 export interface UserSettingsRepository {
   /** The settings of the user, or `null` when it has none. */
   find(userId: string): Promise<UserSettingsData | null>;
+  /** The exchange-rate settings of the user, or `null` when it has none. */
+  fxSettings(userId: string): Promise<UserFxSettings | null>;
   /** Updates only the given fields; the last write wins (EC-M9-01). */
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
 }

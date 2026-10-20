@@ -1314,7 +1314,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-04`: un valor inválido no se guarda.
     - Si paralelo.bo falla para el oficial, se usa el BCB.
 
-- [ ] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
+- [x] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
   - **Dependencias:** Requiere TASK-080, TASK-083, TASK-069
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.3.3; RF-M3-03, RF-M3-05, RF-M3-06, RF-M3-12, EC-M3-02, RN-04, RN-05
   - **Archivos en Alcance:**

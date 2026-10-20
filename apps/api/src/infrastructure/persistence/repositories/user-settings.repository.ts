@@ -1,11 +1,21 @@
+import { Decimal } from 'decimal.js';
+
 import type {
   DashboardBlock,
+  MarketRateKind,
   UserSettingsData,
   UserSettingsRepository,
 } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 type SettingsRow = Omit<UserSettingsData, 'favorites'>;
+
+interface FxSettingsRow {
+  baseCurrency: string;
+  usdReference: MarketRateKind;
+  manualUsdValue: string | null;
+  manualUsdSince: Date | null;
+}
 
 /** Prisma implementation of the general settings, bound to the transaction `tx`. */
 export function createUserSettingsRepository(tx: TransactionClient): UserSettingsRepository {
@@ -34,6 +44,24 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
           expense: favorites.filter((f) => f.kind === 'expense').map((f) => f.id),
           income: favorites.filter((f) => f.kind === 'income').map((f) => f.id),
         },
+      };
+    },
+
+    async fxSettings(userId) {
+      const rows = await tx.$queryRaw<FxSettingsRow[]>`
+        SELECT base_currency::text AS "baseCurrency", usd_reference::text AS "usdReference",
+               manual_usd_value::text AS "manualUsdValue", manual_usd_since AS "manualUsdSince"
+          FROM user_settings
+         WHERE user_id = ${userId}::uuid`;
+      const row = rows[0];
+      if (row === undefined) {
+        return null;
+      }
+      return {
+        baseCurrency: row.baseCurrency.trim(),
+        usdReference: row.usdReference,
+        manualUsdValue: row.manualUsdValue === null ? null : new Decimal(row.manualUsdValue),
+        manualUsdSince: row.manualUsdSince,
       };
     },
 
