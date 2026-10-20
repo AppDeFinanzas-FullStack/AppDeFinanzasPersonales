@@ -17,6 +17,7 @@ import { AccountForm } from './components/account-form';
 import { AccountGroups } from './components/account-groups';
 import { AccountHeader } from './components/account-header';
 import { BalanceChart } from './components/balance-chart';
+import { MovementsByDay } from './components/movements-by-day';
 import { NetWorthSummary } from './components/net-worth-summary';
 import { useAccounts, useCurrencySymbol, useReorderAccounts } from './hooks/use-accounts';
 
@@ -186,6 +187,13 @@ export function AccountDetailPage() {
         onRangeChange={(next) => {
           update({ from: next.from, to: next.to });
         }}
+      />
+      {/* The list shares the chart's range, so changing it updates both (plan §4.4.4). */}
+      <MovementsByDay
+        accountId={account.id}
+        range={range}
+        base={rates.data?.base ?? 'BOB'}
+        today={today}
       />
       <Link to="/cuentas" className="text-sm text-primary underline">
         {t('archived.back')}

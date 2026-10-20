@@ -2075,7 +2075,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Eliminar y deshacer" (E2E): el saldo sube Bs 35,00 al instante, se ve "Movimiento eliminado · Deshacer" y, al tocarlo, el gasto vuelve.
     - `EC-M6-06`: cambiar de pantalla oculta el "Deshacer".
 
-- [ ] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
+- [x] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
   - **Dependencias:** Requiere TASK-108, TASK-129
   - **Trazabilidad SDD:** plan §4.4.4 (`MovementsByDay`, filtro compartido); spec §2.4.1 (consultar)
   - **Archivos en Alcance:**
