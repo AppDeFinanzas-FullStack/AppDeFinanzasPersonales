@@ -115,13 +115,19 @@ async function seedJobRun(
     VALUES (${job}, ${row.lastStartedAt}::timestamptz, ${row.lockedUntil}::timestamptz)`;
 }
 
-/** Advisory locks held right now in the test database, by any connection. */
+/**
+ * Advisory locks that outlive a transaction: held by a connection that is idle, outside any
+ * transaction, which is how a session-level lock leaks. Transaction-level locks (`userLock`) of
+ * other connections are live work and release themselves on commit, so they are not counted.
+ */
 async function advisoryLocksHeld(): Promise<number> {
   const rows = await testPrisma().$queryRaw<{ count: number }[]>`
     SELECT count(*)::int AS count
-      FROM pg_locks
-     WHERE locktype = 'advisory'
-       AND database = (SELECT oid FROM pg_database WHERE datname = current_database())`;
+      FROM pg_locks l
+      JOIN pg_stat_activity a ON a.pid = l.pid
+     WHERE l.locktype = 'advisory'
+       AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
+       AND a.state = 'idle'`;
   return rows[0]?.count ?? 0;
 }
 

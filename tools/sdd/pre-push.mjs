@@ -2,11 +2,11 @@
 // Hook de git pre-push (protocolo §4.2). Git pasa por stdin una línea por referencia:
 //   <ref local> <sha local> <ref remota> <sha remota>
 // Revisa los commits que se van a subir y rechaza el push si alguno no cumple.
+// Solo controles rápidos: lint, tipos y la suite de pruebas los corre CI en cada push y PR.
 import { readFileSync, existsSync } from 'node:fs';
 import { git, gitOut, sh, abs, tail } from './lib/repo.mjs';
 import { parseTasks } from './lib/tasks.mjs';
 import { isTestCaseFile, testCaseNames } from './lib/scope.mjs';
-import { rootScript, ensureDatabase, packageJson } from './lib/runner.mjs';
 import { CONVENTIONAL, MAX_LINE, SECRETS } from './lib/message.mjs';
 
 const ZERO = /^0+$/;
@@ -71,19 +71,6 @@ for (const [, localSha, remoteRef, remoteSha] of refs) {
     if (missing.length) add('RF y EC sin test con su ID en el nombre', missing.join(', '));
   }
 
-  // 5. Suite completa, salvo que el push sea solo de documentación.
-  const onlyDocs = names.length > 0 && names.every((f) => /^docs\/|^\d{3}-[^/]+\/[^/]+\.md$|\.md$/.test(f));
-  if (!onlyDocs && !problems.length) {
-    if (packageJson('')?.scripts?.['test:integration']) {
-      const db = ensureDatabase();
-      if (db.status === 'failed') add(db.name, tail(db.output, 20));
-    }
-    for (const script of ['lint', 'typecheck', 'depcruise', 'test:unit', 'test:integration']) {
-      const r = rootScript(script);
-      if (r.status === 'failed') add(r.name, tail(r.output, 40));
-      if (r.status === 'skipped') warnings.push(`${r.name}: ${r.output}`);
-    }
-  }
   if (remoteRef) warnings.unshift(`Revisado ${remoteRef}: ${commits.length} commit(s).`);
 }
 

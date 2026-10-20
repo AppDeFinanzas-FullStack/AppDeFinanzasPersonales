@@ -10,9 +10,12 @@ export type TransactionClient = Parameters<Parameters<ScopedPrismaClient['$trans
 
 /**
  * Builds the repositories of one transaction, bound to its client and to the locked user
- * (`undefined` when the run locks none). Repositories never open transactions (plan §1.4).
+ * (`undefined` when the run locks none). It may build only part of the set. Repositories never open transactions (plan §1.4).
  */
-export type BuildRepositories = (tx: TransactionClient, userId: string | undefined) => Repositories;
+export type BuildRepositories = (
+  tx: TransactionClient,
+  userId: string | undefined,
+) => Partial<Repositories>;
 
 /** Per-user lock (RNF-10). Postgres releases it when the transaction commits or rolls back. */
 async function lockUser(tx: TransactionClient, userId: string): Promise<void> {
@@ -43,7 +46,8 @@ export function createUnitOfWork(
         if (userLock !== undefined) {
           await lockUser(tx, userLock);
         }
-        return fn(buildRepositories(tx, userLock));
+        // The composition root builds the full set; callers that build a part never read the rest.
+        return fn(buildRepositories(tx, userLock) as Repositories);
       });
     },
   };

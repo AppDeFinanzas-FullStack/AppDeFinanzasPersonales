@@ -9,7 +9,7 @@
 // Los controles tardan: antes de guardar se relee el estado, y si la fase cambió mientras corrían
 // (por ejemplo, el orquestador ya pasó a audit) el resultado se descarta en lugar de pisar el estado.
 import { readFileSync, existsSync } from 'node:fs';
-import { loadState, updateState, log, hashFile, lockPath, worktreeFingerprint, MAX_GATE_ATTEMPTS } from './lib/state.mjs';
+import { loadState, updateState, log, hashFile, lockPath, worktreeFingerprint, wasChecked, MAX_GATE_ATTEMPTS } from './lib/state.mjs';
 import { PHASE_AGENT, stopLine, gateAProblems, gateBProblems } from './lib/gates.mjs';
 import { abs, writeText, tail } from './lib/repo.mjs';
 
@@ -108,7 +108,12 @@ try {
       const lock = Object.fromEntries(state.testFiles.filter((f) => existsSync(abs(f))).map((f) => [f, hashFile(f)]));
       writeText(lockPath(state.task), `${JSON.stringify(lock, null, 2)}\n`);
     });
-  } else if (state.phase === 'implement') finish('B', gateBProblems(state));
+  } else if (state.phase === 'implement') {
+    // check.mjs ya corrió estos mismos controles sobre este mismo árbol: no se repiten (con DB y tsc, son minutos).
+    const reused = wasChecked(state, worktreeFingerprint());
+    if (reused) log(state.task, 'Gate B: controles reutilizados', 'check.mjs ya los verificó sobre este mismo árbol de trabajo.');
+    finish('B', reused ? { problems: [], skipped: [] } : gateBProblems(state));
+  }
   else if (state.phase === 'audit') auditCheck();
   else process.exit(0);
 } catch (e) {
