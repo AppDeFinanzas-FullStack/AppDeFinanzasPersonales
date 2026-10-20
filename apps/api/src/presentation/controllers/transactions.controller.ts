@@ -13,12 +13,15 @@ import type { z } from 'zod';
 import { AppError } from '../../application/errors.js';
 import type { Clock } from '../../application/ports/clock.js';
 import type { RatesContext } from '../../application/services/rates.service.js';
+import type { RegisterService } from '../../application/services/register.service.js';
 import type { TransactionsService } from '../../application/services/transactions.service.js';
 import type { SessionContext } from '../middlewares/require-session.js';
 import { TransactionsPresenter } from '../presenters/transactions.presenter.js';
 
 export interface TransactionsControllerDeps {
   transactionsService: TransactionsService;
+  /** The movements created today that a creation answers with (RF-M7-07, plan §4.7.2). */
+  register: Pick<RegisterService, 'todayRecent'>;
   clock: Pick<Clock, 'now'>;
 }
 
@@ -79,6 +82,7 @@ const listQueryOf = (req: Request): ListQuery => {
  */
 export function createTransactionsController({
   transactionsService,
+  register,
   clock,
 }: TransactionsControllerDeps): TransactionsController {
   const contextOf = (req: Request, locals: Record<string, unknown>): RatesContext => {
@@ -110,12 +114,15 @@ export function createTransactionsController({
     },
 
     async create(req, res) {
-      const result = await transactionsService.create(
-        contextOf(req, res.locals),
-        req.body as CreateTransactionInput,
-      );
+      const ctx = contextOf(req, res.locals);
+      const result = await transactionsService.create(ctx, req.body as CreateTransactionInput);
+      // Registrar shows the last movements created today right after saving (RF-M7-07).
+      const todayRecent = await register.todayRecent(ctx);
       // A retry with the same id and data answers the existing movement (ADR-11, RNF-11).
-      res.status(result.created ? 201 : 200).json(TransactionsPresenter.created(result));
+      res.status(result.created ? 201 : 200).json({
+        ...TransactionsPresenter.created(result),
+        todayRecent: todayRecent.map((movement) => TransactionsPresenter.transaction(movement)),
+      });
     },
 
     async update(req, res) {

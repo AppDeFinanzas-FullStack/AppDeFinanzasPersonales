@@ -2100,7 +2100,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-09`: el nombre de un atajo va de 1 a 30 caracteres; una transferencia exige destino y no admite categoría; el monto es opcional.
     - `RF-M7-04`: `grid` tiene como máximo 8 categorías por tipo.
 
-- [ ] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
+- [x] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
   - **Dependencias:** Requiere TASK-127, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`GET /api/register/context`, `POST /api/transactions`), plan §1.2 (camino crítico); RF-M7-03, RF-M7-04, RF-M7-07, RF-M7-11, RF-M5-06, RF-M4-12, EC-M7-05
   - **Archivos en Alcance:**

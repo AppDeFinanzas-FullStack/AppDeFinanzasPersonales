@@ -41,6 +41,11 @@ import {
   type SettingsService,
 } from '../application/services/settings.service.js';
 import {
+  createRegisterService,
+  type RegisterService,
+  type RegisterUsageReader,
+} from '../application/services/register.service.js';
+import {
   createTransactionsService,
   type TransactionsService,
 } from '../application/services/transactions.service.js';
@@ -133,6 +138,7 @@ export interface Container {
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
   readonly categoryTree: CategoryTreeReader;
   readonly transactionsService: TransactionsService;
+  readonly registerService: RegisterService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -270,8 +276,81 @@ const createRateHistoryReader = (uow: UnitOfWork): RateHistoryReader => ({
   },
 });
 
+/** The row of the composite query of Registrar; `json` columns come already parsed. */
+interface RegisterUsageRecord {
+  categoryUses: { categoryId: string; uses: number; lastUsedAt: string }[];
+  seeded: string[];
+  lastExpense: string | null;
+  lastIncome: string | null;
+  lastTransfer: { from: string; to: string } | null;
+}
+
+/**
+ * The reads of Registrar (plan §4.7.2): one composite query for the grid and the preselected
+ * accounts, always bound to the user (RN-09). Uses count the live movements of the last 60 days by
+ * exact category; the last account is the one of the last movement created of each kind.
+ */
+const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader => ({
+  async read(userId, today) {
+    const rows = await prisma.$queryRaw<RegisterUsageRecord[]>`
+      SELECT
+        (SELECT COALESCE(json_agg(json_build_object(
+                  'categoryId', u.category_id::text, 'uses', u.uses, 'lastUsedAt', u.last_used)),
+                '[]'::json)
+           FROM (SELECT t.category_id, count(*)::int AS uses, max(t.created_at) AS last_used
+                   FROM ledger_transaction t
+                  WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL
+                    AND t.kind IN ('expense', 'income') AND t.category_id IS NOT NULL
+                    AND t.date > ${today}::date - 60
+                  GROUP BY t.category_id) u) AS "categoryUses",
+        (SELECT COALESCE(json_agg(c.id::text ORDER BY c.seed_order), '[]'::json)
+           FROM category c
+          WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
+            AND c.status = 'active') AS seeded,
+        (SELECT e.account_id::text
+           FROM ledger_transaction t
+           JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'expense'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastExpense",
+        (SELECT e.account_id::text
+           FROM ledger_transaction t
+           JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'income'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastIncome",
+        (SELECT json_build_object('from', o.account_id::text, 'to', i.account_id::text)
+           FROM ledger_transaction t
+           JOIN ledger_entry o ON o.user_id = t.user_id AND o.transaction_id = t.id AND o.amount < 0
+           JOIN ledger_entry i ON i.user_id = t.user_id AND i.transaction_id = t.id AND i.amount > 0
+          WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.kind = 'transfer'
+          ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS "lastTransfer"`;
+    const row = rows[0];
+    return {
+      categoryUses: (row?.categoryUses ?? []).map((use) => ({
+        categoryId: use.categoryId,
+        uses: use.uses,
+        lastUsedAt: new Date(use.lastUsedAt),
+      })),
+      seeded: row?.seeded ?? [],
+      lastAccount: { expense: row?.lastExpense ?? null, income: row?.lastIncome ?? null },
+      lastTransfer: row?.lastTransfer ?? null,
+    };
+  },
+
+  async createdSince(userId, since, limit) {
+    // A fee is shown with its transfer, not on its own (RF-M6-05).
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT t.id::text AS id
+        FROM ledger_transaction t
+       WHERE t.user_id = ${userId}::uuid AND t.deleted_at IS NULL AND t.origin <> 'fee'
+         AND t.created_at >= ${since}::timestamptz
+       ORDER BY t.created_at DESC, t.id DESC
+       LIMIT ${limit}::int`;
+    return rows.map((row) => row.id);
+  },
+});
+
 /** The user's category tree of a kind and status. */
-const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
+const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
   tree(userId, kind, status) {
     return uow.run((repos) => repos.categories.tree(kind, status), {
       userLock: userId,
@@ -442,6 +521,14 @@ export const buildContainer = (env: Env): Container => {
     rates: ratesService,
     ledgerHooks,
   });
+  const shortcutsService = createShortcutsService({ uow });
+  const registerService = createRegisterService({
+    uow,
+    usage: createRegisterUsageReader(prisma),
+    accounts: accountsService,
+    shortcuts: shortcutsService,
+    transactions: transactionsService,
+  });
 
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
@@ -474,10 +561,11 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
-    shortcutsService: createShortcutsService({ uow }),
+    shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
+    registerService,
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -530,10 +618,12 @@ export const createApp = (container: Container): Express => {
     },
     transactions: {
       transactionsService: container.transactionsService,
+      register: container.registerService,
       clock: container.clock,
       session,
     },
     shortcuts: { shortcutsService: container.shortcutsService, session },
+    register: { registerService: container.registerService, clock: container.clock, session },
     readiness: container.readiness,
   });
 };
