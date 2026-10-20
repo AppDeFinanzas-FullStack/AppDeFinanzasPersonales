@@ -939,7 +939,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-060`: con `INTEGRATIONS=real`, las dos rutas responden 404.
     - Con `fake`, el buzón devuelve el enlace de confirmación de un registro.
 
-- [ ] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
+- [x] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
   - **Dependencias:** Requiere TASK-059
   - **Trazabilidad SDD:** plan §4.1.2 (`/api/me`); RF-M1-11, RF-M1-12, RF-M1-13, RN-09
   - **Archivos en Alcance:**

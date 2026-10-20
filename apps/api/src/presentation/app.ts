@@ -8,6 +8,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
+import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
@@ -17,6 +18,8 @@ export interface AppDeps {
   catchUp?: RequestHandler;
   /** The routes `/api/auth/*` (plan §4.1.2); an app built without them does not expose them. */
   auth?: AuthRoutesDeps;
+  /** The routes `/api/me` (plan §4.1.2). */
+  me?: MeRoutesDeps;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -55,6 +58,9 @@ export const createApp = (deps: AppDeps): Express => {
   app.use('/api', healthRouter());
   if (deps.auth !== undefined) {
     app.use('/api/auth', authRouter(deps.auth));
+  }
+  if (deps.me !== undefined) {
+    app.use('/api/me', meRouter(deps.me));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

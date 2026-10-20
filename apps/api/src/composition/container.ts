@@ -5,6 +5,11 @@ import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
+import {
+  createMeService,
+  type MeService,
+  type MeStore,
+} from '../application/services/me.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -50,6 +55,7 @@ export interface Container {
   readonly jobs: Jobs;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
+  readonly meService: MeService;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -112,6 +118,28 @@ const createMeReader = (prisma: PrismaClient): MeReader => ({
   },
 });
 
+/** Reads and updates the profile of a user by id (plan §4.1.2). */
+const createMeStore = (prisma: PrismaClient): MeStore => ({
+  async findByUserId(userId) {
+    const rows = await prisma.$queryRaw<MeProfile[]>`
+      SELECT u.id::text AS id, u.name AS name, u.email AS email, u.timezone AS timezone,
+             COALESCE(st.onboarding_step, 1)::int AS "onboardingStep",
+             (st.onboarding_completed_at IS NOT NULL) AS "onboardingCompleted"
+        FROM auth_user u
+        LEFT JOIN user_settings st ON st.user_id = u.id
+       WHERE u.id = ${userId}::uuid`;
+    return rows[0] ?? null;
+  },
+  async update(userId, changes) {
+    await prisma.$executeRaw`
+      UPDATE auth_user
+         SET name = COALESCE(${changes.name ?? null}, name),
+             timezone = COALESCE(${changes.timezone ?? null}, timezone),
+             updated_at = now()
+       WHERE id = ${userId}::uuid`;
+  },
+});
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
@@ -135,6 +163,7 @@ export const buildContainer = (env: Env): Container => {
     hmacSecret: env.HMAC_SECRET,
     webOrigin: env.WEB_ORIGIN,
   });
+  const meService = createMeService({ store: createMeStore(prisma) });
   return {
     env,
     prisma,
@@ -144,11 +173,17 @@ export const buildContainer = (env: Env): Container => {
     jobs,
     auth,
     authService,
+    meService,
   };
 };
 
-export const createApp = (container: Container): Express =>
-  createExpressApp({
+export const createApp = (container: Container): Express => {
+  const session = {
+    auth: container.auth,
+    sessions: createSessionActivity(container.prisma),
+    clock: container.clock,
+  };
+  return createExpressApp({
     webOrigin: container.env.WEB_ORIGIN,
     jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
     auth: {
@@ -156,10 +191,8 @@ export const createApp = (container: Container): Express =>
       sessions: container.auth,
       me: createMeReader(container.prisma),
       release: container.env.RELEASE,
-      session: {
-        auth: container.auth,
-        sessions: createSessionActivity(container.prisma),
-        clock: container.clock,
-      },
+      session,
     },
+    me: { meService: container.meService, release: container.env.RELEASE, session },
   });
+};
