@@ -8,7 +8,7 @@
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test:unit": "vitest run --config vitest.config.ts --project unit",
+    "test:unit": "vitest run --config vitest.config.ts --project unit --project http",
     "test:integration": "vitest run --config vitest.config.ts --project integration"
   },
   "dependencies": {

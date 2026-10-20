@@ -1,11 +1,11 @@
 # Tareas — App de Finanzas Personales (MVP)
 
 **Versión:** 1.0 · **Fecha:** 2026-10-16 · **Estado:** Borrador para aprobación
-**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.1
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4 · `001-appFinanzas-mvp/plan.md` v1.3
 
 ## 1. Mapa de fases y orden de ejecución
 
-Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dependencias están cerradas. Cada entrega (V1.0, V1.1, V1.2) queda usable y desplegable antes de empezar la siguiente (constitución §1).
+Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones de orden**. Una tarea empieza solo cuando sus dependencias están cerradas. Cada entrega (V1.0, V1.1, V1.2) queda usable y desplegable antes de empezar la siguiente (constitución §1).
 
 | Fase | Contenido | Entrega | Tareas |
 |---|---|---|---|
@@ -39,6 +39,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 **Orden dentro de cada fase de módulo:** contratos → dominio → repositorios → servicios y jobs → rutas HTTP con su test de aislamiento → interfaz y estado → E2E de sus escenarios.
 
 **Decisiones de orden:**
+- **Despliegue temprano:** TASK-171 y TASK-173 se hacen apenas cierra la Fase 4 (TASK-036), en la rama de la Fase 17, para que las tres partes (web, API y base de datos) estén desplegadas y conectadas desde el principio. Cada entrega llega a producción por `deploy.yml`. El resto de la Fase 17 sigue en su orden. `qa-e2e` (TASK-172) se suma a la protección de `main` cuando existe.
 - El esquema completo, incluidas las tablas de V1.1 y V1.2, se crea en la Fase 1, como la migración inicial de plan §3. Los módulos no liberados responden 404 por `RELEASE` (ADR-18).
 - M12 Metas va antes que M11 Presupuestos, porque la decisión de cierre "Enviar a meta" usa los apartados.
 - La bandeja de avisos (M15 básico) va al inicio de V1.1, porque la usan los umbrales y cierres de presupuestos y los vencimientos de deudas.
@@ -225,7 +226,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 1 — Esquema de datos
 
-- [ ] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
+- [x] **`TASK-011`: Migración base: extensión `unaccent`, tipos enumerados y `set_updated_at`**
   - **Dependencias:** Requiere TASK-005
   - **Trazabilidad SDD:** plan §3.1, plan §3.2, ADR-10
   - **Archivos en Alcance:**
@@ -237,7 +238,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Existen todos los tipos de plan §3.2, con sus valores exactos y en el mismo orden.
     - Existen la extensión `unaccent` y la función `set_updated_at`.
 
-- [ ] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
+- [x] **`TASK-012`: Tablas de cuenta de usuario y seguridad (M1)**
   - **Dependencias:** Requiere TASK-011
   - **Trazabilidad SDD:** plan §3.3; RF-M1-02, RF-M1-05, RF-M1-16, RN-13
   - **Archivos en Alcance:**
@@ -251,7 +252,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M1-05`: no pueden coexistir dos enlaces vigentes del mismo usuario y propósito.
     - `RF-M1-16`: `email_kind` tiene exactamente los 6 correos de la cuenta.
 
-- [ ] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
+- [x] **`TASK-013`: Tablas de tipo de cambio, monedas y ajustes (M3, M9, M10)**
   - **Dependencias:** Requiere TASK-012
   - **Trazabilidad SDD:** plan §3.4, plan §3.1 (orden de la migración), ADR-12; RF-M3-01, RF-M3-02, RF-M3-13
   - **Archivos en Alcance:**
@@ -265,7 +266,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Los CHECK de `user_fx_event` rechazan cada combinación inválida de `kind`.
     - `RF-M3-13`: `user_rate_on` devuelve la última tasa del día en la zona del usuario y, antes del primer dato, el primer valor conocido.
 
-- [ ] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
+- [x] **`TASK-014`: Tabla `account` y trigger `account_initial_immutable` (M4)**
   - **Dependencias:** Requiere TASK-013
   - **Trazabilidad SDD:** plan §3.5; RF-M4-01, RF-M4-02, RF-M4-07, EC-M4-02
   - **Archivos en Alcance:**
@@ -279,7 +280,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M4-07` / `EC-M4-02`: un UPDATE del saldo inicial o de su fecha falla.
     - Los campos de tarjeta solo se aceptan en `credit_card`.
 
-- [ ] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
+- [x] **`TASK-015`: Tabla `category` y trigger `category_guard` (M5)**
   - **Dependencias:** Requiere TASK-014
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-05, EC-M5-01
   - **Archivos en Alcance:**
@@ -293,7 +294,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - El trigger rechaza un segundo nivel, un padre de otro tipo o archivado, y que una categoría con hijas pase a ser hija.
     - `RF-M5-05`: en la categoría del sistema solo se pueden cambiar el color y el ícono.
 
-- [ ] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
+- [x] **`TASK-016`: Libro contable, deshacer y atajos (M6, M7)**
   - **Dependencias:** Requiere TASK-015
   - **Trazabilidad SDD:** plan §3.5, ADR-04, ADR-07, ADR-15; RF-M6-01, RF-M6-03, RF-M7-09, RN-09
   - **Archivos en Alcance:**
@@ -307,7 +308,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-09`: un asiento que apunta a la cuenta de otro usuario viola la clave foránea compuesta.
     - `RF-M7-09`: los CHECK de `shortcut` exigen destino solo en transferencias y categoría en los demás tipos.
 
-- [ ] **`TASK-017`: Tablas de presupuestos (M11)**
+- [x] **`TASK-017`: Tablas de presupuestos (M11)**
   - **Dependencias:** Requiere TASK-016
   - **Trazabilidad SDD:** plan §3.6; RF-M11-01, RF-M11-04, RF-M11-13, RNF-12
   - **Archivos en Alcance:**
@@ -321,7 +322,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M11-13`: más de 3 umbrales, o un umbral fuera de 1–150, viola el CHECK.
     - `RNF-12`: un mismo umbral no se registra dos veces por período.
 
-- [ ] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
+- [x] **`TASK-018`: Tablas de metas y deudas (M12, M13)**
   - **Dependencias:** Requiere TASK-017
   - **Trazabilidad SDD:** plan §3.6, ADR-14; RF-M12-01, RF-M12-03, RF-M13-01, RF-M13-05
   - **Archivos en Alcance:**
@@ -335,7 +336,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M13-05`: un pago con `amount ≠ interest_part + capital_part` viola el CHECK.
     - `interest_unpaid` conserva 10 decimales.
 
-- [ ] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
+- [x] **`TASK-019`: Tablas de recurrentes, avisos y `job_run` (M14, M15)**
   - **Dependencias:** Requiere TASK-018
   - **Trazabilidad SDD:** plan §3.6, plan §3.7; RF-M14-12, RF-M14-14, RF-M14-15, RN-10
   - **Archivos en Alcance:**
@@ -349,7 +350,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M14-15`: un nombre vacío o de más de 40 caracteres viola el CHECK.
     - `RN-10`: dos avisos con el mismo `event_key` para el mismo usuario violan la restricción única.
 
-- [ ] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
+- [x] **`TASK-020`: Claves foráneas diferidas y pruebas de integridad y cascadas**
   - **Dependencias:** Requiere TASK-019
   - **Trazabilidad SDD:** plan §3.1 (orden de la migración), plan §3.8, plan §3.9; RN-08, RN-09, RF-M1-15, RF-M4-13, RF-M6-05, RF-M14-11
   - **Archivos en Alcance:**
@@ -367,7 +368,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 2 — Contratos y catálogos compartidos
 
-- [ ] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
+- [x] **`TASK-021`: Primitivas de contratos: dinero, tasas, fechas, ids y textos**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.4.1, plan §4.6.1, ADR-03; RF-M6-01, RF-M6-03, RF-M3-02, RN-13
   - **Archivos en Alcance:**
@@ -382,7 +383,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-13`: un nombre se valida después de recortar sus espacios.
     - Ningún schema acepta `number` para montos.
 
-- [ ] **`TASK-022`: Catálogo de errores y formato problem+json**
+- [x] **`TASK-022`: Catálogo de errores y formato problem+json**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.0 (catálogo común), plan §4.1.2 a §4.15.2 (errores por módulo), ADR-09; RNF-17
   - **Archivos en Alcance:**
@@ -394,7 +395,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Una tabla de pruebas verifica el estado HTTP de cada código según el plan.
     - `RNF-17`: `INTERNAL_ERROR` no admite `data`.
 
-- [ ] **`TASK-023`: Mapa de entregas por módulo**
+- [x] **`TASK-023`: Mapa de entregas por módulo**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.2.1 (`ModuleRelease`), plan §4.15.3 (entrega), ADR-18; RF-M2-03, spec §1.2
   - **Archivos en Alcance:**
@@ -407,7 +408,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Con 1.1 se liberan M11, M12, M13 y la bandeja, con los tipos `budget_alert`, `period_close` y los avisos de deuda.
     - Con 1.2 está todo liberado.
 
-- [ ] **`TASK-024`: Catálogos de colores e íconos**
+- [x] **`TASK-024`: Catálogos de colores e íconos**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.5.1 (catálogos fijos); RF-M5-04, RNF-06
   - **Archivos en Alcance:**
@@ -419,13 +420,15 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M5-04`: hay exactamente 12 colores, y cada uno tiene un contraste ≥ 4,5:1 contra el fondo de su tema.
     - Los nombres de íconos son únicos y hay entre 55 y 65.
 
-- [ ] **`TASK-025`: Definición de las categorías precargadas**
+- [x] **`TASK-025`: Definición de las categorías precargadas**
   - **Dependencias:** Requiere TASK-024
   - **Trazabilidad SDD:** plan §2 (`packages/db/seed`), plan §4.5.3 (seed); spec §2.5.1; RF-M5-05, RF-M6-05
   - **Archivos en Alcance:**
     - `packages/db/seed/preset-categories.ts`
     - `packages/db/test/preset-categories.test.ts`
-  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo. Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses").
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:** Árbol de las categorías de spec §2.5.1 con nombre, tipo, padre, `seed_order`, ícono y color del catálogo, con la forma de plan §4.5.3 (`PRESET_CATEGORIES`). Incluye las del sistema (`debts` en gasto e ingreso, con su hija `debts_interest` "Intereses"). Declara `@finanzas/contracts` (`workspace:*`) en `packages/db/package.json` y actualiza `pnpm-lock.yaml`.
   - **Criterios de Verificación (Tests & DoD):**
     - La lista coincide exactamente con spec §2.5.1, en el mismo orden.
     - `RF-M5-05`: "Deudas y préstamos" existe en gasto y en ingreso con "Intereses", marcadas como del sistema.
@@ -433,7 +436,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 3 — Dominio transversal
 
-- [ ] **`TASK-026`: Dominio `money`: redondeo y aritmética decimal**
+- [x] **`TASK-026`: Dominio `money`: redondeo y aritmética decimal**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** ADR-03, plan §5.1 (tests de propiedades); RN-06, RNF-18; constitución §3
   - **Archivos en Alcance:**
@@ -445,7 +448,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-06`: 0,005 → 0,01; −0,005 → −0,01; 2,345 → 2,35.
     - `RNF-18`: una prueba de propiedad con 1.000 casos aleatorios verifica que `sumRounded` no acumula diferencias.
 
-- [ ] **`TASK-027`: Dominio `dates`: día local, meses y zona horaria**
+- [x] **`TASK-027`: Dominio `dates`: día local, meses y zona horaria**
   - **Dependencias:** Requiere TASK-006
   - **Trazabilidad SDD:** plan §4.0 (`Clock`), plan §5.1; RN-07, RNF-20, RF-M3-13, RF-M14-02
   - **Archivos en Alcance:**
@@ -459,7 +462,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M14-02`: `clampDay(2027, 2, 29)` da el 28 y `clampDay(2026, 11, 31)` da el 30.
     - `RF-M3-13`: `boliviaDay` usa el calendario de Bolivia.
 
-- [ ] **`TASK-028`: Dominio `format`: montos y parseo de lo que escribe el usuario**
+- [x] **`TASK-028`: Dominio `format`: montos y parseo de lo que escribe el usuario**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.7.1 (`parseAmountInput`); RF-M9-02, RF-M7-02
   - **Archivos en Alcance:**
@@ -472,7 +475,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M7-02`: "35.50" y "35,50" dan 35,50 con los dos formatos (escenarios "Formato de números" y "Punto decimal con el formato por defecto").
     - `RF-M7-02`: "35,5" da 35,50, mientras que "1.234", "3+4" y "1,234.56" dan `null`.
 
-- [ ] **`TASK-029`: Dominio `format`: fechas y días relativos**
+- [x] **`TASK-029`: Dominio `format`: fechas y días relativos**
   - **Dependencias:** Requiere TASK-027, TASK-028
   - **Trazabilidad SDD:** plan §4.9.1; RF-M9-03, RF-M9-04
   - **Archivos en Alcance:**
@@ -485,7 +488,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 ### Fase 4 — Base del API
 
-- [ ] **`TASK-030`: Variables de entorno validadas**
+- [x] **`TASK-030`: Variables de entorno validadas**
   - **Dependencias:** Requiere TASK-007
   - **Trazabilidad SDD:** plan §2 (`config/env.ts`), plan §1.4 (*fakes*), plan §3.9 (secretos); constitución §4
   - **Archivos en Alcance:**
@@ -497,7 +500,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `INTEGRATIONS=fake` con `NODE_ENV=production` falla.
     - `RELEASE` solo admite `1.0`, `1.1` o `1.2`.
 
-- [ ] **`TASK-031`: `AppError` y puertos de la capa de aplicación**
+- [x] **`TASK-031`: `AppError` y puertos de la capa de aplicación**
   - **Dependencias:** Requiere TASK-022, TASK-030
   - **Trazabilidad SDD:** plan §1.4 (reglas de diseño), plan §4.0 (`UnitOfWork`, `Clock`), ADR-09, ADR-19
   - **Archivos en Alcance:**
@@ -515,7 +518,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `AppError` expone `code`, `status` y `data`.
     - Comando: `pnpm depcruise`
 
-- [ ] **`TASK-032`: Cliente Prisma con la extensión de aislamiento por usuario**
+- [x] **`TASK-032`: Cliente Prisma con la extensión de aislamiento por usuario**
   - **Dependencias:** Requiere TASK-020, TASK-031
   - **Trazabilidad SDD:** ADR-05, ADR-12, plan §3.9; RN-09, RNF-14
   - **Archivos en Alcance:**
@@ -528,21 +531,22 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RN-09`: `findMany` con la extensión devuelve solo las filas del usuario.
     - `RNF-14`: crear con otro `userId` lanza un error, y actualizar un id ajeno afecta 0 filas.
 
-- [ ] **`TASK-033`: `UnitOfWork` con transacción y bloqueo por usuario, más el harness de integración**
+- [x] **`TASK-033`: `UnitOfWork` con transacción y bloqueo por usuario, más el harness de integración**
   - **Dependencias:** Requiere TASK-032
   - **Trazabilidad SDD:** plan §4.0, plan §1.4 (transacciones solo en aplicación), plan §5.1 (datos de prueba); RNF-10
   - **Archivos en Alcance:**
     - `apps/api/src/infrastructure/persistence/unit-of-work.ts`
+    - `apps/api/vitest.config.ts`
     - `apps/api/test/integration/setup/global-setup.ts`
     - `apps/api/test/integration/setup/db.ts`
     - `apps/api/test/factories/user.factory.ts`
     - `apps/api/test/integration/unit-of-work.test.ts`
-  - **Especificación de Implementación:** `run(fn, opts)` abre la transacción. Con `userLock`, toma `pg_advisory_xact_lock(hashtext('user:' || id))`. Con `readOnly`, usa `SET TRANSACTION READ ONLY`. Los repositorios quedan ligados a la transacción y al usuario. El *global setup* migra la base de test. `user.factory` crea un usuario confirmado con sus filas iniciales por SQL; desde TASK-053 usa `user-bootstrap`.
+  - **Especificación de Implementación:** `run(fn, opts)` abre la transacción. Con `userLock`, toma `pg_advisory_xact_lock(hashtext('user:' || id))`. Con `readOnly`, usa `SET TRANSACTION READ ONLY`. Los repositorios quedan ligados a la transacción y al usuario. El *global setup* migra la base de test, y `vitest.config.ts` lo registra como `globalSetup` del proyecto `integration`. `user.factory` crea un usuario confirmado con sus filas iniciales por SQL; desde TASK-053 usa `user-bootstrap`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-10`: dos `run` concurrentes con el mismo `userLock` se serializan, y con usuarios distintos corren en paralelo.
     - Un error dentro de `fn` revierte todo, y `readOnly` rechaza las escrituras.
 
-- [ ] **`TASK-034`: Aplicación Express, middlewares base y `/api/health`**
+- [x] **`TASK-034`: Aplicación Express, middlewares base y `/api/health`**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §1.4 (presentación), plan §3.9 (CSRF y logs), plan §4.2.2 (health), ADR-02, ADR-09; RNF-17
   - **Archivos en Alcance:**
@@ -553,14 +557,16 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/presentation/middlewares/error-handler.ts`
     - `apps/api/src/presentation/routes/health.routes.ts`
     - `apps/api/test/http/app.test.ts`
-  - **Especificación de Implementación:** `createApp(deps)` monta el parser JSON, `requireJson` (mutaciones), `checkOrigin` (contra `WEB_ORIGIN`), un `traceId` por petición, un log de ruta, código y duración sin cuerpos, y el `errorHandler` (`AppError` → problem+json; cualquier otro error → `INTERNAL_ERROR` 500 con `traceId`). `validate(schema)` responde `VALIDATION_ERROR` con detalles seguros.
+    - `packages/contracts/src/errors.ts`
+    - `packages/contracts/test/errors.test.ts`
+  - **Especificación de Implementación:** Agrega al catálogo de `packages/contracts` `UNSUPPORTED_MEDIA_TYPE` (415) y `ORIGIN_NOT_ALLOWED` (403) (plan §4.0; la tabla de su test pasa a 81 códigos). `createApp(deps)` monta el parser JSON, `requireJson` (mutaciones), `checkOrigin` (contra `WEB_ORIGIN`), un `traceId` por petición, un log de ruta, código y duración sin cuerpos, y el `errorHandler` (`AppError` → problem+json; cualquier otro error → `INTERNAL_ERROR` 500 con `traceId`). `validate(schema)` responde `VALIDATION_ERROR` con detalles seguros.
   - **Criterios de Verificación (Tests & DoD):**
     - `GET /api/health` responde 204 sin sesión.
-    - Una mutación sin JSON responde 415, y un `Origin` ajeno, 403.
+    - Una mutación sin JSON responde 415 con `UNSUPPORTED_MEDIA_TYPE`, y un `Origin` ajeno, 403 con `ORIGIN_NOT_ALLOWED`; una mutación sin `Origin` no se rechaza. Un cuerpo JSON mal formado responde `VALIDATION_ERROR` 400.
     - `RNF-17`: un error inesperado devuelve solo `INTERNAL_ERROR` y `traceId`, sin *stack*.
     - El log de una petición no contiene su cuerpo.
 
-- [ ] **`TASK-035`: Middleware `releaseGate`**
+- [x] **`TASK-035`: Middleware `releaseGate`**
   - **Dependencias:** Requiere TASK-023, TASK-034
   - **Trazabilidad SDD:** ADR-18, plan §4.2.2; RF-M2-03
   - **Archivos en Alcance:**
@@ -570,7 +576,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-03`: con `RELEASE=1.0`, una ruta de M11 responde 404 `RELEASE_NOT_AVAILABLE`; con `1.1` pasa.
 
-- [ ] **`TASK-036`: Raíz de composición y arranque del API**
+- [x] **`TASK-036`: Raíz de composición y arranque del API**
   - **Dependencias:** Requiere TASK-033, TASK-034, TASK-035
   - **Trazabilidad SDD:** plan §1.4 (composición), ADR-19
   - **Archivos en Alcance:**
@@ -582,7 +588,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - Con `INTEGRATIONS=fake`, el contenedor arma la app y `/api/health` responde 204.
     - Comando: `pnpm --filter api build`
 
-- [ ] **`TASK-037`: Límites por usuario (`assertLimit`)**
+- [x] **`TASK-037`: Límites por usuario (`assertLimit`)**
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §4.0 (`assertLimit`); RNF-28
   - **Archivos en Alcance:**
@@ -592,24 +598,30 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-28`: con 49 cuentas pasa; con 50 lanza `LIMIT_REACHED`. Lo mismo para cada entidad.
 
-- [ ] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
+- [x] **`TASK-038`: Tick de jobs y endpoint interno `/internal/jobs/tick`**
   - **Dependencias:** Requiere TASK-036
-  - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs), ADR-18; RNF-13
+  - **Trazabilidad SDD:** ADR-01, plan §4.0 (tick de jobs y lease), plan §3.7 (`job_run`), ADR-18; RNF-13
   - **Archivos en Alcance:**
+    - `packages/db/prisma/schema.prisma`
+    - `packages/db/prisma/migrations/0011_job_run_lease/migration.sql`
+    - `apps/api/src/application/ports/job-runs.ts`
+    - `apps/api/src/infrastructure/persistence/job-runs.ts`
     - `apps/api/src/application/jobs/tick.ts`
     - `apps/api/src/presentation/internal/jobs.controller.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/tick.test.ts`
-  - **Especificación de Implementación:** Registro de jobs con el orden fijo de plan §4.0. Cada job toma `pg_try_advisory_lock(job)` y, si está tomado, se salta. Registra inicio, fin y error en `job_run`. El tick deja de iniciar jobs al pasar los 25 s. Sin el encabezado `x-jobs-secret` correcto, responde 404. Los jobs de módulos no liberados no corren. Expone `registerJob(name, run)` para los módulos.
+  - **Especificación de Implementación:** La migración `0011_job_run_lease` agrega `locked_until timestamptz` a `job_run`, y `schema.prisma` suma `lockedUntil` al modelo `JobRun`. El puerto `JobRuns` (`tryAcquire(job, now): Promise<boolean>` y `finish(job, now, error?)`) lo implementa la infraestructura con el *lease* de plan §4.0: `INSERT … ON CONFLICT DO NOTHING` y un `UPDATE` condicionado a `locked_until IS NULL OR locked_until < now`, con 5 minutos de vigencia. No usa *advisory locks* de sesión. Registro de jobs con el orden fijo de plan §4.0. Un job sin lease se salta. Al terminar, con éxito o con error, se libera el lease y se registran el fin y el error en `job_run`. El tick deja de iniciar jobs al pasar los 25 s. Sin el encabezado `x-jobs-secret` correcto, responde 404. Los jobs de módulos no liberados no corren. Expone `registerJob(name, run)` para los módulos.
   - **Criterios de Verificación (Tests & DoD):**
-    - `RNF-13`: un job que falla registra `last_error` y no detiene los siguientes.
-    - Los jobs corren en el orden del plan, y uno con el *lock* tomado se salta.
+    - `RNF-13`: un job que falla registra `last_error`, libera su lease y no detiene los siguientes.
+    - Los jobs corren en el orden del plan.
+    - Un job con un lease vigente se salta, y uno con el lease vencido se toma.
+    - Al terminar con éxito, `locked_until` queda en NULL y `last_finished_at` registrado.
     - Sin secreto, la respuesta es 404.
 
 ### Fase 5 — Base de la web y harness E2E
 
-- [ ] **`TASK-039`: i18n y textos de errores**
+- [x] **`TASK-039`: i18n y textos de errores**
   - **Dependencias:** Requiere TASK-008, TASK-022
   - **Trazabilidad SDD:** plan §1.3 (librerías de interfaz), ADR-09, plan §5.3 (RNF-07); RNF-07, RNF-17
   - **Archivos en Alcance:**
@@ -617,35 +629,36 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/locales/es-BO/common.json`
     - `apps/web/src/locales/es-BO/errors.json`
     - `apps/web/src/lib/i18n-errors.ts`
+    - `apps/web/vitest.config.ts`
     - `apps/web/test/i18n-errors.test.ts`
-  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico.
+  - **Especificación de Implementación:** i18next con un único idioma, es-BO, y espacios de nombres por *feature*. `errors.json` tiene un texto por cada `ErrorCode`. `messageForError(apiError)` usa `data` como parámetros y, ante un código desconocido, un texto genérico. El `include` de `apps/web/vitest.config.ts` suma `test/**/*.test.ts`, para que corran las pruebas que esta fase pone en `apps/web/test/`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-07`: cada código de `ErrorCode` tiene su texto en `errors.json`.
     - `RNF-17`: un código desconocido muestra el texto genérico, sin detalles.
 
-- [ ] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
+- [x] **`TASK-040`: Store mínimo de la interfaz (`ui-store`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3, plan §4.2.4; RF-M2-04, RF-M2-05
   - **Archivos en Alcance:**
     - `apps/web/src/lib/ui-store.ts`
     - `apps/web/test/ui-store.test.ts`
-  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`.
+  - **Especificación de Implementación:** Store con `useSyncExternalStore` y estos estados: `offline`, `sessionExpired`, `tabMemory` (`{ [moduleKey]: { url, scrollY } }`, persistido en sessionStorage, que se inyecta) y `undo` (`{ token, label, expiresAt }`). Hook `useUiStore(selector)`. `createUiStore({ storage })` devuelve `{ getState, subscribe, setTabMemory(moduleKey, { url, scrollY }), setOffline(value), openSessionExpired(), closeSessionExpired(), showUndo({ token, label, expiresAt }), clearUndo() }`, y `uiStore` es la instancia sobre `sessionStorage`. `moduleKey` es el `ModuleKey` de `@finanzas/contracts`. `rootFor(moduleKey)` es una exportación suelta que devuelve la raíz del módulo, aunque `tabMemory` guarde una ruta de detalle: M8 `/`, M6 `/movimientos`, M7 `/registrar`, M4 `/cuentas`, M5 `/categorias`, M3 `/tipo-de-cambio`, M11 `/presupuestos`, M12 `/metas`, M13 `/deudas` y M14 `/recurrentes`. M1, M2, M9, M10 y M15 devuelven `/` hasta que sus tareas definan su raíz.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-04`: `tabMemory` sobrevive a recrear el store sobre el mismo storage.
     - `RF-M2-05`: `rootFor(moduleKey)` devuelve la raíz del módulo.
 
-- [ ] **`TASK-041`: Detección sin conexión (`online`)**
+- [x] **`TASK-041`: Detección sin conexión (`online`)**
   - **Dependencias:** Requiere TASK-040
   - **Trazabilidad SDD:** plan §4.2.3 (normal ↔ sin conexión); RF-M2-07, EC-M2-02, RNF-23
   - **Archivos en Alcance:**
     - `apps/web/src/lib/online.ts`
     - `apps/web/test/online.test.ts`
-  - **Especificación de Implementación:** `setOffline()` pausa TanStack Query (`onlineManager.setOnline(false)`), marca `offline` y consulta `GET /api/health` cada 5 s. Con un 204 o el evento `online`, reactiva todo, invalida las consultas y reenvía una vez, con el mismo `id`, la mutación que estaba en vuelo.
+  - **Especificación de Implementación:** `setOffline()` pausa TanStack Query (`onlineManager.setOnline(false)`), marca `offline` y consulta `GET /api/health` cada 5 s. Con un 204 o el evento `online`, reactiva todo, invalida las consultas y reenvía una vez, con el mismo `id`, la mutación que estaba en vuelo. `createOnline({ queryClient, store, fetch, events, healthIntervalMs = 5000 })` recibe el `QueryClient`, el `UiStore` de TASK-040, el `fetch` para `GET /api/health` y el `EventTarget` del que escucha `online`. Devuelve `{ setOffline(), trackInFlight(id, send), dispose() }`. `trackInFlight` registra la mutación en curso: si se llama a `setOffline()` mientras dura, al volver la conexión ejecuta `send()` exactamente una vez, y la promesa que devolvió se resuelve o se rechaza con ese reenvío. `queryClient` es opcional en la fábrica, y el objeto devuelto también expone `attach(queryClient)`: sin un `QueryClient` no se invalida nada. `online` es la instancia sobre los objetos reales (`window`, `fetch` global y `uiStore`), creada sin `QueryClient`; TASK-045 llama a `online.attach(queryClient)`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-07`: con temporizadores falsos, un 204 de health vuelve a `online` e invalida las consultas.
     - `EC-M2-02`: la mutación en vuelo se reenvía una sola vez y con el mismo `id`.
 
-- [ ] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
+- [x] **`TASK-042`: Cliente HTTP tipado (`api-client`)**
   - **Dependencias:** Requiere TASK-039, TASK-041
   - **Trazabilidad SDD:** plan §4.0 (cliente fetch tipado), ADR-09, ADR-11; RF-M1-07, RF-M2-07, RF-M2-08
   - **Archivos en Alcance:**
@@ -658,20 +671,20 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-07`: un `TypeError` de red marca la app sin conexión.
     - Una respuesta que no cumple el schema de salida lanza un error.
 
-- [ ] **`TASK-043`: Borradores de formularios (`useDraft`)**
+- [x] **`TASK-043`: Borradores de formularios (`useDraft`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-17, plan §4.2.3 (borradores); RF-M2-10, RF-M2-11, EC-M2-01, RF-M7-08
   - **Archivos en Alcance:**
     - `apps/web/src/lib/drafts.ts`
     - `apps/web/test/drafts.test.ts`
-  - **Especificación de Implementación:** Funciones puras `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts(userId)` sobre un storage inyectable, con la clave `draft:{userId}:{formKey}`. Al restaurar, valida con el schema y aplica `validateRefs`. El hook `useDraft(formKey, form, opts)` guarda 300 ms después del último cambio y expone `clear` y `restoredWithIssues`.
+  - **Especificación de Implementación:** Funciones puras `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts(userId)` sobre un storage inyectable, con la clave `draft:{userId}:{formKey}`. Al restaurar, valida con el schema y aplica `validateRefs`. El hook `useDraft(formKey, form, opts)` guarda 300 ms después del último cambio y expone `clear` y `restoredWithIssues`. `createDrafts({ storage })` devuelve `{ save(userId, formKey, value), load(userId, formKey, { schema, validateRefs? }), clear(userId, formKey), clearAll(userId) }`; `saveDraft`, `loadDraft`, `clearDraft` y `clearAllDrafts` son esas funciones sobre `sessionStorage`. `load` devuelve `{ value, issues } | null`: los campos que `validateRefs` marca con `'reselect'` se quitan de `value` y quedan en `issues`, y un borrador que no cumple el schema se borra del storage y da `null`. `clearAll(userId)` borra todas las claves `draft:{userId}:*` de ese usuario (el anterior en EC-M2-01), así que un nuevo inicio de sesión del mismo usuario conserva las suyas (RF-M7-08). `useDraft` recibe `userId` en `opts`, y `restoredWithIssues` es `true` si `issues` tiene al menos un campo. Las formas cortas del plan (`drafts.clear('register')`, `drafts.clearAll()`) son el `clear` del hook y `clearAllDrafts` con el usuario anterior. La web no tiene jsdom ni testing-library, así que en esta tarea el hook solo se comprueba como exportación.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-10`: lo guardado se restaura igual, y un borrador inválido se descarta.
     - `RF-M2-11`: una cuenta que ya no está activa se vacía y se marca para elegir otra.
     - `EC-M2-01`: `clearAllDrafts` borra los borradores del usuario anterior.
     - `RF-M7-08`: el borrador sobrevive a un nuevo inicio de sesión del mismo usuario.
 
-- [ ] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
+- [x] **`TASK-044`: Parámetros de búsqueda validados (`useValidatedSearch`)**
   - **Dependencias:** Requiere TASK-008
   - **Trazabilidad SDD:** ADR-16; RF-M2-04, RF-M2-06
   - **Archivos en Alcance:**
@@ -682,7 +695,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RF-M2-06`: parsear y serializar es estable (ida y vuelta), así el botón Atrás restaura el mismo estado.
     - Un mes con formato inválido cae al valor por defecto sin lanzar errores.
 
-- [ ] **`TASK-045`: Proveedores de la app y router base**
+- [x] **`TASK-045`: Proveedores de la app y router base**
   - **Dependencias:** Requiere TASK-039, TASK-042
   - **Trazabilidad SDD:** plan §2 (`app/providers`, `app/router.tsx`), ADR-16, plan §4.9.3 (primer pintado del tema)
   - **Archivos en Alcance:**
@@ -692,12 +705,12 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/main.tsx`
     - `apps/web/src/App.tsx`
-  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones. `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
+  - **Especificación de Implementación:** `QueryClient` con `refetchOnWindowFocus` y reintentos que no repiten las mutaciones; al crearlo se llama a `online.attach(queryClient)` (TASK-041). `ThemeProvider` aplica la copia del tema en localStorage antes del primer render (el valor del servidor prevalece después, TASK-070). React Router con una ruta raíz y la página 404.
   - **Criterios de Verificación (Tests & DoD):**
     - Comando: `pnpm --filter web build`
     - Comando: `pnpm --filter web lint`
 
-- [ ] **`TASK-046`: Harness E2E con Playwright**
+- [x] **`TASK-046`: Harness E2E con Playwright**
   - **Dependencias:** Requiere TASK-036, TASK-045
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §1.5 (entorno efímero); RNF-05, RNF-06
   - **Archivos en Alcance:**
@@ -754,7 +767,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/jobs/outbox.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/outbox.test.ts`
-  - **Especificación de Implementación:** `enqueue(tx, email)` inserta una fila en `email_outbox`. El job `outbox.send` toma las filas pendientes vencidas, las envía y borra cada fila enviada. Si falla, reintenta a 1, 5, 15 y 60 minutos y después marca la fila `failed`. Se registra en el tick.
+  - **Especificación de Implementación:** `enqueue(tx, email)` inserta una fila en `email_outbox`. El job `outbox.send` toma las filas pendientes vencidas, las envía y borra cada fila enviada. Si falla, reintenta a 1, 5, 15 y 60 minutos y después marca la fila `failed`. Se registra en el tick con `container.jobs.registerJob`. El contenedor arma el `EmailGateway` real (Resend) o el *fake* según `env.INTEGRATIONS` (plan §1.4).
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M1-07`: con el *fake* fallando y un `Clock` falso, los reintentos siguen la secuencia 1, 5, 15 y 60 minutos.
     - `RNF-22`: un correo enviado borra su fila; uno pendiente sigue reintentándose.
@@ -1060,14 +1073,15 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
 
 - [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
-  - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
+  - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
     - `apps/web/src/features/settings/api.ts`
     - `apps/web/src/features/settings/hooks/use-settings.ts`
     - `apps/web/src/lib/formatters.ts`
     - `apps/web/src/app/providers/theme.tsx`
+    - `packages/domain/src/index.ts`
     - `apps/web/test/formatters.test.ts`
-  - **Especificación de Implementación:** `useSettings()` usa la clave `['settings']`. `useFormatters()` expone `money`, `date` y `relativeDay` según los ajustes, y todas las pantallas lo usan para mostrar montos y fechas. `ThemeProvider` aplica el tema del servidor y actualiza la copia en localStorage. `buildFormatters(settings)` es puro.
+  - **Especificación de Implementación:** `useSettings()` usa la clave `['settings']`. `useFormatters()` expone `money`, `date` y `relativeDay` según los ajustes, y todas las pantallas lo usan para mostrar montos y fechas. `ThemeProvider` aplica el tema del servidor y actualiza la copia en localStorage. `buildFormatters(settings)` es puro. `packages/domain/src/index.ts` reexporta `formatDate`, `relativeDay`, `weekDays` y los tipos `DateFormat`, `WeekStart` y `WeekDay` de `format.ts` (TASK-029); `relativeDay` recibe el `dateFormat` del usuario.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
@@ -1268,7 +1282,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `apps/api/src/application/jobs/fx.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-jobs.test.ts`
-  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Usa `pg_try_advisory_lock(hashtext('fx_refresh'))`.
+  - **Especificación de Implementación:** `fx.fetchParallel` corre si la última captura tiene más de 60 minutos, o a pedido. Guarda compra, venta y mediana del día de Bolivia. `fx.fetchOfficial` corre una vez al día con paralelo.bo y, si falla, con el BCB, y reintenta en cada tick hasta lograrlo. Una sola actualización a la vez con el lease `fx_refresh` de `JobRuns` (plan §4.0 y §4.3.3), también cuando es a pedido. El contenedor arma el `RatesGateway` real (paralelo.bo y BCB) o sus *fakes* según `env.INTEGRATIONS` (plan §1.4), y registra los dos jobs con `container.jobs.registerJob`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-04`: con una captura de hace 30 minutos no consulta; con una de hace 61, sí.
     - `EC-M3-01` / `RNF-21`: si la fuente falla, el último valor queda intacto.
@@ -2564,16 +2578,52 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `RNF-14`: toda ruta con un recurso ajeno responde 404, y la prueba falla si aparece una ruta nueva sin cubrir.
     - `RNF-17`: los logs no contienen contraseñas, tokens de enlaces ni cookies.
 
-- [ ] **`TASK-171`: Configuración de Render y Vercel**
-  - **Dependencias:** Requiere TASK-036, TASK-045
-  - **Trazabilidad SDD:** plan §1.5 (configuración versionada), ADR-02, ADR-20
+- [x] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
+  - **Dependencias:** Requiere TASK-036
+  - **Trazabilidad SDD:** plan §1.5 (configuración versionada, puesta en marcha), plan §1.2 (cómo se conectan las tres partes), plan §4.2.2 (`/api/health/ready`), ADR-02, ADR-19, ADR-20
   - **Archivos en Alcance:**
     - `render.yaml`
     - `vercel.json`
-  - **Especificación de Implementación:** `render.yaml` con el servicio `finanzas-api`, plan gratis, `autoDeploy: false`, los comandos de build y arranque, `healthCheckPath: /api/health` y las variables con `sync: false`. `vercel.json` con `git.deploymentEnabled: false`, el rewrite de `/api/:path*` hacia Render y el de la SPA hacia `/index.html`.
+    - `.gitignore`
+    - `packages/db/package.json`
+    - `pnpm-lock.yaml`
+    - `apps/api/src/application/ports/readiness.ts`
+    - `apps/api/src/infrastructure/persistence/readiness.ts`
+    - `apps/api/src/infrastructure/persistence/prisma-client.ts`
+    - `apps/api/src/presentation/routes/health.routes.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/test/integration/readiness.test.ts`
+  - **Especificación de Implementación:**
+    - **`render.yaml`:** el servicio `finanzas-api` con lo que dice plan §1.5:
+      - plan gratis y `autoDeploy: false`;
+      - el `buildCommand` con `--prod=false` y `pnpm --filter @finanzas/db generate`;
+      - `startCommand` y `healthCheckPath: /api/health`;
+      - `NODE_ENV=production` y `NODE_VERSION=22`;
+      - las demás variables con `sync: false`.
+    - **`vercel.json`:**
+      - `git.deploymentEnabled: false`;
+      - `installCommand`, `buildCommand` y `outputDirectory: apps/web/dist`;
+      - los rewrites en orden: primero `/api/:path*` hacia la URL del API en Render y después la SPA hacia `/index.html`.
+    - **`.gitignore`:** ignora `.vercel/`.
+    - **`packages/db/package.json`:** agrega `"exports": { ".": "./src/index.ts" }`, y `prisma-client.ts` pasa a importar `@finanzas/db` en lugar de `@finanzas/db/src/index.js`.
+    - **`GET /api/health/ready`** (plan §4.2.2): el puerto `ReadinessProbe` (`check(): Promise<boolean>`) lo implementa la infraestructura con `SELECT 1` y un límite de 2 s. `health.routes.ts` lo recibe por las dependencias de `createApp` y responde 204 o 503 sin cuerpo. El contenedor lo arma con el cliente Prisma. `GET /api/health` no cambia.
   - **Criterios de Verificación (Tests & DoD):**
-    - Los valores coinciden uno por uno con plan §1.5.
-    - Ningún secreto tiene valor en los archivos.
+    - `TASK-171`: con la base de test, `GET /api/health/ready` responde 204.
+    - `TASK-171`: con una base inalcanzable, responde 503 sin cuerpo y sin detalles internos, en menos de 3 s.
+    - `TASK-171`: `GET /api/health` sigue respondiendo 204 sin tocar la base.
+    - `render.yaml` y `vercel.json` coinciden uno por uno con plan §1.5, y ningún secreto tiene valor en los archivos.
+    - Comando: `pnpm --filter api build`
+  - **Pasos manuales** (los hace quien implementa la tarea; el pipeline no puede crear cuentas ni cargar secretos):
+    1. **Neon:** crear el proyecto `finanzas` y usar su rama `main`. Copiar la URL con pooler (será `DATABASE_URL`) y la directa (será `DATABASE_URL_DIRECT`). Nunca van al repositorio.
+    2. **Resend:** crear la cuenta y una API key (`RESEND_API_KEY`). `env.ts` la exige desde el primer arranque.
+    3. **Secretos de la app:** generar `AUTH_SECRET`, `HMAC_SECRET` y `JOBS_SECRET` con `openssl rand -base64 32`, uno por cada uno.
+    4. **Vercel:** `pnpm dlx vercel login` y, en la raíz del repo, `pnpm dlx vercel link`. De `.vercel/project.json` salen `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`. Crear un token en Account Settings → Tokens (`VERCEL_TOKEN`) y anotar la URL de producción (`WEB_URL`).
+    5. **Render**, cuando `render.yaml` ya esté en `main`:
+       - New → Blueprint → el repo, rama `main`.
+       - Cargar las variables `sync: false`: `DATABASE_URL` con pooler, los tres secretos, `RESEND_API_KEY`, `RELEASE=1.0`, `WEB_ORIGIN` = `WEB_URL` e `INTEGRATIONS=real`.
+       - Anotar la URL pública del servicio (`API_URL`). Si no coincide con el rewrite de `vercel.json`, corregirlo en un commit `fix`.
+       - Copiar el Deploy Hook (Settings → Deploy Hook), crear una API key (Account Settings → API Keys) y anotar el ID del servicio (`srv-…`).
 
 - [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
   - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
@@ -2583,16 +2633,44 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Especificación de Implementación:** Disparadores `push` a `qa` y `pull_request` hacia `main`. Postgres como *service*, migraciones, `seed:e2e`, API con `INTEGRATIONS=fake`, web en `vite preview`, Playwright en la matriz de 6 proyectos en paralelo, axe, rendimiento y el subconjunto `@release-1.0`. Publica el reporte, las trazas y los videos de los fallos. Nombre del check: `qa-e2e`.
   - **Criterios de Verificación (Tests & DoD):**
     - El workflow cubre cada paso de plan §1.5 y publica los artefactos de los fallos.
+  - **Pasos manuales:**
+    1. En GitHub → Settings → Branches, agregar `qa-e2e` a los checks obligatorios de `main` (plan §1.5, protección de ramas). Hasta esta tarea, `main` solo exige `ci`.
 
-- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml`**
-  - **Dependencias:** Requiere TASK-171, TASK-172
-  - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás), ADR-20; constitución §4, §7
+- [x] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
+  - **Dependencias:** Requiere TASK-171
+  - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás, puesta en marcha), plan §1.2 (pruebas de humo de los tres enlaces), plan §5.1 (contratos HTTP en CI), ADR-20; constitución §4, §7
   - **Archivos en Alcance:**
     - `.github/workflows/deploy.yml`
-  - **Especificación de Implementación:** En cada `push` a `main`, con `concurrency: production` (sin cancelar) y el *environment* `production`: CI reutilizable → `prisma migrate deploy` con `DATABASE_URL_DIRECT` → Deploy Hook de Render, consultando su API cada 15 s hasta `live` (falla ante `build_failed`, `update_failed` o 15 minutos) → `vercel pull`, `vercel build --prod` y `vercel deploy --prebuilt --prod` → humo con `/api/health` = 204 y `/` = 200. Todos los secretos usan `::add-mask::`.
+    - `apps/api/package.json`
+    - `pnpm-lock.yaml`
+  - **Especificación de Implementación:**
+    - **Disparadores y concurrencia:** `deploy.yml` corre en cada `push` a `main` y con `workflow_dispatch`, con `concurrency: production` sin cancelar.
+    - **Job 1:** `uses: ./.github/workflows/ci.yml`.
+    - **Job 2, `deploy`** (`needs` el job 1, *environment* `production`). Sigue plan §1.5 al pie de la letra:
+      - checkout, `pnpm/action-setup`, `setup-node` con `.nvmrc` y `pnpm install --frozen-lockfile`;
+      - `prisma migrate deploy`, con `DATABASE_URL` y `DATABASE_URL_DIRECT` iguales al secreto `DATABASE_URL_DIRECT`;
+      - el Deploy Hook de Render, siguiendo **ese** deploy por su ID cada 15 s hasta `live`. Falla ante `build_failed`, `update_failed`, `pre_deploy_failed`, `canceled`, `deactivated` o a los 15 minutos;
+      - `vercel pull --yes --environment=production`, `vercel build --prod` y `vercel deploy --prebuilt --prod`, con `--token`;
+      - las 4 pruebas de humo de plan §1.5, con `vars.API_URL` y `vars.WEB_URL`.
+    - **Secretos:** los valores derivados que no son secretos de GitHub usan `::add-mask::`.
+    - **Pruebas HTTP en CI:** el `test:unit` del API pasa a correr `--project unit --project http`, así CI y el `pre-push` corren los contratos HTTP de `apps/api/test/http/`.
   - **Criterios de Verificación (Tests & DoD):**
-    - El orden de los pasos y las condiciones de fallo coinciden con plan §1.5.
-    - Si un paso falla, no corre el siguiente.
+    - El orden de los pasos y las condiciones de fallo coinciden con plan §1.5. Si un paso falla, no corre el siguiente.
+    - Las 4 pruebas de humo verifican los enlaces API, API → BD, web y web → API → BD.
+    - Comando: `pnpm --filter api test:unit`
+  - **Pasos manuales:**
+    1. **GitHub → Settings → Environments → `production`:**
+       - en «Deployment branches», solo `main`;
+       - los secretos `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID`;
+       - las variables `WEB_URL` y `API_URL`.
+    2. **GitHub → Settings → Branches:** `develop`, `qa` y `main` exigen PR y el check `ci`.
+    3. **Primer despliegue:**
+       - promover por PR `develop` → `qa` → `main` y mirar Actions → `deploy`;
+       - si falló porque todavía no estaban los datos de Render (paso 5 de TASK-171), cargarlos y correr de nuevo con «Run workflow» (`workflow_dispatch`).
+    4. **cron-job.org:** crear una tarea cada minuto, `POST $API_URL/internal/jobs/tick`, con los encabezados `x-jobs-secret: <JOBS_SECRET>` y `Content-Type: application/json` y el cuerpo `{}`.
+    5. **Verificar:**
+       - abrir en el navegador `$API_URL/api/health/ready`, `$WEB_URL/` y `$WEB_URL/api/health/ready`;
+       - pasar las URLs reales al README en un commit `docs(readme)`.
 
 - [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
   - **Dependencias:** Requiere TASK-091, TASK-173
@@ -2602,6 +2680,8 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
   - **Especificación de Implementación:** `workflow_dispatch` en el *environment* `production`. Corre una vez `packages/db/scripts/fx-backfill.ts` con `DATABASE_URL_DIRECT`.
   - **Criterios de Verificación (Tests & DoD):**
     - Solo se dispara a mano y usa los secretos del *environment* `production`.
+  - **Pasos manuales:**
+    1. Cuando la tarea esté en `main`, correrlo **una sola vez** desde Actions → `fx-backfill` → «Run workflow», y revisar en el log que haya cargado el histórico.
 
 ### Fase 18 — M15 Bandeja de avisos (V1.1)
 
@@ -3367,7 +3447,7 @@ Las tareas se ejecutan en orden numérico. Una tarea empieza solo cuando sus dep
     - `packages/domain/src/recurrence.ts`
     - `packages/domain/src/index.ts`
     - `packages/domain/test/recurrence.test.ts`
-  - **Especificación de Implementación:** `nextDates(rule, fromDate, n)` (si el día no existe en el mes, cae el último día; el 29 de febrero pasa al 28), `skippedDates(rule, pausedAt, today)` (respeta el fin), `isFinished(rule, generatedCount, date)` y `installment(rule, generatedCount)` para "Cuota X de N".
+  - **Especificación de Implementación:** `nextDates(rule, fromDate, n)` (si el día no existe en el mes, cae el último día; el 29 de febrero pasa al 28; usa `addMonths` y `clampDay` de `dates.ts`, TASK-027), `skippedDates(rule, pausedAt, today)` (respeta el fin), `isFinished(rule, generatedCount, date)` y `installment(rule, generatedCount)` para "Cuota X de N".
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M14-01`: una regla mensual con el día 31 cae el 30 en noviembre.
     - `RF-M14-02`: una regla anual del 29/02 cae el 28/02 en 2027.

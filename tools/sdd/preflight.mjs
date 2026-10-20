@@ -3,10 +3,10 @@
 // Valida que la tarea se pueda empezar (o retomar), ubica la rama de su fase,
 // arma el paquete de contexto y escribe .claude/run/active-task.json (protocolo §2.1).
 import { allTasks, phaseBranch, scopeProblems } from './lib/tasks.mjs';
-import { buildContext } from './lib/context.mjs';
+import { buildContext, isUiTask, DESIGN_DIRECTION } from './lib/context.mjs';
 import { loadState, saveState, newState } from './lib/state.mjs';
 import { outOfScope } from './lib/scope.mjs';
-import { changedFiles, currentBranch, git, fail, printJson } from './lib/repo.mjs';
+import { changedFiles, currentBranch, exists, git, fail, printJson } from './lib/repo.mjs';
 
 const id = process.argv[2];
 const dryRun = process.argv.includes('--dry-run');
@@ -82,6 +82,9 @@ printJson({
   testFiles: active.testFiles,
   implFiles: active.implFiles,
   commands: active.commands,
+  uiTask: isUiTask(active.scope),
+  designDirection: DESIGN_DIRECTION,
+  designDirectionExists: exists(DESIGN_DIRECTION),
   context: `.claude/run/${id}/context.md`,
   dryRun,
 });

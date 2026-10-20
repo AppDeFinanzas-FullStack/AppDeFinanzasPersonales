@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { loadState, clearState, verdicts, taskDir } from './lib/state.mjs';
 import { allTasks, setDone, tasksPath } from './lib/tasks.mjs';
 import { outOfScope } from './lib/scope.mjs';
-import { changedFiles, readText, abs, writeText, git, gitOut, fail, printJson } from './lib/repo.mjs';
+import { changedFiles, readText, abs, writeText, git, gitOut, sh, fail, printJson } from './lib/repo.mjs';
+import { wrapText } from './lib/message.mjs';
 
 const TYPES = ['feat', 'fix', 'test', 'chore', 'build', 'ci', 'refactor', 'perf', 'docs'];
 
@@ -34,7 +35,9 @@ if (!TYPES.includes(opts.type)) fail(`--type debe ser uno de: ${TYPES.join(', ')
 if (!opts.scope || !/^[a-z0-9-]+$/.test(opts.scope)) fail('--scope es obligatorio (minúsculas, números y guiones).');
 if (!opts.summary) fail('--summary es obligatorio.');
 
-const header = `${opts.type}(${opts.scope}): ${state.task} ${opts.summary}`;
+// El ID de la tarea lo pone el script; si el resumen ya lo trae, no se repite.
+const summary = opts.summary.replace(new RegExp(`^${state.task}\\s+`), '');
+const header = `${opts.type}(${opts.scope}): ${state.task} ${summary}`;
 if (header.length > 100) fail(`El encabezado del commit tiene ${header.length} caracteres (máximo 100).`);
 
 const changes = changedFiles();
@@ -49,7 +52,7 @@ writeText(abs(tasksFile), setDone(original, state.task, true));
 const message = [
   header,
   '',
-  opts.body ?? '',
+  wrapText(opts.body ?? ''),
   '',
   `Task: ${state.task}`,
   'Audit: approved',
@@ -57,6 +60,13 @@ const message = [
 ].join('\n').replace(/\n{3,}/g, '\n\n');
 const msgFile = join(taskDir(state.task), 'commit-msg.txt');
 writeText(msgFile, `${message}\n`);
+
+// El mensaje se valida antes del commit: si no, el error aparece recién en el pre-push.
+const commitlint = sh(`pnpm exec commitlint --edit "${msgFile}"`);
+if (commitlint.code !== 0) {
+  writeText(abs(tasksFile), original);
+  fail(`El mensaje del commit no pasa commitlint (no se hizo el commit):\n${commitlint.output}`);
+}
 
 const add = git(`add -A -- ${[...changes, tasksFile].map((f) => `"${f}"`).join(' ')}`);
 const commit = add.code === 0 ? git(`commit -F "${msgFile}"`) : add;

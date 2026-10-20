@@ -1,6 +1,6 @@
 # Plan de Diseño Técnico — App de Finanzas Personales
 
-**Versión:** 1.1 · **Fecha:** 2026-10-16 · **Estado:** Aprobado (2026-10-16)
+**Versión:** 1.3 · **Fecha:** 2026-10-19 · **Estado:** Aprobado (2026-10-16)
 **Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4
 **Alcance:** V1 completa (V1.0, V1.1, V1.2). Este documento define el **cómo**. Las tareas se definen en `tasks.md`.
 
@@ -80,6 +80,16 @@ sequenceDiagram
   W->>W: limpia formulario · toast "Deshacer" 10 s · invalida ['dashboard'] y ['accounts']
 ```
 
+**Cómo se conectan las tres partes.** La web, el API y la base de datos son tres despliegues separados, cada uno en su servicio. Cada despliegue verifica los tres enlaces con pruebas de humo (1.5):
+
+| Enlace | Cómo se conecta | Dónde se configura | Prueba de humo |
+|---|---|---|---|
+| Web (Vercel) → API (Render) | Rewrite de `/api/*` hacia la URL pública del API. El navegador solo ve el dominio de la web: no hace falta CORS y la cookie funciona también en Safari (ADR-02). | `vercel.json` | `GET $WEB_URL/api/health/ready` = 204 |
+| API (Render) → BD (Neon) | `DATABASE_URL`, con el pooler de Neon, en tiempo de ejecución. Las migraciones usan `DATABASE_URL_DIRECT`, sin pooler. | Variables de Render y secreto del Environment `production` | `GET $API_URL/api/health/ready` = 204 |
+| API ← Web (origen permitido) | `checkOrigin` rechaza las mutaciones cuyo `Origin` no sea la web. | `WEB_ORIGIN` en Render | — |
+
+`GET /api/health` solo dice que el API está vivo. `GET /api/health/ready` hace además una consulta a la base de datos (4.2.2). Si esa consulta responde 204 llamando por el dominio de la web, quedan probadas la web, el API y la base de datos, de punta a punta.
+
 ### 1.3 Registro de decisiones (ADR)
 
 | ID | Decisión | Motivo | Alternativas descartadas |
@@ -131,7 +141,7 @@ flowchart TB
   subgraph A["2 · Aplicación (application/)"]
     S[services: casos de uso] --> SH[shared: BalanceGuard, LedgerHooks,<br/>NotificationEmitter, CurrencyUsage]
     J[jobs]
-    PO[[ports: UnitOfWork, repositorios,<br/>RatesGateway, EmailGateway, AuthGateway,<br/>Clock, IdGenerator]]
+    PO[[ports: UnitOfWork, repositorios,<br/>RatesGateway, EmailGateway, AuthGateway,<br/>Clock, IdGenerator, JobRuns]]
   end
   subgraph D["3 · Dominio (domain/ = packages/domain)"]
     DM[reglas puras: dinero, tasas, períodos,<br/>interés, recurrencias, formatos]
@@ -219,32 +229,34 @@ flowchart LR
 
 | Archivo | Disparador | Pasos |
 |---|---|---|
-| `ci.yml` | `push` a cualquier rama y `pull_request` hacia `develop`, `qa` y `main`. También es reutilizable (`workflow_call`). | 1) `pnpm install --frozen-lockfile` con caché. 2) commitlint de los commits del PR. 3) lint (ESLint, i18n, sin literales). 4) typecheck estricto. 5) dependency-cruiser (reglas de capas). 6) Unitarios (`domain`, `contracts`, aplicación). 7) Integración del API contra Postgres 16 como *service* (`prisma migrate deploy` + Vitest), incluidos aislamiento y concurrencia. 8) Build de `api` y `web`. |
+| `ci.yml` | `push` a cualquier rama y `pull_request` hacia `develop`, `qa` y `main`. También es reutilizable (`workflow_call`). | 1) `pnpm install --frozen-lockfile` con caché y generación del cliente Prisma (`pnpm --filter @finanzas/db generate`): el lint con tipos y el typecheck leen sus tipos, y sin generarlo valen `any`. 2) commitlint de los commits del PR. 3) lint (ESLint, i18n, sin literales). 4) typecheck estricto. 5) dependency-cruiser (reglas de capas). 6) Unitarios (`domain`, `contracts`, aplicación). 7) Integración del API contra Postgres 16 como *service* (`prisma migrate deploy` + Vitest), incluidos aislamiento y concurrencia. 8) Build de `api` y `web`. |
 | `qa-e2e.yml` | `push` a `qa` y `pull_request` hacia `main` | Levanta el entorno efímero: Postgres como *service*, migraciones, `seed:e2e` (usuarios de prueba, 5.000 movimientos, tasas fijas), API con `INTEGRATIONS=fake` (los correos se capturan en un buzón de prueba para leer los enlaces), web compilada en `vite preview`. Corre Playwright en la matriz Chromium/WebKit/Firefox × 360/1280 px (en paralelo), axe y la suite de rendimiento (RNF-01 a RNF-03). Publica el reporte, las trazas y los videos de los fallos como artefactos. |
-| `deploy.yml` | `push` a `main` (incluye merges de `qa` y `hotfix/*`) | `concurrency: production` (sin cancelar despliegues en curso). Corre en el *GitHub Environment* `production`. 1) `uses: ./.github/workflows/ci.yml`: si CI falla, no se despliega. 2) `prisma migrate deploy` con `DATABASE_URL_DIRECT` (conexión directa de Neon, sin pooler). 3) `curl -X POST $RENDER_DEPLOY_HOOK_URL` y consulta a la API de Render (`GET /v1/services/{id}/deploys?limit=1`) cada 15 s hasta `live`; si sale `build_failed` o `update_failed`, o pasan 15 min, falla (Render conserva la versión anterior). 4) `vercel pull --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`. 5) Pruebas de humo contra la URL pública: `GET /api/health` = 204 y `GET /` = 200. |
+| `deploy.yml` | `push` a `main` (incluye merges de `qa` y `hotfix/*`) y `workflow_dispatch`, para volver a desplegar sin un commit | `concurrency: production` (sin cancelar despliegues en curso). Hay dos jobs. El primero, `uses: ./.github/workflows/ci.yml`: si CI falla, no se despliega. El segundo, `deploy`, corre en el *GitHub Environment* `production` y en un runner propio, así que prepara su entorno: checkout, `pnpm/action-setup`, `setup-node` con `.nvmrc` y `pnpm install --frozen-lockfile`. 1) `prisma migrate deploy` con `DATABASE_URL` y `DATABASE_URL_DIRECT` iguales a la conexión directa de Neon: Prisma exige la variable de `url` aunque migre por `directUrl`. 2) `curl -X POST $RENDER_DEPLOY_HOOK_URL`. Toma el ID del deploy de la respuesta (si no viene, busca el deploy cuyo `commit.id` es `github.sha`) y consulta `GET /v1/services/{id}/deploys/{deployId}` cada 15 s hasta `live`. Falla ante cualquier estado final distinto (`build_failed`, `update_failed`, `pre_deploy_failed`, `canceled` o `deactivated`) o a los 15 min; Render conserva la versión anterior. No usa `deploys?limit=1`, que puede devolver el deploy anterior y dar un falso verde. 3) `vercel pull --yes --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`, todos con `--token`. Sin `--yes`, `vercel pull` pide confirmación y el job se cuelga. 4) Pruebas de humo, una por enlace (1.2), con las variables `API_URL` y `WEB_URL` del Environment: `GET $API_URL/api/health` = 204 (el API está vivo), `GET $API_URL/api/health/ready` = 204 (el API llega a la BD), `GET $WEB_URL/` = 200 (la web está viva) y `GET $WEB_URL/api/health/ready` = 204 (web → API → BD). |
 | `fx-backfill.yml` | Manual (`workflow_dispatch`) | Ejecuta una vez `packages/db/scripts/fx-backfill.ts` contra producción (ADR-06). |
 
 **Configuración versionada en el repo:**
 - **`render.yaml` (Blueprint):** define el servicio `finanzas-api` con estos valores:
   - plan gratis y `autoDeploy: false`;
-  - `buildCommand`: `corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build`;
+  - `buildCommand`: `corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @finanzas/db generate && pnpm --filter api build`. Hacen falta las devDependencies porque `start` corre con `tsx`, y el cliente de Prisma se genera en el build. El `build` del API solo verifica tipos: no emite JS;
   - `startCommand`: `pnpm --filter api start`;
   - `healthCheckPath`: `/api/health`;
-  - variables `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`, todas con `sync: false`, así los secretos se cargan en el panel de Render y no en el repo.
-- **`vercel.json`:**
+  - variables con valor fijo: `NODE_ENV=production` (`env.ts` lo exige) y `NODE_VERSION=22`, igual que `.nvmrc`, para que Render no elija otra versión por el `engines: >=22`;
+  - variables con `sync: false`, que se cargan en el panel de Render y no en el repo: `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`. `RESEND_API_KEY` es obligatoria desde el primer arranque, porque `env.ts` la valida aunque todavía no se manden correos.
+- **`vercel.json`** (en la raíz del monorepo):
   - `"git": { "deploymentEnabled": false }`, así solo despliega `deploy.yml`;
-  - el rewrite `/api/:path*` → `https://finanzas-api.onrender.com/api/:path*` (ADR-02);
-  - el rewrite de la SPA `/(.*)` → `/index.html`.
+  - `installCommand: "pnpm install --frozen-lockfile"`, `buildCommand: "pnpm --filter web build"` y `outputDirectory: "apps/web/dist"`;
+  - los rewrites, en este orden: primero `/api/:path*` → `<URL pública del API en Render>/api/:path*` (ADR-02), después el de la SPA, `/(.*)` → `/index.html`;
+  - `.vercel/`, que crea `vercel link`, va al `.gitignore`.
 - **`commitlint.config.cjs`** y **`.dependency-cruiser.cjs`**.
 
 **Secretos:**
-- Los de despliegue viven en el *GitHub Environment* `production`, restringido a la rama `main`: `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+- Los de despliegue viven en el *GitHub Environment* `production`, restringido a la rama `main`: `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Las URLs públicas, `WEB_URL` y `API_URL`, son variables del Environment, no secretos.
 - Los de ejecución viven solo en Render.
 - Ningún secreto aparece en logs (constitución §4): los pasos usan `::add-mask::`.
 
 **Protección de ramas (§7):**
-- `develop`, `qa` y `main` solo aceptan cambios por PR y exigen el check `ci`.
-- `main` exige además `qa-e2e`.
+- `develop`, `qa` y `main` solo aceptan cambios por PR y exigen el check `ci`, desde el primer despliegue.
+- `main` exige además `qa-e2e` cuando ese workflow exista (TASK-172). Hasta entonces, `ci` alcanza para desplegar.
 - Nadie, ni los agentes de IA, empuja directo a esas ramas.
 - Un `hotfix/*` sale de `main`, entra a `main` por PR y después se integra en `qa` y en `develop` con dos PR más.
 
@@ -262,14 +274,30 @@ flowchart LR
 
 **Costo:** USD 0. GitHub Actions es gratis en repos públicos, y en privados da 2.000 min al mes; cada corrida de CI toma unos 8 min y `qa-e2e` unos 20 min, en paralelo. Render y Vercel siguen en sus planes gratis.
 
+**Puesta en marcha (una sola vez).** Lo que una persona hace a mano: los agentes no pueden crear cuentas ni cargar secretos. El paso a paso está en los «Pasos manuales» de TASK-171, TASK-172, TASK-173 y TASK-174, y reunido en el README.
+1. **Neon:** el proyecto, su rama `main` y las URLs con pooler y directa.
+2. **Resend:** la cuenta y la API key.
+3. **Secretos de la app:** `AUTH_SECRET`, `HMAC_SECRET` y `JOBS_SECRET`, aleatorios.
+4. **Vercel:** el proyecto vinculado con `vercel link`, el token y `WEB_URL`.
+5. **Render:** el Blueprint desde `render.yaml` en `main`, sus variables, el Deploy Hook, la API key, el ID del servicio y `API_URL`.
+6. **GitHub:** el Environment `production` con sus secretos y variables, y la protección de ramas.
+7. **cron-job.org:** `POST $API_URL/internal/jobs/tick` cada minuto, con `x-jobs-secret`, `Content-Type: application/json` y el cuerpo `{}` (`requireJson` responde 415 a un POST sin JSON).
+8. **Primer despliegue:** la promoción `develop` → `qa` → `main` por PR.
+
 ---
 
 ## 2. Estructura del Proyecto (Árbol de Directorios)
 
 ```
 /
+├─ README.md                              # qué es, despliegues, cómo correrlo, CI/CD, SDD, puesta en marcha
 ├─ docs/
-│  └─ constitution.md
+│  ├─ constitution.md
+│  └─ execution-protocol.md               # pipeline de tareas con agentes (constitución §8)
+├─ .claude/                               # settings.json (hooks), agents/ (test-author, implementer,
+│                                         # sdd-auditor), skills/implement-task/
+├─ .githooks/pre-push                     # control antes de subir (tools/sdd/pre-push.mjs)
+├─ tools/sdd/                             # scripts del pipeline: preflight, gate, check, close, state…
 ├─ 001-appFinanzas-mvp/
 │  ├─ spec.md
 │  ├─ plan.md
@@ -297,7 +325,8 @@ flowchart LR
 │  │  │  │  ├─ jobs/                         # tick.ts, fx.ts, outbox.ts, recurring.ts, budgets.ts,
 │  │  │  │  │                                # notifications.ts, maintenance.ts
 │  │  │  │  ├─ ports/                        # unit-of-work.ts, repositories.ts, rates-gateway.ts,
-│  │  │  │  │                                # email-gateway.ts, auth-gateway.ts, clock.ts, id-generator.ts
+│  │  │  │  │                                # email-gateway.ts, auth-gateway.ts, clock.ts, id-generator.ts,
+│  │  │  │  │                                # job-runs.ts, readiness.ts
 │  │  │  │  └─ errors.ts                     # AppError + catálogo de códigos (ADR-09)
 │  │  │  ├─ domain/                          # CAPA 3 · reexporta packages/domain + tipos de entidad
 │  │  │  └─ infrastructure/                  # CAPA 4 · detalles técnicos
@@ -305,6 +334,8 @@ flowchart LR
 │  │  │     ├─ persistence/
 │  │  │     │  ├─ prisma-client.ts           # cliente + extensión de aislamiento (ADR-05)
 │  │  │     │  ├─ unit-of-work.ts            # transacción, withUserLock, repositorios ligados a tx y userId
+│  │  │     │  ├─ job-runs.ts                # lease de los jobs en job_run (implementa ports/job-runs.ts)
+│  │  │     │  ├─ readiness.ts               # SELECT 1 de /api/health/ready (implementa ports/readiness.ts)
 │  │  │     │  └─ repositories/              # <entidad>.repository.ts (implementan ports/repositories.ts)
 │  │  │     ├─ auth/better-auth.ts           # implementa AuthGateway (ADR-08)
 │  │  │     ├─ integrations/                 # paralelo-bo.ts, bcb.ts, resend.ts y sus .fake.ts (CI)
@@ -950,11 +981,12 @@ CREATE TABLE notification_preference (
   PRIMARY KEY (user_id, type)
 );
 
-CREATE TABLE job_run (                                     -- monitoreo; la exclusión usa advisory locks
+CREATE TABLE job_run (                                     -- monitoreo y exclusión entre corridas (lease, §4.0)
   job              varchar(64) PRIMARY KEY,
   last_started_at  timestamptz,
   last_finished_at timestamptz,
-  last_error       text
+  last_error       text,
+  locked_until     timestamptz                             -- lease vigente; NULL = libre (migración 0011_job_run_lease)
 );
 ```
 
@@ -1002,7 +1034,7 @@ function call<I, O>(e: Endpoint<I, O>, input: I, opts?: { background?: boolean; 
   "code": "NEGATIVE_BALANCE", "data": { "accountId": "…", "resultingBalance": "-5.00" }, "traceId": "…" }
 ```
 
-**Catálogo común de errores:** `VALIDATION_ERROR 400` · `SESSION_EXPIRED 401` · `NOT_FOUND 404` · `IDEMPOTENCY_CONFLICT 409` · `LIMIT_REACHED 409` · `RELEASE_NOT_AVAILABLE 404` · `INTERNAL_ERROR 500`.
+**Catálogo común de errores:** `VALIDATION_ERROR 400` · `SESSION_EXPIRED 401` · `NOT_FOUND 404` · `IDEMPOTENCY_CONFLICT 409` · `LIMIT_REACHED 409` · `RELEASE_NOT_AVAILABLE 404` · `INTERNAL_ERROR 500` · `UNSUPPORTED_MEDIA_TYPE 415` (mutación sin cuerpo JSON, `requireJson`) · `ORIGIN_NOT_ALLOWED 403` (`Origin` ajeno a `WEB_ORIGIN`, `checkOrigin`). Con estos dos, el catálogo completo tiene 81 códigos. Una mutación sin cabecera `Origin` (cliente que no es un navegador) no se rechaza: la sesión viaja en cookie `SameSite=Lax`. Los errores del parser JSON (cuerpo mal formado, demasiado grande o con charset inválido) responden `VALIDATION_ERROR 400`.
 
 **Servicios compartidos del API** (capa de aplicación; la transacción y el bloqueo los da el puerto `UnitOfWork`, implementado en infraestructura):
 
@@ -1041,10 +1073,12 @@ LedgerHooks.afterChange(tx, userId, change: { dates: LocalDate[]; categoryIds: s
 9. `maintenance` (purga de borrados y deshacer vencidos, descarte de registros sin confirmar, retención de avisos y logs)
 
 Cada job:
-- toma `pg_try_advisory_lock(job)`; si ya está corriendo, lo salta;
+- toma su *lease* en `job_run` con `JobRuns.tryAcquire(job, now)`: `INSERT … ON CONFLICT (job) DO NOTHING` y después `UPDATE job_run SET locked_until = now + 5 min, last_started_at = now WHERE job = $1 AND (locked_until IS NULL OR locked_until < now)`. Si no se actualizó ninguna fila, otra corrida lo tiene y lo salta. Al terminar, con éxito o con error, `JobRuns.finish(job, now, error?)` vuelve `locked_until` a NULL y registra el fin y el error. Si el proceso muere, el lease vence solo a los 5 minutos;
 - recorre a los usuarios por lotes, con `withUserLock` por usuario;
 - es idempotente gracias a claves únicas y transiciones condicionadas;
 - registra su ejecución en `job_run`.
+
+**Por qué un lease y no `pg_try_advisory_lock`:** un *advisory lock* de sesión vive en una conexión. Con el pool de Prisma, y en producción con el pooler de Neon (PgBouncer en modo transacción), tomarlo y soltarlo pueden caer en conexiones distintas: el bloqueo queda tomado y el job se salta para siempre. El lease es una fila con vencimiento y funciona con cualquier conexión. Los bloqueos de transacción (`pg_advisory_xact_lock`, el bloqueo por usuario) no tienen este problema, porque se liberan con su transacción.
 
 La primera petición autenticada de cada usuario en el día ejecuta `catchUpUser(userId)`, que corre los mismos jobs solo para él (ADR-01).
 
@@ -1120,12 +1154,14 @@ MeDto = { id, name, email, timezone, locale: 'es-BO', release: '1.0'|'1.1'|'1.2'
 
 ```ts
 HealthOutput = void                                         // GET /api/health → 204, público
+ReadyOutput  = void                                         // GET /api/health/ready → 204 o 503, público
 UpdateSettingsInput.pick({ sidebarCollapsed: true })        // definido en M9
 ModuleRelease = Record<ModuleKey, '1.0'|'1.1'|'1.2'>        // packages/contracts/releases.ts
 ```
 
 #### 4.2.2 Endpoints
-- `GET /api/health`: `204`, sin sesión. Lo usa la detección sin conexión.
+- `GET /api/health`: `204`, sin sesión. No toca la base de datos. Lo usan la detección sin conexión y el *health check* de Render.
+- `GET /api/health/ready`: sin sesión. Hace `SELECT 1` en la base de datos con un límite de 2 s y responde `204` si contesta o `503` sin cuerpo si no, sin detalles internos (constitución §4). La presentación lo recibe como un puerto `ReadinessProbe` (`application/ports/readiness.ts`), implementado en `infrastructure/persistence/readiness.ts` (ADR-19). Lo usan las pruebas de humo de `deploy.yml` para verificar los enlaces API → BD y web → API → BD (1.2).
 - `PATCH /api/settings {sidebarCollapsed}` (RF-M2-09). El contrato completo está en M9.
 - `releaseGate(module)`: middleware del API. Si el módulo no está en `RELEASE`, responde `RELEASE_NOT_AVAILABLE 404` (RF-M2-03).
 
@@ -1220,7 +1256,7 @@ gap(parallel: Decimal, official: Decimal): { pct: Decimal; bs: Decimal };
 - **Moneda Activa → Inactiva:** `SELECT … FOR UPDATE` sobre `currency` → cada módulo responde a `currencyUsage.check(tx, userId, code)` (cuentas activas, metas no archivadas, presupuestos activos o pausados, deudas activas, reglas no eliminadas) → `UPDATE … SET status = 'inactive'`. Toda creación con esa moneda toma `FOR SHARE` y verifica `status = 'active'`, así no hay carreras.
 - **Inactiva → Activa:** exige una tasa nueva → inserta `custom_rate`.
 - **Valor manual:** se activa o desactiva con una transacción que actualiza `user_settings` e inserta el evento. Nunca vence solo.
-- **Una sola actualización a la vez:** `pg_try_advisory_lock(hashtext('fx_refresh'))`. Si la fuente falla, se conserva el último valor (EC-M3-01).
+- **Una sola actualización a la vez:** el lease `fx_refresh` de `job_run` (§4.0), también cuando la actualización es a pedido. Si la fuente falla, se conserva el último valor (EC-M3-01).
 - **Sin ninguna tasa (EC-M3-02):** si `resolveUsdRate` devuelve null y el movimiento no es en BOB → `RATE_REQUIRED 409`. El cliente reenvía con `manualUsdRate`, que en la misma transacción activa el valor manual y queda como tasa del movimiento. Sin tasa, los equivalentes se muestran como "Sin tipo de cambio" (EC-M8-04).
 - **Cambiar la referencia o la base (RF-M3-11):** nada se reescribe. El cliente invalida todas las consultas.
 
@@ -1273,7 +1309,7 @@ AccountsSummaryDto = { netWorth: { base, other }, breakdown: { liquid, savings, 
 | `PUT /api/accounts/order` | Reasigna `sort_order` en una transacción. | `VALIDATION_ERROR` (ids ajenos o faltantes) |
 | `POST /api/accounts/:id/adjust` | Bajo `FOR UPDATE`: delta = real − actual. Si es 0, `200 {created:false}` (EC-M4-08). Si no, `ledger_transaction(kind=adjustment, date=hoy)` + un asiento + `BalanceGuard`. | `NEGATIVE_BALANCE 422` · `EARMARK_CONFIRMATION_REQUIRED 409` |
 | `POST /api/accounts/:id/archive` | `UPDATE … WHERE status='active'`. Con saldo distinto de 0 sin confirmar, pide confirmación. Rechaza si tiene apartados o es dedicada (V1.1). Quita la cuenta por defecto y pausa sus reglas con aviso (V1.2). | `ARCHIVE_CONFIRMATION_REQUIRED 409 {balance}` · `ACCOUNT_HAS_EARMARKS 409 {goals}` · `ACCOUNT_DEDICATED 409` |
-| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 409` |
+| `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 422` |
 | `DELETE /api/accounts/:id` | Sin asientos (incluidos los que están dentro de la ventana de deshacer) y no dedicada. Limpieza de RF-M4-13. | `ACCOUNT_HAS_MOVEMENTS 409` · `ACCOUNT_DEDICATED 409` |
 | `GET /api/accounts/:id/balance-series?from&to` | Saldo inicial + suma acumulada (`SUM … OVER (ORDER BY date)`) por día del rango. | — |
 
@@ -1314,6 +1350,8 @@ MergePreviewDto  = { movements: number, budgetEffect: 'moved'|'kept_target'|'non
 
 Catálogos fijos en `contracts`: `PaletteKey` (12 colores con su valor en claro y oscuro, contraste AA) e `IconKey` (unos 60 íconos de lucide-react, que ya viene con shadcn). Si no se elige color, una subcategoría hereda el del padre (RF-M5-04).
 
+Forma exportada por `catalogs.ts`: `PaletteKey` (`z.enum` de 12 claves), `PALETTE: Record<PaletteKey, { light: '#rrggbb'; dark: '#rrggbb' }>`, `THEME_BACKGROUND = { light: '#ffffff', dark: '#020817' }`, `IconKey` (`z.enum` en kebab-case) e `ICON_KEYS` (arreglo de nombres). Los fondos son los de la web (`--background` en `apps/web/src/index.css`: `0 0% 100%` y `222.2 84% 4.9%`) y el contraste AA (≥ 4,5:1) se mide contra ellos.
+
 #### 4.5.2 Endpoints
 
 | Método y ruta | Comportamiento | Errores |
@@ -1332,6 +1370,7 @@ Catálogos fijos en `contracts`: `PaletteKey` (12 colores con su valor en claro 
 - **Protecciones** (trigger `category_guard` + validaciones del servicio): un solo nivel, el tipo nunca cambia (RF-M5-01), la categoría del sistema solo cambia color e ícono (RF-M5-05) y una categoría con hijas no pasa a ser hija.
 - **Totales por categoría:** se calculan con la jerarquía actual al leer, así que fusionar o mover cambia los totales de meses pasados en el Inicio y en la lista (RF-M5-09, RN-11). Los presupuestos decididos guardan `spent_at_decision`, así que sus períodos cerrados no cambian.
 - **Fusión:** atómica e irreversible. Repetirla devuelve `CATEGORY_NOT_FOUND`, que el cliente trata como ya hecha.
+- **Definición del seed:** `packages/db/seed/preset-categories.ts` exporta `PRESET_CATEGORIES: readonly PresetCategory[]`, un árbol en el orden de spec §2.5.1 (gastos, luego ingresos), con `PresetCategory = { kind: 'expense' | 'income'; name: string; icon: IconKey; color: PaletteKey; seedOrder: number; systemKey?: 'debts' | 'debts_interest'; children?: PresetCategory[] }`. `seedOrder` empieza en 0 y cuenta por tipo entre las raíces y por padre entre las hijas. Las hijas usan el color de su padre. Las del sistema son "Deudas y préstamos" (`debts`) con su hija "Intereses" (`debts_interest`), repetidas en gasto y en ingreso. `IconKey` y `PaletteKey` vienen de `@finanzas/contracts`, que `@finanzas/db` declara como dependencia.
 - **Seed:** al crear el usuario se crean las precargadas (con `seed_order`) y las del sistema. Al terminar el paso 3 del Onboarding se borran las desmarcadas, que no tienen movimientos.
 
 #### 4.5.4 UI y estado
@@ -1524,7 +1563,7 @@ ResetSettingsInput = z.object({ section: z.enum(['general','currencies','registe
 SettingsDto = { …todos los campos, favorites: { expense: string[]; income: string[] } }
 ```
 
-**`packages/domain/format`:** `formatMoney(amount, symbol, numberFormat)` → "Bs 1.234,56" o "Bs 1,234.56" (RF-M9-02); `formatDate(date, dateFormat)`; `relativeDay(date, today, weekStart)` → "Hoy", "Ayer", "Lun 13" (RF-M9-03).
+**`packages/domain/format`:** `formatMoney(amount, symbol, numberFormat)` → "Bs 1.234,56" o "Bs 1,234.56" (RF-M9-02); `formatDate(date, dateFormat)`; `relativeDay(date, today, weekStart, dateFormat)` → "Hoy", "Ayer", "Lun 13", y fuera de la semana la fecha con `formatDate` (RF-M9-03); `weekDays(weekStart)` da el orden de los días del calendario (RF-M9-04).
 
 #### 4.9.2 Endpoints
 
@@ -1909,9 +1948,9 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 | Concurrencia | Vitest (integración, `Promise.all` con conexiones distintas) | Gastos simultáneos sobre el mismo efectivo, doble confirmación de un enlace, doble decisión de cierre, doble confirmación de un pendiente, jobs en paralelo, desactivar una moneda mientras se crea una cuenta. | — |
 | E2E | Playwright (Chromium, WebKit y Firefox; 360 px y 1280 px) | Escenarios Gherkin de la spec, navegación adaptable, sin conexión, sesión vencida, teclado, accesibilidad con `@axe-core/playwright`. | — |
 | Rendimiento | Playwright + seed de 5.000 movimientos | RNF-01, RNF-02 y RNF-03 con perfil de red 4G y CPU de gama media (×4 de throttling). | — |
-| Calidad en CI | GitHub Actions (`ci.yml`) | commitlint, lint, typecheck estricto, reglas de capas (dependency-cruiser), unitarios e integración en cada push y PR. Ningún PR se integra con fallas. | §5 y §7 |
+| Calidad en CI | GitHub Actions (`ci.yml`) | commitlint, lint, typecheck estricto, reglas de capas (dependency-cruiser), unitarios e integración en cada push y PR. Los contratos HTTP del API (proyecto `http` de Vitest, supertest sin BD) corren dentro de `test:unit`. Ningún PR se integra con fallas. | §5 y §7 |
 | QA efímero | GitHub Actions (`qa-e2e.yml`) | E2E completo, axe y rendimiento contra un entorno temporal en cada push a `qa` y en cada PR hacia `main`. Es un check requerido para integrar en `main`. | §7 (validación antes de producción) |
-| Despliegue | GitHub Actions (`deploy.yml`) | En cada push a `main`: CI → migraciones → Render → Vercel → pruebas de humo. Si un paso falla, no se sigue y queda en línea la versión anterior. | §7 |
+| Despliegue | GitHub Actions (`deploy.yml`) | En cada push a `main`: CI → migraciones → Render → Vercel → pruebas de humo de los tres enlaces (1.2). Si un paso falla, no se sigue y queda en línea la versión anterior. | §7 |
 
 **Datos de prueba:** fábricas por entidad en `apps/api/test/factories`. Cada test usa un usuario nuevo. Los jobs se prueban con un reloj inyectable (`Clock`) y zonas horarias distintas (America/La_Paz, Europe/Madrid, America/Santiago).
 

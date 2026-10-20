@@ -146,13 +146,19 @@ export function workspaceOf(path) {
  * Huecos de alcance que harían fallar los gates sin que la tarea pueda corregirlos (protocolo §6):
  *  - quien toca un package.json reescribe pnpm-lock.yaml al instalar, así que debe tenerlo en alcance;
  *  - ESLint revisa TypeScript con tipos: cada .ts/.tsx debe caer en el tsconfig.json de su paquete,
- *    creado en esta tarea o en una anterior.
+ *    creado en esta tarea o en una anterior;
+ *  - un global-setup de Vitest solo corre si su vitest.config.ts lo registra, así que la tarea que lo crea
+ *    también tiene esa configuración en su alcance.
  * `tasks` es la lista completa, en orden, para saber qué tsconfig existen antes de la tarea.
  */
 export function scopeProblems(task, tasks) {
   const problems = [];
   if (task.scope.some((p) => p.endsWith('package.json')) && !task.scope.includes('pnpm-lock.yaml')) {
     problems.push('toca un package.json pero no tiene pnpm-lock.yaml en su alcance.');
+  }
+  for (const setup of task.scope.filter((p) => /\/test\/(?:.*\/)?global-setup\.[cm]?[jt]s$/.test(p))) {
+    const config = `${workspaceOf(setup)}/vitest.config.ts`;
+    if (!task.scope.includes(config)) problems.push(`crea ${setup}, pero no tiene ${config} en su alcance para registrarlo.`);
   }
   const upToHere = tasks.filter((t) => t.id <= task.id);
   const tsconfigs = new Set(upToHere.flatMap((t) => t.scope.filter((p) => p.endsWith('tsconfig.json')).map(workspaceOf)));

@@ -11,7 +11,7 @@ Eres el **orquestador** del pipeline descrito en `docs/execution-protocol.md` (c
 La tarea a ejecutar viene en los argumentos: `$ARGUMENTS`. Si no hay un ID con la forma `TASK-NNN`, pregúntale al usuario cuál.
 
 ## Reglas que nunca rompes
-1. No escribes ni editas código, pruebas, `tasks.md`, la spec, el plan ni la constitución durante la tarea. Si algo hay que corregir, lo hace el subagente de esa etapa o se detiene el pipeline.
+1. No escribes ni editas código, pruebas, `tasks.md`, la spec, el plan ni la constitución durante la tarea. La única excepción es `docs/design-direction.md` en el paso 0b. Si algo hay que corregir, lo hace el subagente de esa etapa o se detiene el pipeline.
 2. El estado solo cambia con `node tools/sdd/state.mjs …`. Nunca editas `.claude/run/` a mano.
 3. Un subagente a la vez. Lanzas el siguiente solo cuando el anterior terminó (espera su notificación de fin).
 4. A cada subagente le pasas **solo** el mensaje de la plantilla de abajo: nada de la conversación.
@@ -26,12 +26,20 @@ node tools/sdd/preflight.mjs <TASK>
 - Lee el JSON: `steps` dice qué etapas corren, `resume` si es una tarea a medio hacer, `currentPhase` y `status` dónde quedó.
 - **Retomar**: si `resume` es `true`, continúa desde `currentPhase`. Si `status` es `blocked`, muestra `blockedReason` (y el final de `.claude/run/<TASK>/gate.log` si es de un gate) y pregunta al usuario cómo seguir; cuando lo resuelva, ejecuta `node tools/sdd/state.mjs unblock` y continúa.
 
+## Paso 0b — Dirección visual (solo si el preflight trae `uiTask: true`)
+Las tareas de interfaz escriben pantallas, componentes o estilos de `apps/web`. Su diseño sale de `docs/design-direction.md`, que entra al `context.md` (sección 6) y que el auditor hace cumplir. Los subagentes no pueden preguntarle nada al usuario, así que las decisiones visuales las resuelves tú **antes** de lanzarlos.
+1. Si `designDirectionExists` es `true`, lee el documento. Si cubre lo que esta tarea necesita (p. ej. una pantalla nueva con un patrón ya definido), sigue al paso 1. Si le falta una decisión que la tarea sí requiere, pregunta solo eso.
+2. Si no existe, o le falta algo, invoca la skill `frontend-design` y pregúntale al usuario con `AskUserQuestion`, en un solo lote y con tu propuesta como primera opción: estética y tono, tema claro u oscuro por defecto, tipografía, radios y densidad, y color de marca (los 12 colores del catálogo `PALETTE` son los de acento de las categorías, no necesariamente la marca). No preguntes lo que el documento ya fija ni lo que sea un detalle menor: decide tú.
+3. Escribe o actualiza `docs/design-direction.md` (es lo único que escribes aparte de `verdict.md`) con las decisiones: tokens (colores, tipografía, radios, espaciado, sombras), estética, reglas de componentes y de pantalla. Debe ser corto y accionable, sin repetir la spec.
+4. Haz un commit `docs(web): …` aparte, **antes** de lanzar a ningún subagente: el documento está fuera del alcance de la tarea y un cambio suelto bloquearía los gates. Después regenera el contexto con `node tools/sdd/context.mjs <TASK>`.
+5. Si el usuario quiere cambiar algo de la dirección visual más adelante, se actualiza el documento en su propio commit `docs:` y las tareas siguientes lo toman.
+
 ## Paso 1 — Pruebas (si `steps` incluye `tests`)
 1. `node tools/sdd/state.mjs phase tests`
 2. Lanza el subagente **test-author** con:
    > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo. Escribe las pruebas en estos archivos y en ningún otro: `<testFiles>`. `<Si verificationOnly: "Es una tarea de verificación: las pruebas deben pasar.">`
 3. Al terminar, revisa su respuesta y `node tools/sdd/state.mjs show`:
-   - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**.
+   - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**. El hook ya dejó la tarea `blocked` con ese motivo y no gastó intentos.
    - `status: blocked` (el Gate A agotó sus intentos) → ve a **Detenerse** con el final de `gate.log`.
    - `gates.A.passed: true` → sigue. (Si no pasó y no está bloqueado, el subagente terminó sin que el gate lo aprobara: relánzalo una vez con el mismo mensaje; si se repite, **Detenerse**.)
 
@@ -62,8 +70,9 @@ node tools/sdd/preflight.mjs <TASK>
    ```
    node tools/sdd/close.mjs --type <tipo> --scope <scope> --summary "<resumen>" --body "<2-4 líneas de lo implementado>" --trailer "<línea de atribución de commits de esta sesión, si la hay>"
    ```
-   El script marca `[x]` en `tasks.md`, hace el commit con los trailers `Task:` y `Audit: approved` y limpia el estado.
+   El script marca `[x]` en `tasks.md`, hace el commit con los trailers `Task:` y `Audit: approved` y limpia el estado. El resumen va **sin** el ID de la tarea (lo pone el script), y el cuerpo se corta solo a 100 columnas. Antes del commit, el script pasa el mensaje por commitlint: si falla, no hace nada y te dice por qué.
 4. Informa al usuario en pocas líneas: tarea, commit, archivos, pruebas y cuántas rondas de corrección hubo.
+   - Si la tarea tiene **«Pasos manuales»** (en su bloque de `context.md`), muéstraselos al usuario como una lista para marcar y recuérdale que quedan pendientes: el pipeline no los hace.
 5. Si la respuesta trae `lastOfPhase: true`, ofrece (sin hacerlo todavía) subir la rama y abrir el PR hacia `develop`:
    `git push -u origin <branch>` (corre el hook `pre-push`) y `gh pr create --base develop`, con la lista de tareas de la fase y los IDs cubiertos en la descripción. Hazlo solo si el usuario lo confirma.
 

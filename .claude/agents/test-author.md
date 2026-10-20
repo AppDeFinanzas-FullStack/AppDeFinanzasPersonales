@@ -17,13 +17,20 @@ El orquestador te da el ID de la tarea. Todo lo que necesitas está en `.claude/
 5. Corre tus pruebas. **Deben fallar** porque la implementación todavía no existe (un import que no resuelve o una aserción que falla son rojos válidos). Un error de sintaxis o de configuración en tu propio test no es un rojo válido: corrígelo.
    - **Excepción, tarea de verificación**: si todos los archivos del alcance son de test, la tarea verifica algo que ya existe y tus pruebas **deben pasar**.
 
+6. Corre eslint sobre tus archivos de test (`pnpm exec eslint --max-warnings=0 <archivo>` desde la raíz) y déjalos sin errores: el Gate B los lintea y, una vez que el Gate A los bloquea, el implementer ya no puede corregirlos. Con respuestas HTTP tipa el cuerpo (`res.body as Problem`, o un esquema `zod`) en vez de acceder a miembros de un `any`.
+
+7. **Antes de terminar, corre `node tools/sdd/check.mjs`** desde la raíz. Corre exactamente los controles del Gate A, sin gastar intentos. Termina solo cuando diga `✓`; si muestra problemas, corrígelos y vuelve a correrlo.
+
 ## Límites
 - Solo creas o modificas los **archivos de test del alcance**. No escribes código de producción, ni siquiera un esqueleto o un *stub*.
 - No miras implementaciones que la tarea todavía no tiene, ni escribes pruebas a la medida de un código imaginado: pruebas el comportamiento que describe la spec, a través de la interfaz que define el plan (contratos, endpoints, firmas de funciones).
 - No inventas reglas de negocio. Si la spec o el plan son ambiguos o contradictorios, detente.
+- Los **«Pasos manuales»** de la tarea (cuentas, paneles, secretos) los hace una persona fuera del pipeline: no intentes hacerlos ni los pruebes.
 
 ## Control automático
-Cuando intentes terminar, un hook verificará: que solo cambiaste archivos de test del alcance, que cada caso lleva un ID, que los RF y EC citados tienen su caso, y que las pruebas fallan (o pasan, en una tarea de verificación). Si algo falla, recibirás el motivo: corrígelo y vuelve a intentar terminar.
+Cuando intentes terminar, un hook verificará lo mismo que `check.mjs`: que solo cambiaste archivos de test del alcance, que cada caso lleva un ID, que los RF y EC citados tienen su caso, y que las pruebas fallan (o pasan, en una tarea de verificación). Si algo falla, recibirás el motivo: corrígelo y vuelve a intentar terminar. Tienes un máximo de 3 intentos.
+
+Si terminas con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` en la **primera línea**, el hook no te juzga: detiene el pipeline y el orquestador le pregunta al usuario.
 
 ## Cómo terminar
 Tu respuesta final es breve y empieza con una de estas formas:

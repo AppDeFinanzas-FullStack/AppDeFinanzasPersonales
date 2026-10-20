@@ -1,0 +1,151 @@
+# Production deploy (plan §1.5, ADR-20): CI → migrations → Render → Vercel → smoke tests.
+# Render and Vercel never deploy from Git on their own; this workflow is the only way to production.
+# If a step fails, the following ones do not run and the previous version stays online.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: ci
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: deploy
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_CLI: vercel@64.7.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma requires the `url` variable even though it migrates through `directUrl`, so both
+      # point at the direct Neon connection. Prisma prints the host, so the parts are masked first.
+      - name: 1. Migrate the production database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: |
+          node --input-type=module -e '
+            const url = new URL(process.env.DATABASE_URL_DIRECT);
+            const parts = [url.hostname, url.username, url.password, decodeURIComponent(url.password)];
+            for (const part of new Set(parts.filter(Boolean))) console.log(`::add-mask::${part}`);
+          '
+          pnpm --filter @finanzas/db migrate:deploy
+
+      # Follows the deploy created by this hook call by its ID. `deploys?limit=1` is never used:
+      # it can return the previous deploy and give a false green.
+      - name: 2. Deploy the API to Render and wait until it is live
+        timeout-minutes: 17
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          api="https://api.render.com/v1/services/${RENDER_SERVICE_ID}"
+          auth="Authorization: Bearer ${RENDER_API_KEY}"
+
+          response="$(curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL")"
+          deploy_id="$(jq -r '.deploy.id // .id // empty' <<<"$response")"
+
+          if [ -z "$deploy_id" ]; then
+            for _ in $(seq 1 12); do
+              deploy_id="$(curl -fsS -H "$auth" -H 'Accept: application/json' "${api}/deploys?limit=20" \
+                | jq -r --arg sha "$COMMIT_SHA" \
+                  '[.[] | (.deploy // .) | select(.commit.id == $sha)] | first | .id // empty')"
+              [ -n "$deploy_id" ] && break
+              sleep 5
+            done
+          fi
+
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render did not return the deploy for commit ${COMMIT_SHA}."
+            exit 1
+          fi
+          echo "Following Render deploy ${deploy_id}"
+
+          deadline=$(( $(date +%s) + 15 * 60 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status="$(curl -fsS --retry 3 -H "$auth" -H 'Accept: application/json' \
+              "${api}/deploys/${deploy_id}" | jq -r '.status')"
+            echo "Render deploy ${deploy_id}: ${status}"
+            case "$status" in
+              live)
+                exit 0
+                ;;
+              build_failed | update_failed | pre_deploy_failed | canceled | deactivated)
+                echo "::error::Render deploy ${deploy_id} ended as ${status}; the previous version stays online."
+                exit 1
+                ;;
+            esac
+            sleep 15
+          done
+
+          echo "::error::Render deploy ${deploy_id} was not live after 15 minutes."
+          exit 1
+
+      # Without --yes, `vercel pull` asks for confirmation and the job hangs.
+      - name: 3. Build and deploy the web to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          pnpm dlx "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+          pnpm dlx "$VERCEL_CLI" deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      # One smoke test per link (plan §1.2): API, API → DB, web and web → API → DB.
+      - name: 4. Smoke tests
+        env:
+          API_URL: ${{ vars.API_URL }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: |
+          failed=0
+          check() {
+            local url="$1" expected="$2" code=""
+            for _ in $(seq 1 5); do
+              code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$url" || true)"
+              [ "$code" = "$expected" ] && break
+              sleep 10
+            done
+            if [ "$code" = "$expected" ]; then
+              echo "OK   GET ${url} = ${code}"
+            else
+              echo "::error::GET ${url} returned ${code}, expected ${expected}."
+              failed=1
+            fi
+          }
+
+          check "${API_URL}/api/health" 204
+          check "${API_URL}/api/health/ready" 204
+          check "${WEB_URL}/" 200
+          check "${WEB_URL}/api/health/ready" 204
+
+          exit "$failed"

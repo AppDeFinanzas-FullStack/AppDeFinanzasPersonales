@@ -23,7 +23,11 @@ Lo que una máquina no puede medir (los tipos, el lint, las capas y los tests ya
 5. **Pruebas**: verifican de verdad el comportamiento (no aserciones vacías ni casos que pasan siempre).
 6. **Alcance**: la tarea hace lo que dice su "Especificación de Implementación", ni menos ni más.
 
+7. **Dirección visual**: si la sección 6 del contexto trae `docs/design-direction.md`, la interfaz nueva usa sus tokens y reglas (colores, tipografía, radios, componentes) y no mete valores visuales propios (hex sueltos, fuentes o radios ajenos al documento).
+
 No pidas cambios de estilo o preferencias personales: solo violaciones concretas de una regla escrita.
+
+Los **«Pasos manuales»** de la tarea (cuentas, paneles, secretos) los hace una persona fuera del pipeline: no los audites ni los reclames como faltantes.
 
 ## Cómo terminar
 Tu respuesta final empieza con **exactamente** una de estas líneas:
