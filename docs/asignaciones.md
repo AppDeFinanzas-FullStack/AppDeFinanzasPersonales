@@ -2,8 +2,8 @@
 
 Quién hace cada tarea de las ramas de grupo (protocolo §5.2). La rama de cada tarea la dice
 [`tools/sdd/branch-groups.json`](../tools/sdd/branch-groups.json); aquí solo va la persona. Los agentes leen
-esta tabla con `node tools/sdd/coordinate.mjs` desde `origin/develop`, así que un cambio de reparto vale para
-todos recién cuando llega a `develop` (en un commit `chore(sdd):` aparte, y avisando al equipo).
+esta tabla con `node tools/sdd/coordinate.mjs` de su copia local, que actualizan antes de cada tarea. Un cambio
+de reparto se hace en un commit `chore(sdd):` aparte, se sube a las dos ramas de grupo y se avisa al equipo.
 
 Formato de cada fila: `| TASK-NNN | @usuario |` o un rango `TASK-NNN..TASK-MMM` (incluye los dos extremos).
 Una tarea va en una sola fila. Las tareas ya cerradas pueden quedarse en la tabla.

@@ -208,7 +208,7 @@ En las ramas de grupo trabajan varias personas a la vez, cada una con su Claude 
 - **Esperar sin gastar:** `node tools/sdd/coordinate.mjs wait` repite el `fetch` cada 3 minutos y termina cuando la acción deja de ser `wait` (o a las 12 horas). La skill lo corre en segundo plano y retoma cuando termina.
 - **Estado del equipo:** `node tools/sdd/coordinate.mjs status` dice qué le toca a cada persona y qué tareas abiertas de un grupo no tienen a nadie.
 - **Paradas:** si `/implement-task` se detiene, un merge choca o el `pre-push` falla, `/coordinar-fases` se detiene y la persona decide. Quien espera esa tarea sigue esperando hasta que se suba.
-- **Cambiar el reparto:** las asignaciones se leen de `origin/develop`, para que todos vean la misma tabla. Se cambian con un commit `chore(sdd):` aparte en un PR a `develop`, avisando al equipo.
+- **Cambiar el reparto:** las asignaciones se leen de la copia local, que `/coordinar-fases` actualiza con un `pull` antes de cada tarea. Se cambian con un commit `chore(sdd):` aparte que se sube a las dos ramas de grupo, avisando al equipo.
 - **Permisos:** `git switch`, `pull`, `merge` y `push` piden permiso en el modo normal. Para que el bucle no se frene, cada persona elige su modo de permisos (por ejemplo, el automático).
 
 ---

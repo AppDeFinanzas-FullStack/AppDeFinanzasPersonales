@@ -5,8 +5,8 @@
 //                                                            → espera hasta que me toque algo (JSON al final)
 //   node tools/sdd/coordinate.mjs status [--no-fetch]        → qué le toca a cada persona (JSON)
 // Quién soy: `git config sdd.member <usuario-de-github>` o, si no está, el usuario de `gh`.
-// Las asignaciones se leen de docs/asignaciones.md en origin/develop (la copia compartida) o, si ahí no
-// están todavía, de la copia local. El estado de cada tarea, del tasks.md de cada rama en origin.
+// Las asignaciones se leen de docs/asignaciones.md en la copia local; el estado de cada tarea, del tasks.md
+// de cada rama en origin.
 import { allTasks, featureDirs, loadBranchGroups, parseTasks, tasksPath } from './lib/tasks.mjs';
 import { ASSIGNMENTS, nextStep, parseAssignments } from './lib/coordination.mjs';
 import { loadState } from './lib/state.mjs';
@@ -34,10 +34,9 @@ function showRemote(branch, path) {
 }
 
 function assignments() {
-  const text = showRemote('develop', ASSIGNMENTS) ?? (exists(ASSIGNMENTS) ? readText(ASSIGNMENTS) : null);
-  if (text === null) fail(`No hay asignaciones: falta ${ASSIGNMENTS} en origin/develop y en la copia local.`);
+  if (!exists(ASSIGNMENTS)) fail(`No hay asignaciones: falta ${ASSIGNMENTS}. ¿Estás en una rama de grupo actualizada?`);
   try {
-    return parseAssignments(text);
+    return parseAssignments(readText(ASSIGNMENTS));
   } catch (e) {
     fail(`${ASSIGNMENTS}: ${e.message}`);
   }
