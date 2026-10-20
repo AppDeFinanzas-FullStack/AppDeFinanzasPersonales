@@ -2578,7 +2578,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: toda ruta con un recurso ajeno responde 404, y la prueba falla si aparece una ruta nueva sin cubrir.
     - `RNF-17`: los logs no contienen contraseñas, tokens de enlaces ni cookies.
 
-- [ ] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
+- [x] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
   - **Dependencias:** Requiere TASK-036
   - **Trazabilidad SDD:** plan §1.5 (configuración versionada, puesta en marcha), plan §1.2 (cómo se conectan las tres partes), plan §4.2.2 (`/api/health/ready`), ADR-02, ADR-19, ADR-20
   - **Archivos en Alcance:**
@@ -2636,7 +2636,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Pasos manuales:**
     1. En GitHub → Settings → Branches, agregar `qa-e2e` a los checks obligatorios de `main` (plan §1.5, protección de ramas). Hasta esta tarea, `main` solo exige `ci`.
 
-- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
+- [x] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
   - **Dependencias:** Requiere TASK-171
   - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás, puesta en marcha), plan §1.2 (pruebas de humo de los tres enlaces), plan §5.1 (contratos HTTP en CI), ADR-20; constitución §4, §7
   - **Archivos en Alcance:**

@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import express, { type Express, type RequestHandler } from 'express';
 
+import type { ReadinessProbe } from '../application/ports/readiness.js';
+
 import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.js';
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
@@ -12,6 +14,8 @@ export interface AppDeps {
   webOrigin: string;
   /** The internal tick endpoint (ADR-01); an app built without it does not expose it. */
   jobs?: JobsControllerDeps;
+  /** The database check of `GET /api/health/ready` (plan §4.2.2); without it the route is absent. */
+  readiness?: ReadinessProbe;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -44,7 +48,7 @@ export const createApp = (deps: AppDeps): Express => {
   app.use(checkOrigin(deps.webOrigin));
   app.use(requireJson);
   app.use(express.json());
-  app.use('/api', healthRouter());
+  app.use('/api', healthRouter(deps.readiness));
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
   }
