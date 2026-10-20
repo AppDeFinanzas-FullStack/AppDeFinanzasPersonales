@@ -1522,7 +1522,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RN-06`: el total es la suma de las conversiones redondeadas de cada cuenta.
     - Sin tasa, el equivalente es `null`.
 
-- [ ] **`TASK-099`: Repositorios de cuentas y del libro contable (base)**
+- [x] **`TASK-099`: Repositorios de cuentas y del libro contable (base)**
   - **Dependencias:** Requiere TASK-083
   - **Trazabilidad SDD:** plan §3.5, ADR-04, plan §4.4.2 (`balance-series`); RN-01, RN-09, RNF-03
   - **Archivos en Alcance:**

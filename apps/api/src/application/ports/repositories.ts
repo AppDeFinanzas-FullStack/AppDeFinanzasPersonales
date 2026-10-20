@@ -192,6 +192,8 @@ export interface Repositories {
   marketRates: MarketRateRepository;
   currencies: CurrencyRepository;
   userFxEvents: UserFxEventRepository;
+  accounts: AccountRepository;
+  ledger: LedgerRepository;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -250,4 +252,104 @@ export interface UserFxEventRepository {
   insert(event: UserFxEventRow): Promise<void>;
   /** Events effective at or before the instant, in ascending order. */
   eventsUntil(instant: Date): Promise<UserFxEventRow[]>;
+}
+
+// ---------- Cuentas y libro contable (M4, ADR-04) ----------
+
+export type AccountType = 'cash' | 'bank' | 'ewallet' | 'credit_card' | 'savings' | 'other';
+export type LifecycleStatus = 'active' | 'archived';
+
+export interface AccountRow {
+  id: string;
+  type: AccountType;
+  name: string;
+  currencyCode: string;
+  /** Fixed when the account is created (RF-M4-07); a card stores its debt as negative. */
+  initialBalance: Decimal;
+  initialBalanceDate: LocalDate;
+  color: string;
+  icon: string;
+  cardCutDay: number | null;
+  cardPayDay: number | null;
+  cardLimit: Decimal | null;
+  status: LifecycleStatus;
+  archivedAt: Date | null;
+  sortOrder: number;
+}
+
+/** A new account: it is always created active. */
+export type NewAccount = Omit<AccountRow, 'status' | 'archivedAt'>;
+
+/** Editable fields of an account; the initial balance and its date never change (RF-M4-07). */
+export type AccountPatch = Partial<
+  Pick<
+    AccountRow,
+    'type' | 'name' | 'currencyCode' | 'color' | 'icon' | 'cardCutDay' | 'cardPayDay' | 'cardLimit'
+  >
+>;
+
+/** Accounts of the user bound to the transaction; another user's account does not exist (RN-09). */
+export interface AccountRepository {
+  insert(account: NewAccount): Promise<void>;
+  get(id: string): Promise<AccountRow | null>;
+  /** Accounts of that status, by `sortOrder`. */
+  list(status: LifecycleStatus): Promise<AccountRow[]>;
+  /** Locks the rows of the user's accounts among the ids, in id order, and returns them. */
+  lockForUpdate(ids: string[]): Promise<AccountRow[]>;
+  update(id: string, patch: AccountPatch): Promise<void>;
+  /** Gives each account the position of its id in the list as its `sortOrder`. */
+  setOrder(ids: string[]): Promise<void>;
+  /** How many accounts the user has, active or archived. */
+  count(): Promise<number>;
+  /** `true` when the account has any entry, including those of deleted transactions. */
+  hasEntries(id: string): Promise<boolean>;
+}
+
+export type TransactionKind = 'expense' | 'income' | 'transfer' | 'adjustment';
+export type TransactionOrigin =
+  'manual' | 'recurring' | 'debt_initial' | 'debt_payment' | 'fee' | 'goal_transfer';
+
+/** Header of a ledger transaction (plan §3.5); its `id` comes from the client (ADR-11). */
+export interface LedgerTransactionHeader {
+  id: string;
+  kind: TransactionKind;
+  date: LocalDate;
+  note: string | null;
+  categoryId: string | null;
+  origin: TransactionOrigin;
+  originId: string | null;
+  parentTransactionId: string | null;
+  recurringRuleId: string | null;
+  recurringLabel: string | null;
+  rateCurBob: Decimal;
+  rateUsdBob: Decimal | null;
+  declaredRate: Decimal | null;
+}
+
+/** A signed entry: positive comes into the account, negative goes out (ADR-04). */
+export interface LedgerEntryInput {
+  id: string;
+  accountId: string;
+  amount: Decimal;
+}
+
+export interface BalancePoint {
+  date: LocalDate;
+  balance: Decimal;
+}
+
+/** Ledger of the user bound to the transaction (ADR-04, RN-09). */
+export interface LedgerRepository {
+  /**
+   * Inserts the header and its entries, which take the header's date. A header whose id already
+   * exists is left as it is, with no new entries (ADR-11). Returns `true` when it was inserted.
+   */
+  insertTransaction(header: LedgerTransactionHeader, entries: LedgerEntryInput[]): Promise<boolean>;
+  /**
+   * Balance of each of the user's accounts among the ids: initial balance plus the entries from the
+   * initial balance date on, without deleted transactions (RN-01).
+   */
+  balances(accountIds: string[]): Promise<Map<string, Decimal>>;
+  /** Balance at the end of each day of the range, both ends included, in ascending order (RN-01). */
+  balanceSeries(accountId: string, from: LocalDate, to: LocalDate): Promise<BalancePoint[]>;
 }
