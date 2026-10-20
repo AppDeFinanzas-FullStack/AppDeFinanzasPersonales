@@ -114,7 +114,7 @@ Lee `active-task.json` y aplica el gate de la fase. Si un control falla, bloquea
 
 - **A quién juzga:** el *matcher* del hook lo limita a los tres subagentes del pipeline. Además, el gate lee `agent_type` de la entrada del hook y solo juzga al subagente de la fase vigente: `test-author` en `tests`, `implementer` en `implement` y `sdd-auditor` en `audit`. Un subagente de exploración que termine durante una tarea no consume intentos.
 - **Paradas:** si `last_assistant_message` empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` (§3.2), no corre los controles: bloquea la tarea con ese motivo y deja terminar al subagente.
-- **Autoverificación:** antes de terminar, el test-author y el implementer corren `node tools/sdd/check.mjs`. Aplica los mismos controles del gate de la fase (`lib/gates.mjs`), pero sin gastar intentos ni tocar el estado, y sale con código 0 si el gate pasaría. Así, la mayoría de los errores (tipos, lint, comandos, alcance) se corrigen antes de que cuente un intento.
+- **Autoverificación:** antes de terminar, el test-author y el implementer corren `node tools/sdd/check.mjs`. Aplica los mismos controles del gate de la fase (`lib/gates.mjs`), pero sin gastar intentos, y sale con código 0 si el gate pasaría. Si el Gate B pasaría y el árbol de trabajo no cambió mientras corría, anota su huella en el estado y el hook de cierre reutiliza ese resultado en lugar de repetir los controles (basta que cambie un archivo, o que haya otra ronda, para que se corran de nuevo). Así, la mayoría de los errores (tipos, lint, comandos, alcance) se corrigen antes de que cuente un intento.
 
 **Gate A (`phase = tests`):**
 1. Los archivos cambiados o nuevos (`git status --porcelain`) son solo archivos de test del alcance.
