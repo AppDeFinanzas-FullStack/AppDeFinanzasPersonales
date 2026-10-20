@@ -2269,7 +2269,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Tasa de ahorro oculta" (`RF-M8-03`): con ingresos 3.000 y gastos 3.500, da `null`.
     - Con un valor anterior de 0, `pctChange` da `null`.
 
-- [ ] **`TASK-145`: `DashboardService`: tarjetas, variaciones y rango de meses**
+- [x] **`TASK-145`: `DashboardService`: tarjetas, variaciones y rango de meses**
   - **Dependencias:** Requiere TASK-126, TASK-143, TASK-144
   - **Trazabilidad SDD:** plan §4.8.2, plan §4.8.3; RF-M8-01, RF-M8-02, RF-M8-03, RF-M8-04, EC-M8-02, RN-02, RN-05, RN-12
   - **Archivos en Alcance:**

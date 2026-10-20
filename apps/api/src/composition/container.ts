@@ -93,6 +93,7 @@ import { createAccountRepository } from '../infrastructure/persistence/repositor
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
 import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
 import { createShortcutRepository } from '../infrastructure/persistence/repositories/shortcut.repository.js';
+import { createDashboardRepository } from '../infrastructure/persistence/repositories/dashboard.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -188,6 +189,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   categories: createCategoryRepository(tx, userId ?? NO_USER),
   userSettings: createUserSettingsRepository(tx),
   shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
+  dashboard: createDashboardRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';

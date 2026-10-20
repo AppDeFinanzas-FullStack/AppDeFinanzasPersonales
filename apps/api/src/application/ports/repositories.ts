@@ -260,6 +260,31 @@ export interface Repositories {
   categories: CategoryRepository;
   userSettings: UserSettingsRepository;
   shortcuts: ShortcutRepository;
+  dashboard: DashboardRepository;
+}
+
+// ---------- Inicio (M8) ----------
+
+/** Income and expense of a date range in the base currency; `expense` is positive. */
+export interface PeriodTotals {
+  income: Decimal;
+  expense: Decimal;
+}
+
+/** Reads of the dashboard for the user bound to the transaction (RN-09). */
+export interface DashboardRepository {
+  /**
+   * Totals of two inclusive date ranges in one query: each movement is converted with its stored
+   * rates (RN-05) and what RN-02 leaves out does not count. A movement dated before the initial
+   * balance of its account still counts (RN-12).
+   */
+  totals(
+    current: { from: LocalDate; to: LocalDate },
+    previous: { from: LocalDate; to: LocalDate },
+    base: string,
+  ): Promise<{ current: PeriodTotals; previous: PeriodTotals }>;
+  /** Month (`YYYY-MM`) of the first movement or the first initial balance, or `null` without any. */
+  firstMonth(): Promise<string | null>;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
