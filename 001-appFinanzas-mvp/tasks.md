@@ -857,6 +857,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/auth.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/email-send-log.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/email-link.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/auth-confirm.test.ts`
   - **Especificación de Implementación:** `resendConfirmation` acepta el correo o un token (lo busca por hash aunque esté vencido), aplica los límites de 60 s y 5 por hora con `email_send_log` e invalida el enlace anterior; siempre responde 202. `confirm(token, currentSessionId?)` consume el enlace, marca el correo como verificado, cierra la sesión de otro usuario en el dispositivo y crea la sesión nueva.
   - **Criterios de Verificación (Tests & DoD):**
