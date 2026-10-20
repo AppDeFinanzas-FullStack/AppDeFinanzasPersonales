@@ -1,7 +1,7 @@
 // Pruebas de tools/sdd. Uso: node --test tools/sdd/test/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf } from '../lib/tasks.mjs';
+import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf, expandTaskRange, taskBranch, loadBranchGroups } from '../lib/tasks.mjs';
 import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } from '../lib/context.mjs';
 import { readText, sh, posixShell } from '../lib/repo.mjs';
@@ -76,6 +76,29 @@ test('el tasks.md real tiene 247 tareas válidas y numeradas en orden', () => {
 test('rama de la fase', () => {
   assert.equal(phaseBranch({ number: 11, name: 'M6 Transacciones (V1.0)' }), 'feature/11-m6-transacciones');
   assert.equal(phaseBranch({ number: 0, name: 'Cimientos, configuración e infraestructura base' }), 'feature/00-cimientos-configuracion-e-infraestructura');
+});
+
+test('rama de una tarea: la de su grupo si está en uno, si no la de su fase', () => {
+  assert.deepEqual(expandTaskRange('TASK-098..TASK-101'), ['TASK-098', 'TASK-099', 'TASK-100', 'TASK-101']);
+  assert.deepEqual(expandTaskRange('TASK-007'), ['TASK-007']);
+  const groups = [{ branch: 'feature/07-12-a', summary: 'A', tasks: ['TASK-068', 'TASK-069'] }];
+  const phase = { number: 7, name: 'M2 Navegación y estructura' };
+  assert.equal(taskBranch({ id: 'TASK-069', phase }, groups), 'feature/07-12-a');
+  assert.equal(taskBranch({ id: 'TASK-070', phase }, groups), 'feature/07-m2-navegacion-y-estructura');
+  assert.equal(taskBranch({ id: 'TASK-070', phase }, []), 'feature/07-m2-navegacion-y-estructura');
+});
+
+test('los grupos reales: cada tarea existe, está abierta o cerrada una sola vez y en un solo grupo', () => {
+  const ids = new Set(allTasks().map((t) => t.id));
+  const seen = new Set();
+  for (const g of loadBranchGroups()) {
+    assert.match(g.branch, /^feature\/[a-z0-9-]+$/);
+    for (const id of g.tasks) {
+      assert.ok(ids.has(id), `${g.branch}: ${id} no existe`);
+      assert.ok(!seen.has(id), `${id} está en dos grupos`);
+      seen.add(id);
+    }
+  }
 });
 
 test('archivos de test según el protocolo', () => {
@@ -317,6 +340,16 @@ test('resumen de SessionStart: sin tarea activa, avance y tareas disponibles', (
   assert.match(text, /Fase 4 — Base del API: 1\/4/);
   // TASK-003 depende de una tarea abierta: no está disponible.
   assert.match(text, /disponibles \(dependencias cerradas\): TASK-002 \(Fase 4\), TASK-004 \(Fase 4\)\./);
+});
+
+test('resumen de SessionStart: en una rama de grupo, su avance y solo sus tareas disponibles', () => {
+  const t = (id, done, n) => ({ id, done, dependencies: [], phase: { number: n, name: `Fase ${n}` } });
+  const tasks = [t('TASK-068', true, 7), t('TASK-069', false, 7), t('TASK-096', false, 9), t('TASK-106', false, 9)];
+  const groups = [{ branch: 'feature/07-12-a', summary: 'web', tasks: ['TASK-068', 'TASK-069', 'TASK-106'] }];
+  const text = buildBrief({ tasks, state: null, branch: 'feature/07-12-a', clean: true, groups });
+  assert.match(text, /Rama de grupo \(web\): 1\/3 tareas cerradas\./);
+  assert.match(text, /disponibles \(dependencias cerradas\): TASK-069 \(Fase 7\), TASK-106 \(Fase 9\)\./);
+  assert.ok(!text.includes('TASK-096'));
 });
 
 test('resumen de SessionStart: tarea bloqueada con su motivo y límite de disponibles', () => {
