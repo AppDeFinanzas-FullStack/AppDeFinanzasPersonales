@@ -1761,6 +1761,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.5.2 (`DELETE /api/categories/:id`), plan §3.8; EC-M5-07, RN-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-delete.test.ts`
   - **Especificación de Implementación:** Solo procede sin movimientos (incluidos los que están en la ventana de deshacer) y sin presupuesto ni regla que la use; sus atajos caen en cascada.
   - **Criterios de Verificación (Tests & DoD):**
