@@ -1399,8 +1399,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/controllers/currencies.controller.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
     - `apps/api/test/http/currencies-deactivate.test.ts`
-  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`. `CurrencyRepository` suma un método (p. ej. `setStatus`) que escribe `currency.status` del usuario dentro de `uow.run`.
+  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`. `CurrencyRepository` suma un método (p. ej. `setStatus`) que escribe `currency.status` del usuario dentro de `uow.run`. `requireJson` trata `Content-Length: 0` como una petición sin cuerpo, para que `POST /:code/deactivate` no dé `UNSUPPORTED_MEDIA_TYPE`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-01`: desactivar BOB o USD da `SYSTEM_CURRENCY`, y desactivar la base, `BASE_CURRENCY`.
     - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
