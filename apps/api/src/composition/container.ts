@@ -16,6 +16,10 @@ import {
 } from '../application/services/me.service.js';
 import { createFxJobs, type FxJobs } from '../application/jobs/fx.js';
 import {
+  createCurrenciesService,
+  type CurrenciesService,
+} from '../application/services/currencies.service.js';
+import {
   createFxSettingsService,
   type FxSettingsService,
 } from '../application/services/fx-settings.service.js';
@@ -96,6 +100,7 @@ export interface Container {
   readonly settingsService: SettingsService;
   readonly ratesService: RatesService;
   readonly fxSettingsService: FxSettingsService;
+  readonly currenciesService: CurrenciesService;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
   readonly rateHistory: RateHistoryReader;
   /** Starts `fx.fetchParallel` in the background, at most one at a time (RNF-04, RF-M3-04). */
@@ -367,6 +372,7 @@ export const buildContainer = (env: Env): Container => {
   const settingsService = createSettingsService({ uow });
   const ratesService = createRatesService({ uow });
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
+  const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
 
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
@@ -396,6 +402,7 @@ export const buildContainer = (env: Env): Container => {
     settingsService,
     ratesService,
     fxSettingsService,
+    currenciesService,
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
     readiness: createReadinessProbe(prisma),
@@ -429,6 +436,11 @@ export const createApp = (container: Container): Express => {
       session,
     },
     fx: { fxSettingsService: container.fxSettingsService, clock: container.clock, session },
+    currencies: {
+      currenciesService: container.currenciesService,
+      clock: container.clock,
+      session,
+    },
     readiness: container.readiness,
   });
 };

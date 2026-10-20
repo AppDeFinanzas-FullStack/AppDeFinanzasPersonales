@@ -1368,7 +1368,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-03`: el valor manual activo no vence solo.
     - Una base inactiva da `CURRENCY_INACTIVE`.
 
-- [ ] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
+- [x] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`/api/currencies`), plan §4.3.3; RF-M3-01, RF-M3-02, EC-M3-07, RF-M3-13
   - **Archivos en Alcance:**

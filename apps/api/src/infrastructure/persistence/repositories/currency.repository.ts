@@ -55,5 +55,11 @@ export function createCurrencyRepository(
         INSERT INTO currency (user_id, code, symbol)
         VALUES (${userId}::uuid, ${currency.code}, ${currency.symbol})`;
     },
+
+    async updateSymbol(code: string, symbol: string): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE currency SET symbol = ${symbol}
+         WHERE user_id = ${userId}::uuid AND code = ${code}`;
+    },
   };
 }

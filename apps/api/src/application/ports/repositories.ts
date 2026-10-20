@@ -293,6 +293,8 @@ export interface CurrencyRepository {
   lockForUpdate(code: string): Promise<CurrencyRow | null>;
   lockForShare(code: string): Promise<CurrencyRow | null>;
   insert(currency: { code: string; symbol: string }): Promise<void>;
+  /** Replaces the symbol of the user's currency with that code. */
+  updateSymbol(code: string, symbol: string): Promise<void>;
 }
 
 export interface UserFxEventRow {
