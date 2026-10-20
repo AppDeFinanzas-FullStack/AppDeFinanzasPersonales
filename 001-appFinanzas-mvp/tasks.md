@@ -888,6 +888,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
     - `apps/api/test/integration/auth-password.test.ts`
   - **Especificación de Implementación:** `forgot` crea un enlace de 1 h y siempre responde 202. `reset` consume el enlace, cambia el hash, borra todas las sesiones, crea una nueva, confirma el correo si no lo estaba y encola `password_changed`. `change` verifica la contraseña actual (si falla, `INVALID_CURRENT_PASSWORD`), cambia el hash, revoca las demás sesiones y encola `password_changed`.
   - **Criterios de Verificación (Tests & DoD):**
