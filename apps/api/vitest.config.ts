@@ -20,7 +20,12 @@ export default mergeConfig(baseConfig, {
       },
       {
         extends: true,
-        test: { name: 'http', include: ['test/http/**/*.test.ts'] },
+        test: {
+          name: 'http',
+          include: ['test/http/**/*.test.ts'],
+          // The files share one database (outbox, users); a tick in one must not race another's reads.
+          fileParallelism: false,
+        },
       },
     ],
   },
