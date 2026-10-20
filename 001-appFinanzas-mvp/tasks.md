@@ -1030,7 +1030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-02`: un enlace ya usado lleva al inicio de sesión.
     - `RF-M1-05`: el reenvío queda deshabilitado durante 60 s.
 
-- [ ] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
+- [x] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.1.4 (`/entrar`); RF-M1-04, RF-M1-08, EC-M1-04, RNF-15
   - **Archivos en Alcance:**
