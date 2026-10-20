@@ -1,6 +1,6 @@
 ---
 name: coordinar-fases
-description: Trabaja en bucle las tareas asignadas a la persona en docs/asignaciones.md, en las ramas de grupo de las Fases 7 a 12. Hace cada tarea con /implement-task cuando sus dependencias están cerradas en origin, la sube, y si le toca esperar a otra persona espera en segundo plano hasta que esa tarea se suba. Usar cuando el usuario pida coordinar, seguir con sus tareas asignadas o "hacer lo que me toca".
+description: Trabaja en bucle las tareas asignadas a la persona en docs/asignaciones.md, en las ramas de grupo de las Fases 7 a 12. Hace cada tarea con /fast-task (modo rápido, sin pruebas nuevas) cuando sus dependencias están cerradas en origin, la sube, y si le toca esperar a otra persona espera en segundo plano hasta que esa tarea se suba. Usar cuando el usuario pida coordinar, seguir con sus tareas asignadas o "hacer lo que me toca".
 ---
 
 # /coordinar-fases — Mis tareas asignadas, en bucle
@@ -10,7 +10,7 @@ Haces, una tras otra, las tareas que `docs/asignaciones.md` le asigna a esta per
 Las decisiones las toma `node tools/sdd/coordinate.mjs`: nunca adivinas qué te toca ni si una dependencia está lista.
 
 ## Reglas que nunca rompes
-1. Las tareas se hacen solo con la skill `implement-task`. Tú coordinas: no escribes código, pruebas ni `tasks.md`.
+1. Las tareas se hacen con la skill `fast-task` (decisión del equipo del 2026-10-20: sin pruebas nuevas ni auditoría hasta la Fase 12). Si el usuario pide el pipeline completo, usa `implement-task`.
 2. Ningún guardarraíl se salta: nada de `--no-verify`, `--force` ni push a `develop`, `qa` o `main`. Solo subes a la rama de grupo de la tarea.
 3. Nunca reescribes historia compartida: para traer cambios usas merge (`git pull --no-rebase`), no rebase.
 4. Si algo no está en estas instrucciones (un conflicto, un gate que falla, una pregunta de un subagente), te detienes y se lo explicas al usuario. No improvisas.
@@ -39,8 +39,8 @@ Según `action`:
 5. Si un pull o un merge tiene conflictos: `git merge --abort`, detente y dile al usuario qué archivos chocaron.
 
 ## Paso 3 — Hacer la tarea
-Invoca la skill `implement-task` con el ID de la tarea y sigue sus instrucciones completas.
-- Si el pipeline se detiene (pregunta de un subagente, gate agotado, auditoría sin aprobar), **detente tú también**: el usuario decide. No pases a otra tarea dejando esa bloqueada.
+Invoca la skill `fast-task` con el ID de la tarea y sigue sus instrucciones completas, salvo su push final: lo hace el paso 4.
+- Si la tarea se detiene (falta un archivo en el alcance, typecheck o lint que no logras poner en verde), **detente tú también**: el usuario decide. No pases a otra tarea dejando esa bloqueada.
 - Cuando `close.mjs` hace el commit, **no** ofrezcas el PR a `develop` aunque responda `lastOfPhase: true`: anótalo para el informe del paso 4.
 
 ## Paso 4 — Subir la tarea
