@@ -138,6 +138,26 @@ const createMeStore = (prisma: PrismaClient): MeStore => ({
              updated_at = now()
        WHERE id = ${userId}::uuid`;
   },
+  async findCredential(userId) {
+    const rows = await prisma.$queryRaw<{ email: string; passwordHash: string | null }[]>`
+      SELECT u.email AS email, a.password AS "passwordHash"
+        FROM auth_user u
+        LEFT JOIN auth_account a ON a.user_id = u.id AND a.provider_id = 'credential'
+       WHERE u.id = ${userId}::uuid`;
+    return rows[0] ?? null;
+  },
+  async deleteAccount(userId, email) {
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('user:' || ${userId}::text))`;
+        await tx.$executeRaw`
+          INSERT INTO email_outbox (id, to_address, kind, payload)
+          VALUES (${uuidv7()}::uuid, ${email}, 'account_deleted'::email_kind, '{}'::jsonb)`;
+        await tx.$executeRaw`DELETE FROM auth_user WHERE id = ${userId}::uuid`;
+      },
+      { timeout: 20_000 },
+    );
+  },
 });
 
 export const buildContainer = (env: Env): Container => {
@@ -163,7 +183,7 @@ export const buildContainer = (env: Env): Container => {
     hmacSecret: env.HMAC_SECRET,
     webOrigin: env.WEB_ORIGIN,
   });
-  const meService = createMeService({ store: createMeStore(prisma) });
+  const meService = createMeService({ store: createMeStore(prisma), auth });
   return {
     env,
     prisma,

@@ -21,6 +21,7 @@ const sessionOf = (req: Request): SessionContext => {
 export interface MeController {
   get: RequestHandler;
   update: RequestHandler;
+  deleteAccount: RequestHandler;
 }
 
 /** Handlers of `/api/me` (plan §4.1.2). The user always comes from the session (RN-09). */
@@ -38,6 +39,16 @@ export function createMeController({ meService, release }: MeControllerDeps): Me
         timezone: body.timezone,
       });
       res.status(200).json(MePresenter.toDto(profile, release));
+    },
+
+    async deleteAccount(req, res) {
+      const body = req.body as { password: string; confirmation: string };
+      await meService.deleteAccount({
+        userId: sessionOf(req).userId,
+        password: body.password,
+        confirmation: body.confirmation,
+      });
+      res.status(204).end();
     },
   };
 }

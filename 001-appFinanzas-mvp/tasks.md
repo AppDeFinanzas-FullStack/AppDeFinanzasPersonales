@@ -957,7 +957,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-11`: la zona horaria se puede cambiar.
     - `RN-09`: la respuesta usa solo la sesión, nunca un id del cliente.
 
-- [ ] **`TASK-062`: Eliminar la cuenta**
+- [x] **`TASK-062`: Eliminar la cuenta**
   - **Dependencias:** Requiere TASK-061
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/me/delete`), plan §4.1.3 (eliminación), plan §3.8; RF-M1-15, EC-M1-06, EC-M1-08, RNF-16, RNF-25
   - **Archivos en Alcance:**
