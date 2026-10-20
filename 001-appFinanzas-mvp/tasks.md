@@ -1884,6 +1884,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.6.2, plan §4.6.1 (convención de la tasa declarada), plan §4.6.3 (comisión); RF-M6-04, RF-M6-05, RF-M3-07, RF-M3-08, RF-M3-09, EC-M6-08, RN-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/services/rates.service.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/transactions-transfer.test.ts`
   - **Especificación de Implementación:** El origen y el destino deben ser cuentas activas y distintas. Entre monedas distintas: si no llega `declaredRate`, se usa la precarga de RF-M3-07; `amountIn` se calcula, o, si llega, manda y la tasa se recalcula. La comisión es una `ledger_transaction(kind = expense, origin = fee)` en "Servicios › Comisiones bancarias"; si esa categoría no existe o está archivada y no llega `fee.categoryId`, da `FEE_CATEGORY_REQUIRED`. El monto y la comisión pasan juntos por `BalanceGuard`.
   - **Criterios de Verificación (Tests & DoD):**
