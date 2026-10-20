@@ -1177,7 +1177,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-07`: "Cerrar sesión en todos los dispositivos" cierra el otro contexto.
     - `RF-M1-11`: el cambio de zona horaria se guarda.
 
-- [ ] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
+- [x] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
   - **Dependencias:** Requiere TASK-041, TASK-074
   - **Trazabilidad SDD:** plan §4.2.3 (estados de la app); RF-M2-07, RF-M2-08, RF-M2-10, EC-M2-01, RNF-23
   - **Archivos en Alcance:**

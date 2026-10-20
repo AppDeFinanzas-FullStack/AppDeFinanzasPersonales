@@ -22,5 +22,22 @@
     "exchangeRate": "Tipo de cambio",
     "profile": "Perfil",
     "settings": "Ajustes"
+  },
+  "offline": {
+    "title": "Sin conexión",
+    "description": "Revisa tu conexión a internet. La app se libera sola al volver a conectarte y lo que escribiste sigue aquí."
+  },
+  "sessionExpired": {
+    "title": "Tu sesión venció",
+    "description": "Vuelve a entrar para seguir donde estabas. Lo que escribiste sigue aquí.",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "submitting": "Entrando…",
+    "errors": {
+      "email": "Escribe un correo con formato válido, por ejemplo nombre@ejemplo.com.",
+      "password": "Escribe tu contraseña.",
+      "invalid": "Correo o contraseña incorrectos. Revisa los datos e inténtalo de nuevo."
+    }
   }
 }
