@@ -447,28 +447,33 @@ describe('sign-up: neutral response', () => {
     expect(JSON.stringify(forActive)).toBe(JSON.stringify(forNew));
   });
 
-  it('RNF-15 the response time does not tell the three cases apart', async () => {
-    const owner = await activeAccount();
-    const pending = freshEmail();
-    await signUp(pending);
-    const average = async (run: () => Promise<unknown>) => {
-      const times: number[] = [];
-      for (let i = 0; i < 3; i += 1) {
-        const start = performance.now();
-        await run();
-        times.push(performance.now() - start);
-      }
-      return times.reduce((sum, ms) => sum + ms, 0) / times.length;
-    };
+  // Ten sign-ups at the 900 ms floor take over 9 s, past the 5 s default.
+  it(
+    'RNF-15 the response time does not tell the three cases apart',
+    { timeout: 30_000 },
+    async () => {
+      const owner = await activeAccount();
+      const pending = freshEmail();
+      await signUp(pending);
+      const average = async (run: () => Promise<unknown>) => {
+        const times: number[] = [];
+        for (let i = 0; i < 3; i += 1) {
+          const start = performance.now();
+          await run();
+          times.push(performance.now() - start);
+        }
+        return times.reduce((sum, ms) => sum + ms, 0) / times.length;
+      };
 
-    const forNew = await average(() => signUp(freshEmail()));
-    const forPending = await average(() => signUp(pending));
-    const forActive = await average(async () => {
-      await backdateSendLog(owner.email, '2 hours');
-      return signUp(owner.email);
-    });
+      const forNew = await average(() => signUp(freshEmail()));
+      const forPending = await average(() => signUp(pending));
+      const forActive = await average(async () => {
+        await backdateSendLog(owner.email, '2 hours');
+        return signUp(owner.email);
+      });
 
-    const all = [forNew, forPending, forActive];
-    expect(Math.max(...all) - Math.min(...all)).toBeLessThan(300);
-  });
+      const all = [forNew, forPending, forActive];
+      expect(Math.max(...all) - Math.min(...all)).toBeLessThan(300);
+    },
+  );
 });
