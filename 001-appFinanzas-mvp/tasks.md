@@ -1812,7 +1812,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 11 — M6 Transacciones (V1.0)
 
-- [ ] **`TASK-118`: Contratos de M6**
+- [x] **`TASK-118`: Contratos de M6**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.6.1; RF-M6-01, RF-M6-03, RF-M6-04, RF-M6-06
   - **Archivos en Alcance:**
