@@ -1446,7 +1446,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Con la fuente caída y sin datos, muestra "$ —".
     - Con el valor manual activo, muestra el distintivo.
 
-- [ ] **`TASK-093`: Web: panel de Tipo de cambio**
+- [x] **`TASK-093`: Web: panel de Tipo de cambio**
   - **Dependencias:** Requiere TASK-087, TASK-092
   - **Trazabilidad SDD:** plan §4.3.4 (`/tipo-de-cambio`); RF-M3-03, RF-M3-05, RF-M3-11, RF-M3-12, RNF-27
   - **Archivos en Alcance:**

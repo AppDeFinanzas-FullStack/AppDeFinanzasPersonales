@@ -5,5 +5,64 @@
     "label": "Dólar: {{value}}. Ver tipo de cambio",
     "labelManual": "Dólar: {{value}}, valor manual. Ver tipo de cambio",
     "labelNoRate": "Sin tipo de cambio del dólar. Ver tipo de cambio"
+  },
+  "kinds": {
+    "parallel_bid": "Paralelo compra",
+    "parallel_ask": "Paralelo venta",
+    "parallel_median": "Paralelo mediana",
+    "official": "Oficial",
+    "manual": "Tu valor manual"
+  },
+  "current": {
+    "title": "Tasas del dólar",
+    "noValue": "Sin dato",
+    "inUse": "En uso",
+    "source": "Fuente:",
+    "sources": {
+      "paralelo_bo": "paralelo.bo",
+      "bcb": "BCB",
+      "seed": "valor inicial"
+    },
+    "updated": {
+      "justNow": "actualizado hace un momento",
+      "minutes_one": "actualizado hace {{count}} minuto",
+      "minutes_other": "actualizado hace {{count}} minutos",
+      "hours_one": "actualizado hace {{count}} hora",
+      "hours_other": "actualizado hace {{count}} horas",
+      "days_one": "actualizado hace {{count}} día",
+      "days_other": "actualizado hace {{count}} días"
+    },
+    "loadError": "No se pudieron cargar las tasas. Revisa tu conexión y vuelve a abrir esta pantalla."
+  },
+  "gap": {
+    "title": "Brecha con el oficial",
+    "compared": "{{kind}} contra el oficial",
+    "pct": "{{value}} %",
+    "empty": "Todavía no se puede calcular la brecha: hace falta la tasa oficial y la tasa en uso."
+  },
+  "reference": {
+    "title": "Referencia del dólar",
+    "label": "Referencia para convertir",
+    "placeholder": "Elige una referencia",
+    "hint": "Se usa para convertir saldos y totales. Tus movimientos guardan su propio tipo de cambio.",
+    "manualHint": "Mientras tengas un valor manual activo, se usa ese valor en lugar de la referencia."
+  },
+  "manual": {
+    "title": "Valor manual",
+    "hint": "Úsalo si cambias dólares a otro valor. Tiene prioridad sobre cualquier referencia.",
+    "label": "Valor del dólar en Bs",
+    "submit": "Usar este valor",
+    "submitting": "Guardando…",
+    "clear": "Dejar de usar el valor manual",
+    "clearing": "Quitando…",
+    "errors": {
+      "value": "Escribe un valor mayor a 0 con hasta dos decimales, por ejemplo 10,25."
+    }
+  },
+  "banner": {
+    "sinceToday": "Usando tu valor manual ({{value}}) desde hoy",
+    "since_one": "Usando tu valor manual ({{value}}) desde hace {{count}} día",
+    "since_other": "Usando tu valor manual ({{value}}) desde hace {{count}} días",
+    "noSince": "Usando tu valor manual ({{value}})"
   }
 }

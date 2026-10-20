@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Outlet } from 'react-router';
 
 import { authRoutes } from '@/features/auth/routes';
+import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
@@ -57,7 +58,7 @@ export const router = createBrowserRouter([
                   { path: 'cuentas' },
                   { path: 'mas', element: <MoreMenu /> },
                   { path: 'categorias' },
-                  { path: 'tipo-de-cambio' },
+                  ...fxRoutes,
                   ...profileRoutes,
                   { path: 'ajustes' },
                 ],
