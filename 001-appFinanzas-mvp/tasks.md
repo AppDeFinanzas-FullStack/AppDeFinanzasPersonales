@@ -1996,8 +1996,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.6.3 (eliminado definitivo), ADR-07; EC-M6-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/test/integration/maintenance-ledger.test.ts`
-  - **Especificación de Implementación:** Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
+  - **Especificación de Implementación:** `MaintenanceStore` gana un método para cada purga. Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
     - Los `undo_action` vencidos desaparecen.
