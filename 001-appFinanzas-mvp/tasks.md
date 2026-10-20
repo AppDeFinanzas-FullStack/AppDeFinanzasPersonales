@@ -1159,7 +1159,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
     - `RF-M2-06`: el botón Atrás vuelve de un módulo abierto desde "Más" a `/mas`. Todavía no hay pantallas con diálogos: la prueba de que Atrás cierra un diálogo con `useBackToClose` sin salir de la pantalla la agrega la primera tarea que monte un diálogo (plan §4.2.3).
 
-- [ ] **`TASK-074`: Web: pantalla de perfil**
+- [x] **`TASK-074`: Web: pantalla de perfil**
   - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil`); RF-M1-07, RF-M1-10, RF-M1-11, RF-M1-13, EC-M1-05
   - **Archivos en Alcance:**
