@@ -2276,6 +2276,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/dashboard.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/dashboard-cards.test.ts`
   - **Especificación de Implementación:** Dentro de una transacción de solo lectura, con una consulta SQL por bloque: ingresos y gastos sin lo de RN-02, convertidos con las tasas guardadas; balance; tasa de ahorro; variaciones según `comparisonWindow`. El rango va desde el mes del primer movimiento o del primer saldo inicial hasta el mes actual.
   - **Criterios de Verificación (Tests & DoD):**
