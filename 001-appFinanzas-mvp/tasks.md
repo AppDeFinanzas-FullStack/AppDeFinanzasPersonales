@@ -850,7 +850,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-09`: un registro repetido Sin confirmar reemplaza los datos, invalida el enlace anterior y reinicia el plazo de 7 días (`RF-M1-06`).
     - `RF-M1-03`: la respuesta es idéntica en los tres casos.
 
-- [ ] **`TASK-055`: Reenvío y confirmación del correo**
+- [x] **`TASK-055`: Reenvío y confirmación del correo**
   - **Dependencias:** Requiere TASK-054
   - **Trazabilidad SDD:** plan §4.1.2 (`confirmation/resend`, `confirm`); RF-M1-04, RF-M1-05, EC-M1-01, EC-M1-02, EC-M1-11
   - **Archivos en Alcance:**

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type {
   ConsumeEmailLinkResult,
+  EmailLinkOwner,
   EmailLinkPurpose,
   EmailLinkRepository,
 } from '../../../application/ports/repositories.js';
@@ -57,6 +58,16 @@ export function createEmailLinkRepository(tx: TransactionClient): EmailLinkRepos
          WHERE token_hash = ${tokenHash} AND purpose = ${purpose}::email_link_purpose
            AND used_at IS NOT NULL`;
       return { ok: false, reason: used.length > 0 ? 'LINK_ALREADY_USED' : 'LINK_INVALID' };
+    },
+
+    async findOwner(token, purpose) {
+      const rows = await tx.$queryRaw<EmailLinkOwner[]>`
+        SELECT u.id::text AS "userId", u.email AS email, u.email_verified AS "emailVerified"
+          FROM email_link l JOIN auth_user u ON u.id = l.user_id
+         WHERE l.token_hash = ${hashEmailLinkToken(token)}
+           AND l.purpose = ${purpose}::email_link_purpose
+           FOR UPDATE OF u`;
+      return rows[0] ?? null;
     },
   };
 }

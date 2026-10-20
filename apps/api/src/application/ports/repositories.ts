@@ -44,6 +44,25 @@ export interface EmailLinkRepository {
   create(userId: string, purpose: EmailLinkPurpose): Promise<{ token: string; expiresAt: Date }>;
   /** Marks the link as used. Of simultaneous calls with the same token, only one succeeds. */
   consume(token: string, purpose: EmailLinkPurpose): Promise<ConsumeEmailLinkResult>;
+  /**
+   * The owner of the link with that token, whatever its state (expired, invalidated or used), or
+   * `null` when the token is unknown. Locks the owner's row until the transaction ends.
+   */
+  findOwner(token: string, purpose: EmailLinkPurpose): Promise<EmailLinkOwner | null>;
+}
+
+export interface EmailLinkOwner {
+  userId: string;
+  email: string;
+  emailVerified: boolean;
+}
+
+/** Account emails sent per email, keyed by the HMAC-SHA256 of the email (plan §3.3). */
+export interface EmailSendLogRepository {
+  /** Records a send of that kind now. */
+  record(emailHmac: string, kind: EmailKind): Promise<void>;
+  /** Sends of that kind in the last `seconds` seconds. */
+  countSince(emailHmac: string, kind: EmailKind, seconds: number): Promise<number>;
 }
 
 /** Failed login attempts per email, keyed by the HMAC-SHA256 of the email (plan §3.9, §4.1.3). */
@@ -138,6 +157,7 @@ export interface UserRepository {
 export interface Repositories {
   emailOutbox: EmailOutboxRepository;
   emailLinks: EmailLinkRepository;
+  emailSendLog: EmailSendLogRepository;
   loginThrottle: LoginThrottleRepository;
   users: UserRepository;
 }

@@ -21,6 +21,7 @@ import {
 } from '../infrastructure/persistence/prisma-client.js';
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
+import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import {
@@ -68,6 +69,7 @@ const createEmailGateway = (env: Env): EmailGateway =>
 const buildRepositories = (tx: TransactionClient): Repositories => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
+  emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
   users: createUserRepository(tx),
 });
