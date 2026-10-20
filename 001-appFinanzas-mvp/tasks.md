@@ -1732,6 +1732,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-archive.test.ts`
   - **Especificación de Implementación:** `archiveImpact` lista las hijas, los presupuestos, las reglas y los atajos afectados. `archive` archiva el padre y sus hijas (los atajos se ocultan al leer; los efectos sobre presupuestos y reglas se agregan en TASK-203 y TASK-232). `restore(childIds, newName?)` restaura las hijas elegidas; una hija con el padre archivado exige restaurar el padre (`PARENT_ARCHIVED`).
   - **Criterios de Verificación (Tests & DoD):**
