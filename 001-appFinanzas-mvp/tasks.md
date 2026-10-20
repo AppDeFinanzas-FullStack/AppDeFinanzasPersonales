@@ -1866,6 +1866,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.6.2 (`POST /api/transactions`), plan §4.3.3 (sin ninguna tasa), ADR-11; RF-M6-01, RF-M6-14, RF-M3-06, RN-03, RN-04, RN-07, RN-12, EC-M3-02, RF-M4-03, RF-M4-04
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/factories/transaction.factory.ts`
     - `apps/api/test/integration/transactions-create.test.ts`
   - **Especificación de Implementación:** Valida la cuenta activa (`ACCOUNT_ARCHIVED`), la categoría activa y del mismo tipo (`CATEGORY_ARCHIVED`, `CATEGORY_KIND_MISMATCH`) y la fecha ≤ hoy en la zona del usuario (`FUTURE_DATE`). Toma las tasas con `RatesService.ratesForMovement`: si la cuenta no es BOB y no hay tasa, `RATE_REQUIRED`; con `manualUsdRate`, activa el valor manual en la misma transacción. Crea la transacción y su asiento (la moneda es la de la cuenta) con `BalanceGuard`, `LedgerHooks.afterChange` y un `undo_action(create)`. Es idempotente según ADR-11.
