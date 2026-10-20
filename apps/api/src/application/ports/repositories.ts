@@ -215,6 +215,16 @@ export interface UserFxSettings {
   manualUsdSince: Date | null;
 }
 
+/**
+ * Exchange-rate settings to write; absent fields stay as they are. `manualUsd: null` turns the
+ * manual value off, an object turns it on from `since` (plan §4.3.3).
+ */
+export interface UserFxSettingsChanges {
+  baseCurrency?: string;
+  usdReference?: MarketRateKind;
+  manualUsd?: { value: Decimal; since: Date } | null;
+}
+
 /** Reads and writes the `user_settings` row of the user the transaction is locked to. */
 export interface UserSettingsRepository {
   /** The settings of the user, or `null` when it has none. */
@@ -225,6 +235,8 @@ export interface UserSettingsRepository {
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
   /** Turns the manual USD value on with its start, or off with `null` (plan §4.3.3, RF-M3-03). */
   setManualUsd(userId: string, manual: { value: Decimal; since: Date } | null): Promise<void>;
+  /** Updates only the given exchange-rate fields of `user_settings`. */
+  updateFx(userId: string, changes: UserFxSettingsChanges): Promise<void>;
 }
 
 /**
@@ -287,6 +299,10 @@ export interface CurrencyRepository {
   lockForUpdate(code: string): Promise<CurrencyRow | null>;
   lockForShare(code: string): Promise<CurrencyRow | null>;
   insert(currency: { code: string; symbol: string }): Promise<void>;
+  /** Replaces the symbol of the user's currency with that code. */
+  updateSymbol(code: string, symbol: string): Promise<void>;
+  /** Sets the status of the user's currency with that code (plan §4.3.3). */
+  setStatus(code: string, status: CurrencyStatus): Promise<void>;
 }
 
 export interface UserFxEventRow {

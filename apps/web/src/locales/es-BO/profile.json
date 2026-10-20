@@ -36,5 +36,21 @@
     "signOutAll": "Cerrar sesión en todos los dispositivos",
     "signOutAllHint": "Cierra la sesión en este y en todos tus otros dispositivos.",
     "signingOut": "Cerrando sesión…"
+  },
+  "delete": {
+    "link": "Eliminar mi cuenta",
+    "title": "Eliminar cuenta",
+    "intro": "Al eliminar tu cuenta se borra lo siguiente, y no se puede deshacer.",
+    "itemData": "Todos tus datos: cuentas, movimientos, categorías y ajustes.",
+    "itemSessions": "Todas tus sesiones, en este y en tus otros dispositivos.",
+    "itemIrreversible": "Te enviamos un correo para confirmar que la cuenta se eliminó.",
+    "password": "Tu contraseña",
+    "word": "Escribe ELIMINAR para confirmar",
+    "submit": "Eliminar mi cuenta",
+    "submitting": "Eliminando…",
+    "errors": {
+      "password": "Escribe tu contraseña para eliminar la cuenta.",
+      "word": "Escribe la palabra ELIMINAR, en mayúsculas y sin otros caracteres."
+    }
   }
 }
