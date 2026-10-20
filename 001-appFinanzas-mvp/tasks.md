@@ -2088,7 +2088,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 12 — M7 Registrar (V1.0)
 
-- [ ] **`TASK-134`: Contratos de M7**
+- [x] **`TASK-134`: Contratos de M7**
   - **Dependencias:** Requiere TASK-096, TASK-118
   - **Trazabilidad SDD:** plan §4.7.1; RF-M7-04, RF-M7-07, RF-M7-09
   - **Archivos en Alcance:**
