@@ -1,0 +1,93 @@
+{
+  "kind": {
+    "label": "Tipo de movimiento",
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "transfer": "Transferencia"
+  },
+  "amount": {
+    "label": "Monto"
+  },
+  "account": {
+    "label": "Cuenta",
+    "free": "Libre: {{amount}}",
+    "creditAvailable": "Crédito disponible: {{amount}}",
+    "debt": "Deuda: {{amount}}",
+    "goal": "Esto resta a tu meta {{name}}",
+    "reselect": "La cuenta que habías elegido ya no está activa. Revisa la cuenta antes de guardar."
+  },
+  "askRate": {
+    "title": "No pudimos obtener el dólar. ¿A cuánto lo tomamos?",
+    "description": "Este valor queda como tipo de cambio del movimiento y como tu valor manual del dólar.",
+    "label": "Bs por $ 1",
+    "invalid": "Escribe un valor mayor que 0, con hasta 2 decimales.",
+    "confirm": "Usar este valor",
+    "cancel": "Cancelar"
+  },
+  "category": {
+    "label": "Categoría",
+    "all": "Ver todas",
+    "allTitle": {
+      "expense": "Categorías de gasto",
+      "income": "Categorías de ingreso"
+    },
+    "allDescription": "Elige una categoría; abre un grupo para ver sus subcategorías.",
+    "expand": "Mostrar las subcategorías de {{name}}",
+    "collapse": "Ocultar las subcategorías de {{name}}",
+    "loadError": "No se pudieron cargar las categorías. Cierra y vuelve a abrir la lista.",
+    "empty": {
+      "expense": "No tienes categorías de gasto activas.",
+      "income": "No tienes categorías de ingreso activas."
+    },
+    "create": "Crear categoría"
+  },
+  "date": {
+    "label": "Fecha",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "calendar": "Calendario",
+    "pick": "Elegir una fecha de hoy o anterior"
+  },
+  "second": {
+    "show": "Más opciones",
+    "hide": "Menos opciones",
+    "note": "Nota",
+    "account": "Otra cuenta",
+    "fee": "Comisión",
+    "feeCategory": "Categoría de la comisión",
+    "feeCategoryHint": "No tienes la categoría «Comisiones bancarias». Elige otra para la comisión.",
+    "pickCategory": "Elige una categoría",
+    "saveAsShortcut": "Guardar como atajo"
+  },
+  "shortcut": {
+    "title": "Guardar como atajo",
+    "description": "El atajo rellena el formulario con estos datos; tú decides cuándo guardar.",
+    "name": "Nombre del atajo",
+    "nameError": "Escribe un nombre de 1 a 30 caracteres.",
+    "limit": "Ya tienes 12 atajos, el máximo. Borra alguno para crear otro.",
+    "manage": "Gestionar mis atajos",
+    "incomplete": "Completa la cuenta y la categoría (o el destino) antes de guardar un atajo.",
+    "save": "Guardar atajo",
+    "cancel": "Cancelar"
+  },
+  "transfer": {
+    "from": "Desde",
+    "to": "Hacia",
+    "sameAccount": "Elige una cuenta de destino distinta a la de origen.",
+    "rate": "Tipo de cambio usado",
+    "amountIn": "Monto que llega"
+  },
+  "saved": {
+    "expense": "Gasto de {{amount}} guardado",
+    "income": "Ingreso de {{amount}} guardado",
+    "transfer": "Transferencia de {{amount}} guardada"
+  },
+  "recent": {
+    "title": "Registrado hoy"
+  },
+  "save": "Guardar",
+  "saving": "Guardando…",
+  "loading": "Cargando tus cuentas y categorías…",
+  "loadError": "No se pudieron cargar tus cuentas y categorías. Revisa tu conexión e inténtalo de nuevo.",
+  "retry": "Reintentar"
+}

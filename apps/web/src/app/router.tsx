@@ -1,9 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Outlet } from 'react-router';
 
+import { accountsRoutes } from '@/features/accounts/routes';
 import { authRoutes } from '@/features/auth/routes';
+import { categoriesRoutes } from '@/features/categories/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
+import { registerRoutes } from '@/features/register/routes';
+import { transactionsRoutes } from '@/features/transactions/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
 import { AppShell } from './layout/app-shell';
@@ -53,11 +57,11 @@ export const router = createBrowserRouter([
                 element: <AppShell />,
                 children: [
                   { index: true },
-                  { path: 'movimientos' },
-                  { path: 'registrar' },
-                  { path: 'cuentas' },
+                  ...transactionsRoutes,
+                  ...registerRoutes,
+                  ...accountsRoutes,
                   { path: 'mas', element: <MoreMenu /> },
-                  { path: 'categorias' },
+                  ...categoriesRoutes,
                   ...fxRoutes,
                   ...profileRoutes,
                   { path: 'ajustes' },

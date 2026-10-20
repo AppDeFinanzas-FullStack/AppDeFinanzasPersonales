@@ -1643,7 +1643,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 al leer, editar, ajustar, archivar o eliminar una cuenta de A.
 
-- [ ] **`TASK-106`: Web: lista de cuentas y total neto**
+- [x] **`TASK-106`: Web: lista de cuentas y total neto**
   - **Dependencias:** Requiere TASK-073, TASK-105
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas`); RF-M4-08, RF-M4-10, RF-M4-11, RNF-06
   - **Archivos en Alcance:**
@@ -1661,7 +1661,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-10`: se ven el total neto y su desglose.
     - `RF-M4-08`: una tarjeta muestra "Debes".
 
-- [ ] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
+- [x] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
   - **Dependencias:** Requiere TASK-043, TASK-106
   - **Trazabilidad SDD:** plan §4.4.4 (formularios), plan §4.4.3 (sin cuentas activas); RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08, EC-M4-05, EC-M7-01
   - **Archivos en Alcance:**
@@ -1678,7 +1678,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: al editar, el saldo inicial no es editable y se ofrece "Ajustar saldo" (`EC-M4-02`).
     - `RF-M4-08`: una tarjeta se crea con deuda actual.
 
-- [ ] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
+- [x] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
   - **Dependencias:** Requiere TASK-107
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas/:id`); RF-M4-05, RF-M4-08, RF-M4-09, EC-M4-04, EC-M4-08
   - **Archivos en Alcance:**
@@ -1801,7 +1801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida": `archive` sobre "Deudas y préstamos" da `SYSTEM_CATEGORY`, y un UPDATE directo por SQL también falla.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un recurso de A.
 
-- [ ] **`TASK-116`: Web: árbol de categorías**
+- [x] **`TASK-116`: Web: árbol de categorías**
   - **Dependencias:** Requiere TASK-073, TASK-115
   - **Trazabilidad SDD:** plan §4.5.4 (`/categorias`); RF-M5-01, RF-M5-05, RNF-06
   - **Archivos en Alcance:**
@@ -1817,7 +1817,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida" (UI): "Deudas y préstamos" no ofrece Archivar.
     - `RNF-06`: reordenar con el teclado persiste.
 
-- [ ] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
+- [x] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
   - **Dependencias:** Requiere TASK-116
   - **Trazabilidad SDD:** plan §4.5.4 (formularios y diálogos); RF-M5-04, RF-M5-07, RF-M5-08, EC-M5-02, EC-M5-06
   - **Archivos en Alcance:**
@@ -2008,7 +2008,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
     - Los `undo_action` vencidos desaparecen.
 
-- [ ] **`TASK-129`: Web: lista de movimientos**
+- [x] **`TASK-129`: Web: lista de movimientos**
   - **Dependencias:** Requiere TASK-073, TASK-127
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos`), ADR-16; RF-M6-02, RF-M6-10, RF-M6-12, RF-M4-03, RF-M9-03, RF-M2-04
   - **Archivos en Alcance:**
@@ -2030,7 +2030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-04`: volver a Movimientos conserva el mes y los filtros.
     - Buscar "35" filtra la lista.
 
-- [ ] **`TASK-130`: Web: selección y acciones en lote**
+- [x] **`TASK-130`: Web: selección y acciones en lote**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`BatchToolbar`); RF-M6-13, RNF-06
   - **Archivos en Alcance:**
@@ -2044,7 +2044,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-13`: eliminar 3 seleccionados con 1 vinculado informa "1 quedó fuera".
     - `RNF-06`: la selección funciona solo con el teclado.
 
-- [ ] **`TASK-131`: Web: detalle y edición de un movimiento**
+- [x] **`TASK-131`: Web: detalle y edición de un movimiento**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos/:id`); RF-M6-07, RF-M6-09, RF-M3-10, EC-M6-02, EC-M6-07
   - **Archivos en Alcance:**
@@ -2060,7 +2060,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-02`: editar algo eliminado en otro contexto muestra "Este movimiento ya no existe".
     - `RF-M3-10`: cambiar la fecha no cambia la tasa mostrada.
 
-- [ ] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
+- [x] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
   - **Dependencias:** Requiere TASK-131
   - **Trazabilidad SDD:** plan §4.6.4 (global, optimismo), plan §4.6.3; RF-M7-07, EC-M6-06
   - **Archivos en Alcance:**
@@ -2075,7 +2075,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Eliminar y deshacer" (E2E): el saldo sube Bs 35,00 al instante, se ve "Movimiento eliminado · Deshacer" y, al tocarlo, el gasto vuelve.
     - `EC-M6-06`: cambiar de pantalla oculta el "Deshacer".
 
-- [ ] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
+- [x] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
   - **Dependencias:** Requiere TASK-108, TASK-129
   - **Trazabilidad SDD:** plan §4.4.4 (`MovementsByDay`, filtro compartido); spec §2.4.1 (consultar)
   - **Archivos en Alcance:**
@@ -2139,7 +2139,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un atajo con la categoría archivada no aparece en `register/context`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
+- [x] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
   - **Dependencias:** Requiere TASK-028, TASK-043, TASK-070, TASK-135
   - **Trazabilidad SDD:** plan §4.7.3 (formulario), plan §4.7.4 (`/registrar`, teclado, rendimiento); RF-M7-01, RF-M7-02, RF-M7-03, RF-M7-04, RF-M7-05, RF-M7-06, RF-M7-08, RF-M7-11, RF-M7-12, RF-M9-04, RNF-01
   - **Archivos en Alcance:**
@@ -2166,7 +2166,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-12`: el formulario se completa y se guarda solo con Tab y Enter.
     - `RF-M7-06`: "Guardar" está deshabilitado sin categoría.
 
-- [ ] **`TASK-138`: Web: transferencias en Registrar**
+- [x] **`TASK-138`: Web: transferencias en Registrar**
   - **Dependencias:** Requiere TASK-137
   - **Trazabilidad SDD:** plan §4.7.3, plan §4.6.1 (convención de la tasa declarada); RF-M7-03, RF-M7-06, RF-M3-07, RF-M3-08, RF-M6-04
   - **Archivos en Alcance:**
@@ -2180,7 +2180,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-04`: con el mismo origen y destino, "Guardar" está deshabilitado.
     - `RF-M3-08`: editar el monto que llega cambia la tasa mostrada.
 
-- [ ] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
+- [x] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
   - **Dependencias:** Requiere TASK-136, TASK-138
   - **Trazabilidad SDD:** plan §4.7.4 (`SecondLevel`); RF-M7-10, RF-M7-13, RF-M6-05, EC-M6-08, EC-M7-06
   - **Archivos en Alcance:**
@@ -2197,7 +2197,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-06`: con 12 atajos, informa el límite y ofrece ir a gestionarlos.
     - `EC-M6-08`: sin "Comisiones bancarias", pide elegir otra categoría.
 
-- [ ] **`TASK-140`: Web: fichas de atajos**
+- [x] **`TASK-140`: Web: fichas de atajos**
   - **Dependencias:** Requiere TASK-139
   - **Trazabilidad SDD:** plan §4.7.4 (`ShortcutChips`); RF-M7-09, RF-M2-11
   - **Archivos en Alcance:**
@@ -2209,7 +2209,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Atajo rellena sin guardar": el formulario queda completo y no hay ningún POST hasta tocar "Guardar".
     - `RF-M7-09`: un atajo sin monto deja el foco en el monto.
 
-- [ ] **`TASK-141`: Web: errores y estados vacíos de Registrar**
+- [x] **`TASK-141`: Web: errores y estados vacíos de Registrar**
   - **Dependencias:** Requiere TASK-107, TASK-137
   - **Trazabilidad SDD:** plan §4.7.3 (errores, sin tasa), plan §4.4.3 (sin cuentas activas); EC-M7-01, EC-M7-02, EC-M7-04, EC-M7-07, EC-M7-08, EC-M3-02, EC-M10-03
   - **Archivos en Alcance:**
@@ -2226,7 +2226,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-07` / `EC-M10-03`: sin categorías de gasto, "Ver todas" ofrece "Crear categoría".
     - `EC-M7-08`: un borrador con una cuenta archivada en otro contexto marca la cuenta para elegir otra.
 
-- [ ] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
+- [x] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
   - **Dependencias:** Requiere TASK-132, TASK-141
   - **Trazabilidad SDD:** plan §4.7.3 (formulario guardado), plan §4.2.3 (sin conexión); RF-M7-07, EC-M2-02, RF-M2-07, RNF-23
   - **Archivos en Alcance:**

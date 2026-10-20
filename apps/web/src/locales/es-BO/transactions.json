@@ -1,0 +1,132 @@
+{
+  "title": "Movimientos",
+  "batch": {
+    "toolbar": "Acciones con los movimientos seleccionados",
+    "select": "Seleccionar {{name}}",
+    "selected": "Seleccionado",
+    "count_one": "{{count}} movimiento seleccionado",
+    "count_other": "{{count}} movimientos seleccionados",
+    "delete": "Eliminar",
+    "category": "Elige una categoría",
+    "recategorize": "Cambiar categoría",
+    "clear": "Quitar la selección",
+    "done_one": "Se procesó {{count}} movimiento.",
+    "done_other": "Se procesaron {{count}} movimientos.",
+    "skipped_one": "{{count}} quedó fuera.",
+    "skipped_other": "{{count}} quedaron fuera.",
+    "undo": "Deshacer"
+  },
+  "month": {
+    "previous": "Mes anterior",
+    "next": "Mes siguiente"
+  },
+  "filters": {
+    "more": "Filtros",
+    "search": "Buscar",
+    "searchPlaceholder": "Nota o monto",
+    "from": "Desde",
+    "to": "Hasta",
+    "account": "Cuenta",
+    "allAccounts": "Todas las cuentas",
+    "kind": "Tipo",
+    "allKinds": "Todos los tipos",
+    "category": "Filtrado por una categoría",
+    "clearCategory": "Quitar el filtro de categoría",
+    "clearRange": "Volver al mes",
+    "clear": "Limpiar filtros"
+  },
+  "kind": {
+    "expense": "Gastos",
+    "income": "Ingresos",
+    "transfer": "Transferencias",
+    "adjustment": "Ajustes"
+  },
+  "totals": {
+    "income": "Ingresos",
+    "expense": "Gastos",
+    "net": "Neto"
+  },
+  "day": {
+    "net": "Neto del día"
+  },
+  "row": {
+    "transfer": "Transferencia",
+    "adjustment": "Ajuste de saldo",
+    "transferAccounts": "{{from}} → {{to}}",
+    "beforeInitialBalance": "Anterior al saldo inicial",
+    "recurring": "De recurrente: {{name}}",
+    "inBase": "≈ {{amount}}",
+    "noRate": "Sin tasa para convertir"
+  },
+  "detail": {
+    "back": "Volver",
+    "date": "Fecha",
+    "account": "Cuenta",
+    "from": "Desde",
+    "to": "Hacia",
+    "category": "Categoría",
+    "note": "Nota",
+    "rate": "Tipo de cambio guardado",
+    "fee": "Comisión",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…",
+    "gone": "Este movimiento ya no existe.",
+    "goneBack": "Volver a Movimientos",
+    "loadError": "No se pudo cargar el movimiento. Revisa tu conexión e inténtalo de nuevo.",
+    "linked": {
+      "debt_initial": "Viene de una deuda: el monto, la cuenta y la fecha se editan desde la deuda.",
+      "debt_payment": "Es el pago de una deuda: el monto, la cuenta y la fecha se editan desde la deuda.",
+      "goal_transfer": "Viene de una meta: el monto, la cuenta y la fecha se editan desde la meta.",
+      "fee": "Es la comisión de una transferencia: el monto, la cuenta y la fecha se editan desde la transferencia."
+    },
+    "goTo": {
+      "debt_initial": "Ir a la deuda",
+      "debt_payment": "Ir a la deuda",
+      "goal_transfer": "Ir a la meta"
+    }
+  },
+  "edit": {
+    "amount": "Monto",
+    "account": "Cuenta",
+    "from": "Desde",
+    "to": "Hacia",
+    "date": "Fecha",
+    "note": "Nota",
+    "rateUsd": "Dólar (Bs por $ 1)",
+    "rateCur": "Bs por 1 {{code}}",
+    "declaredRate": "Tipo de cambio declarado",
+    "rateHelp": "Se conserva aunque cambies la fecha o la cuenta. Cámbialo solo para corregirlo.",
+    "locked": "Se edita desde su origen.",
+    "archived": "{{name}} (archivada)",
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "cancel": "Cancelar",
+    "draftIssues": "Recuperamos tus cambios sin guardar; revisa los campos marcados.",
+    "errors": {
+      "amount": "Escribe un monto entre 0,01 y 999.999.999,99, con hasta 2 decimales.",
+      "rate": "Escribe un tipo de cambio mayor que 0, con hasta 2 decimales.",
+      "date": "Elige una fecha de hoy o anterior.",
+      "note": "La nota puede tener hasta 140 caracteres."
+    }
+  },
+  "currencyChange": {
+    "title": "La cuenta nueva está en {{code}}",
+    "amount": "Monto en {{code}}",
+    "help": "Lo calculamos con el tipo de cambio guardado. Confírmalo o corrígelo.",
+    "helpNoRate": "El movimiento no guardó el tipo de cambio de {{code}}. Escribe el monto en esa moneda.",
+    "tooLarge": "El monto convertido superaría 999.999.999,99. Elige otra cuenta o corrige el monto."
+  },
+  "undo": {
+    "deleted": "Movimiento eliminado",
+    "action": "Deshacer",
+    "undoing": "Deshaciendo…",
+    "remaining": "{{count}} s",
+    "remainingLabel": "Quedan {{count}} segundos para deshacer"
+  },
+  "empty": "No hay movimientos con estos filtros. Cambia el mes o limpia los filtros.",
+  "loadError": "No se pudieron cargar los movimientos. Revisa tu conexión e inténtalo de nuevo.",
+  "retry": "Reintentar",
+  "loadMore": "Cargar más",
+  "loading": "Cargando movimientos…"
+}
