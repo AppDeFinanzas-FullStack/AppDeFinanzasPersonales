@@ -13,6 +13,8 @@ export interface SignUpInput {
   email: string;
   password: string;
   termsAccepted: boolean;
+  /** IANA zone of the device (RF-M1-11); an invalid or missing one becomes America/La_Paz. */
+  timezone?: string | undefined;
 }
 
 export interface SignUpResult {
@@ -107,13 +109,30 @@ export interface AuthServiceDeps {
   webOrigin: string;
 }
 
-/** Every sign-up takes at least this long, so the time does not tell the three cases apart. */
-const MIN_SIGN_UP_MILLISECONDS = 300;
+/**
+ * Every sign-up takes at least this long, so the time does not tell the three cases apart.
+ * It must exceed the real work (password hash plus the account set-up), or it equalizes nothing.
+ */
+const MIN_SIGN_UP_MILLISECONDS = 900;
 
 /** Resend limits of the confirmation (RF-M1-05). */
 const RESEND_MIN_INTERVAL_SECONDS = 60;
 const RESEND_WINDOW_SECONDS = 60 * 60;
 const RESEND_MAX_PER_WINDOW = 5;
+
+const DEFAULT_TIMEZONE = 'America/La_Paz';
+
+function validTimezone(value: string | undefined): string {
+  if (value === undefined) {
+    return DEFAULT_TIMEZONE;
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -138,7 +157,12 @@ export function createAuthService({
   ): Promise<void> {
     await repos.loginThrottle.recordFailure(emailHmac);
     if (hasAccount && (await repos.loginThrottle.claimAlert(emailHmac))) {
-      await repos.emailOutbox.enqueue({ id: uuidv7(), to: email, kind: 'login_alert', payload: {} });
+      await repos.emailOutbox.enqueue({
+        id: uuidv7(),
+        to: email,
+        kind: 'login_alert',
+        payload: {},
+      });
     }
   }
 
@@ -158,11 +182,12 @@ export function createAuthService({
     name: string,
     email: string,
     passwordHash: string,
+    timezone: string,
   ): Promise<void> {
     let existing = await repos.users.findByEmail(email);
     if (existing === null) {
       const id = uuidv7();
-      if (await repos.users.createUnconfirmed({ id, name, email, passwordHash })) {
+      if (await repos.users.createUnconfirmed({ id, name, email, passwordHash, timezone })) {
         await bootstrapUser(repos, id);
         await sendConfirmation(repos, id, email);
         return;
@@ -283,7 +308,9 @@ export function createAuthService({
       const name = input.name.trim();
       const passwordHash = await auth.hashPassword(input.password);
 
-      await uow.run((repos) => register(repos, name, email, passwordHash));
+      const timezone = validTimezone(input.timezone);
+
+      await uow.run((repos) => register(repos, name, email, passwordHash, timezone));
 
       const remaining = MIN_SIGN_UP_MILLISECONDS - (performance.now() - started);
       if (remaining > 0) {
@@ -310,9 +337,7 @@ export function createAuthService({
       const hash = credential?.passwordHash ?? (await dummyHashOnce());
       const valid = await auth.verifyPassword(hash, input.password);
       if (!valid || credential === null) {
-        await uow.run((repos) =>
-          recordSignInFailure(repos, email, emailHmac, credential !== null),
-        );
+        await uow.run((repos) => recordSignInFailure(repos, email, emailHmac, credential !== null));
         throw new AppError('INVALID_CREDENTIALS');
       }
 

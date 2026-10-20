@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
@@ -18,8 +20,10 @@ import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
+import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
 import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
@@ -31,6 +35,7 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
+import { createReadinessProbe } from '../infrastructure/persistence/readiness.js';
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
@@ -42,6 +47,10 @@ import {
   type TransactionClient,
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
+import type {
+  TestSupportControllerDeps,
+  TestUserCredentials,
+} from '../presentation/internal/test-support.controller.js';
 import type { MeReader } from '../presentation/controllers/auth.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
 import type { SessionActivity } from '../presentation/middlewares/require-session.js';
@@ -62,6 +71,11 @@ export interface Container {
   readonly authService: AuthService;
   readonly meService: MeService;
   readonly settingsService: SettingsService;
+
+  /** Test-support routes (plan §1.5); `null` unless `INTEGRATIONS=fake`. */
+  readonly testSupport: TestSupportControllerDeps | null;
+  /** Database check of `GET /api/health/ready` (plan §4.2.2). */
+  readonly readiness: ReadinessProbe;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -79,10 +93,8 @@ const uuidv7Ids: IdGenerator = {
 const EMAIL_FROM = 'Finanzas <onboarding@resend.dev>';
 
 /** Real Resend gateway, or the in-memory fake when the environment asks for fake integrations. */
-const createEmailGateway = (env: Env): EmailGateway =>
-  env.INTEGRATIONS === 'fake'
-    ? new FakeEmailGateway()
-    : new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
+const createEmailGateway = (env: Env, fake: FakeEmailGateway | null): EmailGateway =>
+  fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
 const buildRepositories = (tx: TransactionClient): Repositories => ({
@@ -167,9 +179,28 @@ const createMeStore = (prisma: PrismaClient): MeStore => ({
   },
 });
 
+/** Creates a confirmed user with the Onboarding finished and returns its credentials. */
+const createTestUserFactory =
+  (deps: { prisma: PrismaClient; uow: UnitOfWork; auth: AuthGateway }) =>
+  async (): Promise<TestUserCredentials> => {
+    const id = uuidv7();
+    const email = `${id}@e2e.test`;
+    const password = `Prueba-${randomUUID()}`;
+    const passwordHash = await deps.auth.hashPassword(password);
+    await deps.uow.run(async (repos) => {
+      await repos.users.createUnconfirmed({ id, name: 'Usuario de prueba', email, passwordHash });
+      await bootstrapUser(repos, id);
+    });
+    await deps.auth.markEmailVerified(id);
+    await deps.prisma.$executeRaw`
+      UPDATE user_settings SET onboarding_completed_at = now() WHERE user_id = ${id}::uuid`;
+    return { email, password };
+  };
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
+  const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
   const jobs = createJobs({
     jobRuns: createJobRuns(prisma),
     clock: systemClock,
@@ -177,7 +208,7 @@ export const buildContainer = (env: Env): Container => {
   });
   jobs.registerJob(
     'outbox.send',
-    createOutboxSend({ uow, emailGateway: createEmailGateway(env), clock: systemClock }),
+    createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
   );
   jobs.registerJob(
     'maintenance',
@@ -192,7 +223,21 @@ export const buildContainer = (env: Env): Container => {
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
   const settingsService = createSettingsService({ uow });
+
+  const testSupport: TestSupportControllerDeps | null =
+    fakeEmail === null
+      ? null
+      : {
+          // Nothing else ticks in the end-to-end run: reading the mailbox also sends what is due,
+          // so the polling client sees the email on its next read.
+          mailbox: (to) => {
+            jobs.tick().catch(() => undefined);
+            return fakeEmail.inboxOf(to);
+          },
+          createUser: createTestUserFactory({ prisma, uow, auth }),
+        };
   return {
+    testSupport,
     env,
     prisma,
     uow,
@@ -203,6 +248,7 @@ export const buildContainer = (env: Env): Container => {
     authService,
     meService,
     settingsService,
+    readiness: createReadinessProbe(prisma),
   };
 };
 
@@ -215,6 +261,7 @@ export const createApp = (container: Container): Express => {
   return createExpressApp({
     webOrigin: container.env.WEB_ORIGIN,
     jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
+    ...(container.testSupport === null ? {} : { testSupport: container.testSupport }),
     auth: {
       authService: container.authService,
       sessions: container.auth,
@@ -224,5 +271,6 @@ export const createApp = (container: Container): Express => {
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
     settings: { settingsService: container.settingsService, session },
+    readiness: container.readiness,
   });
 };

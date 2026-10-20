@@ -927,17 +927,19 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: `sign-up` y `password/forgot` dan el mismo cuerpo y estado con correos existentes e inexistentes, con una diferencia de tiempo p95 < 50 ms sobre 50 muestras.
     - La cookie de sesión es `HttpOnly`, `Secure` y `SameSite=Lax`.
 
-- [ ] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
+- [x] **`TASK-060`: Endpoints internos de prueba (buzón y usuario listo)**
   - **Dependencias:** Requiere TASK-059
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: buzón de prueba y usuarios de prueba), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
     - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
   - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `GET /internal/test/mailbox?to=` devuelve los correos del *fake*, y `POST /internal/test/users` crea un usuario confirmado, con el Onboarding terminado, y devuelve sus credenciales. Con `INTEGRATIONS=real`, estas rutas no se montan.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-060`: con `INTEGRATIONS=real`, las dos rutas responden 404.
     - Con `fake`, el buzón devuelve el enlace de confirmación de un registro.
+    - Con `fake`, el usuario creado inicia sesión y su `me.onboarding.completed` (contrato `MeDto`, anidado) vale `true`.
 
 - [x] **`TASK-061`: Perfil del usuario: `GET` y `PATCH /api/me`**
   - **Dependencias:** Requiere TASK-059
@@ -1001,7 +1003,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-13`: dos peticiones el mismo día disparan una sola puesta al día, y un día nuevo la vuelve a disparar.
     - Un error en la puesta al día no cambia la respuesta de la petición.
 
-- [ ] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
+- [x] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
   - **Dependencias:** Requiere TASK-046, TASK-060
   - **Trazabilidad SDD:** plan §4.1.4 (rutas públicas), plan §4.2.4 (guardas); RF-M1-01, RF-M1-03, RF-M1-05, RF-M1-11, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**
@@ -1013,9 +1015,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/auth/routes.tsx`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/auth.json`
+    - `apps/api/src/presentation/controllers/auth.controller.ts`
+    - `apps/api/src/application/services/auth.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `e2e/fixtures/mailbox.ts`
     - `e2e/m1-sign-up.spec.ts`
-  - **Especificación de Implementación:** `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
+  - **Especificación de Implementación:** Corrige además el API: el registro debe guardar la zona horaria que recibe (hoy `signUp` la descarta); una zona inválida o ausente cae a America/La_Paz. `/registro` (react-hook-form con `SignUpInput`; envía la zona horaria del dispositivo), `/revisa-tu-correo` (botón de reenvío con cuenta regresiva de 60 s) y `/confirmar` (consume el token y navega a `/bienvenida`). `useMe()` usa la clave `['me']`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-03`: el registro muestra el mensaje neutro y lleva a "Revisa tu correo".
     - `RF-M1-11`: el usuario creado tiene la zona horaria del navegador.
@@ -1023,7 +1030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-02`: un enlace ya usado lleva al inicio de sesión.
     - `RF-M1-05`: el reenvío queda deshabilitado durante 60 s.
 
-- [ ] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
+- [x] **`TASK-066`: Web: inicio de sesión y *fixture* de usuario autenticado**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.1.4 (`/entrar`); RF-M1-04, RF-M1-08, EC-M1-04, RNF-15
   - **Archivos en Alcance:**
@@ -1032,13 +1039,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/locales/es-BO/auth.json`
     - `e2e/fixtures/auth.ts`
     - `e2e/m1-sign-in.spec.ts`
-  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` e inicia sesión.
+  - **Especificación de Implementación:** `/entrar` con `SignInInput`, la cuenta regresiva desde `retryAfterSeconds` y la redirección a "Revisa tu correo" si el correo no está confirmado. El *fixture* `authedPage` crea un usuario con `POST /internal/test/users` (con `data: {}`, porque `requireJson` responde 415 a un `POST` sin cuerpo JSON) e inicia sesión.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-15`: con credenciales incorrectas se muestra "Correo o contraseña incorrectos", sin decir cuál falló.
     - `RF-M1-04`: un usuario sin confirmar ve "Revisa tu correo".
     - `EC-M1-04`: tras 5 fallos se ve el tiempo restante.
 
-- [ ] **`TASK-067`: Web: recuperar la contraseña**
+- [x] **`TASK-067`: Web: recuperar la contraseña**
   - **Dependencias:** Requiere TASK-066
   - **Trazabilidad SDD:** plan §4.1.4 (`/olvide-mi-contrasena`, `/restablecer`); RF-M1-09, RF-M1-10, RNF-15
   - **Archivos en Alcance:**
@@ -2594,7 +2601,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: toda ruta con un recurso ajeno responde 404, y la prueba falla si aparece una ruta nueva sin cubrir.
     - `RNF-17`: los logs no contienen contraseñas, tokens de enlaces ni cookies.
 
-- [ ] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
+- [x] **`TASK-171`: Despliegues en Render y Vercel y chequeo de la base de datos**
   - **Dependencias:** Requiere TASK-036
   - **Trazabilidad SDD:** plan §1.5 (configuración versionada, puesta en marcha), plan §1.2 (cómo se conectan las tres partes), plan §4.2.2 (`/api/health/ready`), ADR-02, ADR-19, ADR-20
   - **Archivos en Alcance:**
@@ -2652,7 +2659,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Pasos manuales:**
     1. En GitHub → Settings → Branches, agregar `qa-e2e` a los checks obligatorios de `main` (plan §1.5, protección de ramas). Hasta esta tarea, `main` solo exige `ci`.
 
-- [ ] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
+- [x] **`TASK-173`: Workflow de despliegue `deploy.yml` y pruebas HTTP en CI**
   - **Dependencias:** Requiere TASK-171
   - **Trazabilidad SDD:** plan §1.5 (`deploy.yml`, secretos, vuelta atrás, puesta en marcha), plan §1.2 (pruebas de humo de los tres enlaces), plan §5.1 (contratos HTTP en CI), ADR-20; constitución §4, §7
   - **Archivos en Alcance:**

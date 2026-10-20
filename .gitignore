@@ -1,6 +1,7 @@
 # Estado local del pipeline de tareas (docs/execution-protocol.md)
 .claude/run/
 .claude/settings.local.json
+.claude/worktrees/
 
 # Dependencias
 node_modules/
@@ -22,3 +23,6 @@ test-results/
 *.log
 .DS_Store
 Thumbs.db
+
+# Vercel CLI (vercel link)
+.vercel/

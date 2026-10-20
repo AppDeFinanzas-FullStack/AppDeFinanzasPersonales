@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Outlet } from 'react-router';
 
+import { authRoutes } from '@/features/auth/routes';
+
 function RootLayout() {
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -22,6 +24,6 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
-    children: [{ path: '*', element: <NotFoundPage /> }],
+    children: [...authRoutes, { path: '*', element: <NotFoundPage /> }],
   },
 ]);
