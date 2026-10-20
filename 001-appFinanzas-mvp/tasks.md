@@ -1356,8 +1356,11 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/fx.routes.ts`
     - `apps/api/src/presentation/controllers/fx.controller.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/http/fx-settings.test.ts`
-  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe.
+  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe. `app.ts` monta el router de fx en `/api`; `UserSettingsRepository` suma un método (p. ej. `updateFx`) que escribe `base_currency`, `usd_reference` y el valor manual dentro de `uow.run`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-11`: cambiar la referencia o la base no modifica ninguna fila de `ledger_transaction`.
     - `RF-M3-13`: cada cambio de referencia queda en `user_fx_event`.
