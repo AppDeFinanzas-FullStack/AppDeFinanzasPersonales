@@ -1,0 +1,37 @@
+{
+  "loadError": "No se pudieron cargar tus cuentas. Revisa tu conexión y vuelve a abrir esta pantalla.",
+  "empty": "Todavía no tienes cuentas activas. Crea una para empezar a registrar movimientos.",
+  "noRate": "Sin tipo de cambio",
+  "summary": {
+    "title": "Total neto",
+    "equivalent": "Equivale a {{amount}}",
+    "breakdown": {
+      "liquid": "Líquido",
+      "savings": "Ahorro",
+      "cardDebt": "Deuda en tarjetas"
+    }
+  },
+  "types": {
+    "cash": "Efectivo",
+    "bank": "Banco",
+    "ewallet": "Billetera",
+    "credit_card": "Tarjetas",
+    "savings": "Ahorro",
+    "other": "Otras"
+  },
+  "card": {
+    "debt": "Debes {{amount}}",
+    "credit": "A favor {{amount}}"
+  },
+  "reorder": {
+    "drag": "Arrastrar {{name}} para cambiar su orden",
+    "up": "Subir {{name}}",
+    "down": "Bajar {{name}}"
+  },
+  "archived": {
+    "link": "Ver cuentas archivadas",
+    "title": "Cuentas archivadas",
+    "empty": "No tienes cuentas archivadas.",
+    "back": "Volver a tus cuentas"
+  }
+}

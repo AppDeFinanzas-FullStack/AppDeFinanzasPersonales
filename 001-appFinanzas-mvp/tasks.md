@@ -1643,7 +1643,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 al leer, editar, ajustar, archivar o eliminar una cuenta de A.
 
-- [ ] **`TASK-106`: Web: lista de cuentas y total neto**
+- [x] **`TASK-106`: Web: lista de cuentas y total neto**
   - **Dependencias:** Requiere TASK-073, TASK-105
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas`); RF-M4-08, RF-M4-10, RF-M4-11, RNF-06
   - **Archivos en Alcance:**

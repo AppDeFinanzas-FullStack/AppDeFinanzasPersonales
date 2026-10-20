@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Outlet } from 'react-router';
 
+import { accountsRoutes } from '@/features/accounts/routes';
 import { authRoutes } from '@/features/auth/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
@@ -55,7 +56,7 @@ export const router = createBrowserRouter([
                   { index: true },
                   { path: 'movimientos' },
                   { path: 'registrar' },
-                  { path: 'cuentas' },
+                  ...accountsRoutes,
                   { path: 'mas', element: <MoreMenu /> },
                   { path: 'categorias' },
                   ...fxRoutes,
