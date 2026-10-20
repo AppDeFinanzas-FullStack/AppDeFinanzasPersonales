@@ -1320,7 +1320,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/rates.service.ts`
     - `apps/api/test/integration/rates-service.test.ts`
-  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05).
+    - `packages/domain/src/index.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05). `@finanzas/domain` reexporta `resolveUsdRate`, `customRateOn` y los tipos `FxEvent`, `MarketSeries` y `UsdReference`. `UserSettingsRepository` suma un método (p. ej. `fxSettings(userId)`) que devuelve la moneda base del usuario, sin cambiar `UserSettingsData`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Valor manual con prioridad" (parte de M3): con el valor manual en 10,00 y el paralelo en 10,40, `inUse` vale 10,00 y trae `since`.
     - `RF-M3-12`: con el oficial en uso, la brecha compara la mediana del paralelo contra el oficial.
