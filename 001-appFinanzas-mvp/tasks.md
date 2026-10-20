@@ -1817,7 +1817,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida" (UI): "Deudas y préstamos" no ofrece Archivar.
     - `RNF-06`: reordenar con el teclado persiste.
 
-- [ ] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
+- [x] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
   - **Dependencias:** Requiere TASK-116
   - **Trazabilidad SDD:** plan §4.5.4 (formularios y diálogos); RF-M5-04, RF-M5-07, RF-M5-08, EC-M5-02, EC-M5-06
   - **Archivos en Alcance:**
