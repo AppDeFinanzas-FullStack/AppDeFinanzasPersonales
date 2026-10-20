@@ -1378,8 +1378,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/currencies.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/test/http/currencies.test.ts`
-  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente.
+  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente. `CurrencyRepository` suma un método (p. ej. `updateSymbol`) que escribe `currency.symbol` del usuario dentro de `uow.run`, en la misma transacción que el `custom_rate`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-02`: un código repetido da `CURRENCY_CODE_TAKEN`.
     - `EC-M3-07`: una tasa menor que Bs 0,01 da `RATE_BELOW_MINIMUM`.
