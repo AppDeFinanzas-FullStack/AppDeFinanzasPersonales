@@ -883,7 +883,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-15`: correo inexistente y contraseña incorrecta dan el mismo error.
     - `RF-M1-07`: `signOutAll` deja 0 sesiones.
 
-- [ ] **`TASK-057`: Recuperar y cambiar la contraseña**
+- [x] **`TASK-057`: Recuperar y cambiar la contraseña**
   - **Dependencias:** Requiere TASK-056
   - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
   - **Archivos en Alcance:**

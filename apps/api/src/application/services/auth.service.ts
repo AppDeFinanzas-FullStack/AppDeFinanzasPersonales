@@ -36,6 +36,28 @@ export interface SignInResult {
   session: CreatedSession;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResult {
+  next: 'onboarding' | 'dashboard';
+  session: CreatedSession;
+}
+
+/** `userId` and `sessionId` come from the session of the request, never from its body. */
+export interface ChangePasswordInput {
+  userId: string;
+  sessionId: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface AuthService {
   /** Always answers the neutral `check_email`, whatever the state of the email (RF-M1-03). */
   signUp(input: SignUpInput): Promise<SignUpResult>;
@@ -60,6 +82,22 @@ export interface AuthService {
    * `LINK_ALREADY_USED` (EC-M1-01, EC-M1-02).
    */
   confirm(token: string, currentSessionId?: string): Promise<ConfirmResult>;
+  /**
+   * Issues a recovery link of 1 hour, invalidating the previous one, and leaves the `reset` email
+   * in the outbox (RF-M1-09). Always resolves, whether the email has an account or not.
+   */
+  forgotPassword(input: ForgotPasswordInput): Promise<void>;
+  /**
+   * Consumes the recovery link, sets the new password, confirms the email if it was not
+   * (EC-M1-10), closes every session, opens a new one and sends `password_changed` (RF-M1-10).
+   * Rejects with `LINK_INVALID`.
+   */
+  resetPassword(input: ResetPasswordInput): Promise<ResetPasswordResult>;
+  /**
+   * Checks the current password, sets the new one, closes every other session and sends
+   * `password_changed` (RF-M1-10, EC-M1-05). Rejects with `INVALID_CURRENT_PASSWORD`.
+   */
+  changePassword(input: ChangePasswordInput): Promise<void>;
 }
 
 export interface AuthServiceDeps {
@@ -195,6 +233,49 @@ export function createAuthService({
     throw new AppError('LINK_INVALID', { canResend: owner !== null && !owner.emailVerified });
   }
 
+  /** Issues a recovery link for the account of that email, if there is one (RF-M1-09). */
+  async function sendRecovery(repos: Repositories, email: string): Promise<void> {
+    const user = await repos.users.findByEmail(email);
+    if (user === null) {
+      return;
+    }
+    const { token } = await repos.emailLinks.create(user.id, 'reset_password');
+    await repos.emailOutbox.enqueue({
+      id: uuidv7(),
+      to: email,
+      kind: 'reset',
+      payload: { link: `${webOrigin}/restablecer?token=${token}` },
+    });
+  }
+
+  /**
+   * Consumes the recovery link, sets the new password hash, confirms the email (EC-M1-10) and
+   * leaves `password_changed` in the outbox. Returns the user, or throws `LINK_INVALID`.
+   */
+  async function applyRecovery(
+    repos: Repositories,
+    token: string,
+    passwordHash: string,
+  ): Promise<{ userId: string; onboardingCompleted: boolean }> {
+    const result = await repos.emailLinks.consume(token, 'reset_password');
+    if (!result.ok) {
+      throw new AppError('LINK_INVALID');
+    }
+    const account = await repos.users.findAccount(result.userId);
+    if (account === null) {
+      throw new AppError('LINK_INVALID');
+    }
+    await repos.users.setPassword(account.id, passwordHash);
+    await repos.users.markEmailVerified(account.id);
+    await repos.emailOutbox.enqueue({
+      id: uuidv7(),
+      to: account.email,
+      kind: 'password_changed',
+      payload: {},
+    });
+    return { userId: account.id, onboardingCompleted: account.onboardingCompleted };
+  }
+
   return {
     async signUp(input) {
       const started = performance.now();
@@ -263,6 +344,44 @@ export function createAuthService({
       }
       const session = await auth.createSession(userId);
       return { next: 'onboarding', session };
+    },
+
+    async forgotPassword(input) {
+      const email = input.email.trim().toLowerCase();
+      await uow.run((repos) => sendRecovery(repos, email));
+    },
+
+    async resetPassword(input) {
+      const passwordHash = await auth.hashPassword(input.newPassword);
+      const { userId, onboardingCompleted } = await uow.run((repos) =>
+        applyRecovery(repos, input.token, passwordHash),
+      );
+      await auth.revokeSessions(userId);
+      const session = await auth.createSession(userId);
+      return { next: onboardingCompleted ? 'dashboard' : 'onboarding', session };
+    },
+
+    async changePassword(input) {
+      const account = await uow.run((repos) => repos.users.findAccount(input.userId), {
+        readOnly: true,
+      });
+      const currentHash = account?.passwordHash ?? null;
+      const valid =
+        currentHash !== null && (await auth.verifyPassword(currentHash, input.currentPassword));
+      if (account === null || !valid) {
+        throw new AppError('INVALID_CURRENT_PASSWORD');
+      }
+      const passwordHash = await auth.hashPassword(input.newPassword);
+      await uow.run(async (repos) => {
+        await repos.users.setPassword(account.id, passwordHash);
+        await repos.emailOutbox.enqueue({
+          id: uuidv7(),
+          to: account.email,
+          kind: 'password_changed',
+          payload: {},
+        });
+      });
+      await auth.revokeSessions(account.id, input.sessionId);
     },
   };
 }
