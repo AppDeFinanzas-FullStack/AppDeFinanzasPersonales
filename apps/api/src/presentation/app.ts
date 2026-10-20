@@ -5,15 +5,30 @@ import express, { type Express, type RequestHandler } from 'express';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 
 import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.js';
+import {
+  testSupportRouter,
+  type TestSupportControllerDeps,
+} from './internal/test-support.controller.js';
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
+import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
+import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
   /** The internal tick endpoint (ADR-01); an app built without it does not expose it. */
   jobs?: JobsControllerDeps;
+  /** Per-user catch-up (ADR-01); it runs after the session is resolved. */
+  catchUp?: RequestHandler;
+  /** The routes `/api/auth/*` (plan §4.1.2); an app built without them does not expose them. */
+  auth?: AuthRoutesDeps;
+  /** The routes `/api/me` (plan §4.1.2). */
+  me?: MeRoutesDeps;
+
+  /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
+  testSupport?: TestSupportControllerDeps;
   /** The database check of `GET /api/health/ready` (plan §4.2.2); without it the route is absent. */
   readiness?: ReadinessProbe;
 }
@@ -48,9 +63,21 @@ export const createApp = (deps: AppDeps): Express => {
   app.use(checkOrigin(deps.webOrigin));
   app.use(requireJson);
   app.use(express.json());
+  if (deps.catchUp !== undefined) {
+    app.use(deps.catchUp);
+  }
   app.use('/api', healthRouter(deps.readiness));
+  if (deps.auth !== undefined) {
+    app.use('/api/auth', authRouter(deps.auth));
+  }
+  if (deps.me !== undefined) {
+    app.use('/api/me', meRouter(deps.me));
+  }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
+  }
+  if (deps.testSupport !== undefined) {
+    app.use('/internal/test', testSupportRouter(deps.testSupport));
   }
   app.use(errorHandler);
   return app;

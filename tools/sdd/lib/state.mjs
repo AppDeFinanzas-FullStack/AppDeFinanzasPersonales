@@ -108,6 +108,16 @@ export function worktreeFingerprint() {
   return h.digest('hex');
 }
 
+/** Anota que `check.mjs` verificó el árbol con esta huella en esta época; el gate no lo repite. */
+export function markChecked(state, fingerprint) {
+  state.checked = { epoch: state.epoch ?? 0, fingerprint };
+}
+
+/** ¿El árbol de trabajo es exactamente el que `check.mjs` ya verificó en esta época? */
+export function wasChecked(state, fingerprint) {
+  return Boolean(state.checked) && state.checked.epoch === (state.epoch ?? 0) && state.checked.fingerprint === fingerprint;
+}
+
 /** Veredictos registrados en audit.md, en orden. */
 export function verdicts(id) {
   const file = join(taskDir(id), 'audit.md');
