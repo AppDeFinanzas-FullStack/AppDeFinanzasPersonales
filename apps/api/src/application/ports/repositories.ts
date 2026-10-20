@@ -623,6 +623,12 @@ export interface CategoryRepository {
   children(id: string, status: LifecycleStatus): Promise<CategoryRow[]>;
   /** Gives the categories that status, stamping or clearing `archivedAt` to match. */
   setStatus(ids: string[], status: LifecycleStatus): Promise<void>;
+  /** Deletes the categories, subcategories first; their shortcuts go with them (plan §3.8). */
+  remove(ids: string[]): Promise<void>;
+  /** How many live transactions use the category. */
+  countMovements(id: string): Promise<number>;
+  /** Moves the transactions, recurring rules and shortcuts of one category to another (merge). */
+  moveUsage(fromId: string, toId: string): Promise<void>;
 }
 
 export type UndoKind = 'delete' | 'recategorize' | 'create';

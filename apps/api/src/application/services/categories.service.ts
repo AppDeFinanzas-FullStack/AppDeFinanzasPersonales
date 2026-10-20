@@ -1,6 +1,8 @@
 import type {
   ArchiveImpactDto,
   CreateCategoryInput,
+  MergeInput,
+  MergePreviewDto,
   ReorderCategoriesInput,
   RestoreCategoryInput,
   UpdateCategoryInput,
@@ -35,6 +37,48 @@ export interface CategoriesService {
   archive(userId: string, id: string): Promise<void>;
   /** Restores the category and the chosen subcategories, optionally renaming it (EC-M5-04). */
   restore(userId: string, id: string, input: RestoreCategoryInput): Promise<void>;
+  /**
+   * Deletes the category and its subcategories when none has movements or a budget or rule that
+   * uses it (RN-08, EC-M5-07); their shortcuts go with them.
+   */
+  remove(userId: string, id: string): Promise<void>;
+  /** What merging A into B would move (RF-M5-08). */
+  mergePreview(userId: string, input: MergeInput): Promise<MergePreviewDto>;
+  /** Moves the movements, rules and shortcuts of A to B and deletes A (RF-M5-08, RF-M5-09). */
+  merge(userId: string, input: MergeInput): Promise<void>;
+}
+
+/** Checks a merge of A into B: same kind, A without children, B active, neither a system one. */
+async function requireMergeable(
+  repos: Repositories,
+  { fromId, toId }: MergeInput,
+): Promise<{ from: CategoryRow; to: CategoryRow }> {
+  const from = await repos.categories.get(fromId);
+  const to = await repos.categories.get(toId);
+  if (from === null || to === null) {
+    throw new AppError('CATEGORY_NOT_FOUND');
+  }
+  const invalid = (reason: string): AppError => new AppError('MERGE_INVALID', { reason });
+  if (fromId === toId) {
+    throw invalid('same_category');
+  }
+  if (from.isSystem || to.isSystem) {
+    throw invalid('system_category');
+  }
+  if (from.kind !== to.kind) {
+    throw invalid('different_kind');
+  }
+  if (to.status !== 'active') {
+    throw invalid('target_archived');
+  }
+  const children = [
+    ...(await repos.categories.children(fromId, 'active')),
+    ...(await repos.categories.children(fromId, 'archived')),
+  ];
+  if (children.length > 0) {
+    throw invalid('source_has_children');
+  }
+  return { from, to };
 }
 
 /** The parent of a category being created or moved must exist, be a root, of the same kind and active. */
@@ -264,6 +308,58 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
             await assertNameFree(repos, child.kind, id, child.name, childId);
             await repos.categories.setStatus([childId], 'active');
           }
+        },
+        { userLock: userId },
+      );
+    },
+
+    async remove(userId, id) {
+      await uow.run(
+        async (repos) => {
+          const current = await repos.categories.get(id);
+          if (current === null) {
+            throw new AppError('CATEGORY_NOT_FOUND');
+          }
+          if (current.isSystem) {
+            throw new AppError('SYSTEM_CATEGORY');
+          }
+          const ids = await repos.categories.idsWithChildren(id);
+          const budgets: { id: string }[] = [];
+          const recurring: { id: string; name: string }[] = [];
+          for (const affectedId of ids) {
+            if (await repos.categories.hasMovements(affectedId)) {
+              throw new AppError('CATEGORY_HAS_MOVEMENTS');
+            }
+            const usage = await repos.categories.usage(affectedId);
+            budgets.push(...usage.budgets);
+            recurring.push(...usage.recurring);
+          }
+          if (budgets.length > 0 || recurring.length > 0) {
+            throw new AppError('CATEGORY_IN_USE', { budgets, recurring });
+          }
+          await repos.categories.remove(ids);
+        },
+        { userLock: userId },
+      );
+    },
+
+    async mergePreview(userId, input) {
+      return uow.run(
+        async (repos) => {
+          await requireMergeable(repos, input);
+          // Budgets are resolved with the merge from TASK-203 on.
+          return { movements: await repos.categories.countMovements(input.fromId), budgetEffect: 'none' };
+        },
+        { userLock: userId },
+      );
+    },
+
+    async merge(userId, input) {
+      await uow.run(
+        async (repos) => {
+          await requireMergeable(repos, input);
+          await repos.categories.moveUsage(input.fromId, input.toId);
+          await repos.categories.remove([input.fromId]);
         },
         { userLock: userId },
       );

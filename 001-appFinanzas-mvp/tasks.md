@@ -1756,11 +1756,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-04`: restaurar con un nombre en uso da `NAME_TAKEN`.
     - `EC-M5-06`: restaurar una hija con el padre archivado da `PARENT_ARCHIVED`.
 
-- [ ] **`TASK-113`: Eliminar categorías**
+- [x] **`TASK-113`: Eliminar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`DELETE /api/categories/:id`), plan §3.8; EC-M5-07, RN-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-delete.test.ts`
   - **Especificación de Implementación:** Solo procede sin movimientos (incluidos los que están en la ventana de deshacer) y sin presupuesto ni regla que la use; sus atajos caen en cascada.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1768,11 +1770,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-07`: usada por un presupuesto o una regla (insertados en la prueba), da `CATEGORY_IN_USE {budgets, recurring}`.
     - Sin uso, se elimina con sus atajos.
 
-- [ ] **`TASK-114`: Fusionar categorías**
+- [x] **`TASK-114`: Fusionar categorías**
   - **Dependencias:** Requiere TASK-112
   - **Trazabilidad SDD:** plan §4.5.2 (`merge-preview`, `merge`), plan §4.5.3 (fusión); RF-M5-08, RF-M5-09, EC-M5-02, RN-11
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-merge.test.ts`
   - **Especificación de Implementación:** Con `withUserLock`, valida que sean del mismo tipo, que A no tenga hijas, que B esté activa y que ninguna sea del sistema (si no, `MERGE_INVALID {reason}`). Mueve a B los movimientos, las reglas y los atajos de A y elimina A. Repetir la fusión da `CATEGORY_NOT_FOUND`. La resolución de presupuestos y `MERGE_PENDING_CLOSE` se agregan en TASK-203.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1781,7 +1785,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-09` / `RN-11`: el gasto por categoría de un mes pasado cambia tras la fusión.
     - Repetir la fusión da `CATEGORY_NOT_FOUND`.
 
-- [ ] **`TASK-115`: Rutas HTTP de categorías**
+- [x] **`TASK-115`: Rutas HTTP de categorías**
   - **Dependencias:** Requiere TASK-113, TASK-114
   - **Trazabilidad SDD:** plan §4.5.2 (tabla de endpoints); RF-M5-05, RNF-14
   - **Archivos en Alcance:**
