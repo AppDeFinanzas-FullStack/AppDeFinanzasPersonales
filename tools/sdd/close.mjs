@@ -4,7 +4,7 @@
 //        [--body "texto"] [--trailer "Clave: valor"]...
 import { join } from 'node:path';
 import { loadState, clearState, verdicts, taskDir } from './lib/state.mjs';
-import { allTasks, setDone, tasksPath } from './lib/tasks.mjs';
+import { allTasks, setDone, tasksPath, taskBranch, loadBranchGroups } from './lib/tasks.mjs';
 import { outOfScope } from './lib/scope.mjs';
 import { changedFiles, readText, abs, writeText, git, gitOut, sh, fail, printJson } from './lib/repo.mjs';
 import { wrapText } from './lib/message.mjs';
@@ -77,10 +77,11 @@ if (commit.code !== 0) {
 }
 
 const hash = gitOut('rev-parse --short HEAD');
+// Lo que falta en la rama de la tarea: su fase o, si es una rama de grupo, todo el grupo (protocolo §5.1).
 const tasks = allTasks();
-const phaseNumber = tasks.find((t) => t.id === state.task).phase.number;
+const groups = loadBranchGroups();
 const remaining = tasks
-  .filter((t) => t.feature === state.feature && t.phase.number === phaseNumber && !t.done)
+  .filter((t) => t.feature === state.feature && taskBranch(t, groups) === state.branch && !t.done)
   .map((t) => t.id);
 clearState();
 

@@ -2,7 +2,7 @@
 // Uso: node tools/sdd/preflight.mjs TASK-NNN [--dry-run]
 // Valida que la tarea se pueda empezar (o retomar), ubica la rama de su fase,
 // arma el paquete de contexto y escribe .claude/run/active-task.json (protocolo §2.1).
-import { allTasks, phaseBranch, scopeProblems } from './lib/tasks.mjs';
+import { allTasks, taskBranch, scopeProblems } from './lib/tasks.mjs';
 import { buildContext, isUiTask, DESIGN_DIRECTION } from './lib/context.mjs';
 import { loadState, saveState, newState } from './lib/state.mjs';
 import { outOfScope } from './lib/scope.mjs';
@@ -32,7 +32,8 @@ if (gaps.length) {
 const pending = task.dependencies.filter((d) => !tasks.find((t) => t.id === d)?.done);
 if (pending.length) fail(`${id} depende de tareas abiertas: ${pending.join(', ')}.`);
 
-const expected = phaseBranch(task.phase);
+// Al retomar vale la rama donde empezó la tarea, aunque después se haya agrupado (protocolo §5.1).
+const expected = resume ? (state.branch ?? taskBranch(task)) : taskBranch(task);
 const branch = currentBranch();
 const changes = changedFiles();
 
@@ -44,12 +45,14 @@ if (resume) {
   if (changes.length) fail(`El árbol de trabajo no está limpio:\n  ${changes.join('\n  ')}\nHaz commit o descarta esos cambios antes de empezar.`);
   if (branch === 'develop') {
     if (!dryRun) {
-      const exists = git(`rev-parse --verify --quiet refs/heads/${expected}`).code === 0;
-      const r = git(exists ? `switch ${expected}` : `switch -c ${expected}`);
+      // Una rama de grupo suele existir ya en origin: se sigue esa, no se crea otra desde develop.
+      const local = git(`rev-parse --verify --quiet refs/heads/${expected}`).code === 0;
+      const remote = !local && git(`rev-parse --verify --quiet refs/remotes/origin/${expected}`).code === 0;
+      const r = git(local ? `switch ${expected}` : remote ? `switch --track origin/${expected}` : `switch -c ${expected}`);
       if (r.code !== 0) fail(`No se pudo cambiar a ${expected}:\n${r.output}`);
     }
   } else if (branch !== expected) {
-    fail(`${id} pertenece a la fase ${task.phase.number}: debe hacerse en ${expected} (o desde develop). Estás en ${branch}.`);
+    fail(`${id} (fase ${task.phase.number}) debe hacerse en ${expected} (o desde develop). Estás en ${branch}.`);
   }
 }
 
