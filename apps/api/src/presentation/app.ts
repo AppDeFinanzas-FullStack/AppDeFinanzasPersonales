@@ -12,6 +12,7 @@ import {
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
+import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
 import {
@@ -42,6 +43,8 @@ export interface AppDeps {
   fx?: FxRoutesDeps;
   /** The routes `/api/currencies` (plan §4.3.2). */
   currencies?: CurrenciesRoutesDeps;
+  /** The routes `/api/accounts` (plan §4.4.2). */
+  accounts?: AccountsRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -100,6 +103,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.currencies !== undefined) {
     app.use('/api/currencies', currenciesRouter(deps.currencies));
+  }
+  if (deps.accounts !== undefined) {
+    app.use('/api/accounts', accountsRouter(deps.accounts));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

@@ -1627,7 +1627,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-13`: eliminar una cuenta sin movimientos borra sus atajos.
     - `RF-M4-09`: una archivada no aparece en `list('active')` y conserva su historia.
 
-- [ ] **`TASK-105`: Rutas HTTP de cuentas**
+- [x] **`TASK-105`: Rutas HTTP de cuentas**
   - **Dependencias:** Requiere TASK-103, TASK-104
   - **Trazabilidad SDD:** plan §4.4.2 (tabla de endpoints); RN-09, RNF-14
   - **Archivos en Alcance:**

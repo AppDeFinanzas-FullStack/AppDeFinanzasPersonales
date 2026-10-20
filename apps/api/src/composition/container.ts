@@ -25,6 +25,10 @@ import {
 } from '../application/services/fx-settings.service.js';
 import { createRatesService, type RatesService } from '../application/services/rates.service.js';
 import {
+  createAccountsService,
+  type AccountsService,
+} from '../application/services/accounts.service.js';
+import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
@@ -83,6 +87,7 @@ import type {
   TestUserCredentials,
 } from '../presentation/internal/test-support.controller.js';
 import type { MeReader } from '../presentation/controllers/auth.controller.js';
+import type { BalanceSeriesReader } from '../presentation/controllers/accounts.controller.js';
 import type { RateHistoryReader } from '../presentation/controllers/fx.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
 import type { SessionActivity } from '../presentation/middlewares/require-session.js';
@@ -108,6 +113,9 @@ export interface Container {
   readonly ratesService: RatesService;
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
+  readonly accountsService: AccountsService;
+  /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
+  readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
   readonly rateHistory: RateHistoryReader;
   /** Starts `fx.fetchParallel` in the background, at most one at a time (RNF-04, RF-M3-04). */
@@ -239,6 +247,19 @@ const createRateHistoryReader = (uow: UnitOfWork): RateHistoryReader => ({
     const to = todayFor(timezone, now);
     const from = daysBefore(to, HISTORY_DAYS[query.range] - 1);
     return uow.run((repos) => repos.marketRates.series(query.kind, from, to), { readOnly: true });
+  },
+});
+
+/** Daily balances of one of the user's accounts; `null` when the user has no such account. */
+const createBalanceSeriesReader = (uow: UnitOfWork): BalanceSeriesReader => ({
+  daily(userId, accountId, from, to) {
+    return uow.run(
+      async (repos) =>
+        (await repos.accounts.get(accountId)) === null
+          ? null
+          : repos.ledger.balanceSeries(accountId, from, to),
+      { userLock: userId, readOnly: true },
+    );
   },
 });
 
@@ -384,6 +405,8 @@ export const buildContainer = (env: Env): Container => {
   const ratesService = createRatesService({ uow });
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
+  const ledgerHooks = createLedgerHooks();
+  const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
 
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
@@ -407,7 +430,7 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
-    ledgerHooks: createLedgerHooks(),
+    ledgerHooks,
     auth,
     authService,
     meService,
@@ -415,6 +438,8 @@ export const buildContainer = (env: Env): Container => {
     ratesService,
     fxSettingsService,
     currenciesService,
+    accountsService,
+    balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
     readiness: createReadinessProbe(prisma),
@@ -450,6 +475,12 @@ export const createApp = (container: Container): Express => {
     fx: { fxSettingsService: container.fxSettingsService, clock: container.clock, session },
     currencies: {
       currenciesService: container.currenciesService,
+      clock: container.clock,
+      session,
+    },
+    accounts: {
+      accountsService: container.accountsService,
+      balanceSeries: container.balanceSeries,
       clock: container.clock,
       session,
     },
