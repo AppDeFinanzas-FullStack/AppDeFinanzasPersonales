@@ -9,6 +9,7 @@ import { requireJson } from './middlewares/require-json.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
+import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
 
 export interface AppDeps {
   webOrigin: string;
@@ -20,6 +21,8 @@ export interface AppDeps {
   auth?: AuthRoutesDeps;
   /** The routes `/api/me` (plan §4.1.2). */
   me?: MeRoutesDeps;
+  /** The routes `/api/settings` (plan §4.9.2). */
+  settings?: SettingsRoutesDeps;
 }
 
 const traceId: RequestHandler = (_req, res, next) => {
@@ -61,6 +64,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.me !== undefined) {
     app.use('/api/me', meRouter(deps.me));
+  }
+  if (deps.settings !== undefined) {
+    app.use('/api/settings', settingsRouter(deps.settings));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

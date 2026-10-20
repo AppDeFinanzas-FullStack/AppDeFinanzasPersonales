@@ -175,6 +175,41 @@ export interface UserRepository {
   ): Promise<void>;
 }
 
+/** The general settings of a user, as stored (plan §3.4). */
+export interface UserSettingsData {
+  numberFormat: 'dot_comma' | 'comma_dot';
+  dateFormat: 'dmy' | 'iso' | 'short_text';
+  weekStart: 'monday' | 'sunday';
+  theme: 'system' | 'light' | 'dark';
+  sidebarCollapsed: boolean;
+  defaultAccountId: string | null;
+  alwaysShowNote: boolean;
+  dashboardBlocks: DashboardBlock[];
+  favorites: { expense: string[]; income: string[] };
+}
+
+/** The general settings the user can change now; absent fields stay as they are. */
+export type UserSettingsChanges = Partial<
+  Pick<
+    UserSettingsData,
+    | 'numberFormat'
+    | 'dateFormat'
+    | 'weekStart'
+    | 'theme'
+    | 'sidebarCollapsed'
+    | 'alwaysShowNote'
+    | 'dashboardBlocks'
+  >
+>;
+
+/** Reads and writes the `user_settings` row of the user the transaction is locked to. */
+export interface UserSettingsRepository {
+  /** The settings of the user, or `null` when it has none. */
+  find(userId: string): Promise<UserSettingsData | null>;
+  /** Updates only the given fields; the last write wins (EC-M9-01). */
+  update(userId: string, changes: UserSettingsChanges): Promise<void>;
+}
+
 /**
  * Repositories bound to a transaction and to a user (ADR-05).
  * Each module adds its own repository here.
@@ -185,4 +220,5 @@ export interface Repositories {
   emailSendLog: EmailSendLogRepository;
   loginThrottle: LoginThrottleRepository;
   users: UserRepository;
+  userSettings: UserSettingsRepository;
 }

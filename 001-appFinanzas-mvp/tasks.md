@@ -1067,7 +1067,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `favoriteCategories` admite como máximo 8 ids.
     - `RF-M2-09`: `{ sidebarCollapsed: true }` es una entrada válida; un campo desconocido no.
 
-- [ ] **`TASK-069`: Servicio y rutas de ajustes generales**
+- [x] **`TASK-069`: Servicio y rutas de ajustes generales**
   - **Dependencias:** Requiere TASK-059, TASK-068
   - **Trazabilidad SDD:** plan §4.9.2 (`GET` y `PATCH /api/settings`), plan §4.2.2, plan §4.9.3; RF-M9-01, RF-M2-09, EC-M9-01, RNF-08
   - **Archivos en Alcance:**

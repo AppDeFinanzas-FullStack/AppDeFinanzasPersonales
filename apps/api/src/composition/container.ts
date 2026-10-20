@@ -10,6 +10,10 @@ import {
   type MeService,
   type MeStore,
 } from '../application/services/me.service.js';
+import {
+  createSettingsService,
+  type SettingsService,
+} from '../application/services/settings.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -31,6 +35,7 @@ import { createEmailLinkRepository } from '../infrastructure/persistence/reposit
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createUserSettingsRepository } from '../infrastructure/persistence/repositories/user-settings.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import {
   createUnitOfWork,
@@ -56,6 +61,7 @@ export interface Container {
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  readonly settingsService: SettingsService;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -85,6 +91,7 @@ const buildRepositories = (tx: TransactionClient): Repositories => ({
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
   users: createUserRepository(tx),
+  userSettings: createUserSettingsRepository(tx),
 });
 
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
@@ -184,6 +191,7 @@ export const buildContainer = (env: Env): Container => {
     webOrigin: env.WEB_ORIGIN,
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
+  const settingsService = createSettingsService({ uow });
   return {
     env,
     prisma,
@@ -194,6 +202,7 @@ export const buildContainer = (env: Env): Container => {
     auth,
     authService,
     meService,
+    settingsService,
   };
 };
 
@@ -214,5 +223,6 @@ export const createApp = (container: Container): Express => {
       session,
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
+    settings: { settingsService: container.settingsService, session },
   });
 };
