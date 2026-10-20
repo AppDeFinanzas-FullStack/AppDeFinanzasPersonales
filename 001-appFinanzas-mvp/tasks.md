@@ -1615,6 +1615,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.4.2 (`archive`, `restore`, `DELETE`), plan §4.7.3 (cuenta por defecto archivada); RF-M4-09, RF-M4-12, RF-M4-13, EC-M4-04, EC-M4-05, EC-M4-07, EC-M7-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/accounts-lifecycle.test.ts`
   - **Especificación de Implementación:** Archivar es un `UPDATE … WHERE status = 'active'`; con un saldo distinto de 0 exige `confirmNonZero` (si no, `ARCHIVE_CONFIRMATION_REQUIRED {balance}`) y pone `default_account_id = NULL` si era la cuenta por defecto. Restaurar exige un nombre libre (`NAME_TAKEN`; acepta `newName`) y la moneda activa (`CURRENCY_INACTIVE`). Eliminar solo procede sin asientos, incluidos los que están dentro de la ventana de deshacer (si no, `ACCOUNT_HAS_MOVEMENTS`), quita la cuenta por defecto y borra sus atajos. Las reglas de apartados, cuenta dedicada y recurrentes se agregan en TASK-188 y TASK-232.
   - **Criterios de Verificación (Tests & DoD):**
