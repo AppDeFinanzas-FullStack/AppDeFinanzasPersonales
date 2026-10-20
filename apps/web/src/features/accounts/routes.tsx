@@ -1,6 +1,6 @@
 import type { AccountDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams, type RouteObject } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams, type RouteObject } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Separator } from '@/components/ui/separator';
@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import accounts from '@/locales/es-BO/accounts.json';
 
+import { AccountForm } from './components/account-form';
 import { AccountGroups } from './components/account-groups';
 import { NetWorthSummary } from './components/net-worth-summary';
 import { useAccounts, useReorderAccounts } from './hooks/use-accounts';
@@ -49,6 +50,12 @@ function ActiveAccounts() {
 
   return (
     <div className="flex flex-col gap-8">
+      <Link
+        to="/cuentas/nueva"
+        className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        {t('form.newAccount')}
+      </Link>
       <NetWorthSummary summary={active.data.summary} base={base} other={other} />
       <Separator />
       {items.length === 0 ? (
@@ -103,6 +110,53 @@ function ArchivedAccounts() {
   );
 }
 
+/** `/cuentas/nueva` (plan §4.4.4). */
+export function NewAccountPage() {
+  const { t } = useTranslation('accounts');
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col gap-6">
+      <h2 className="text-lg font-semibold">{t('form.newTitle')}</h2>
+      <AccountForm
+        onDone={() => {
+          void navigate('/cuentas');
+        }}
+      />
+    </div>
+  );
+}
+
+/** `/cuentas/:id/editar`; an account of any status is found among both lists (plan §4.4.4). */
+export function EditAccountPage() {
+  const { t } = useTranslation('accounts');
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const active = useAccounts('active');
+  const archived = useAccounts('archived');
+  if (active.data === undefined || archived.data === undefined) {
+    return active.isError || archived.isError ? (
+      <p role="alert" className="text-sm text-destructive">
+        {t('loadError')}
+      </p>
+    ) : null;
+  }
+  const account = [...active.data.items, ...archived.data.items].find((item) => item.id === id);
+  if (account === undefined) {
+    return <p className="text-muted-foreground">{t('form.notFound')}</p>;
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <h2 className="text-lg font-semibold">{t('form.editTitle', { name: account.name })}</h2>
+      <AccountForm
+        account={account}
+        onDone={() => {
+          void navigate('/cuentas');
+        }}
+      />
+    </div>
+  );
+}
+
 /** `/cuentas` and `/cuentas?archivadas=1` (plan §4.4.4). */
 export function AccountsPage() {
   const [params] = useSearchParams();
@@ -110,4 +164,8 @@ export function AccountsPage() {
 }
 
 /** Private routes of the accounts (plan §4.4.4). */
-export const accountsRoutes: RouteObject[] = [{ path: 'cuentas', element: <AccountsPage /> }];
+export const accountsRoutes: RouteObject[] = [
+  { path: 'cuentas', element: <AccountsPage /> },
+  { path: 'cuentas/nueva', element: <NewAccountPage /> },
+  { path: 'cuentas/:id/editar', element: <EditAccountPage /> },
+];

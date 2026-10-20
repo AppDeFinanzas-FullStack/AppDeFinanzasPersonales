@@ -1661,7 +1661,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-10`: se ven el total neto y su desglose.
     - `RF-M4-08`: una tarjeta muestra "Debes".
 
-- [ ] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
+- [x] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
   - **Dependencias:** Requiere TASK-043, TASK-106
   - **Trazabilidad SDD:** plan §4.4.4 (formularios), plan §4.4.3 (sin cuentas activas); RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08, EC-M4-05, EC-M7-01
   - **Archivos en Alcance:**
