@@ -1861,7 +1861,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-120`: un *handler* registrado recibe el cambio; si lanza un error, la transacción se revierte.
     - `consume` solo funciona una vez y dentro de los 12 s.
 
-- [ ] **`TASK-121`: `TransactionsService.create`: gastos e ingresos**
+- [x] **`TASK-121`: `TransactionsService.create`: gastos e ingresos**
   - **Dependencias:** Requiere TASK-085, TASK-100, TASK-118, TASK-120
   - **Trazabilidad SDD:** plan §4.6.2 (`POST /api/transactions`), plan §4.3.3 (sin ninguna tasa), ADR-11; RF-M6-01, RF-M6-14, RF-M3-06, RN-03, RN-04, RN-07, RN-12, EC-M3-02, RF-M4-03, RF-M4-04
   - **Archivos en Alcance:**

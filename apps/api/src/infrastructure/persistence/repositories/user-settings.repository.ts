@@ -78,5 +78,13 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
                dashboard_blocks = COALESCE(${blocks === undefined ? null : JSON.stringify(blocks)}::jsonb, dashboard_blocks)
          WHERE user_id = ${userId}::uuid`;
     },
+
+    async setManualUsd(userId, manual) {
+      await tx.$executeRaw`
+        UPDATE user_settings
+           SET manual_usd_value = ${manual === null ? null : manual.value.toFixed(2)}::numeric,
+               manual_usd_since = ${manual === null ? null : manual.since}::timestamptz
+         WHERE user_id = ${userId}::uuid`;
+    },
   };
 }

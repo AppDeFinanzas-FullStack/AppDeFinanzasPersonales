@@ -223,6 +223,8 @@ export interface UserSettingsRepository {
   fxSettings(userId: string): Promise<UserFxSettings | null>;
   /** Updates only the given fields; the last write wins (EC-M9-01). */
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
+  /** Turns the manual USD value on with its start, or off with `null` (plan §4.3.3, RF-M3-03). */
+  setManualUsd(userId: string, manual: { value: Decimal; since: Date } | null): Promise<void>;
 }
 
 /**
