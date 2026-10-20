@@ -1539,7 +1539,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `balanceSeries` devuelve el saldo de cada día del rango.
     - `RN-09`: no se pueden leer ni bloquear cuentas de otro usuario.
 
-- [ ] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
+- [x] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`), plan §4.4.3; RF-M4-04, EC-M4-01, EC-M4-06, RNF-10
   - **Archivos en Alcance:**
@@ -1691,12 +1691,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-01`: `UpdateCategoryInput` rechaza `kind`.
     - `RF-M5-04`: `color` es opcional al crear e `icon` es obligatorio.
 
-- [ ] **`TASK-110`: Repositorio de categorías**
+- [x] **`TASK-110`: Repositorio de categorías**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.2; RF-M5-03, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/category.factory.ts`
     - `apps/api/test/integration/category-repository.test.ts`
   - **Especificación de Implementación:** `tree(kind, status)` (dos niveles, en orden), `get`, `insert`, `update`, `setOrder`, `count`, `hasMovements` (incluye las eliminadas que siguen en la ventana de deshacer), `usage(id)` (presupuestos, reglas y atajos) y `idsWithChildren(id)`.
@@ -1826,7 +1827,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-01` / `RF-M6-03`: los límites de monto y nota.
     - `ListQuery.limit` va de 1 a 100.
 
-- [ ] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
+- [x] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
   - **Dependencias:** Requiere TASK-099, TASK-110
   - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`, `:id`); RF-M6-02, RF-M6-11, RF-M6-12, RN-02, RN-05, RF-M5-03
   - **Archivos en Alcance:**

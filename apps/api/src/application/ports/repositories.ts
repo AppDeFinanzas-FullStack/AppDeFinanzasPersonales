@@ -195,6 +195,7 @@ export interface Repositories {
   accounts: AccountRepository;
   ledger: LedgerRepository;
   undoActions: UndoActionRepository;
+  categories: CategoryRepository;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -339,6 +340,77 @@ export interface BalancePoint {
   balance: Decimal;
 }
 
+/** Filters of the movement list once the month is resolved (`ListQuery`, plan §4.6.1). */
+export interface LedgerListFilters {
+  /** First day of the range, included. */
+  from: LocalDate;
+  /** Last day of the range, included. */
+  to: LocalDate;
+  /** Page size. */
+  limit: number;
+  /** Movements with an entry on that account, transfers included. */
+  accountId?: string;
+  /** The category or any of its subcategories (RF-M5-03). */
+  categoryId?: string;
+  kind?: TransactionKind;
+  /** A fragment of the note, ignoring case and accents, or an exact amount in its own currency. */
+  q?: string;
+}
+
+/** An entry as it is read, with the currency of its account. */
+export interface LedgerEntryView {
+  accountId: string;
+  currencyCode: string;
+  /** Signed: positive comes into the account, negative goes out (ADR-04). */
+  amount: Decimal;
+}
+
+/** A movement of the ledger as it is read, with its entries. */
+export interface LedgerTransactionView {
+  id: string;
+  kind: TransactionKind;
+  date: LocalDate;
+  note: string | null;
+  categoryId: string | null;
+  origin: TransactionOrigin;
+  /** The debt, payment or goal it comes from, for "Ir a…". */
+  originId: string | null;
+  parentTransactionId: string | null;
+  recurringLabel: string | null;
+  rateCurBob: Decimal;
+  rateUsdBob: Decimal | null;
+  declaredRate: Decimal | null;
+  createdAt: Date;
+  entries: LedgerEntryView[];
+}
+
+/** A movement with its fee: the transaction with `origin = fee` whose parent it is (RF-M6-05). */
+export interface LedgerTransactionDetail extends LedgerTransactionView {
+  fee: LedgerTransactionView | null;
+}
+
+/** Income minus expense of a day in the base currency, without what RN-02 leaves out. */
+export interface DayNet {
+  date: LocalDate;
+  net: Decimal;
+}
+
+export interface LedgerPage {
+  /** From the most recent to the oldest by `(date, created_at, id)` (RF-M6-02). */
+  items: LedgerTransactionView[];
+  /** Opaque; `null` on the last page. */
+  nextCursor: string | null;
+  /** One per day of the page, most recent first (RF-M6-12). */
+  dayNets: DayNet[];
+}
+
+/** Totals in the base currency; `expense` is positive and `net = income - expense`. */
+export interface LedgerTotals {
+  income: Decimal;
+  expense: Decimal;
+  net: Decimal;
+}
+
 /** Ledger of the user bound to the transaction (ADR-04, RN-09). */
 export interface LedgerRepository {
   /**
@@ -353,6 +425,85 @@ export interface LedgerRepository {
   balances(accountIds: string[]): Promise<Map<string, Decimal>>;
   /** Balance at the end of each day of the range, both ends included, in ascending order (RN-01). */
   balanceSeries(accountId: string, from: LocalDate, to: LocalDate): Promise<BalancePoint[]>;
+  /**
+   * A page of the movements that are not deleted and match the filters, after `cursor` (the
+   * `nextCursor` of the previous page, or `null`). `dayNets` covers every matching movement of the
+   * days of the page, in the user's base currency with the rates stored in each one (RN-05).
+   * A malformed cursor fails with `VALIDATION_ERROR`.
+   */
+  list(filters: LedgerListFilters, cursor: string | null): Promise<LedgerPage>;
+  /**
+   * Income, expense and net of the matching movements in the `base` currency, each converted with
+   * its stored rates (RN-05) and without what RN-02 leaves out (RF-M6-12).
+   */
+  summary(filters: LedgerListFilters, base: string): Promise<LedgerTotals>;
+  /** The movement with its entries and its fee, or `null` when the user has no such movement. */
+  get(id: string): Promise<LedgerTransactionDetail | null>;
+}
+
+// ---------- Categorías (M5) ----------
+
+export interface CategoryRow {
+  id: string;
+  kind: CategoryKind;
+  parentId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  isSystem: boolean;
+  status: LifecycleStatus;
+  archivedAt: Date | null;
+  sortOrder: number;
+}
+
+/** A category created by the user: it is always active and never of the system. */
+export type NewUserCategory = Pick<
+  CategoryRow,
+  'id' | 'kind' | 'parentId' | 'name' | 'color' | 'icon' | 'sortOrder'
+>;
+
+/** Editable fields of a category; the kind never changes (RF-M5-01). */
+export type CategoryPatch = Partial<Pick<CategoryRow, 'name' | 'color' | 'icon' | 'parentId'>>;
+
+/** A node of the two-level tree (`CategoryNode`, plan §4.5.1). */
+export interface CategoryTreeNode {
+  id: string;
+  kind: CategoryKind;
+  name: string;
+  color: string;
+  icon: string;
+  isSystem: boolean;
+  status: LifecycleStatus;
+  children: CategoryTreeNode[];
+}
+
+/** What points to a category: its budgets, recurring rules and shortcuts (plan §4.5.1). */
+export interface CategoryUsage {
+  budgets: { id: string }[];
+  recurring: { id: string; name: string }[];
+  shortcuts: { id: string; name: string }[];
+}
+
+/** Categories of the user bound to the transaction; another user's category does not exist (RN-09). */
+export interface CategoryRepository {
+  /**
+   * The categories of that kind and status as a two-level tree, each level by `sortOrder`. A root
+   * is a category without a parent, or one whose parent has another status.
+   */
+  tree(kind: CategoryKind, status: LifecycleStatus): Promise<CategoryTreeNode[]>;
+  get(id: string): Promise<CategoryRow | null>;
+  insert(category: NewUserCategory): Promise<void>;
+  update(id: string, patch: CategoryPatch): Promise<void>;
+  /** Gives each category the position of its id in the list as its `sortOrder`. */
+  setOrder(ids: string[]): Promise<void>;
+  /** How many categories the user has, active or archived. */
+  count(): Promise<number>;
+  /** `true` when any transaction uses the category, including deleted ones not yet purged. */
+  hasMovements(id: string): Promise<boolean>;
+  /** The budgets, recurring rules and shortcuts that use the category. */
+  usage(id: string): Promise<CategoryUsage>;
+  /** The id of the category and those of its subcategories; `[]` when it does not exist. */
+  idsWithChildren(id: string): Promise<string[]>;
 }
 
 export type UndoKind = 'delete' | 'recategorize' | 'create';
