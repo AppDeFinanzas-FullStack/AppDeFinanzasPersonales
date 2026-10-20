@@ -1,18 +1,24 @@
 import type { AccountDto } from '@finanzas/contracts';
+import { BOLIVIA_TIME_ZONE, monthRange, todayFor } from '@finanzas/domain';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams, useSearchParams, type RouteObject } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Separator } from '@/components/ui/separator';
+import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import accounts from '@/locales/es-BO/accounts.json';
 
+import { AccountActions } from './components/account-actions';
 import { AccountForm } from './components/account-form';
 import { AccountGroups } from './components/account-groups';
+import { AccountHeader } from './components/account-header';
+import { BalanceChart } from './components/balance-chart';
 import { NetWorthSummary } from './components/net-worth-summary';
-import { useAccounts, useReorderAccounts } from './hooks/use-accounts';
+import { useAccounts, useCurrencySymbol, useReorderAccounts } from './hooks/use-accounts';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'accounts', accounts, true, true);
@@ -110,6 +116,84 @@ function ArchivedAccounts() {
   );
 }
 
+/** The account of any status, found among both lists; `undefined` while loading. */
+function useAccount(id: string | undefined) {
+  const active = useAccounts('active');
+  const archived = useAccounts('archived');
+  const loaded = active.data !== undefined && archived.data !== undefined;
+  const account = loaded
+    ? [...active.data.items, ...archived.data.items].find((item) => item.id === id)
+    : undefined;
+  return { loaded, failed: active.isError || archived.isError, account };
+}
+
+/**
+ * `/cuentas/:id` (plan §4.4.4): header, balance chart over `?from&to` (the current month by
+ * default) and actions; `?ajustar=1` opens "Ajustar saldo". The movements arrive in TASK-133.
+ */
+export function AccountDetailPage() {
+  const { t } = useTranslation('accounts');
+  const { id } = useParams();
+  const me = useMe();
+  const rates = useCurrentRate();
+  const symbolOf = useCurrencySymbol();
+  const [params, setParams] = useSearchParams();
+  const [today] = useState(() => todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date()));
+  const { loaded, failed, account } = useAccount(id);
+
+  if (!loaded) {
+    return failed ? (
+      <p role="alert" className="text-sm text-destructive">
+        {t('loadError')}
+      </p>
+    ) : null;
+  }
+  if (account === undefined) {
+    return <p className="text-muted-foreground">{t('form.notFound')}</p>;
+  }
+
+  const month = monthRange(today.slice(0, 7));
+  const range = { from: params.get('from') ?? month.from, to: params.get('to') ?? month.to };
+  const update = (changes: Record<string, string | null>) => {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null) next.delete(key);
+          else next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <AccountHeader account={account} base={rates.data?.base ?? 'BOB'} />
+      <AccountActions
+        account={account}
+        adjustOpen={params.get('ajustar') === '1' && account.status === 'active'}
+        onAdjustOpenChange={(open) => {
+          update({ ajustar: open ? '1' : null });
+        }}
+      />
+      <Separator />
+      <BalanceChart
+        accountId={account.id}
+        symbol={symbolOf(account.currencyCode)}
+        range={range}
+        onRangeChange={(next) => {
+          update({ from: next.from, to: next.to });
+        }}
+      />
+      <Link to="/cuentas" className="text-sm text-primary underline">
+        {t('archived.back')}
+      </Link>
+    </div>
+  );
+}
+
 /** `/cuentas/nueva` (plan §4.4.4). */
 export function NewAccountPage() {
   const { t } = useTranslation('accounts');
@@ -167,5 +251,6 @@ export function AccountsPage() {
 export const accountsRoutes: RouteObject[] = [
   { path: 'cuentas', element: <AccountsPage /> },
   { path: 'cuentas/nueva', element: <NewAccountPage /> },
+  { path: 'cuentas/:id', element: <AccountDetailPage /> },
   { path: 'cuentas/:id/editar', element: <EditAccountPage /> },
 ];

@@ -1678,7 +1678,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: al editar, el saldo inicial no es editable y se ofrece "Ajustar saldo" (`EC-M4-02`).
     - `RF-M4-08`: una tarjeta se crea con deuda actual.
 
-- [ ] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
+- [x] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
   - **Dependencias:** Requiere TASK-107
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas/:id`); RF-M4-05, RF-M4-08, RF-M4-09, EC-M4-04, EC-M4-08
   - **Archivos en Alcance:**
