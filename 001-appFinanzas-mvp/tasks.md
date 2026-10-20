@@ -1061,7 +1061,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 7 — M2 Navegación y estructura, perfil y ajustes base (V1.0)
 
-- [ ] **`TASK-068`: Contratos de ajustes (M9)**
+- [x] **`TASK-068`: Contratos de ajustes (M9)**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.2.1; RF-M9-01, RF-M2-09, RF-M8-10
   - **Archivos en Alcance:**
@@ -1074,7 +1074,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `favoriteCategories` admite como máximo 8 ids.
     - `RF-M2-09`: `{ sidebarCollapsed: true }` es una entrada válida; un campo desconocido no.
 
-- [ ] **`TASK-069`: Servicio y rutas de ajustes generales**
+- [x] **`TASK-069`: Servicio y rutas de ajustes generales**
   - **Dependencias:** Requiere TASK-059, TASK-068
   - **Trazabilidad SDD:** plan §4.9.2 (`GET` y `PATCH /api/settings`), plan §4.2.2, plan §4.9.3; RF-M9-01, RF-M2-09, EC-M9-01, RNF-08
   - **Archivos en Alcance:**
@@ -1094,7 +1094,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-01` / `RNF-08`: con dos `PATCH` seguidos gana el último.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
+- [x] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
   - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
@@ -1109,7 +1109,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
 
-- [ ] **`TASK-071`: Web: guardas de rutas**
+- [x] **`TASK-071`: Web: guardas de rutas**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.2.4 (guardas), ADR-18; RF-M2-03, RF-M1-04
   - **Archivos en Alcance:**
@@ -1121,7 +1121,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-04`: sin sesión, una ruta privada lleva a `/entrar`.
     - `RF-M2-03` (`@release-1.0`): `/presupuestos` muestra la página 404 con `RELEASE=1.0`.
 
-- [ ] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
+- [x] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
   - **Dependencias:** Requiere TASK-070, TASK-071
   - **Trazabilidad SDD:** plan §4.2.3 (disposición), plan §4.2.4 (árbol); RF-M2-01, RF-M2-02, RF-M2-03, RF-M2-09, RF-M7-01, EC-M2-03, RNF-05, RNF-06
   - **Archivos en Alcance:**
@@ -1132,8 +1132,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/nav-items.ts`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/playwright.config.ts`
     - `e2e/m2-navigation.spec.ts`
-  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar.
+  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar. `playwright.config.ts` excluye los casos `@release-1.0` (`grepInvert`) cuando `RELEASE` no es `1.0`; solo corren con `e2e:release-1.0` (plan §5.1).
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registrar en el centro de la barra en el celular" (360 px): las 5 pestañas en orden y Registrar en el centro (`RF-M2-01`, `RF-M7-01`).
     - Escenario «Sin "Más" en escritorio» (1280 px) (`RF-M2-02`).
@@ -1141,7 +1142,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M2-03`: cambiar el tamaño de 360 a 1280 px no pierde el estado.
     - `RNF-06`: sin violaciones de axe.
 
-- [ ] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
+- [x] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
   - **Dependencias:** Requiere TASK-044, TASK-072
   - **Trazabilidad SDD:** plan §4.2.3 (memoria por módulo, botón Atrás), plan §4.2.4; RF-M2-04, RF-M2-05, RF-M2-06, RF-M2-12
   - **Archivos en Alcance:**
@@ -1156,9 +1157,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-12` (`@release-1.0`): con `RELEASE=1.0`, PLANIFICAR no aparece.
     - `RF-M2-04`: al cambiar de pestaña y volver, se restauran la URL y la posición.
     - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
-    - `RF-M2-06`: el botón Atrás cierra un diálogo abierto sin salir de la pantalla.
+    - `RF-M2-06`: el botón Atrás vuelve de un módulo abierto desde "Más" a `/mas`. Todavía no hay pantallas con diálogos: la prueba de que Atrás cierra un diálogo con `useBackToClose` sin salir de la pantalla la agrega la primera tarea que monte un diálogo (plan §4.2.3).
 
-- [ ] **`TASK-074`: Web: pantalla de perfil**
+- [x] **`TASK-074`: Web: pantalla de perfil**
   - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil`); RF-M1-07, RF-M1-10, RF-M1-11, RF-M1-13, EC-M1-05
   - **Archivos en Alcance:**
@@ -1176,7 +1177,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-07`: "Cerrar sesión en todos los dispositivos" cierra el otro contexto.
     - `RF-M1-11`: el cambio de zona horaria se guarda.
 
-- [ ] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
+- [x] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
   - **Dependencias:** Requiere TASK-041, TASK-074
   - **Trazabilidad SDD:** plan §4.2.3 (estados de la app); RF-M2-07, RF-M2-08, RF-M2-10, EC-M2-01, RNF-23
   - **Archivos en Alcance:**
@@ -1192,7 +1193,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-08`: con la sesión vencida, iniciar sesión con el mismo usuario vuelve a la misma pantalla con el borrador.
     - `EC-M2-01`: si entra otro usuario, el borrador anterior se descarta.
 
-- [ ] **`TASK-076`: Web: eliminar la cuenta**
+- [x] **`TASK-076`: Web: eliminar la cuenta**
   - **Dependencias:** Requiere TASK-062, TASK-074
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil/eliminar`); RF-M1-15, EC-M1-08
   - **Archivos en Alcance:**
@@ -1207,7 +1208,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 8 — M3 Monedas y tipo de cambio (V1.0)
 
-- [ ] **`TASK-077`: Contratos de M3**
+- [x] **`TASK-077`: Contratos de M3**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.3.1; RF-M3-02, RF-M3-12, RF-M3-05
   - **Archivos en Alcance:**
@@ -1220,7 +1221,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RateHistoryQuery` solo admite los rangos 7d, 30d, 90d y 1y.
     - `RF-M3-05`: cada referencia de `RatesCurrentDto` trae `observedAt` y `source`.
 
-- [ ] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
+- [x] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.3.1 (`classifyBidAsk`, `gap`), ADR-06; RF-M3-12, spec §1.5 (referencia del dólar)
   - **Archivos en Alcance:**
@@ -1232,7 +1233,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-078`: `classifyBidAsk(10.30, 10.10)` da compra 10,10 y venta 10,30.
     - `RF-M3-12`: con paralelo 10,25 y oficial 6,96, la brecha es 47,27 % y Bs 3,29.
 
-- [ ] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
+- [x] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
   - **Dependencias:** Requiere TASK-027, TASK-078
   - **Trazabilidad SDD:** plan §4.3.1 (`resolveUsdRate`); RF-M3-03, RF-M3-06, RF-M3-13, EC-M3-03, RN-04
   - **Archivos en Alcance:**
@@ -1246,7 +1247,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-03`: un día sin datos usa el anterior más cercano y, antes del primer dato, el primero.
     - Sin ninguna tasa, devuelve `null`.
 
-- [ ] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
+- [x] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
   - **Dependencias:** Requiere TASK-079
   - **Trazabilidad SDD:** plan §4.3.1 (`convert`, `transferPrefill`), plan §4.6.1 (convención de la tasa declarada); RF-M3-07, RF-M3-08, EC-M3-06, RN-05, RN-06
   - **Archivos en Alcance:**
@@ -1259,7 +1260,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-08`: editar el monto que llega recalcula la tasa, con una diferencia máxima de 0,01.
     - Entre dos monedas agregadas se usa la tasa cruzada a través de BOB.
 
-- [ ] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
+- [x] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
   - **Dependencias:** Requiere TASK-031, TASK-078
   - **Trazabilidad SDD:** ADR-06, plan §1.3 (S-2), plan §4.3.2 (jobs); EC-M3-04, RF-M3-04
   - **Archivos en Alcance:**
@@ -1273,7 +1274,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Las respuestas se clasifican en compra y venta con `classifyBidAsk`.
     - Un *timeout* se informa como un fallo de la fuente, sin lanzar errores internos.
 
-- [ ] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
+- [x] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
   - **Dependencias:** Requiere TASK-081
   - **Trazabilidad SDD:** ADR-06 (TCO con respaldo en el BCB), plan §4.3.2 (`fx.fetchOfficial`)
   - **Archivos en Alcance:**
@@ -1284,7 +1285,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-082`: con una respuesta de ejemplo, devuelve el valor y su fecha de vigencia; con HTML inesperado, informa el fallo.
 
-- [ ] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
+- [x] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §3.4, ADR-12; RF-M3-13, RN-09
   - **Archivos en Alcance:**
@@ -1292,13 +1293,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/infrastructure/persistence/repositories/market-rate.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/user-fx-event.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-repositories.test.ts`
   - **Especificación de Implementación:** `market_rate`: `upsertIfNewer`, `latest(kind)` y `series(kind, from, to)`. `currency`: `list`, `get`, `lockForUpdate`, `lockForShare` e `insert`. `user_fx_event`: `insert` y `eventsUntil(instant)`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-13`: `upsertIfNewer` solo reemplaza el valor del día si la observación es más reciente.
     - `RN-09`: las monedas y los eventos de un usuario no son visibles para otro.
 
-- [ ] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
+- [x] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
   - **Dependencias:** Requiere TASK-038, TASK-082, TASK-083
   - **Trazabilidad SDD:** plan §4.3.2 (jobs), plan §4.3.3 (una sola actualización a la vez); RF-M3-04, EC-M3-01, EC-M3-04, RNF-21
   - **Archivos en Alcance:**
@@ -1312,20 +1314,24 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-04`: un valor inválido no se guarda.
     - Si paralelo.bo falla para el oficial, se usa el BCB.
 
-- [ ] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
+- [x] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
   - **Dependencias:** Requiere TASK-080, TASK-083, TASK-069
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.3.3; RF-M3-03, RF-M3-05, RF-M3-06, RF-M3-12, EC-M3-02, RN-04, RN-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/rates.service.ts`
     - `apps/api/test/integration/rates-service.test.ts`
-  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05).
+    - `packages/domain/src/index.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05). `@finanzas/domain` reexporta `resolveUsdRate`, `customRateOn` y los tipos `FxEvent`, `MarketSeries` y `UsdReference`. `UserSettingsRepository` suma un método (p. ej. `fxSettings(userId)`) que devuelve la moneda base del usuario, sin cambiar `UserSettingsData`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Valor manual con prioridad" (parte de M3): con el valor manual en 10,00 y el paralelo en 10,40, `inUse` vale 10,00 y trae `since`.
     - `RF-M3-12`: con el oficial en uso, la brecha compara la mediana del paralelo contra el oficial.
     - `EC-M3-02`: sin ninguna tasa, `rateUsdBob` es `null` y `inUse.value` es `null`.
     - `RF-M3-06`: un movimiento en BOB guarda igualmente la tasa boliviano-dólar.
+    - `EC-M3-02`: `ratesForMovement` lanza `RATE_REQUIRED` cuando el movimiento no es en BOB y `resolveUsdRate` devuelve `null` (plan §4.3.3). La prueba de ese error queda en TASK-121 (escenario "Sin ninguna tasa disponible"), porque el archivo de pruebas de esta tarea ya quedó cerrado.
 
-- [ ] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
+- [x] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
   - **Dependencias:** Requiere TASK-084, TASK-085
   - **Trazabilidad SDD:** plan §4.3.2; RF-M3-04, RF-M3-05, RNF-04, RNF-27
   - **Archivos en Alcance:**
@@ -1342,7 +1348,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-27` / `RF-M3-05`: cada valor incluye su fuente y su `observedAt`.
     - `history` con `range=30d` devuelve como máximo 30 puntos.
 
-- [ ] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
+- [x] **`TASK-087`: Referencia del dólar, moneda base y valor manual**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`PATCH /api/fx-settings`, `/api/fx/manual`), plan §4.3.3; RF-M3-03, RF-M3-11, RF-M3-13
   - **Archivos en Alcance:**
@@ -1350,15 +1356,19 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/fx.routes.ts`
     - `apps/api/src/presentation/controllers/fx.controller.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
     - `apps/api/test/http/fx-settings.test.ts`
-  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe.
+  - **Especificación de Implementación:** `PATCH /api/fx-settings` actualiza la referencia (e inserta `reference_set`) y la moneda base (debe estar activa; si no, `CURRENCY_INACTIVE`). `PUT /api/fx/manual` activa el valor manual (`manual_usd_on`) y `DELETE` lo desactiva (`manual_usd_off`), en la misma transacción que `user_settings`. Nada se reescribe. `app.ts` monta el router de fx en `/api`; `UserSettingsRepository` suma un método (p. ej. `updateFx`) que escribe `base_currency`, `usd_reference` y el valor manual dentro de `uow.run`. `requireJson` deja pasar las mutaciones sin cuerpo (p. ej. `DELETE /api/fx/manual`); una con cuerpo que no es JSON sigue dando 415 y `checkOrigin` sigue aplicando.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-11`: cambiar la referencia o la base no modifica ninguna fila de `ledger_transaction`.
     - `RF-M3-13`: cada cambio de referencia queda en `user_fx_event`.
     - `RF-M3-03`: el valor manual activo no vence solo.
     - Una base inactiva da `CURRENCY_INACTIVE`.
 
-- [ ] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
+- [x] **`TASK-088`: Monedas agregadas: crear, listar y actualizar su tasa**
   - **Dependencias:** Requiere TASK-086
   - **Trazabilidad SDD:** plan §4.3.2 (`/api/currencies`), plan §4.3.3; RF-M3-01, RF-M3-02, EC-M3-07, RF-M3-13
   - **Archivos en Alcance:**
@@ -1368,8 +1378,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/currencies.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/test/http/currencies.test.ts`
-  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente.
+  - **Especificación de Implementación:** `POST` crea la moneda y su `custom_rate` con bloqueo por usuario. `PATCH /:code` cambia el símbolo o la tasa (un cambio de tasa inserta `custom_rate`); BOB y USD no tienen tasa propia (`SYSTEM_CURRENCY`). `GET` lista con la tasa vigente. `CurrencyRepository` suma un método (p. ej. `updateSymbol`) que escribe `currency.symbol` del usuario dentro de `uow.run`, en la misma transacción que el `custom_rate`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-02`: un código repetido da `CURRENCY_CODE_TAKEN`.
     - `EC-M3-07`: una tasa menor que Bs 0,01 da `RATE_BELOW_MINIMUM`.
@@ -1377,7 +1389,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-01`: cambiar la tasa de USD da `SYSTEM_CURRENCY`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
+- [x] **`TASK-089`: Desactivar y reactivar monedas (`CurrencyUsage`)**
   - **Dependencias:** Requiere TASK-088
   - **Trazabilidad SDD:** plan §4.3.3 (Activa → Inactiva), plan §4.0 (servicios compartidos); RF-M3-01, EC-M3-05
   - **Archivos en Alcance:**
@@ -1385,24 +1397,28 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/currencies.service.ts`
     - `apps/api/src/presentation/routes/currencies.routes.ts`
     - `apps/api/src/presentation/controllers/currencies.controller.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
+    - `apps/api/src/presentation/middlewares/require-json.ts`
     - `apps/api/test/http/currencies-deactivate.test.ts`
-  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`.
+  - **Especificación de Implementación:** `CurrencyUsage.register(module, check)` y `check(tx, userId, code)`, que devuelve `usedBy[]`. Cada módulo registra su verificación en su fase. `deactivate` toma `FOR UPDATE` sobre la moneda; no se permite con BOB, USD ni la base, ni si está en uso. `activate {rate}` inserta un `custom_rate`. `CurrencyRepository` suma un método (p. ej. `setStatus`) que escribe `currency.status` del usuario dentro de `uow.run`. `requireJson` trata `Content-Length: 0` como una petición sin cuerpo, para que `POST /:code/deactivate` no dé `UNSUPPORTED_MEDIA_TYPE`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-01`: desactivar BOB o USD da `SYSTEM_CURRENCY`, y desactivar la base, `BASE_CURRENCY`.
     - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
     - Reactivar exige una tasa nueva.
 
-- [ ] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
+- [x] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
   - **Dependencias:** Requiere TASK-060, TASK-084
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: tasas fijas), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
-  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`.
+  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`. `container.ts` expone el *fake* que crea `buildRateSources` para pasárselo al controlador. Cuerpo: `{ bid?, ask?, median?, official?, failure? }`; las tasas van como texto decimal (ADR-03) y `failure` es un `RateFailure` del puerto (`'TIMEOUT' | 'INVALID_VALUE' | 'SOURCE_ERROR'`) o `null` para quitar la falla. Responde 204; un cuerpo inválido da `VALIDATION_ERROR`.
   - **Criterios de Verificación (Tests & DoD):**
-    - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
+    - `TASK-090`: después de fijar 10,10 y 10,30, las filas `parallel_bid` y `parallel_ask` de `market_rate` del día valen 10,10 y 10,30; con `failure` fijado, la llamada no escribe filas nuevas; con `INTEGRATIONS=real`, la ruta responde 404.
 
-- [ ] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
+- [x] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
   - **Dependencias:** Requiere TASK-083
   - **Trazabilidad SDD:** ADR-06, plan §4.3.2 (script `fx-backfill`)
   - **Archivos en Alcance:**
@@ -1414,7 +1430,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-091`: con un cliente simulado de 10 días, inserta 10 medianas y el oficial correcto a cada lado del 27/06/2026; correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
+- [x] **`TASK-092`: Web: `useCurrentRate` y ficha del dólar en la cabecera**
   - **Dependencias:** Requiere TASK-072, TASK-086, TASK-090
   - **Trazabilidad SDD:** plan §4.3.4 (`RateChip`, estado), plan §4.2.4; spec §2.2.1 (cabecera); RF-M3-04
   - **Archivos en Alcance:**
@@ -1430,7 +1446,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Con la fuente caída y sin datos, muestra "$ —".
     - Con el valor manual activo, muestra el distintivo.
 
-- [ ] **`TASK-093`: Web: panel de Tipo de cambio**
+- [x] **`TASK-093`: Web: panel de Tipo de cambio**
   - **Dependencias:** Requiere TASK-087, TASK-092
   - **Trazabilidad SDD:** plan §4.3.4 (`/tipo-de-cambio`); RF-M3-03, RF-M3-05, RF-M3-11, RF-M3-12, RNF-27
   - **Archivos en Alcance:**
@@ -1450,20 +1466,21 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-05`: cada tasa muestra "actualizado hace X".
     - Sin violaciones de axe.
 
-- [ ] **`TASK-094`: Web: gráfico de evolución de las tasas**
+- [x] **`TASK-094`: Web: gráfico de evolución de las tasas**
   - **Dependencias:** Requiere TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`RateHistoryChart`), ADR-03 (solo los gráficos usan `number`); spec §2.3.1 (consultar el panel)
   - **Archivos en Alcance:**
     - `apps/web/src/features/fx/hooks/use-rate-history.ts`
     - `apps/web/src/features/fx/components/rate-history-chart.tsx`
     - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/locales/es-BO/fx.json`
     - `e2e/m3-rate-history.spec.ts`
   - **Especificación de Implementación:** Gráfico de Recharts con pestañas 7d, 30d, 90d y 1a, con un punto por día. La conversión a `number` ocurre solo dentro del gráfico. Tiene un texto alternativo con el último valor.
   - **Criterios de Verificación (Tests & DoD):**
     - Cambiar de pestaña pide el rango correcto y el gráfico se dibuja.
     - Las pestañas se manejan con el teclado.
 
-- [ ] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
+- [x] **`TASK-095`: Web: lista de monedas, agregar, editar la tasa y desactivar**
   - **Dependencias:** Requiere TASK-089, TASK-093
   - **Trazabilidad SDD:** plan §4.3.4 (`CurrenciesList`, `AddCurrencyDialog`); RF-M3-02, EC-M3-05, EC-M3-07
   - **Archivos en Alcance:**
@@ -1481,7 +1498,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 9 — M4 Cuentas (V1.0)
 
-- [ ] **`TASK-096`: Contratos de M4**
+- [x] **`TASK-096`: Contratos de M4**
   - **Dependencias:** Requiere TASK-024, TASK-077
   - **Trazabilidad SDD:** plan §4.4.1; RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
@@ -1495,7 +1512,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: `UpdateAccountInput` rechaza `initialBalance` e `initialBalanceDate`.
     - `RF-M4-08`: el día de corte o de pago fuera de 1–31 es inválido.
 
-- [ ] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
+- [x] **`TASK-097`: Dominio `balance`: reglas de cuentas y tarjetas**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.4.2 (cambio de tipo), plan §4.4.3; RN-01, RN-12, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
@@ -1509,25 +1526,26 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-08`: con límite 5.000 y deuda 5.200, el crédito disponible es −200 y está superado.
     - `RF-M4-07`: no se puede pasar a efectivo una cuenta con saldo inicial negativo, ni a tarjeta una cuenta dedicada.
 
-- [ ] **`TASK-098`: Dominio `balance`: total neto y desglose**
+- [x] **`TASK-098`: Dominio `balance`: total neto y desglose**
   - **Dependencias:** Requiere TASK-080, TASK-097
   - **Trazabilidad SDD:** plan §4.4.2 (`GET /api/accounts`); RF-M4-10, RN-05, RN-06
   - **Archivos en Alcance:**
     - `packages/domain/src/balance.ts`
     - `packages/domain/test/net-worth.test.ts`
-  - **Especificación de Implementación:** `netWorth(accounts, rates)` convierte cada saldo a la base con la tasa vigente, redondea por cuenta y suma. El desglose da Líquido (efectivo, banco, billetera y otro), Ahorro, Deuda en tarjetas (la suma de todas las tarjetas; un saldo a favor la reduce) y Apartado para metas (0 hasta V1.1). También devuelve el equivalente en la otra moneda, o `null` sin tasa.
+  - **Especificación de Implementación:** `netWorth(accounts, rates)` convierte cada saldo a la base con la tasa vigente, redondea por cuenta y suma. El desglose da Líquido (efectivo, banco, billetera y otro), Ahorro, Deuda en tarjetas (la suma de todas las tarjetas; un saldo a favor la reduce) y Apartado para metas (0 hasta V1.1). También devuelve el equivalente en la otra moneda, o `null` sin tasa. Firma: `netWorth(accounts: { type: AccountType; currencyCode: string; balance: string }[], rates: { baseCurrency: string; otherCurrency: string; bobPerUnit: Record<string, Decimal | null> })`; quien llama pasa solo las cuentas activas, y `bobPerUnit` da los Bs por unidad de cada moneda (BOB = 1), igual que `convert` de `fx.ts`. Devuelve `{ netWorth: { base: string | null; other: string | null }, breakdown: { liquid, savings, cardDebt, earmarked } }` en texto decimal, como `AccountsSummaryDto`. `other` es la suma de cada cuenta convertida y redondeada a la otra moneda (RN-06). Si falta la tasa de alguna moneda necesaria para convertir a la base, `base` y los cuatro campos del desglose son `null`; si falta solo la de la otra moneda, solo `other` es `null`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M4-10`: una tarjeta con deuda resta del total, y un saldo a favor reduce la deuda en tarjetas.
     - `RN-06`: el total es la suma de las conversiones redondeadas de cada cuenta.
     - Sin tasa, el equivalente es `null`.
 
-- [ ] **`TASK-099`: Repositorios de cuentas y del libro contable (base)**
+- [x] **`TASK-099`: Repositorios de cuentas y del libro contable (base)**
   - **Dependencias:** Requiere TASK-083
   - **Trazabilidad SDD:** plan §3.5, ADR-04, plan §4.4.2 (`balance-series`); RN-01, RN-09, RNF-03
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/account.factory.ts`
     - `apps/api/test/factories/ledger.factory.ts`
     - `apps/api/test/integration/account-ledger-repositories.test.ts`
@@ -1537,7 +1555,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `balanceSeries` devuelve el saldo de cada día del rango.
     - `RN-09`: no se pueden leer ni bloquear cuentas de otro usuario.
 
-- [ ] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
+- [x] **`TASK-100`: `BalanceGuard`: bloqueo de saldos negativos**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`), plan §4.4.3; RF-M4-04, EC-M4-01, EC-M4-06, RNF-10
   - **Archivos en Alcance:**
@@ -1550,12 +1568,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-10`: dos aplicaciones concurrentes de −20 sobre 30 dan un éxito y un error.
     - `EC-M4-01`: quitar un ingreso que deja el efectivo en −50 se rechaza.
 
-- [ ] **`TASK-101`: `AccountsService`: crear, listar y resumen**
+- [x] **`TASK-101`: `AccountsService`: crear, listar y resumen**
   - **Dependencias:** Requiere TASK-037, TASK-085, TASK-089, TASK-096, TASK-098, TASK-100
   - **Trazabilidad SDD:** plan §4.4.2 (`GET` y `POST /api/accounts`), ADR-11; RF-M4-01, RF-M4-02, RF-M4-09, RF-M4-10, RNF-28, RN-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/accounts-create-list.test.ts`
   - **Especificación de Implementación:** `create` es idempotente (ADR-11), usa `withUserLock`, `assertLimit(50)` y `FOR SHARE` sobre la moneda (que debe estar activa), y guarda la deuda de la tarjeta como negativa. `list(status)` trae los saldos, sus equivalentes y los datos de tarjeta. `summary` da el total neto y el desglose con la tasa vigente. Registra en `CurrencyUsage` el uso por cuentas activas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1566,7 +1585,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-09`: las archivadas no suman en el total.
     - `EC-M3-05`: desactivar una moneda usada por una cuenta activa da `CURRENCY_IN_USE` con "accounts".
 
-- [ ] **`TASK-102`: `AccountsService`: editar y reordenar**
+- [x] **`TASK-102`: `AccountsService`: editar y reordenar**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`PATCH /api/accounts/:id`, `PUT /api/accounts/order`); RF-M4-06, RF-M4-07, RF-M4-11, EC-M4-02, RNF-08
   - **Archivos en Alcance:**
@@ -1579,7 +1598,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-11`: el orden se guarda y `list` lo respeta.
     - `EC-M4-02`: enviar el saldo inicial da `VALIDATION_ERROR`.
 
-- [ ] **`TASK-103`: Ajustar el saldo de una cuenta**
+- [x] **`TASK-103`: Ajustar el saldo de una cuenta**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`POST /api/accounts/:id/adjust`); RF-M4-05, EC-M4-08, RN-02, RN-01
   - **Archivos en Alcance:**
@@ -1591,11 +1610,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M4-08`: con el mismo saldo no se crea nada.
     - Un ajuste que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
 
-- [ ] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
+- [x] **`TASK-104`: Archivar, restaurar y eliminar cuentas**
   - **Dependencias:** Requiere TASK-102
   - **Trazabilidad SDD:** plan §4.4.2 (`archive`, `restore`, `DELETE`), plan §4.7.3 (cuenta por defecto archivada); RF-M4-09, RF-M4-12, RF-M4-13, EC-M4-04, EC-M4-05, EC-M4-07, EC-M7-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/account.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/accounts-lifecycle.test.ts`
   - **Especificación de Implementación:** Archivar es un `UPDATE … WHERE status = 'active'`; con un saldo distinto de 0 exige `confirmNonZero` (si no, `ARCHIVE_CONFIRMATION_REQUIRED {balance}`) y pone `default_account_id = NULL` si era la cuenta por defecto. Restaurar exige un nombre libre (`NAME_TAKEN`; acepta `newName`) y la moneda activa (`CURRENCY_INACTIVE`). Eliminar solo procede sin asientos, incluidos los que están dentro de la ventana de deshacer (si no, `ACCOUNT_HAS_MOVEMENTS`), quita la cuenta por defecto y borra sus atajos. Las reglas de apartados, cuenta dedicada y recurrentes se agregan en TASK-188 y TASK-232.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1605,7 +1627,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-13`: eliminar una cuenta sin movimientos borra sus atajos.
     - `RF-M4-09`: una archivada no aparece en `list('active')` y conserva su historia.
 
-- [ ] **`TASK-105`: Rutas HTTP de cuentas**
+- [x] **`TASK-105`: Rutas HTTP de cuentas**
   - **Dependencias:** Requiere TASK-103, TASK-104
   - **Trazabilidad SDD:** plan §4.4.2 (tabla de endpoints); RN-09, RNF-14
   - **Archivos en Alcance:**
@@ -1621,7 +1643,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 al leer, editar, ajustar, archivar o eliminar una cuenta de A.
 
-- [ ] **`TASK-106`: Web: lista de cuentas y total neto**
+- [x] **`TASK-106`: Web: lista de cuentas y total neto**
   - **Dependencias:** Requiere TASK-073, TASK-105
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas`); RF-M4-08, RF-M4-10, RF-M4-11, RNF-06
   - **Archivos en Alcance:**
@@ -1639,7 +1661,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-10`: se ven el total neto y su desglose.
     - `RF-M4-08`: una tarjeta muestra "Debes".
 
-- [ ] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
+- [x] **`TASK-107`: Web: formulario de cuenta y formulario rápido**
   - **Dependencias:** Requiere TASK-043, TASK-106
   - **Trazabilidad SDD:** plan §4.4.4 (formularios), plan §4.4.3 (sin cuentas activas); RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08, EC-M4-05, EC-M7-01
   - **Archivos en Alcance:**
@@ -1656,7 +1678,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-07`: al editar, el saldo inicial no es editable y se ofrece "Ajustar saldo" (`EC-M4-02`).
     - `RF-M4-08`: una tarjeta se crea con deuda actual.
 
-- [ ] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
+- [x] **`TASK-108`: Web: detalle de cuenta, ajustar saldo y acciones**
   - **Dependencias:** Requiere TASK-107
   - **Trazabilidad SDD:** plan §4.4.4 (`/cuentas/:id`); RF-M4-05, RF-M4-08, RF-M4-09, EC-M4-04, EC-M4-08
   - **Archivos en Alcance:**
@@ -1676,7 +1698,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 10 — M5 Categorías (V1.0)
 
-- [ ] **`TASK-109`: Contratos de M5**
+- [x] **`TASK-109`: Contratos de M5**
   - **Dependencias:** Requiere TASK-024
   - **Trazabilidad SDD:** plan §4.5.1; RF-M5-01, RF-M5-02, RF-M5-04
   - **Archivos en Alcance:**
@@ -1689,12 +1711,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-01`: `UpdateCategoryInput` rechaza `kind`.
     - `RF-M5-04`: `color` es opcional al crear e `icon` es obligatorio.
 
-- [ ] **`TASK-110`: Repositorio de categorías**
+- [x] **`TASK-110`: Repositorio de categorías**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.2; RF-M5-03, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/category.factory.ts`
     - `apps/api/test/integration/category-repository.test.ts`
   - **Especificación de Implementación:** `tree(kind, status)` (dos niveles, en orden), `get`, `insert`, `update`, `setOrder`, `count`, `hasMovements` (incluye las eliminadas que siguen en la ventana de deshacer), `usage(id)` (presupuestos, reglas y atajos) y `idsWithChildren(id)`.
@@ -1703,7 +1726,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `hasMovements` cuenta una transacción eliminada que todavía puede deshacerse.
     - `RN-09`: un usuario no ve las categorías de otro.
 
-- [ ] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
+- [x] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
   - **Dependencias:** Requiere TASK-037, TASK-109, TASK-110
   - **Trazabilidad SDD:** plan §4.5.2 (`POST`, `PATCH`, `PUT /order`), plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-04, RF-M5-05, EC-M5-01, EC-M5-03, EC-M5-05, RNF-28
   - **Archivos en Alcance:**
@@ -1718,11 +1741,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-03`: mover una hija cambia el total del padre anterior desde ese momento.
     - `RNF-28`: la categoría 301 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-112`: Archivar y restaurar categorías**
+- [x] **`TASK-112`: Archivar y restaurar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-archive.test.ts`
   - **Especificación de Implementación:** `archiveImpact` lista las hijas, los presupuestos, las reglas y los atajos afectados. `archive` archiva el padre y sus hijas (los atajos se ocultan al leer; los efectos sobre presupuestos y reglas se agregan en TASK-203 y TASK-232). `restore(childIds, newName?)` restaura las hijas elegidas; una hija con el padre archivado exige restaurar el padre (`PARENT_ARCHIVED`).
   - **Criterios de Verificación (Tests & DoD):**
@@ -1731,11 +1756,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-04`: restaurar con un nombre en uso da `NAME_TAKEN`.
     - `EC-M5-06`: restaurar una hija con el padre archivado da `PARENT_ARCHIVED`.
 
-- [ ] **`TASK-113`: Eliminar categorías**
+- [x] **`TASK-113`: Eliminar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`DELETE /api/categories/:id`), plan §3.8; EC-M5-07, RN-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-delete.test.ts`
   - **Especificación de Implementación:** Solo procede sin movimientos (incluidos los que están en la ventana de deshacer) y sin presupuesto ni regla que la use; sus atajos caen en cascada.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1743,11 +1770,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-07`: usada por un presupuesto o una regla (insertados en la prueba), da `CATEGORY_IN_USE {budgets, recurring}`.
     - Sin uso, se elimina con sus atajos.
 
-- [ ] **`TASK-114`: Fusionar categorías**
+- [x] **`TASK-114`: Fusionar categorías**
   - **Dependencias:** Requiere TASK-112
   - **Trazabilidad SDD:** plan §4.5.2 (`merge-preview`, `merge`), plan §4.5.3 (fusión); RF-M5-08, RF-M5-09, EC-M5-02, RN-11
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-merge.test.ts`
   - **Especificación de Implementación:** Con `withUserLock`, valida que sean del mismo tipo, que A no tenga hijas, que B esté activa y que ninguna sea del sistema (si no, `MERGE_INVALID {reason}`). Mueve a B los movimientos, las reglas y los atajos de A y elimina A. Repetir la fusión da `CATEGORY_NOT_FOUND`. La resolución de presupuestos y `MERGE_PENDING_CLOSE` se agregan en TASK-203.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1756,7 +1785,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-09` / `RN-11`: el gasto por categoría de un mes pasado cambia tras la fusión.
     - Repetir la fusión da `CATEGORY_NOT_FOUND`.
 
-- [ ] **`TASK-115`: Rutas HTTP de categorías**
+- [x] **`TASK-115`: Rutas HTTP de categorías**
   - **Dependencias:** Requiere TASK-113, TASK-114
   - **Trazabilidad SDD:** plan §4.5.2 (tabla de endpoints); RF-M5-05, RNF-14
   - **Archivos en Alcance:**
@@ -1772,7 +1801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida": `archive` sobre "Deudas y préstamos" da `SYSTEM_CATEGORY`, y un UPDATE directo por SQL también falla.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un recurso de A.
 
-- [ ] **`TASK-116`: Web: árbol de categorías**
+- [x] **`TASK-116`: Web: árbol de categorías**
   - **Dependencias:** Requiere TASK-073, TASK-115
   - **Trazabilidad SDD:** plan §4.5.4 (`/categorias`); RF-M5-01, RF-M5-05, RNF-06
   - **Archivos en Alcance:**
@@ -1788,7 +1817,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Categoría del sistema protegida" (UI): "Deudas y préstamos" no ofrece Archivar.
     - `RNF-06`: reordenar con el teclado persiste.
 
-- [ ] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
+- [x] **`TASK-117`: Web: formulario de categoría, archivar, restaurar y fusionar**
   - **Dependencias:** Requiere TASK-116
   - **Trazabilidad SDD:** plan §4.5.4 (formularios y diálogos); RF-M5-04, RF-M5-07, RF-M5-08, EC-M5-02, EC-M5-06
   - **Archivos en Alcance:**
@@ -1810,7 +1839,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 11 — M6 Transacciones (V1.0)
 
-- [ ] **`TASK-118`: Contratos de M6**
+- [x] **`TASK-118`: Contratos de M6**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.6.1; RF-M6-01, RF-M6-03, RF-M6-04, RF-M6-06
   - **Archivos en Alcance:**
@@ -1824,7 +1853,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-01` / `RF-M6-03`: los límites de monto y nota.
     - `ListQuery.limit` va de 1 a 100.
 
-- [ ] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
+- [x] **`TASK-119`: Repositorio del libro contable: lista, búsqueda, totales y detalle**
   - **Dependencias:** Requiere TASK-099, TASK-110
   - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`, `:id`); RF-M6-02, RF-M6-11, RF-M6-12, RN-02, RN-05, RF-M5-03
   - **Archivos en Alcance:**
@@ -1838,24 +1867,27 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - "35" encuentra 35,00 pero no 135; "cafe" encuentra "Café".
     - `RF-M5-03`: filtrar por un padre incluye sus hijas.
 
-- [ ] **`TASK-120`: `LedgerHooks` y registro de deshacer**
+- [x] **`TASK-120`: `LedgerHooks` y registro de deshacer**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §4.0 (`LedgerHooks.afterChange`), ADR-07, plan §3.5 (`undo_action`)
   - **Archivos en Alcance:**
     - `apps/api/src/application/shared/ledger-hooks.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/undo-action.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/ledger-hooks-undo.test.ts`
   - **Especificación de Implementación:** `LedgerHooks.register(handler)` y `afterChange(tx, userId, { dates, categoryIds, accountIds })`, que llama a cada *handler* en la misma transacción (V1.0 no tiene *handlers*). El repositorio `undo_action` ofrece `create(kind, payload)` (vence a los 12 s) y `consume(id)` con un `UPDATE … WHERE consumed_at IS NULL AND expires_at > now() RETURNING`.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-120`: un *handler* registrado recibe el cambio; si lanza un error, la transacción se revierte.
     - `consume` solo funciona una vez y dentro de los 12 s.
 
-- [ ] **`TASK-121`: `TransactionsService.create`: gastos e ingresos**
+- [x] **`TASK-121`: `TransactionsService.create`: gastos e ingresos**
   - **Dependencias:** Requiere TASK-085, TASK-100, TASK-118, TASK-120
   - **Trazabilidad SDD:** plan §4.6.2 (`POST /api/transactions`), plan §4.3.3 (sin ninguna tasa), ADR-11; RF-M6-01, RF-M6-14, RF-M3-06, RN-03, RN-04, RN-07, RN-12, EC-M3-02, RF-M4-03, RF-M4-04
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/factories/transaction.factory.ts`
     - `apps/api/test/integration/transactions-create.test.ts`
   - **Especificación de Implementación:** Valida la cuenta activa (`ACCOUNT_ARCHIVED`), la categoría activa y del mismo tipo (`CATEGORY_ARCHIVED`, `CATEGORY_KIND_MISMATCH`) y la fecha ≤ hoy en la zona del usuario (`FUTURE_DATE`). Toma las tasas con `RatesService.ratesForMovement`: si la cuenta no es BOB y no hay tasa, `RATE_REQUIRED`; con `manualUsdRate`, activa el valor manual en la misma transacción. Crea la transacción y su asiento (la moneda es la de la cuenta) con `BalanceGuard`, `LedgerHooks.afterChange` y un `undo_action(create)`. Es idempotente según ADR-11.
@@ -1867,11 +1899,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RN-07`: la fecha de mañana en la zona del usuario da `FUTURE_DATE`.
     - `RF-M3-06`: un gasto en BOB guarda `rate_usd_bob`.
 
-- [ ] **`TASK-122`: `TransactionsService.create`: transferencias y comisión**
+- [x] **`TASK-122`: `TransactionsService.create`: transferencias y comisión**
   - **Dependencias:** Requiere TASK-121
   - **Trazabilidad SDD:** plan §4.6.2, plan §4.6.1 (convención de la tasa declarada), plan §4.6.3 (comisión); RF-M6-04, RF-M6-05, RF-M3-07, RF-M3-08, RF-M3-09, EC-M6-08, RN-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/services/rates.service.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/transactions-transfer.test.ts`
   - **Especificación de Implementación:** El origen y el destino deben ser cuentas activas y distintas. Entre monedas distintas: si no llega `declaredRate`, se usa la precarga de RF-M3-07; `amountIn` se calcula, o, si llega, manda y la tasa se recalcula. La comisión es una `ledger_transaction(kind = expense, origin = fee)` en "Servicios › Comisiones bancarias"; si esa categoría no existe o está archivada y no llega `fee.categoryId`, da `FEE_CATEGORY_REQUIRED`. El monto y la comisión pasan juntos por `BalanceGuard`.
   - **Criterios de Verificación (Tests & DoD):**
@@ -1881,13 +1915,17 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-08`: sin "Comisiones bancarias" da `FEE_CATEGORY_REQUIRED`.
     - `RF-M6-05`: la comisión puede ser mayor que el monto.
 
-- [ ] **`TASK-123`: `TransactionsService.update`: editar movimientos**
+- [x] **`TASK-123`: `TransactionsService.update`: editar movimientos**
   - **Dependencias:** Requiere TASK-122
-  - **Trazabilidad SDD:** plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
+  - **Trazabilidad SDD:** plan §4.6.1 (`UpdateTransactionInput`), plan §4.6.2 (`PATCH /api/transactions/:id`); RF-M6-04, RF-M6-05, RF-M6-06, RF-M6-07, RF-M6-08, RF-M6-09, RF-M3-10, EC-M6-01, EC-M6-02, EC-M6-04, EC-M6-07, RNF-08, RNF-09, RNF-24
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
+    - `packages/contracts/src/transactions.ts`
     - `apps/api/test/integration/transactions-update.test.ts`
-  - **Especificación de Implementación:** Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
+    - `packages/contracts/test/transactions.test.ts`
+  - **Especificación de Implementación:** `LedgerRepository` gana `updateTransaction`, que reescribe en su lugar la cabecera y los asientos de un movimiento del usuario que no esté eliminado (sin copias ni historial) y devuelve `false` si no hubo coincidencia. `UpdateTransactionInput` suma `fromAccountId` y `toAccountId` (plan §4.6.1): en una transferencia, cada uno cambia a una cuenta activa de la misma moneda que la que reemplaza y distinta de la otra (`VALIDATION_ERROR` con `SAME_ACCOUNT` o `CURRENCY_MISMATCH`, `ACCOUNT_ARCHIVED`); `accountId` en una transferencia, o `fromAccountId`/`toAccountId` en otro tipo, da `VALIDATION_ERROR`. La comisión acompaña la fecha y el origen, y su monto no se edita (RF-M6-05). Gana la última edición. La tasa guardada se conserva aunque cambien la fecha o la cuenta, y solo cambia si llega `rateUsdBob` o `rateCurBob`. Pasar a una cuenta de otra moneda exige `amountInNewCurrency` y no puede superar el máximo (`AMOUNT_OUT_OF_RANGE`). En los vinculados (`origin` ≠ `manual`/`recurring`), el monto, la cuenta y la fecha están bloqueados (`LINKED_FIELD_LOCKED {originType, originId}`). Recalcula los asientos con `BalanceGuard` y los *hooks*. No guarda historial de ediciones.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-04` / `RF-M3-10`: cambiar la fecha de un gasto en $ conserva su tasa.
     - `EC-M6-02` / `RNF-09`: editar un movimiento eliminado da `NOT_FOUND`.
@@ -1896,14 +1934,18 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-08`: bajar un ingreso que deja el efectivo en negativo da `NEGATIVE_BALANCE`.
     - `EC-M6-01` / `RNF-08`: con dos PATCH seguidos gana el último.
     - `RNF-24`: no existe ninguna tabla ni columna de historial de ediciones.
+    - `RF-M6-07` / `RF-M6-04`: cambiar el origen o el destino de una transferencia a otra cuenta de la misma moneda mueve el asiento (y la comisión, si cambia el origen); a otra moneda o a la otra cuenta de la transferencia da `VALIDATION_ERROR`.
+    - `RF-M6-05`: cambiar la fecha de una transferencia cambia la de su comisión, y su monto se conserva.
 
-- [ ] **`TASK-124`: Eliminar y deshacer movimientos**
+- [x] **`TASK-124`: Eliminar y deshacer movimientos**
   - **Dependencias:** Requiere TASK-123
   - **Trazabilidad SDD:** plan §4.6.2 (`DELETE`, `undo`), plan §4.6.3; RF-M6-08, RF-M7-07, EC-M6-03, EC-M6-05, EC-M4-01
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/transactions.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
     - `apps/api/test/integration/transactions-delete-undo.test.ts`
-  - **Especificación de Implementación:** `delete` pone `deleted_at` en la transacción y su comisión, pasa por `BalanceGuard` y los *hooks* y crea un `undo_action(delete)`. Un vinculado de deuda o de meta da `LINKED_DELETE_FORBIDDEN`. `undo(token)` consume el token y revierte según el tipo: `delete` → restaura; `create` → elimina; `recategorize` → restaura las categorías. Pasa por `BalanceGuard`.
+  - **Especificación de Implementación:** `LedgerRepository` gana `softDelete(ids)` y `restore(ids)`, que ponen o quitan `deleted_at` en los movimientos del usuario que estén en el estado contrario y devuelven los ids que cambiaron, y una forma de leer con `get` un movimiento eliminado, para el `undo`. `delete` pone `deleted_at` en la transacción y su comisión, pasa por `BalanceGuard` y los *hooks* y crea un `undo_action(delete)`. Un vinculado de deuda o de meta da `LINKED_DELETE_FORBIDDEN`. `undo(token)` consume el token y revierte según el tipo: `delete` → restaura; `create` → elimina; `recategorize` → restaura las categorías. Pasa por `BalanceGuard`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Eliminar y deshacer": el saldo sube 35 al eliminar y el `undo` antes de 10 s lo restaura.
     - Un `undo` a los 13 s da `UNDO_EXPIRED`.
@@ -1911,7 +1953,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-03`: un `undo` que dejaría el efectivo en negativo da `NEGATIVE_BALANCE`.
     - `RF-M7-07`: el `undo` de una creación elimina el movimiento con las mismas validaciones.
 
-- [ ] **`TASK-125`: Acciones en lote: eliminar y recategorizar**
+- [x] **`TASK-125`: Acciones en lote: eliminar y recategorizar**
   - **Dependencias:** Requiere TASK-124
   - **Trazabilidad SDD:** plan §4.6.2 (`batch-delete`, `batch-recategorize`); RF-M6-13
   - **Archivos en Alcance:**
@@ -1923,7 +1965,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un solo `undo` revierte el lote completo.
     - `MIXED_KINDS` al recategorizar gastos e ingresos juntos.
 
-- [ ] **`TASK-126`: Servicio de lista y totales de movimientos**
+- [x] **`TASK-126`: Servicio de lista y totales de movimientos**
   - **Dependencias:** Requiere TASK-119, TASK-121
   - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`); RF-M6-11, RF-M6-12, RF-M3-11, RN-04, RN-05, RNF-19
   - **Archivos en Alcance:**
@@ -1935,7 +1977,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-11`: los pendientes no aparecen (no existen en `ledger_transaction`).
     - `RF-M6-12`: los totales excluyen lo de RN-02.
 
-- [ ] **`TASK-127`: Rutas HTTP de movimientos**
+- [x] **`TASK-127`: Rutas HTTP de movimientos**
   - **Dependencias:** Requiere TASK-125, TASK-126
   - **Trazabilidad SDD:** plan §4.6.2 (tabla de endpoints), ADR-11; RNF-14, RNF-11
   - **Archivos en Alcance:**
@@ -1944,26 +1986,29 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/presenters/transactions.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/services/transactions.service.ts`
     - `apps/api/test/http/transactions.test.ts`
     - `apps/api/test/http/transactions.isolation.test.ts`
-  - **Especificación de Implementación:** Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
+  - **Especificación de Implementación:** `TransactionsService` gana `get(ctx, id)` (`NOT_FOUND` si no es del usuario), y `create`, `update`, `get` y `list` devuelven cada movimiento con lo que pide `TransactionDto`: el monto en la base, `beforeInitialBalance` y la categoría con su nombre (y su comisión en el detalle). Monta todos los endpoints de plan §4.6.2. `POST` responde 201 con `{ transaction, undoToken }`, o 200 con el existente si el id se repite con los mismos datos.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-11`: un reintento con el mismo id responde 200 sin crear una fila.
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con un movimiento de A, también como `accountId` o `categoryId` de una creación.
 
-- [ ] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
+- [x] **`TASK-128`: Job `maintenance`: purga de movimientos eliminados y de deshacer vencidos**
   - **Dependencias:** Requiere TASK-063, TASK-124
   - **Trazabilidad SDD:** plan §4.6.3 (eliminado definitivo), ADR-07; EC-M6-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/test/integration/maintenance-ledger.test.ts`
-  - **Especificación de Implementación:** Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
+  - **Especificación de Implementación:** `MaintenanceStore` gana un método para cada purga. Borra de verdad las transacciones con `deleted_at` de hace más de 1 minuto (sus asientos caen en cascada) y los `undo_action` vencidos.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M6-06`: una eliminada de hace 61 s se borra; una de hace 5 s, no.
     - Los `undo_action` vencidos desaparecen.
 
-- [ ] **`TASK-129`: Web: lista de movimientos**
+- [x] **`TASK-129`: Web: lista de movimientos**
   - **Dependencias:** Requiere TASK-073, TASK-127
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos`), ADR-16; RF-M6-02, RF-M6-10, RF-M6-12, RF-M4-03, RF-M9-03, RF-M2-04
   - **Archivos en Alcance:**
@@ -1985,7 +2030,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-04`: volver a Movimientos conserva el mes y los filtros.
     - Buscar "35" filtra la lista.
 
-- [ ] **`TASK-130`: Web: selección y acciones en lote**
+- [x] **`TASK-130`: Web: selección y acciones en lote**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`BatchToolbar`); RF-M6-13, RNF-06
   - **Archivos en Alcance:**
@@ -1999,7 +2044,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-13`: eliminar 3 seleccionados con 1 vinculado informa "1 quedó fuera".
     - `RNF-06`: la selección funciona solo con el teclado.
 
-- [ ] **`TASK-131`: Web: detalle y edición de un movimiento**
+- [x] **`TASK-131`: Web: detalle y edición de un movimiento**
   - **Dependencias:** Requiere TASK-129
   - **Trazabilidad SDD:** plan §4.6.4 (`/movimientos/:id`); RF-M6-07, RF-M6-09, RF-M3-10, EC-M6-02, EC-M6-07
   - **Archivos en Alcance:**
@@ -2015,7 +2060,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-02`: editar algo eliminado en otro contexto muestra "Este movimiento ya no existe".
     - `RF-M3-10`: cambiar la fecha no cambia la tasa mostrada.
 
-- [ ] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
+- [x] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
   - **Dependencias:** Requiere TASK-131
   - **Trazabilidad SDD:** plan §4.6.4 (global, optimismo), plan §4.6.3; RF-M7-07, EC-M6-06
   - **Archivos en Alcance:**
@@ -2030,7 +2075,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Eliminar y deshacer" (E2E): el saldo sube Bs 35,00 al instante, se ve "Movimiento eliminado · Deshacer" y, al tocarlo, el gasto vuelve.
     - `EC-M6-06`: cambiar de pantalla oculta el "Deshacer".
 
-- [ ] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
+- [x] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
   - **Dependencias:** Requiere TASK-108, TASK-129
   - **Trazabilidad SDD:** plan §4.4.4 (`MovementsByDay`, filtro compartido); spec §2.4.1 (consultar)
   - **Archivos en Alcance:**
@@ -2043,7 +2088,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 12 — M7 Registrar (V1.0)
 
-- [ ] **`TASK-134`: Contratos de M7**
+- [x] **`TASK-134`: Contratos de M7**
   - **Dependencias:** Requiere TASK-096, TASK-118
   - **Trazabilidad SDD:** plan §4.7.1; RF-M7-04, RF-M7-07, RF-M7-09
   - **Archivos en Alcance:**
@@ -2055,7 +2100,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-09`: el nombre de un atajo va de 1 a 30 caracteres; una transferencia exige destino y no admite categoría; el monto es opcional.
     - `RF-M7-04`: `grid` tiene como máximo 8 categorías por tipo.
 
-- [ ] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
+- [x] **`TASK-135`: Contexto de Registrar y movimientos de hoy en la respuesta de guardar**
   - **Dependencias:** Requiere TASK-127, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`GET /api/register/context`, `POST /api/transactions`), plan §1.2 (camino crítico); RF-M7-03, RF-M7-04, RF-M7-07, RF-M7-11, RF-M5-06, RF-M4-12, EC-M7-05
   - **Archivos en Alcance:**
@@ -2074,7 +2119,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-03` / `RF-M4-12` / `EC-M7-05`: sin cuenta por defecto, la última usada; si se archiva, la primera activa.
     - `RF-M7-07`: `todayRecent` trae los 3 últimos creados hoy, aunque su fecha sea pasada.
 
-- [ ] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
+- [x] **`TASK-136`: Atajos: crear, editar, reordenar y eliminar**
   - **Dependencias:** Requiere TASK-037, TASK-134
   - **Trazabilidad SDD:** plan §4.7.2 (`/api/shortcuts`), plan §4.7.3 (atajo visible ⇄ oculto); RF-M7-09, RF-M7-10, EC-M7-06, RNF-28
   - **Archivos en Alcance:**
@@ -2094,7 +2139,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un atajo con la categoría archivada no aparece en `register/context`.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
+- [x] **`TASK-137`: Web: formulario de Registrar para gastos e ingresos**
   - **Dependencias:** Requiere TASK-028, TASK-043, TASK-070, TASK-135
   - **Trazabilidad SDD:** plan §4.7.3 (formulario), plan §4.7.4 (`/registrar`, teclado, rendimiento); RF-M7-01, RF-M7-02, RF-M7-03, RF-M7-04, RF-M7-05, RF-M7-06, RF-M7-08, RF-M7-11, RF-M7-12, RF-M9-04, RNF-01
   - **Archivos en Alcance:**
@@ -2121,7 +2166,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-12`: el formulario se completa y se guarda solo con Tab y Enter.
     - `RF-M7-06`: "Guardar" está deshabilitado sin categoría.
 
-- [ ] **`TASK-138`: Web: transferencias en Registrar**
+- [x] **`TASK-138`: Web: transferencias en Registrar**
   - **Dependencias:** Requiere TASK-137
   - **Trazabilidad SDD:** plan §4.7.3, plan §4.6.1 (convención de la tasa declarada); RF-M7-03, RF-M7-06, RF-M3-07, RF-M3-08, RF-M6-04
   - **Archivos en Alcance:**
@@ -2135,7 +2180,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-04`: con el mismo origen y destino, "Guardar" está deshabilitado.
     - `RF-M3-08`: editar el monto que llega cambia la tasa mostrada.
 
-- [ ] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
+- [x] **`TASK-139`: Web: segundo nivel de Registrar (nota, otra fecha, comisión, guardar como atajo)**
   - **Dependencias:** Requiere TASK-136, TASK-138
   - **Trazabilidad SDD:** plan §4.7.4 (`SecondLevel`); RF-M7-10, RF-M7-13, RF-M6-05, EC-M6-08, EC-M7-06
   - **Archivos en Alcance:**
@@ -2152,7 +2197,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-06`: con 12 atajos, informa el límite y ofrece ir a gestionarlos.
     - `EC-M6-08`: sin "Comisiones bancarias", pide elegir otra categoría.
 
-- [ ] **`TASK-140`: Web: fichas de atajos**
+- [x] **`TASK-140`: Web: fichas de atajos**
   - **Dependencias:** Requiere TASK-139
   - **Trazabilidad SDD:** plan §4.7.4 (`ShortcutChips`); RF-M7-09, RF-M2-11
   - **Archivos en Alcance:**
@@ -2164,7 +2209,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Atajo rellena sin guardar": el formulario queda completo y no hay ningún POST hasta tocar "Guardar".
     - `RF-M7-09`: un atajo sin monto deja el foco en el monto.
 
-- [ ] **`TASK-141`: Web: errores y estados vacíos de Registrar**
+- [x] **`TASK-141`: Web: errores y estados vacíos de Registrar**
   - **Dependencias:** Requiere TASK-107, TASK-137
   - **Trazabilidad SDD:** plan §4.7.3 (errores, sin tasa), plan §4.4.3 (sin cuentas activas); EC-M7-01, EC-M7-02, EC-M7-04, EC-M7-07, EC-M7-08, EC-M3-02, EC-M10-03
   - **Archivos en Alcance:**
@@ -2181,7 +2226,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-07` / `EC-M10-03`: sin categorías de gasto, "Ver todas" ofrece "Crear categoría".
     - `EC-M7-08`: un borrador con una cuenta archivada en otro contexto marca la cuenta para elegir otra.
 
-- [ ] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
+- [x] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
   - **Dependencias:** Requiere TASK-132, TASK-141
   - **Trazabilidad SDD:** plan §4.7.3 (formulario guardado), plan §4.2.3 (sin conexión); RF-M7-07, EC-M2-02, RF-M2-07, RNF-23
   - **Archivos en Alcance:**

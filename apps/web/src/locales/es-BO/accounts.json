@@ -1,0 +1,173 @@
+{
+  "loadError": "No se pudieron cargar tus cuentas. Revisa tu conexión y vuelve a abrir esta pantalla.",
+  "empty": "Todavía no tienes cuentas activas. Crea una para empezar a registrar movimientos.",
+  "noRate": "Sin tipo de cambio",
+  "summary": {
+    "title": "Total neto",
+    "equivalent": "Equivale a {{amount}}",
+    "breakdown": {
+      "liquid": "Líquido",
+      "savings": "Ahorro",
+      "cardDebt": "Deuda en tarjetas"
+    }
+  },
+  "types": {
+    "cash": "Efectivo",
+    "bank": "Banco",
+    "ewallet": "Billetera",
+    "credit_card": "Tarjetas",
+    "savings": "Ahorro",
+    "other": "Otras"
+  },
+  "card": {
+    "debt": "Debes {{amount}}",
+    "credit": "A favor {{amount}}",
+    "title": "Datos de la tarjeta",
+    "balanceKind": "El monto es",
+    "kinds": {
+      "debt": "Deuda actual",
+      "credit": "Saldo a favor"
+    },
+    "cutDay": "Día de corte",
+    "payDay": "Día de pago",
+    "daysHint": "Opcionales. Si un mes no tiene ese día, se usa el último día del mes.",
+    "limit": "Límite de crédito"
+  },
+  "reorder": {
+    "drag": "Arrastrar {{name}} para cambiar su orden",
+    "up": "Subir {{name}}",
+    "down": "Bajar {{name}}"
+  },
+  "archived": {
+    "link": "Ver cuentas archivadas",
+    "title": "Cuentas archivadas",
+    "empty": "No tienes cuentas archivadas.",
+    "back": "Volver a tus cuentas"
+  },
+  "typeNames": {
+    "cash": "Efectivo",
+    "bank": "Banco",
+    "ewallet": "Billetera",
+    "credit_card": "Tarjeta de crédito",
+    "savings": "Ahorro",
+    "other": "Otra"
+  },
+  "form": {
+    "newAccount": "Nueva cuenta",
+    "newTitle": "Nueva cuenta",
+    "editTitle": "Editar {{name}}",
+    "notFound": "No encontramos esa cuenta. Vuelve a tus cuentas y elige otra.",
+    "draftIssues": "Recuperamos tu borrador, pero algunos datos ya no existen. Revisa los campos marcados.",
+    "type": "Tipo",
+    "name": "Nombre",
+    "currency": "Moneda",
+    "currencyHint": "La moneda solo se puede cambiar si la cuenta no tiene movimientos.",
+    "initialBalance": "Saldo inicial",
+    "cardAmount": "Monto",
+    "initialHint": {
+      "cash": "El efectivo empieza en 0 o más.",
+      "ewallet": "La billetera empieza en 0 o más.",
+      "bank": "Puede ser negativo si la cuenta está sobregirada.",
+      "savings": "Escribe cuánto tienes hoy en esta cuenta.",
+      "other": "Puede ser negativo.",
+      "credit_card": "Escribe tu deuda actual o tu saldo a favor, sin signo."
+    },
+    "initialBalanceDate": "Fecha del saldo inicial",
+    "initialBalanceDateHint": "Si la dejas vacía, se usa la fecha de hoy. No se puede cambiar después.",
+    "initialBalanceFixed": "El saldo inicial y su fecha no se editan. Para corregir el saldo, usa",
+    "adjust": "Ajustar saldo",
+    "color": "Color",
+    "icon": "Ícono",
+    "create": "Crear cuenta",
+    "saveChanges": "Guardar cambios",
+    "saving": "Guardando…",
+    "errors": {
+      "name": "Escribe un nombre de 1 a 40 caracteres.",
+      "nameTaken": "Ya tienes una cuenta activa con ese nombre. Escribe otro.",
+      "amount": "Escribe un monto de hasta 999.999.999,99 con hasta dos decimales, por ejemplo 1250,50.",
+      "negative": "Esta cuenta no puede empezar en negativo. Escribe 0 o un monto mayor.",
+      "cardAmount": "Escribe el monto sin signo y elige si es deuda o saldo a favor.",
+      "day": "Escribe un día del 1 al 31, o déjalo vacío.",
+      "limit": "Escribe un límite mayor a 0 con hasta dos decimales, o déjalo vacío."
+    }
+  },
+  "quick": {
+    "title": "Crea tu primera cuenta",
+    "balance": "Saldo actual",
+    "submit": "Crear cuenta"
+  },
+  "colors": {
+    "red": "Rojo",
+    "orange": "Naranja",
+    "amber": "Ámbar",
+    "green": "Verde",
+    "teal": "Verde azulado",
+    "cyan": "Cian",
+    "blue": "Azul",
+    "indigo": "Índigo",
+    "purple": "Morado",
+    "pink": "Rosado",
+    "rose": "Rosa",
+    "slate": "Gris"
+  },
+  "icons": {
+    "wallet": "Billetera",
+    "banknote": "Billete",
+    "landmark": "Banco",
+    "piggy-bank": "Alcancía",
+    "credit-card": "Tarjeta",
+    "smartphone": "Celular",
+    "coins": "Monedas",
+    "hand-coins": "Mano con monedas",
+    "briefcase": "Maletín",
+    "building-2": "Edificio",
+    "shield": "Escudo",
+    "star": "Estrella"
+  },
+  "detail": {
+    "archived": "Archivada",
+    "actions": "Acciones de la cuenta",
+    "edit": "Editar",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "noLimit": "Sin límite",
+    "noDay": "Sin definir",
+    "creditAvailable": "Crédito disponible",
+    "overLimit": "Superaste el límite de esta tarjeta. Puedes seguir registrando gastos.",
+    "archiveTitle": "¿Archivar {{name}}?",
+    "archiveNonZero": "Su saldo es {{balance}}. Una cuenta archivada no suma en tus totales, pero conserva su historia.",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Solo se puede eliminar una cuenta sin movimientos. También se borran sus atajos. Esta acción no se puede deshacer.",
+    "renameTitle": "Elige otro nombre",
+    "renameDescription": "Ya tienes una cuenta activa llamada {{name}}. Escribe un nombre nuevo para restaurarla."
+  },
+  "adjust": {
+    "title": "Ajustar saldo",
+    "description": "Escribe el saldo real. Se crea un ajuste por la diferencia, que no cuenta como ingreso ni como gasto.",
+    "realBalance": "Saldo real",
+    "realDebt": "Monto real",
+    "kinds": {
+      "debt": "Deuda real",
+      "credit": "Saldo a favor real"
+    },
+    "note": "Nota (opcional)",
+    "submit": "Ajustar",
+    "matches": "El saldo ya coincide. No se creó ningún ajuste.",
+    "errors": {
+      "amount": "Escribe un monto con hasta dos decimales, por ejemplo 1250,50. Usa el signo menos si es negativo."
+    }
+  },
+  "chart": {
+    "title": "Evolución del saldo",
+    "from": "Desde",
+    "to": "Hasta",
+    "balance": "Saldo",
+    "alt": "Saldo al {{date}}: {{amount}}.",
+    "altEmpty": "Todavía no hay saldos en este rango.",
+    "invalidRange": "La fecha \"Desde\" tiene que ser anterior o igual a \"Hasta\".",
+    "loadError": "No se pudo cargar la evolución del saldo. Revisa tu conexión y vuelve a intentarlo."
+  }
+}

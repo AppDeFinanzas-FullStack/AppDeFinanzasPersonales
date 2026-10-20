@@ -12,11 +12,13 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "test:integration": "vitest run --config vitest.config.ts",
+    "fx-backfill": "tsx scripts/fx-backfill.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@finanzas/contracts": "workspace:*",
     "@prisma/client": "6.19.3",
+    "decimal.js": "10.6.0",
     "pg": "8.23.1"
   },
   "devDependencies": {
@@ -24,6 +26,7 @@
     "@types/node": "22.20.5",
     "@types/pg": "8.23.1",
     "prisma": "6.19.3",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vitest": "5.0.5"
   }

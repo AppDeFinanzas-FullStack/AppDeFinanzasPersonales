@@ -56,12 +56,14 @@ for (const [, localSha, remoteRef, remoteSha] of refs) {
     const body = gitOut(`log -1 --format=%B ${c}`);
     const task = body.match(/^Task:\s*(TASK-\d{3})\s*$/m)?.[1];
     if (!task) continue;
-    if (!/^Audit:\s*approved\s*$/m.test(body)) add(`${c.slice(0, 7)} (${task}) sin "Audit: approved"`, 'Las tareas solo se cierran con la auditoría aprobada.');
+    // "Audit: skipped" = cerrada con la skill fast-task (sin pruebas nuevas ni auditoría).
+    const skipped = /^Audit:\s*skipped\s*$/m.test(body);
+    if (!skipped && !/^Audit:\s*approved\s*$/m.test(body)) add(`${c.slice(0, 7)} (${task}) sin "Audit: approved"`, 'Las tareas solo se cierran con la auditoría aprobada.');
     const files = gitOut(`ls-tree -r --name-only ${localSha}`).split('\n').filter((f) => /^\d{3}-[^/]+\/tasks\.md$/.test(f));
     const found = files.flatMap((f) => parseTasks(gitOut(`show ${localSha}:${f}`), f.split('/')[0])).find((t) => t.id === task);
     if (!found) add(`${task} no existe`, `El commit ${c.slice(0, 7)} referencia una tarea que no está en ningún tasks.md.`);
     else if (!found.done) add(`${task} sin cerrar`, `El commit ${c.slice(0, 7)} la referencia, pero no está en [x] en tasks.md.`);
-    else closed.push(found);
+    else if (!skipped) closed.push(found);
   }
   if (closed.length) {
     const testNames = gitOut(`ls-tree -r --name-only ${localSha}`).split('\n').filter(isTestCaseFile)

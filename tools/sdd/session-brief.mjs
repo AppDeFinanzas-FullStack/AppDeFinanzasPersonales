@@ -3,7 +3,7 @@
 // trabajo (rama, tarea activa, avance y tareas disponibles). Solo lee; nunca bloquea ni rompe la sesión.
 import { readFileSync } from 'node:fs';
 import { buildBrief } from './lib/brief.mjs';
-import { allTasks } from './lib/tasks.mjs';
+import { allTasks, loadBranchGroups } from './lib/tasks.mjs';
 import { loadState } from './lib/state.mjs';
 import { currentBranch, isClean } from './lib/repo.mjs';
 
@@ -24,6 +24,7 @@ try {
     state: attempt(() => loadState()),
     branch: attempt(currentBranch),
     clean: attempt(isClean),
+    groups: attempt(loadBranchGroups) ?? [],
   });
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: text } }));
 } catch {

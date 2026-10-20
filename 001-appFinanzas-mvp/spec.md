@@ -656,11 +656,12 @@ Escenario: Categoría del sistema protegida
 - **RF-M6-02:** La fecha DEBE ser hoy o anterior (RN-07), sin hora y sin fecha mínima. Dentro de un día, la lista ordena por momento de registro, del más reciente al más antiguo.
 - **RF-M6-03:** La nota DEBE ser opcional y de hasta 140 caracteres.
 - **RF-M6-04:** El origen y el destino de una transferencia DEBEN ser cuentas activas y distintas.
-- **RF-M6-05:** La comisión de una transferencia DEBE crear un gasto vinculado en la cuenta de origen. Se edita desde la transferencia y se elimina con ella. Si su categoría no existe o está archivada, se pide elegir otra. El monto y la comisión se validan juntos contra el bloqueo de negativos (M4). La comisión puede ser mayor que el monto.
+- **RF-M6-05:** La comisión de una transferencia DEBE crear un gasto vinculado en la cuenta de origen. Se edita desde la transferencia y se elimina con ella: acompaña la fecha y la cuenta de origen de la transferencia, y su monto no se edita en V1 (para cambiarlo, se elimina la transferencia y se vuelve a crear). Si su categoría no existe o está archivada, se pide elegir otra. El monto y la comisión se validan juntos contra el bloqueo de negativos (M4). La comisión puede ser mayor que el monto.
 - **RF-M6-06:** El tipo de un movimiento NO DEBE cambiar.
 - **RF-M6-07:** La cuenta PUEDE cambiarse:
   - a otra de la misma moneda, libremente;
   - a otra de distinta moneda: el monto en la nueva moneda se precarga convertido con la tasa guardada (o, si el movimiento no guardó la tasa de esa moneda, con el historial en su fecha), y el usuario lo confirma o edita la tasa a mano (RF-M3-10). Si la conversión supera el máximo de RF-M6-01, se rechaza con la explicación.
+  - En una transferencia, el origen y el destino PUEDEN cambiarse, cada uno solo a otra cuenta de la misma moneda que la que reemplaza y respetando RF-M6-04. Para pasar a otra moneda, se elimina la transferencia y se vuelve a crear.
 - **RF-M6-08:** Toda edición, eliminación o deshacer DEBE respetar el bloqueo de negativos (M4), la protección de apartados (M12) y las reglas de tasa (M3).
 - **RF-M6-09:** En los movimientos vinculados (glosario), el monto, la cuenta y la fecha DEBEN editarse solo desde su origen, y el detalle ofrece "Ir a…". La nota y la categoría se editan desde la lista, salvo la categoría del sistema.
 - **RF-M6-10:** Los movimientos creados por un recurrente DEBEN ser movimientos normales, editables y eliminables, con el distintivo "De recurrente: X", donde X es el nombre de la regla.
