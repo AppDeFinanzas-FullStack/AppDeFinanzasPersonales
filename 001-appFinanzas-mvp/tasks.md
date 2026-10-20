@@ -1712,7 +1712,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `hasMovements` cuenta una transacción eliminada que todavía puede deshacerse.
     - `RN-09`: un usuario no ve las categorías de otro.
 
-- [ ] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
+- [x] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
   - **Dependencias:** Requiere TASK-037, TASK-109, TASK-110
   - **Trazabilidad SDD:** plan §4.5.2 (`POST`, `PATCH`, `PUT /order`), plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-04, RF-M5-05, EC-M5-01, EC-M5-03, EC-M5-05, RNF-28
   - **Archivos en Alcance:**
@@ -1732,6 +1732,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.5.2 (`archive-impact`, `archive`, `restore`); RF-M5-06, RF-M5-07, EC-M5-04, EC-M5-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/category.repository.ts`
     - `apps/api/test/integration/categories-archive.test.ts`
   - **Especificación de Implementación:** `archiveImpact` lista las hijas, los presupuestos, las reglas y los atajos afectados. `archive` archiva el padre y sus hijas (los atajos se ocultan al leer; los efectos sobre presupuestos y reglas se agregan en TASK-203 y TASK-232). `restore(childIds, newName?)` restaura las hijas elegidas; una hija con el padre archivado exige restaurar el padre (`PARENT_ARCHIVED`).
   - **Criterios de Verificación (Tests & DoD):**
