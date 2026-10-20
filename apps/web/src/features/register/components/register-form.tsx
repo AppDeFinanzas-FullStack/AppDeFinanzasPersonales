@@ -1,9 +1,4 @@
-import {
-  Amount,
-  Rate,
-  type CategoryChip,
-  type CreateTransactionInput,
-} from '@finanzas/contracts';
+import { Amount, Rate, type CategoryChip, type CreateTransactionInput } from '@finanzas/contracts';
 import {
   amountInFrom,
   BOLIVIA_TIME_ZONE,
@@ -27,9 +22,12 @@ import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { useFormatters, useSettings } from '@/features/settings/hooks/use-settings';
 import { ApiError } from '@/lib/api-client';
+import { UNDO_MS } from '@/features/transactions/hooks/use-delete-transaction';
 import { useDraft } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
+import { uiStore } from '@/lib/ui-store';
 
+import type { CreatedTransaction, RegisterContext } from '../api';
 import {
   REGISTER_CONTEXT_KEY,
   useCreateTransaction,
@@ -43,6 +41,7 @@ import { AskRateDialog } from './ask-rate-dialog';
 import { CategoryGrid } from './category-grid';
 import { DateChips } from './date-chips';
 import { KindToggle, type RegisterKind } from './kind-toggle';
+import { TodayRecent } from './today-recent';
 import { TransferFields } from './transfer-fields';
 
 interface RegisterValues {
@@ -303,9 +302,14 @@ export function RegisterForm() {
   const errorText = (error: unknown): string => {
     if (!(error instanceof ApiError)) return messageForError({ code: '' });
     const balance = error.data?.['resultingBalance'];
-    const currency = data?.accounts.find((item) => item.id === error.data?.['accountId'])
-      ?.currencyCode;
-    if (error.code === 'NEGATIVE_BALANCE' && typeof balance === 'string' && currency !== undefined) {
+    const currency = data?.accounts.find(
+      (item) => item.id === error.data?.['accountId'],
+    )?.currencyCode;
+    if (
+      error.code === 'NEGATIVE_BALANCE' &&
+      typeof balance === 'string' &&
+      currency !== undefined
+    ) {
       return messageForError({
         code: error.code,
         data: { ...error.data, resultingBalance: formatters.money(balance, symbolOf(currency)) },
@@ -314,11 +318,33 @@ export function RegisterForm() {
     return messageForError(error);
   };
 
+  /** "Gasto de Bs 35,00 guardado": the amount in the currency of the account it left or entered. */
+  const savedText = (input: CreateTransactionInput): string => {
+    const accountOf = input.kind === 'transfer' ? input.fromAccountId : input.accountId;
+    const currency = data?.accounts.find((item) => item.id === accountOf)?.currencyCode;
+    const value = input.kind === 'transfer' ? input.amountOut : input.amount;
+    return t(`saved.${input.kind}`, {
+      amount: formatters.money(value, symbolOf(currency ?? '')),
+    });
+  };
+
   const send = (input: CreateTransactionInput) => {
     setFormError(null);
     create.mutate(input, {
-      onSuccess: () => {
+      onSuccess: (saved: CreatedTransaction) => {
         setAskRate(null);
+        // The answer carries today's last movements, so the context needs no other request, and
+        // the undo lives in the app shell, where it outlasts a change of tab (RF-M7-07).
+        queryClient.setQueryData<RegisterContext>(REGISTER_CONTEXT_KEY, (old) =>
+          old === undefined ? old : { ...old, todayRecent: saved.todayRecent },
+        );
+        if (saved.undoToken !== null) {
+          uiStore.showUndo({
+            token: saved.undoToken,
+            label: savedText(input),
+            expiresAt: Date.now() + UNDO_MS,
+          });
+        }
         // A new movement starts with a new id (plan §4.7.3); a transfer keeps its pair.
         form.reset({
           id: uuidv7(),
@@ -471,6 +497,11 @@ export function RegisterForm() {
           {create.isPending ? t('saving') : t('save')}
         </Button>
       </form>
+      <TodayRecent
+        items={data?.todayRecent ?? []}
+        accounts={accounts}
+        base={rates.data?.base ?? 'BOB'}
+      />
       <AllCategoriesSheet
         open={sheetOpen}
         kind={chipKind}

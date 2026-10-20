@@ -55,6 +55,14 @@
     "rate": "Tipo de cambio usado",
     "amountIn": "Monto que llega"
   },
+  "saved": {
+    "expense": "Gasto de {{amount}} guardado",
+    "income": "Ingreso de {{amount}} guardado",
+    "transfer": "Transferencia de {{amount}} guardada"
+  },
+  "recent": {
+    "title": "Registrado hoy"
+  },
   "save": "Guardar",
   "saving": "Guardando…",
   "loading": "Cargando tus cuentas y categorías…",

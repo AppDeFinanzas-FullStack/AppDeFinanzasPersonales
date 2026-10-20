@@ -2226,7 +2226,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M7-07` / `EC-M10-03`: sin categorías de gasto, "Ver todas" ofrece "Crear categoría".
     - `EC-M7-08`: un borrador con una cuenta archivada en otro contexto marca la cuenta para elegir otra.
 
-- [ ] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
+- [x] **`TASK-142`: Web: después de guardar (limpieza, "Deshacer" y movimientos de hoy)**
   - **Dependencias:** Requiere TASK-132, TASK-141
   - **Trazabilidad SDD:** plan §4.7.3 (formulario guardado), plan §4.2.3 (sin conexión); RF-M7-07, EC-M2-02, RF-M2-07, RNF-23
   - **Archivos en Alcance:**
