@@ -1,0 +1,40 @@
+{
+  "details": {
+    "title": "Tus datos",
+    "name": "Nombre",
+    "timezone": "Zona horaria",
+    "timezoneHint": "Las fechas de tus movimientos se calculan en esta zona.",
+    "language": "Idioma",
+    "languageValue": "Español (Bolivia)",
+    "email": "Correo electrónico",
+    "emailHint": "El correo no se puede cambiar. Para usar otro, exporta tus datos, elimina esta cuenta y regístrate de nuevo con el correo nuevo.",
+    "draftIssues": "Algunos datos del borrador ya no eran válidos. Revísalos antes de guardar.",
+    "submit": "Guardar cambios",
+    "submitting": "Guardando…",
+    "saved": "Guardamos tus cambios.",
+    "errors": {
+      "name": "Escribe tu nombre, de 1 a 60 caracteres."
+    }
+  },
+  "password": {
+    "title": "Contraseña",
+    "intro": "Al cambiarla se cierran tus demás sesiones y te enviamos un correo de aviso.",
+    "current": "Contraseña actual",
+    "next": "Contraseña nueva",
+    "nextHint": "Entre 8 y 128 caracteres.",
+    "submit": "Cambiar contraseña",
+    "submitting": "Cambiando…",
+    "changed": "Cambiamos tu contraseña. Tus demás sesiones se cerraron.",
+    "errors": {
+      "current": "Escribe tu contraseña actual.",
+      "next": "Usa una contraseña de 8 a 128 caracteres."
+    }
+  },
+  "session": {
+    "title": "Sesión",
+    "signOut": "Cerrar sesión",
+    "signOutAll": "Cerrar sesión en todos los dispositivos",
+    "signOutAllHint": "Cierra la sesión en este y en todos tus otros dispositivos.",
+    "signingOut": "Cerrando sesión…"
+  }
+}

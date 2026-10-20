@@ -1061,7 +1061,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 7 — M2 Navegación y estructura, perfil y ajustes base (V1.0)
 
-- [ ] **`TASK-068`: Contratos de ajustes (M9)**
+- [x] **`TASK-068`: Contratos de ajustes (M9)**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.2.1; RF-M9-01, RF-M2-09, RF-M8-10
   - **Archivos en Alcance:**
@@ -1074,7 +1074,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `favoriteCategories` admite como máximo 8 ids.
     - `RF-M2-09`: `{ sidebarCollapsed: true }` es una entrada válida; un campo desconocido no.
 
-- [ ] **`TASK-069`: Servicio y rutas de ajustes generales**
+- [x] **`TASK-069`: Servicio y rutas de ajustes generales**
   - **Dependencias:** Requiere TASK-059, TASK-068
   - **Trazabilidad SDD:** plan §4.9.2 (`GET` y `PATCH /api/settings`), plan §4.2.2, plan §4.9.3; RF-M9-01, RF-M2-09, EC-M9-01, RNF-08
   - **Archivos en Alcance:**
@@ -1094,7 +1094,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-01` / `RNF-08`: con dos `PATCH` seguidos gana el último.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
+- [x] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
   - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
@@ -1109,7 +1109,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
 
-- [ ] **`TASK-071`: Web: guardas de rutas**
+- [x] **`TASK-071`: Web: guardas de rutas**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.2.4 (guardas), ADR-18; RF-M2-03, RF-M1-04
   - **Archivos en Alcance:**
@@ -1121,7 +1121,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-04`: sin sesión, una ruta privada lleva a `/entrar`.
     - `RF-M2-03` (`@release-1.0`): `/presupuestos` muestra la página 404 con `RELEASE=1.0`.
 
-- [ ] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
+- [x] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
   - **Dependencias:** Requiere TASK-070, TASK-071
   - **Trazabilidad SDD:** plan §4.2.3 (disposición), plan §4.2.4 (árbol); RF-M2-01, RF-M2-02, RF-M2-03, RF-M2-09, RF-M7-01, EC-M2-03, RNF-05, RNF-06
   - **Archivos en Alcance:**
@@ -1132,8 +1132,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/nav-items.ts`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/playwright.config.ts`
     - `e2e/m2-navigation.spec.ts`
-  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar.
+  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar. `playwright.config.ts` excluye los casos `@release-1.0` (`grepInvert`) cuando `RELEASE` no es `1.0`; solo corren con `e2e:release-1.0` (plan §5.1).
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registrar en el centro de la barra en el celular" (360 px): las 5 pestañas en orden y Registrar en el centro (`RF-M2-01`, `RF-M7-01`).
     - Escenario «Sin "Más" en escritorio» (1280 px) (`RF-M2-02`).
@@ -1141,7 +1142,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M2-03`: cambiar el tamaño de 360 a 1280 px no pierde el estado.
     - `RNF-06`: sin violaciones de axe.
 
-- [ ] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
+- [x] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
   - **Dependencias:** Requiere TASK-044, TASK-072
   - **Trazabilidad SDD:** plan §4.2.3 (memoria por módulo, botón Atrás), plan §4.2.4; RF-M2-04, RF-M2-05, RF-M2-06, RF-M2-12
   - **Archivos en Alcance:**
@@ -1156,9 +1157,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-12` (`@release-1.0`): con `RELEASE=1.0`, PLANIFICAR no aparece.
     - `RF-M2-04`: al cambiar de pestaña y volver, se restauran la URL y la posición.
     - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
-    - `RF-M2-06`: el botón Atrás cierra un diálogo abierto sin salir de la pantalla.
+    - `RF-M2-06`: el botón Atrás vuelve de un módulo abierto desde "Más" a `/mas`. Todavía no hay pantallas con diálogos: la prueba de que Atrás cierra un diálogo con `useBackToClose` sin salir de la pantalla la agrega la primera tarea que monte un diálogo (plan §4.2.3).
 
-- [ ] **`TASK-074`: Web: pantalla de perfil**
+- [x] **`TASK-074`: Web: pantalla de perfil**
   - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073
   - **Trazabilidad SDD:** plan §4.1.4 (`/perfil`); RF-M1-07, RF-M1-10, RF-M1-11, RF-M1-13, EC-M1-05
   - **Archivos en Alcance:**
@@ -1176,7 +1177,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-07`: "Cerrar sesión en todos los dispositivos" cierra el otro contexto.
     - `RF-M1-11`: el cambio de zona horaria se guarda.
 
-- [ ] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
+- [x] **`TASK-075`: Web: bloqueo sin conexión y diálogo de sesión vencida**
   - **Dependencias:** Requiere TASK-041, TASK-074
   - **Trazabilidad SDD:** plan §4.2.3 (estados de la app); RF-M2-07, RF-M2-08, RF-M2-10, EC-M2-01, RNF-23
   - **Archivos en Alcance:**
@@ -1313,18 +1314,22 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-04`: un valor inválido no se guarda.
     - Si paralelo.bo falla para el oficial, se usa el BCB.
 
-- [ ] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
+- [x] **`TASK-085`: `RatesService`: tasas vigentes y tasa de un movimiento**
   - **Dependencias:** Requiere TASK-080, TASK-083, TASK-069
   - **Trazabilidad SDD:** plan §4.3.1, plan §4.3.3; RF-M3-03, RF-M3-05, RF-M3-06, RF-M3-12, EC-M3-02, RN-04, RN-05
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/rates.service.ts`
     - `apps/api/test/integration/rates-service.test.ts`
-  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05).
+    - `packages/domain/src/index.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+  - **Especificación de Implementación:** `current(ctx)` arma `RatesCurrentDto` (referencias, `inUse`, brecha, moneda base y "otra moneda"). `ratesForMovement(tx, ctx, currencyCode, date)` devuelve `{ rateCurBob, rateUsdBob | null }` según RN-04 (1,00 para BOB; la tasa de la moneda agregada; `resolveUsdRate`). `currentRateFor(ctx, currencyCode)` sirve para los saldos actuales (RN-05). `@finanzas/domain` reexporta `resolveUsdRate`, `customRateOn` y los tipos `FxEvent`, `MarketSeries` y `UsdReference`. `UserSettingsRepository` suma un método (p. ej. `fxSettings(userId)`) que devuelve la moneda base del usuario, sin cambiar `UserSettingsData`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Valor manual con prioridad" (parte de M3): con el valor manual en 10,00 y el paralelo en 10,40, `inUse` vale 10,00 y trae `since`.
     - `RF-M3-12`: con el oficial en uso, la brecha compara la mediana del paralelo contra el oficial.
     - `EC-M3-02`: sin ninguna tasa, `rateUsdBob` es `null` y `inUse.value` es `null`.
     - `RF-M3-06`: un movimiento en BOB guarda igualmente la tasa boliviano-dólar.
+    - `EC-M3-02`: `ratesForMovement` lanza `RATE_REQUIRED` cuando el movimiento no es en BOB y `resolveUsdRate` devuelve `null` (plan §4.3.3). La prueba de ese error queda en TASK-121 (escenario "Sin ninguna tasa disponible"), porque el archivo de pruebas de esta tarea ya quedó cerrado.
 
 - [ ] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
   - **Dependencias:** Requiere TASK-084, TASK-085
@@ -1393,15 +1398,16 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-05`: con un uso registrado de prueba, responde `CURRENCY_IN_USE {usedBy}`.
     - Reactivar exige una tasa nueva.
 
-- [ ] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
+- [x] **`TASK-090`: Endpoint interno de prueba para fijar las tasas del *fake***
   - **Dependencias:** Requiere TASK-060, TASK-084
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: tasas fijas), plan §1.4 (*fakes*)
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
-  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`.
+  - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `POST /internal/test/rates` fija la compra, la venta, la mediana y el oficial del *fake*, o simula una fuente caída, y fuerza `fx.fetchParallel`. `container.ts` expone el *fake* que crea `buildRateSources` para pasárselo al controlador. Cuerpo: `{ bid?, ask?, median?, official?, failure? }`; las tasas van como texto decimal (ADR-03) y `failure` es un `RateFailure` del puerto (`'TIMEOUT' | 'INVALID_VALUE' | 'SOURCE_ERROR'`) o `null` para quitar la falla. Responde 204; un cuerpo inválido da `VALIDATION_ERROR`.
   - **Criterios de Verificación (Tests & DoD):**
-    - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
+    - `TASK-090`: después de fijar 10,10 y 10,30, las filas `parallel_bid` y `parallel_ask` de `market_rate` del día valen 10,10 y 10,30; con `failure` fijado, la llamada no escribe filas nuevas; con `INTEGRATIONS=real`, la ruta responde 404.
 
 - [x] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
   - **Dependencias:** Requiere TASK-083

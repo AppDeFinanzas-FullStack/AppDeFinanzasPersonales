@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { Decimal } from 'decimal.js';
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
@@ -12,7 +13,11 @@ import {
   type MeService,
   type MeStore,
 } from '../application/services/me.service.js';
-import { createFxJobs } from '../application/jobs/fx.js';
+import { createFxJobs, type FxJobs } from '../application/jobs/fx.js';
+import {
+  createSettingsService,
+  type SettingsService,
+} from '../application/services/settings.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -27,9 +32,15 @@ import type { Env } from '../infrastructure/config/env.js';
 import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
 import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
 import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
-import { createFakeBcbGateway } from '../infrastructure/integrations/bcb.fake.js';
+import {
+  createFakeBcbGateway,
+  type FakeBcbGateway,
+} from '../infrastructure/integrations/bcb.fake.js';
 import { createBcbGateway } from '../infrastructure/integrations/bcb.js';
-import { createFakeRatesGateway } from '../infrastructure/integrations/paralelo-bo.fake.js';
+import {
+  createFakeRatesGateway,
+  type FakeRatesGateway,
+} from '../infrastructure/integrations/paralelo-bo.fake.js';
 import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
@@ -42,6 +53,7 @@ import { createEmailLinkRepository } from '../infrastructure/persistence/reposit
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createUserSettingsRepository } from '../infrastructure/persistence/repositories/user-settings.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
 import { createMarketRateRepository } from '../infrastructure/persistence/repositories/market-rate.repository.js';
@@ -56,6 +68,7 @@ import {
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 import type {
+  TestRatesInput,
   TestSupportControllerDeps,
   TestUserCredentials,
 } from '../presentation/internal/test-support.controller.js';
@@ -80,6 +93,7 @@ export interface Container {
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  readonly settingsService: SettingsService;
 
   /** Test-support routes (plan §1.5); `null` unless `INTEGRATIONS=fake`. */
   readonly testSupport: TestSupportControllerDeps | null;
@@ -121,20 +135,74 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   ledger: createLedgerRepository(tx, userId ?? NO_USER),
   undoActions: createUndoActionRepository(tx, userId ?? NO_USER),
   categories: createCategoryRepository(tx, userId ?? NO_USER),
+  userSettings: createUserSettingsRepository(tx),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
 const BCB_URL = 'https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php';
 const SOURCE_TIMEOUT_MS = 10_000;
 
-/** Real sources (paralelo.bo and the BCB) or their fakes, by `env.INTEGRATIONS` (plan §1.4). */
-const buildRateSources = (env: Env) =>
-  env.INTEGRATIONS === 'real'
-    ? {
-        rates: createParaleloBoGateway({ url: PARALELO_BO_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
-        bcb: createBcbGateway({ url: BCB_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
-      }
-    : { rates: createFakeRatesGateway(), bcb: createFakeBcbGateway() };
+interface FakeRateSources {
+  rates: FakeRatesGateway;
+  bcb: FakeBcbGateway;
+}
+
+/**
+ * Real sources (paralelo.bo and the BCB) or their fakes, by `env.INTEGRATIONS` (plan §1.4). The
+ * fakes are also returned in `fake`, so the test-support routes can set them.
+ */
+const buildRateSources = (env: Env) => {
+  if (env.INTEGRATIONS === 'real') {
+    return {
+      rates: createParaleloBoGateway({ url: PARALELO_BO_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      bcb: createBcbGateway({ url: BCB_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      fake: null,
+    };
+  }
+  const fake: FakeRateSources = { rates: createFakeRatesGateway(), bcb: createFakeBcbGateway() };
+  return { rates: fake.rates, bcb: fake.bcb, fake };
+};
+
+/**
+ * `POST /internal/test/rates` (plan §1.5): sets the fake sources and forces `fx.fetchParallel`. A
+ * missing rate keeps its last value; `failure` makes paralelo.bo fail until it is set to `null`.
+ */
+const createTestRatesSetter = (deps: { fake: FakeRateSources; fxJobs: FxJobs; clock: Clock }) => {
+  let current: TestRatesInput = {};
+  return async (input: TestRatesInput): Promise<void> => {
+    current = {
+      bid: input.bid ?? current.bid,
+      ask: input.ask ?? current.ask,
+      median: input.median ?? current.median,
+      official: input.official ?? current.official,
+      failure: input.failure === undefined ? current.failure : input.failure,
+    };
+    const observedAt = deps.clock.now();
+    const decimal = (value: string | undefined) =>
+      value === undefined ? null : new Decimal(value);
+    const median = decimal(current.median);
+    deps.fake.rates.configure({
+      failure: current.failure ?? null,
+      ...(median === null
+        ? {}
+        : {
+            parallel: {
+              median,
+              bid: decimal(current.bid),
+              ask: decimal(current.ask),
+              observedAt,
+            },
+          }),
+    });
+    const official = decimal(current.official);
+    if (official !== null) {
+      const quote = { value: official, effectiveDate: null, observedAt };
+      deps.fake.rates.configure({ official: quote });
+      deps.fake.bcb.configure({ official: quote });
+    }
+    await deps.fxJobs.fetchParallel({ force: true });
+  };
+};
 
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
@@ -233,7 +301,14 @@ export const buildContainer = (env: Env): Container => {
   const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
   const jobRuns = createJobRuns(prisma);
   const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
-  const fxJobs = createFxJobs({ ...buildRateSources(env), uow, jobRuns, clock: systemClock });
+  const rateSources = buildRateSources(env);
+  const fxJobs = createFxJobs({
+    rates: rateSources.rates,
+    bcb: rateSources.bcb,
+    uow,
+    jobRuns,
+    clock: systemClock,
+  });
   jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
   jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
   jobs.registerJob(
@@ -252,9 +327,11 @@ export const buildContainer = (env: Env): Container => {
     webOrigin: env.WEB_ORIGIN,
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
+  const settingsService = createSettingsService({ uow });
 
+  const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
-    fakeEmail === null
+    fakeEmail === null || fakeRates === null
       ? null
       : {
           // Nothing else ticks in the end-to-end run: reading the mailbox also sends what is due,
@@ -264,6 +341,7 @@ export const buildContainer = (env: Env): Container => {
             return fakeEmail.inboxOf(to);
           },
           createUser: createTestUserFactory({ prisma, uow, auth }),
+          setRates: createTestRatesSetter({ fake: fakeRates, fxJobs, clock: systemClock }),
         };
   return {
     testSupport,
@@ -277,6 +355,7 @@ export const buildContainer = (env: Env): Container => {
     auth,
     authService,
     meService,
+    settingsService,
     readiness: createReadinessProbe(prisma),
   };
 };
@@ -299,6 +378,7 @@ export const createApp = (container: Container): Express => {
       session,
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
+    settings: { settingsService: container.settingsService, session },
     readiness: container.readiness,
   });
 };
