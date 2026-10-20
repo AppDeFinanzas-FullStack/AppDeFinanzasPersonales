@@ -5,7 +5,7 @@ import { parseTasks, phaseBranch, setDone, allTasks, scopeProblems, workspaceOf 
 import { isTestFile, isTestCaseFile, matchesScope, outOfScope, testCaseNames, NAME_ID, splitScope } from '../lib/scope.mjs';
 import { planSection, dedupeSections, specItem, scenario, adrRow, isUiTask } from '../lib/context.mjs';
 import { readText, sh, posixShell } from '../lib/repo.mjs';
-import { saveState, loadState, updateState, isCurrent, bumpEpoch } from '../lib/state.mjs';
+import { saveState, loadState, updateState, isCurrent, bumpEpoch, markChecked, wasChecked } from '../lib/state.mjs';
 import { wrapText, SECRETS, MAX_LINE } from '../lib/message.mjs';
 import { stopLine, PHASE_AGENT } from '../lib/gates.mjs';
 import { buildBrief, availableTasks, MAX_AVAILABLE } from '../lib/brief.mjs';
@@ -152,6 +152,16 @@ test('estado vigente: misma tarea, fase, época y en curso', () => {
   // Un estado anterior a la época cuenta como época 0.
   const { epoch: _a, ...legacy } = baseState();
   assert.equal(isCurrent(legacy, { ...legacy }), true);
+});
+
+test('check.mjs: el resultado solo se reutiliza con el mismo árbol y en la misma época', () => {
+  const s = baseState();
+  assert.equal(wasChecked(s, 'abc'), false);
+  markChecked(s, 'abc');
+  assert.equal(wasChecked(s, 'abc'), true);
+  assert.equal(wasChecked(s, 'otra-huella'), false); // el árbol cambió después del check
+  bumpEpoch(s); // otra ronda de implementación
+  assert.equal(wasChecked(s, 'abc'), false);
 });
 
 test('un gate tardío no pisa el cambio de fase que ocurrió mientras corría', () => {

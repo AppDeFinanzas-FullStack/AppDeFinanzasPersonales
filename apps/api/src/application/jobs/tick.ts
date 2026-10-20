@@ -28,6 +28,11 @@ export type JobHandler = () => Promise<void>;
 /** After this time the tick starts no more jobs, so it answers in less than 25 s (plan §4.0). */
 const TICK_BUDGET_MS = 25_000;
 
+/** Optional per-user scope of a job: the same work restricted to one user (ADR-01). */
+export interface JobScope {
+  forUser: (userId: string) => Promise<void>;
+}
+
 export interface JobsDeps {
   jobRuns: JobRuns;
   clock: Clock;
@@ -36,13 +41,18 @@ export interface JobsDeps {
 
 export interface Jobs {
   /** Registers the run of a job; each module registers its own jobs. */
-  registerJob(name: JobName, run: JobHandler): void;
+  registerJob(name: JobName, run: JobHandler, scope?: JobScope): void;
   /**
    * Runs the registered jobs of the released modules once, in the order of plan §4.0. A job whose
    * lease another run holds is skipped. A job that fails is recorded in `job_run` and does not stop
    * the next ones (RNF-13).
    */
   tick(): Promise<void>;
+  /**
+   * Runs, for one user only, the per-user scope of the registered jobs of the released modules, in
+   * the order of plan §4.0. A job that fails does not stop the next ones (RNF-13).
+   */
+  catchUpUser(userId: string): Promise<void>;
 }
 
 const describeError = (error: unknown): string =>
@@ -50,6 +60,7 @@ const describeError = (error: unknown): string =>
 
 export function createJobs({ jobRuns, clock, release }: JobsDeps): Jobs {
   const handlers = new Map<JobName, JobHandler>();
+  const scopes = new Map<JobName, JobScope['forUser']>();
 
   const runJob = async (name: JobName, run: JobHandler): Promise<void> => {
     if (!(await jobRuns.tryAcquire(name, clock.now()))) return;
@@ -63,11 +74,26 @@ export function createJobs({ jobRuns, clock, release }: JobsDeps): Jobs {
   };
 
   return {
-    registerJob(name, run) {
+    registerJob(name, run, scope) {
       if (handlers.has(name)) {
         throw new Error(`The job ${name} is already registered`);
       }
       handlers.set(name, run);
+      if (scope !== undefined) {
+        scopes.set(name, scope.forUser);
+      }
+    },
+
+    async catchUpUser(userId) {
+      for (const { name, module } of JOBS) {
+        const forUser = scopes.get(name);
+        if (forUser === undefined || (module !== null && !isReleased(module, release))) continue;
+        try {
+          await forUser(userId);
+        } catch {
+          // A failed job does not stop the next ones; the next catch-up or tick completes it.
+        }
+      }
     },
 
     async tick() {

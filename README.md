@@ -1,6 +1,6 @@
 # App de Finanzas Personales
 
-[![ci](https://github.com/matiasmm1011/AppDeFinanzasPersonales/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/matiasmm1011/AppDeFinanzasPersonales/actions/workflows/ci.yml)
+[![ci](https://github.com/AppDeFinanzas-FullStack/AppDeFinanzasPersonales/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/AppDeFinanzas-FullStack/AppDeFinanzasPersonales/actions/workflows/ci.yml) [![deploy](https://github.com/AppDeFinanzas-FullStack/AppDeFinanzasPersonales/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/AppDeFinanzas-FullStack/AppDeFinanzasPersonales/actions/workflows/deploy.yml)
 
 Aplicación web para que una persona en Bolivia lleve sus finanzas personales en bolivianos y dólares, con el tipo de cambio paralelo y el oficial. El principio rector es que **registrar un movimiento siempre sea rápido y simple** ([constitución §1](docs/constitution.md)).
 
@@ -8,11 +8,11 @@ Aplicación web para que una persona en Bolivia lleve sus finanzas personales en
 
 Son tres despliegues separados, cada uno en su servicio, y se actualizan solos desde `main` con [`deploy.yml`](#integración-y-despliegue-continuos):
 
-| Parte                          | Servicio | URL                                 | Se verifica con                    |
-| ------------------------------ | -------- | ----------------------------------- | ---------------------------------- |
-| **Frontend** (React + Vite)    | Vercel   | _pendiente del primer despliegue_   | `GET <web>/` → 200                 |
-| **Backend** (Express API)      | Render   | _pendiente del primer despliegue_   | `GET <api>/api/health` → 204       |
-| **Base de datos** (PostgreSQL) | Neon     | sin URL pública: solo la usa el API | `GET <api>/api/health/ready` → 204 |
+| Parte                          | Servicio | URL                                      | Se verifica con                    |
+| ------------------------------ | -------- | ---------------------------------------- | ---------------------------------- |
+| **Frontend** (React + Vite)    | Vercel   | <https://finanzas-web-orpin.vercel.app>  | `GET <web>/` → 200                 |
+| **Backend** (Express API)      | Render   | <https://finanzas-api-u3vu.onrender.com> | `GET <api>/api/health` → 204       |
+| **Base de datos** (PostgreSQL) | Neon     | sin URL pública: solo la usa el API      | `GET <api>/api/health/ready` → 204 |
 
 ### Cómo se conectan
 
@@ -27,7 +27,7 @@ flowchart LR
 
 - **Frontend → Backend:** Vercel reenvía `/api/*` al API de Render. El navegador solo ve el dominio de la web, así que no hace falta CORS y la cookie de sesión funciona también en Safari (ADR-02).
 - **Backend → Base de datos:** el API usa `DATABASE_URL` (con el pooler de Neon). Las migraciones usan `DATABASE_URL_DIRECT`.
-- **Prueba de punta a punta:** cada despliegue corre cuatro pruebas de humo, una por enlace. La última, `GET <web>/api/health/ready` → 204, pasa por la web, el API y la base de datos a la vez. Para mostrarlo, basta con abrir esa URL en el navegador.
+- **Prueba de punta a punta:** cada despliegue corre cuatro pruebas de humo, una por enlace. La última, `GET <web>/api/health/ready` → 204, pasa por la web, el API y la base de datos a la vez. Para mostrarlo, basta con abrir <https://finanzas-web-orpin.vercel.app/api/health/ready> en el navegador: responde vacío (204) si todo está conectado.
 
 ## Equipo
 
@@ -115,11 +115,11 @@ flowchart LR
   DEP --> MIG[migraciones en Neon] --> REN[API en Render] --> VER[web en Vercel] --> SMK[4 pruebas de humo]
 ```
 
-| Workflow                             | Cuándo corre                      | Qué hace                                                                                                                                             | Estado   |
-| ------------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| [`ci.yml`](.github/workflows/ci.yml) | En cada push y PR                 | Instalación, commitlint, lint, typecheck, dependency-cruiser, unitarias, integración con Postgres 16 y build                                         | Activo   |
-| `deploy.yml`                         | En cada push a `main` y a mano    | CI, luego migraciones, despliegue del API, despliegue de la web y pruebas de humo. Si un paso falla, se detiene y queda en línea la versión anterior | TASK-173 |
-| `qa-e2e.yml`                         | En cada push a `qa` y PR a `main` | E2E con Playwright, accesibilidad y rendimiento en un entorno efímero                                                                                | TASK-172 |
+| Workflow                                     | Cuándo corre                      | Qué hace                                                                                                                                             | Estado   |
+| -------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| [`ci.yml`](.github/workflows/ci.yml)         | En cada push y PR                 | Instalación, commitlint, lint, typecheck, dependency-cruiser, unitarias, integración con Postgres 16 y build                                         | Activo   |
+| [`deploy.yml`](.github/workflows/deploy.yml) | En cada push a `main` y a mano    | CI, luego migraciones, despliegue del API, despliegue de la web y pruebas de humo. Si un paso falla, se detiene y queda en línea la versión anterior | Activo   |
+| `qa-e2e.yml`                                 | En cada push a `qa` y PR a `main` | E2E con Playwright, accesibilidad y rendimiento en un entorno efímero                                                                                | TASK-172 |
 
 Las ramas siguen Git Flow ([constitución §7](docs/constitution.md)): `feature/*` sale de `develop` y vuelve por PR. La promoción es `develop` → `qa` → `main`, siempre por PR. Los commits siguen Conventional Commits.
 
@@ -145,7 +145,7 @@ flowchart LR
 | ---------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SubagentStop` → `tools/sdd/gate.mjs`          | Cuando termina un subagente del pipeline | Aplica el gate de la etapa: alcance de archivos, IDs en las pruebas, tipos, lint, capas, pruebas y comandos. Si falla, el subagente sigue trabajando, con un máximo de 3 intentos |
 | `SessionStart` → `tools/sdd/session-brief.mjs` | Al abrir o retomar una sesión de Claude  | Resume la rama, la tarea activa, el avance y las próximas tareas disponibles                                                                                                      |
-| `pre-push` de git → `tools/sdd/pre-push.mjs`   | Antes de cada push                       | Commitlint, secretos, trazabilidad de las tareas y la suite completa                                                                                                              |
+| `pre-push` de git → `tools/sdd/pre-push.mjs`   | Antes de cada push                       | Commitlint, secretos y trazabilidad de las tareas, en segundos. La suite completa la corre CI                                                                                     |
 
 Antes de terminar, cada subagente corre `node tools/sdd/check.mjs`, que aplica los mismos controles del gate sin gastar intentos. El detalle está en el [protocolo de ejecución](docs/execution-protocol.md).
 
@@ -174,16 +174,16 @@ Los agentes no pueden crear cuentas ni cargar secretos, así que estos pasos los
 
 ## Estado del proyecto
 
-Avance real al 2026-10-19: **38 de 247 tareas cerradas (15 %)**. El hook `SessionStart` muestra el valor actualizado en cada sesión.
+Avance real al 2026-10-20 en `develop`: **48 de 247 tareas cerradas (19 %)**. El hook `SessionStart` muestra el valor actualizado en cada sesión.
 
 | Entrega | Fases                                                                                                                                     | Tareas cerradas |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| Base    | 0 a 5: cimientos, esquema, contratos, dominio, API y web                                                                                  | 38 / 46         |
-| V1.0    | 6 a 17: acceso, navegación, monedas, cuentas, categorías, transacciones, registrar, inicio, ajustes, onboarding, exportación y despliegue | 0 / 128         |
+| Base    | 0 a 5: cimientos, esquema, contratos, dominio, API y web                                                                                  | 46 / 46         |
+| V1.0    | 6 a 17: acceso, navegación, monedas, cuentas, categorías, transacciones, registrar, inicio, ajustes, onboarding, exportación y despliegue | 2 / 128         |
 | V1.1    | 18 a 22: avisos, metas, presupuestos y deudas                                                                                             | 0 / 48          |
 | V1.2    | 23 a 25: recurrentes, recordatorios y validación final                                                                                    | 0 / 25          |
 
-Las Fases 0 a 4 están completas. Lo siguiente es el despliegue temprano (TASK-171 y TASK-173) y la base de la web (Fase 5).
+Las Fases 0 a 5 están completas, y el despliegue temprano (TASK-171 y TASK-173, de la Fase 17) está en producción. Lo siguiente es la Fase 6 (acceso y cuenta) y la Fase 8 (monedas y tipo de cambio).
 
 ## Documentación
 
