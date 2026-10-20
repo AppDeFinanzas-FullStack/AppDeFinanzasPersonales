@@ -76,13 +76,14 @@ jobs:
       - name: 5. Dependency rules (dependency-cruiser)
         run: pnpm depcruise
 
-      - name: 6. Unit tests
+      - name: 6. Apply migrations (Postgres 16)
+        run: pnpm --filter @finanzas/db migrate:deploy
+
+      - name: 7. Unit and HTTP tests
         run: pnpm test:unit
 
-      - name: 7. Integration tests (Postgres 16)
-        run: |
-          pnpm --filter @finanzas/db migrate:deploy
-          pnpm test:integration
+      - name: 8. Integration tests (Postgres 16)
+        run: pnpm test:integration
 
-      - name: 8. Build api and web
+      - name: 9. Build api and web
         run: pnpm build
