@@ -1847,6 +1847,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/shared/ledger-hooks.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/undo-action.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/ledger-hooks-undo.test.ts`
   - **Especificación de Implementación:** `LedgerHooks.register(handler)` y `afterChange(tx, userId, { dates, categoryIds, accountIds })`, que llama a cada *handler* en la misma transacción (V1.0 no tiene *handlers*). El repositorio `undo_action` ofrece `create(kind, payload)` (vence a los 12 s) y `consume(id)` con un `UPDATE … WHERE consumed_at IS NULL AND expires_at > now() RETURNING`.
   - **Criterios de Verificación (Tests & DoD):**
