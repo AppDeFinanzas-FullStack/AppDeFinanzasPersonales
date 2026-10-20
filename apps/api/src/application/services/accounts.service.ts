@@ -1,16 +1,27 @@
-import type { AccountDto, CreateAccountInput } from '@finanzas/contracts';
+import {
+  UpdateAccountInput,
+  type AccountDto,
+  type CreateAccountInput,
+  type ReorderInput,
+} from '@finanzas/contracts';
 import {
   cardView,
   convert,
   netWorth,
   toMoneyString,
   validateInitialBalance,
+  validateTypeChange,
   type NetWorthResult,
 } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
 
 import { AppError } from '../errors.js';
-import type { AccountRow, LifecycleStatus, Repositories } from '../ports/repositories.js';
+import type {
+  AccountPatch,
+  AccountRow,
+  LifecycleStatus,
+  Repositories,
+} from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { assertLimit } from '../shared/limits.js';
 import type { RatesContext, RatesService } from './rates.service.js';
@@ -34,6 +45,13 @@ export interface AccountsService {
    * RF-M4-10, RN-05); a missing rate leaves its amounts as `null`.
    */
   summary(ctx: AccountsContext): Promise<NetWorthResult>;
+  /**
+   * Edits the name, color, icon, card fields, type and currency (RF-M4-07); the initial balance
+   * and its date are not editable (EC-M4-02). The last write wins (RNF-08).
+   */
+  update(ctx: AccountsContext, id: string, input: UpdateAccountInput): Promise<AccountDto>;
+  /** Gives the user's accounts the order of `ids`, which must be exactly all of them (RF-M4-11). */
+  reorder(ctx: AccountsContext, input: ReorderInput): Promise<void>;
 }
 
 export interface AccountsServiceDeps {
@@ -107,11 +125,27 @@ function sameAccount(row: AccountRow, input: CreateAccountInput, initial: Decima
 }
 
 /** Rejects a name already used, ignoring case, by another active account (RF-M4-01). */
-async function assertNameFree(repos: Repositories, name: string): Promise<void> {
+async function assertNameFree(
+  repos: Repositories,
+  name: string,
+  selfId: string | null = null,
+): Promise<void> {
   const wanted = name.toLowerCase();
   const active = await repos.accounts.list('active');
-  if (active.some((account) => account.name.toLowerCase() === wanted)) {
+  if (active.some((account) => account.id !== selfId && account.name.toLowerCase() === wanted)) {
     throw new AppError('NAME_TAKEN');
+  }
+}
+
+/** The currency an account is created in or moved to must exist and be active (plan §4.3.3). */
+async function requireActiveCurrency(repos: Repositories, code: string): Promise<void> {
+  // FOR SHARE keeps the currency from being deactivated meanwhile.
+  const currency = await repos.currencies.lockForShare(code);
+  if (currency === null) {
+    throw invalidField('currencyCode', 'not_found');
+  }
+  if (currency.status !== 'active') {
+    throw new AppError('CURRENCY_INACTIVE');
   }
 }
 
@@ -215,14 +249,7 @@ export function createAccountsService({ uow, rates }: AccountsServiceDeps): Acco
           const count = await repos.accounts.count();
           assertLimit(count, 'accounts');
 
-          // FOR SHARE keeps the currency from being deactivated meanwhile (plan §4.3.3).
-          const currency = await repos.currencies.lockForShare(input.currencyCode);
-          if (currency === null) {
-            throw invalidField('currencyCode', 'not_found');
-          }
-          if (currency.status !== 'active') {
-            throw new AppError('CURRENCY_INACTIVE');
-          }
+          await requireActiveCurrency(repos, input.currencyCode);
 
           const name = input.name.trim();
           await assertNameFree(repos, name);
@@ -285,6 +312,114 @@ export function createAccountsService({ uow, rates }: AccountsServiceDeps): Acco
           otherCurrency: otherCurrency(snapshot.baseCurrency),
           bobPerUnit: perUnit,
         },
+      );
+    },
+
+    async update(ctx, id, input) {
+      // The initial balance or any other unknown field is rejected (EC-M4-02).
+      const parsed = UpdateAccountInput.safeParse(input);
+      if (!parsed.success) {
+        throw new AppError('VALIDATION_ERROR', {
+          issues: parsed.error.issues.map((issue) => ({
+            path: issue.path.map(String).join('.'),
+            code: issue.code,
+          })),
+        });
+      }
+      const changes = parsed.data;
+      const snapshot = await uow.run(
+        async (repos) => {
+          const [current] = await repos.accounts.lockForUpdate([id]);
+          if (current === undefined) {
+            throw new AppError('NOT_FOUND');
+          }
+          const patch: AccountPatch = {};
+
+          if (changes.name !== undefined && changes.name !== current.name) {
+            if (current.status === 'active') {
+              await assertNameFree(repos, changes.name, id);
+            }
+            patch.name = changes.name;
+          }
+          if (changes.color !== undefined) patch.color = changes.color;
+          if (changes.icon !== undefined) patch.icon = changes.icon;
+
+          if (changes.currencyCode !== undefined && changes.currencyCode !== current.currencyCode) {
+            // RF-M4-06: only an account without movements changes currency.
+            if (await repos.accounts.hasEntries(id)) {
+              throw new AppError('CURRENCY_LOCKED');
+            }
+            await requireActiveCurrency(repos, changes.currencyCode);
+            patch.currencyCode = changes.currencyCode;
+          }
+
+          const type = changes.type ?? current.type;
+          if (type !== current.type) {
+            const balances = await repos.ledger.balances([id]);
+            // Goals arrive in V1.1: no account is dedicated nor has earmarks yet.
+            const rule = validateTypeChange({
+              from: current.type,
+              to: type,
+              initialBalance: toMoneyString(current.initialBalance),
+              currentBalance: toMoneyString(balances.get(id) ?? current.initialBalance),
+              dedicated: false,
+              hasEarmarks: false,
+            });
+            if (!rule.ok) {
+              throw new AppError('TYPE_CHANGE_INVALID', { reason: rule.reason });
+            }
+            patch.type = type;
+          }
+
+          if (type !== 'credit_card') {
+            // RF-M4-07: an account that stops being a card loses its card fields.
+            if (current.type === 'credit_card') {
+              patch.cardCutDay = null;
+              patch.cardPayDay = null;
+              patch.cardLimit = null;
+            }
+          } else if (changes.card !== undefined) {
+            patch.cardCutDay = changes.card.cutDay;
+            patch.cardPayDay = changes.card.payDay;
+            patch.cardLimit = changes.card.limit === null ? null : new Decimal(changes.card.limit);
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await repos.accounts.update(id, patch);
+          }
+          const updated = await repos.accounts.get(id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return snapshotOf(repos, ctx.userId, [updated]);
+        },
+        { userLock: ctx.userId },
+      );
+      const [account] = await toDtos(ctx, snapshot);
+      if (account === undefined) {
+        throw new AppError('INTERNAL_ERROR');
+      }
+      return account;
+    },
+
+    async reorder(ctx, input) {
+      await uow.run(
+        async (repos) => {
+          const owned = [
+            ...(await repos.accounts.list('active')),
+            ...(await repos.accounts.list('archived')),
+          ].map((account) => account.id);
+          const wanted = new Set(input.ids);
+          const exact =
+            wanted.size === input.ids.length &&
+            wanted.size === owned.length &&
+            owned.every((accountId) => wanted.has(accountId));
+          if (!exact) {
+            throw invalidField('ids', 'invalid_value');
+          }
+          await repos.accounts.setOrder(input.ids);
+        },
+        { userLock: ctx.userId },
       );
     },
   };

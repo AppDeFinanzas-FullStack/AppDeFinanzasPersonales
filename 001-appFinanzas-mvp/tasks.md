@@ -1585,7 +1585,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-09`: las archivadas no suman en el total.
     - `EC-M3-05`: desactivar una moneda usada por una cuenta activa da `CURRENCY_IN_USE` con "accounts".
 
-- [ ] **`TASK-102`: `AccountsService`: editar y reordenar**
+- [x] **`TASK-102`: `AccountsService`: editar y reordenar**
   - **Dependencias:** Requiere TASK-101
   - **Trazabilidad SDD:** plan §4.4.2 (`PATCH /api/accounts/:id`, `PUT /api/accounts/order`); RF-M4-06, RF-M4-07, RF-M4-11, EC-M4-02, RNF-08
   - **Archivos en Alcance:**
