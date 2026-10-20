@@ -4,6 +4,7 @@ import {
   gap,
   resolveUsdRate,
   todayFor,
+  transferPrefill,
   type FxEvent,
   type LocalDate,
   type MarketSeries,
@@ -45,6 +46,17 @@ export interface RatesService {
     currencyCode: string,
     date: LocalDate,
   ): Promise<MovementRates>;
+  /**
+   * Declared rate a transfer from `from` to `to` on `date` starts with (RF-M3-07), inside the
+   * caller's transaction, with the convention of plan §4.6.1; `null` when a rate is missing.
+   */
+  transferRate(
+    repos: Repositories,
+    ctx: RatesContext,
+    from: string,
+    to: string,
+    date: LocalDate,
+  ): Promise<Decimal | null>;
 }
 
 const KINDS: readonly UsdReference[] = [
@@ -115,6 +127,56 @@ async function usdRateOn(
 ): Promise<Decimal | null> {
   const series = await seriesFor(repos, latest, date);
   return resolveUsdRate({ events, series, date, tz: ctx.timezone, now: ctx.now });
+}
+
+const NO_SERIES: MarketSeries = {
+  parallel_bid: [],
+  parallel_ask: [],
+  parallel_median: [],
+  official: [],
+};
+
+/** The manual USD value active on `date`, or `null`: without market series only it can resolve. */
+function manualUsdOn(ctx: RatesContext, events: FxEvent[], date: LocalDate): Decimal | null {
+  const manualEvents = events.filter(
+    (event) => event.kind === 'manual_usd_on' || event.kind === 'manual_usd_off',
+  );
+  return resolveUsdRate({
+    events: manualEvents,
+    series: NO_SERIES,
+    date,
+    tz: ctx.timezone,
+    now: ctx.now,
+  });
+}
+
+/** The value of one reference on `date`, resolved as if the user had always chosen it (RF-M3-06). */
+function referenceOn(
+  ctx: RatesContext,
+  series: MarketSeries,
+  reference: UsdReference,
+  date: LocalDate,
+): Decimal | null {
+  const chosen: FxEvent = {
+    kind: 'reference_set',
+    currencyCode: null,
+    reference,
+    value: null,
+    effectiveAt: new Date(0),
+  };
+  return resolveUsdRate({ events: [chosen], series, date, tz: ctx.timezone, now: ctx.now });
+}
+
+/** Parallel bid (compra) and ask (venta) of `date`, or `null` when there is none (RF-M3-07). */
+async function parallelOn(
+  repos: Repositories,
+  ctx: RatesContext,
+  date: LocalDate,
+): Promise<{ bid: Decimal; ask: Decimal } | null> {
+  const series = await seriesFor(repos, await latestRates(repos), date);
+  const bid = referenceOn(ctx, series, 'parallel_bid', date);
+  const ask = referenceOn(ctx, series, 'parallel_ask', date);
+  return bid === null || ask === null ? null : { bid, ask };
 }
 
 /** Bs per unit of the currency on `date` (RN-04): 1 for BOB, the USD rate, or the added currency's rate. */
@@ -242,6 +304,24 @@ export function createRatesService({ uow }: { uow: UnitOfWork }): RatesService {
         throw new AppError('RATE_REQUIRED');
       }
       return { rateCurBob, rateUsdBob };
+    },
+
+    async transferRate(repos, ctx, from, to, date) {
+      const events = await repos.userFxEvents.eventsUntil(ctx.now);
+      const manual = manualUsdOn(ctx, events, date);
+      const usesUsd = from === 'USD' || to === 'USD';
+      const parallel = usesUsd && manual === null ? await parallelOn(repos, ctx, date) : null;
+      const customRates: Record<string, Decimal> = {};
+      for (const code of [from, to]) {
+        if (code === 'BOB' || code === 'USD') {
+          continue;
+        }
+        const rate = customRateOn(events, code, date, ctx.timezone);
+        if (rate !== null) {
+          customRates[code] = rate;
+        }
+      }
+      return transferPrefill({ from, to, date, manual, parallel, customRates });
     },
   };
 }

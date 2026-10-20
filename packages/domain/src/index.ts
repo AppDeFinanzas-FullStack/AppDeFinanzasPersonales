@@ -23,7 +23,15 @@ export {
 export type { DateRange, Instant, LocalDate, YearMonth } from './dates.js';
 export { balanceFrom, cardView, validateInitialBalance, validateTypeChange } from './balance.js';
 export type { AccountType, CardView, LedgerEntry, RuleResult, TypeChangeInput } from './balance.js';
-export { classifyBidAsk, customRateOn, gap, resolveUsdRate } from './fx.js';
+export {
+  amountInFrom,
+  classifyBidAsk,
+  customRateOn,
+  gap,
+  rateFromAmounts,
+  resolveUsdRate,
+  transferPrefill,
+} from './fx.js';
 export type { FxEvent, MarketSeries, UsdReference } from './fx.js';
 export { formatMoney, parseAmountInput } from './format.js';
 export type { NumberFormat } from './format.js';

@@ -1879,7 +1879,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RN-07`: la fecha de mañana en la zona del usuario da `FUTURE_DATE`.
     - `RF-M3-06`: un gasto en BOB guarda `rate_usd_bob`.
 
-- [ ] **`TASK-122`: `TransactionsService.create`: transferencias y comisión**
+- [x] **`TASK-122`: `TransactionsService.create`: transferencias y comisión**
   - **Dependencias:** Requiere TASK-121
   - **Trazabilidad SDD:** plan §4.6.2, plan §4.6.1 (convención de la tasa declarada), plan §4.6.3 (comisión); RF-M6-04, RF-M6-05, RF-M3-07, RF-M3-08, RF-M3-09, EC-M6-08, RN-02
   - **Archivos en Alcance:**
