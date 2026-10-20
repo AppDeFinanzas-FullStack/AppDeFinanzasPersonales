@@ -1961,7 +1961,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un solo `undo` revierte el lote completo.
     - `MIXED_KINDS` al recategorizar gastos e ingresos juntos.
 
-- [ ] **`TASK-126`: Servicio de lista y totales de movimientos**
+- [x] **`TASK-126`: Servicio de lista y totales de movimientos**
   - **Dependencias:** Requiere TASK-119, TASK-121
   - **Trazabilidad SDD:** plan §4.6.2 (`GET /api/transactions`, `summary`); RF-M6-11, RF-M6-12, RF-M3-11, RN-04, RN-05, RNF-19
   - **Archivos en Alcance:**

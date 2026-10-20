@@ -3,9 +3,18 @@ import {
   type BatchDeleteInput,
   type BatchRecategorizeInput,
   type CreateTransactionInput,
+  type ListQuery,
   type UpdateTransactionInput,
 } from '@finanzas/contracts';
-import { amountInFrom, customRateOn, isFutureFor, rateFromAmounts } from '@finanzas/domain';
+import {
+  amountInFrom,
+  customRateOn,
+  isFutureFor,
+  monthRange,
+  rateFromAmounts,
+  todayFor,
+  type FxEvent,
+} from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
 import { uuidv7 } from 'uuidv7';
 
@@ -16,6 +25,9 @@ import type {
   LedgerEntryInput,
   LedgerEntryView,
   LedgerGetOptions,
+  LedgerListFilters,
+  LedgerPage,
+  LedgerTotals,
   LedgerTransactionChanges,
   LedgerTransactionDetail,
   LedgerTransactionView,
@@ -77,6 +89,23 @@ export interface BatchResult {
   undoToken: string | null;
 }
 
+/** A movement of the list, with its value in the base currency and its RN-12 mark. */
+export interface ListedTransaction extends LedgerTransactionView {
+  /**
+   * Its signed amount in the base currency, with the rates it stored or, for a base it did not
+   * store, the user's rate on its date (RN-04); for a transfer, what leaves the origin account.
+   * `null` when there is no rate to convert it (EC-M3-02).
+   */
+  amountInBase: Decimal | null;
+  /** Dated before the initial balance of one of its accounts, so it does not change it (RN-12). */
+  beforeInitialBalance: boolean;
+}
+
+/** A page of the movement list (RF-M6-02, RF-M6-12). */
+export interface TransactionListPage extends Omit<LedgerPage, 'items'> {
+  items: ListedTransaction[];
+}
+
 export interface TransactionsService {
   /**
    * Creates an expense, an income or a transfer with its fee, idempotent by the client's id
@@ -112,6 +141,16 @@ export interface TransactionsService {
    * and the linked ones in a system category; one `undo` restores them all (RF-M6-13).
    */
   batchRecategorize(ctx: RatesContext, input: BatchRecategorizeInput): Promise<BatchResult>;
+  /**
+   * A page of the user's movements that match the query, the current month by default, with the
+   * net of each of its days in the base currency (RF-M6-11, RF-M6-12, plan §4.6.2).
+   */
+  list(ctx: RatesContext, query: ListQuery): Promise<TransactionListPage>;
+  /**
+   * Income, expense and net in the base currency of the movements that match the query, each with
+   * its stored rates and without what RN-02 leaves out (RF-M6-12, RN-05).
+   */
+  summary(ctx: RatesContext, query: ListQuery): Promise<LedgerTotals>;
 }
 
 export interface TransactionsServiceDeps {
@@ -571,6 +610,106 @@ function previousCategories(action: UndoAction): PreviousCategory[] {
     throw new Error(`The payload of the undo action (${action.kind}) is malformed`);
   }
   return items;
+}
+
+/**
+ * The filters of the query: its month, else its date or range (a single date is that day), else
+ * the current month in the user's timezone (RF-M6-02, plan §4.6.1).
+ */
+function filtersOf(ctx: RatesContext, query: ListQuery): LedgerListFilters {
+  const from = query.from ?? query.to;
+  const to = query.to ?? query.from;
+  const range =
+    query.month !== undefined
+      ? monthRange(query.month)
+      : from !== undefined && to !== undefined
+        ? { from, to }
+        : monthRange(todayFor(ctx.timezone, ctx.now).slice(0, 7));
+  return {
+    ...range,
+    limit: query.limit,
+    accountId: query.accountId,
+    categoryId: query.categoryId,
+    kind: query.kind,
+    q: query.q,
+  };
+}
+
+/** The base currency of the user (plan §3.4). */
+async function baseCurrency(repos: Repositories, ctx: RatesContext): Promise<string> {
+  return (await repos.userSettings.fxSettings(ctx.userId))?.baseCurrency ?? 'BOB';
+}
+
+/**
+ * Bs per unit of the base currency for the movement: the USD rate it stored, or the user's rate of
+ * a currency it did not store on its date (RN-04); `null` when there is none.
+ */
+function baseRateOf(
+  movement: LedgerTransactionView,
+  base: string,
+  events: FxEvent[],
+  timezone: string,
+): Decimal | null {
+  if (base === 'BOB') {
+    return new Decimal(1);
+  }
+  if (base === 'USD') {
+    return movement.rateUsdBob;
+  }
+  return customRateOn(events, base, movement.date, timezone);
+}
+
+/** The signed amount of the movement in the base currency, as the totals count it (RN-04, RN-05). */
+function amountInBase(
+  movement: LedgerTransactionView,
+  base: string,
+  events: FxEvent[],
+  timezone: string,
+): Decimal | null {
+  // A transfer stores the rate of its origin currency, the one of what leaves (plan §4.6.1).
+  const entry =
+    movement.kind === 'transfer'
+      ? movement.entries.find((item) => item.amount.isNegative())
+      : singleEntry(movement);
+  if (entry === undefined) {
+    throw new Error('The transfer has no outgoing entry');
+  }
+  if (entry.currencyCode === base) {
+    return entry.amount;
+  }
+  const rate = baseRateOf(movement, base, events, timezone);
+  return rate === null
+    ? null
+    : entry.amount
+        .times(movement.rateCurBob)
+        .dividedBy(rate)
+        .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+}
+
+async function listMovements(
+  repos: Repositories,
+  ctx: RatesContext,
+  query: ListQuery,
+): Promise<TransactionListPage> {
+  const page = await repos.ledger.list(filtersOf(ctx, query), query.cursor ?? null);
+  const base = await baseCurrency(repos, ctx);
+  const events = await repos.userFxEvents.eventsUntil(ctx.now);
+  const accounts = new Map<string, AccountRow>();
+  const items: ListedTransaction[] = [];
+  for (const movement of page.items) {
+    let beforeInitialBalance = false;
+    for (const { accountId } of movement.entries) {
+      const account = accounts.get(accountId) ?? (await storedAccount(repos, accountId));
+      accounts.set(account.id, account);
+      beforeInitialBalance ||= movement.date < account.initialBalanceDate;
+    }
+    items.push({
+      ...movement,
+      amountInBase: amountInBase(movement, base, events, ctx.timezone),
+      beforeInitialBalance,
+    });
+  }
+  return { ...page, items };
 }
 
 export function createTransactionsService({
@@ -1376,6 +1515,20 @@ export function createTransactionsService({
       return uow.run((repos) => batchRecategorizeMovements(repos, ctx, input), {
         userLock: ctx.userId,
       });
+    },
+
+    async list(ctx, query) {
+      return uow.run((repos) => listMovements(repos, ctx, query), {
+        userLock: ctx.userId,
+        readOnly: true,
+      });
+    },
+
+    async summary(ctx, query) {
+      return uow.run(
+        async (repos) => repos.ledger.summary(filtersOf(ctx, query), await baseCurrency(repos, ctx)),
+        { userLock: ctx.userId, readOnly: true },
+      );
     },
   };
 }
