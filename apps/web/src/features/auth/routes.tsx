@@ -6,6 +6,8 @@ import auth from '@/locales/es-BO/auth.json';
 
 import { CheckEmail } from './components/check-email';
 import { ConfirmLink } from './components/confirm-link';
+import { ForgotPasswordForm } from './components/forgot-password-form';
+import { ResetPasswordForm } from './components/reset-password-form';
 import { SignInForm } from './components/sign-in-form';
 import { SignUpForm } from './components/sign-up-form';
 import { useMe } from './hooks/use-me';
@@ -28,5 +30,7 @@ export const authRoutes: RouteObject[] = [
   { path: 'entrar', element: <SignInForm /> },
   { path: 'revisa-tu-correo', element: <CheckEmail /> },
   { path: 'confirmar', element: <ConfirmLink /> },
+  { path: 'olvide-mi-contrasena', element: <ForgotPasswordForm /> },
+  { path: 'restablecer', element: <ResetPasswordForm /> },
   { path: 'perfil', element: <RequireSession /> },
 ];

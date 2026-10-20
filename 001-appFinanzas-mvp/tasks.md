@@ -1045,7 +1045,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-04`: un usuario sin confirmar ve "Revisa tu correo".
     - `EC-M1-04`: tras 5 fallos se ve el tiempo restante.
 
-- [ ] **`TASK-067`: Web: recuperar la contraseña**
+- [x] **`TASK-067`: Web: recuperar la contraseña**
   - **Dependencias:** Requiere TASK-066
   - **Trazabilidad SDD:** plan §4.1.4 (`/olvide-mi-contrasena`, `/restablecer`); RF-M1-09, RF-M1-10, RNF-15
   - **Archivos en Alcance:**
