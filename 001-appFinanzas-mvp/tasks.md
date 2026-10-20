@@ -1568,7 +1568,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-10`: dos aplicaciones concurrentes de −20 sobre 30 dan un éxito y un error.
     - `EC-M4-01`: quitar un ingreso que deja el efectivo en −50 se rechaza.
 
-- [ ] **`TASK-101`: `AccountsService`: crear, listar y resumen**
+- [x] **`TASK-101`: `AccountsService`: crear, listar y resumen**
   - **Dependencias:** Requiere TASK-037, TASK-085, TASK-089, TASK-096, TASK-098, TASK-100
   - **Trazabilidad SDD:** plan §4.4.2 (`GET` y `POST /api/accounts`), ADR-11; RF-M4-01, RF-M4-02, RF-M4-09, RF-M4-10, RNF-28, RN-05
   - **Archivos en Alcance:**

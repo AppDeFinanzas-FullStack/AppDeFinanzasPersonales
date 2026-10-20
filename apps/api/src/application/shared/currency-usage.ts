@@ -4,7 +4,11 @@ import type { Repositories } from '../ports/repositories.js';
  * Tells whether the user still uses a currency in one module (accounts, goals, budgets, debts or
  * rules), inside the transaction that deactivates it (plan §4.3.3, EC-M3-05).
  */
-export type CurrencyUsageCheck = (tx: Repositories, userId: string, code: string) => Promise<boolean>;
+export type CurrencyUsageCheck = (
+  tx: Repositories,
+  userId: string,
+  code: string,
+) => Promise<boolean>;
 
 const checks = new Map<string, CurrencyUsageCheck>();
 
@@ -29,3 +33,8 @@ export const CurrencyUsage = {
     return usedBy;
   },
 };
+
+// Accounts (M4): an active account in the currency uses it (plan §4.3.3).
+CurrencyUsage.register('accounts', async (tx, _userId, code) =>
+  (await tx.accounts.list('active')).some((account) => account.currencyCode === code),
+);

@@ -21,11 +21,27 @@ export {
   todayFor,
 } from './dates.js';
 export type { DateRange, Instant, LocalDate, YearMonth } from './dates.js';
-export { balanceFrom, cardView, validateInitialBalance, validateTypeChange } from './balance.js';
-export type { AccountType, CardView, LedgerEntry, RuleResult, TypeChangeInput } from './balance.js';
+export {
+  balanceFrom,
+  cardView,
+  netWorth,
+  validateInitialBalance,
+  validateTypeChange,
+} from './balance.js';
+export type {
+  AccountType,
+  CardView,
+  LedgerEntry,
+  NetWorthAccount,
+  NetWorthRates,
+  NetWorthResult,
+  RuleResult,
+  TypeChangeInput,
+} from './balance.js';
 export {
   amountInFrom,
   classifyBidAsk,
+  convert,
   customRateOn,
   gap,
   rateFromAmounts,
