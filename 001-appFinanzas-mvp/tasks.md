@@ -1756,7 +1756,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M5-04`: restaurar con un nombre en uso da `NAME_TAKEN`.
     - `EC-M5-06`: restaurar una hija con el padre archivado da `PARENT_ARCHIVED`.
 
-- [ ] **`TASK-113`: Eliminar categorías**
+- [x] **`TASK-113`: Eliminar categorías**
   - **Dependencias:** Requiere TASK-111
   - **Trazabilidad SDD:** plan §4.5.2 (`DELETE /api/categories/:id`), plan §3.8; EC-M5-07, RN-08
   - **Archivos en Alcance:**

@@ -183,5 +183,17 @@ export function createCategoryRepository(
                                   THEN now() ELSE NULL END
          WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[])`;
     },
+
+    async remove(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      // The parent FK is RESTRICT, so the subcategories go before their parents.
+      await tx.$executeRaw`
+        DELETE FROM category
+         WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[]) AND parent_id IS NOT NULL`;
+      await tx.$executeRaw`
+        DELETE FROM category WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[])`;
+    },
   };
 }

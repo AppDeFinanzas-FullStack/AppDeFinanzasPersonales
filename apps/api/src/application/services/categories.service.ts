@@ -35,6 +35,11 @@ export interface CategoriesService {
   archive(userId: string, id: string): Promise<void>;
   /** Restores the category and the chosen subcategories, optionally renaming it (EC-M5-04). */
   restore(userId: string, id: string, input: RestoreCategoryInput): Promise<void>;
+  /**
+   * Deletes the category and its subcategories when none has movements or a budget or rule that
+   * uses it (RN-08, EC-M5-07); their shortcuts go with them.
+   */
+  remove(userId: string, id: string): Promise<void>;
 }
 
 /** The parent of a category being created or moved must exist, be a root, of the same kind and active. */
@@ -264,6 +269,36 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
             await assertNameFree(repos, child.kind, id, child.name, childId);
             await repos.categories.setStatus([childId], 'active');
           }
+        },
+        { userLock: userId },
+      );
+    },
+
+    async remove(userId, id) {
+      await uow.run(
+        async (repos) => {
+          const current = await repos.categories.get(id);
+          if (current === null) {
+            throw new AppError('CATEGORY_NOT_FOUND');
+          }
+          if (current.isSystem) {
+            throw new AppError('SYSTEM_CATEGORY');
+          }
+          const ids = await repos.categories.idsWithChildren(id);
+          const budgets: { id: string }[] = [];
+          const recurring: { id: string; name: string }[] = [];
+          for (const affectedId of ids) {
+            if (await repos.categories.hasMovements(affectedId)) {
+              throw new AppError('CATEGORY_HAS_MOVEMENTS');
+            }
+            const usage = await repos.categories.usage(affectedId);
+            budgets.push(...usage.budgets);
+            recurring.push(...usage.recurring);
+          }
+          if (budgets.length > 0 || recurring.length > 0) {
+            throw new AppError('CATEGORY_IN_USE', { budgets, recurring });
+          }
+          await repos.categories.remove(ids);
         },
         { userLock: userId },
       );
