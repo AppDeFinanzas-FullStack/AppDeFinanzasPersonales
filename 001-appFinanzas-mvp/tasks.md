@@ -1132,8 +1132,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/nav-items.ts`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/playwright.config.ts`
     - `e2e/m2-navigation.spec.ts`
-  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar.
+  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar. `playwright.config.ts` excluye los casos `@release-1.0` (`grepInvert`) cuando `RELEASE` no es `1.0`; solo corren con `e2e:release-1.0` (plan §5.1).
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registrar en el centro de la barra en el celular" (360 px): las 5 pestañas en orden y Registrar en el centro (`RF-M2-01`, `RF-M7-01`).
     - Escenario «Sin "Más" en escritorio» (1280 px) (`RF-M2-02`).
