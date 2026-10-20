@@ -120,6 +120,8 @@ export interface NewUnconfirmedUser {
   name: string;
   email: string;
   passwordHash: string;
+  /** IANA zone of the device; the user gets America/La_Paz without it (RF-M1-11). */
+  timezone?: string;
 }
 
 /** The password credential of a user, to check a sign-in against. */

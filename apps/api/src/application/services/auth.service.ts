@@ -13,6 +13,8 @@ export interface SignUpInput {
   email: string;
   password: string;
   termsAccepted: boolean;
+  /** IANA zone of the device (RF-M1-11); an invalid or missing one becomes America/La_Paz. */
+  timezone?: string | undefined;
 }
 
 export interface SignUpResult {
@@ -115,6 +117,20 @@ const RESEND_MIN_INTERVAL_SECONDS = 60;
 const RESEND_WINDOW_SECONDS = 60 * 60;
 const RESEND_MAX_PER_WINDOW = 5;
 
+const DEFAULT_TIMEZONE = 'America/La_Paz';
+
+function validTimezone(value: string | undefined): string {
+  if (value === undefined) {
+    return DEFAULT_TIMEZONE;
+  }
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export function createAuthService({
@@ -158,11 +174,12 @@ export function createAuthService({
     name: string,
     email: string,
     passwordHash: string,
+    timezone: string,
   ): Promise<void> {
     let existing = await repos.users.findByEmail(email);
     if (existing === null) {
       const id = uuidv7();
-      if (await repos.users.createUnconfirmed({ id, name, email, passwordHash })) {
+      if (await repos.users.createUnconfirmed({ id, name, email, passwordHash, timezone })) {
         await bootstrapUser(repos, id);
         await sendConfirmation(repos, id, email);
         return;
@@ -283,7 +300,9 @@ export function createAuthService({
       const name = input.name.trim();
       const passwordHash = await auth.hashPassword(input.password);
 
-      await uow.run((repos) => register(repos, name, email, passwordHash));
+      const timezone = validTimezone(input.timezone);
+
+      await uow.run((repos) => register(repos, name, email, passwordHash, timezone));
 
       const remaining = MIN_SIGN_UP_MILLISECONDS - (performance.now() - started);
       if (remaining > 0) {

@@ -96,6 +96,7 @@ export function createAuthController({
         email: body.email,
         password: body.password,
         termsAccepted: body.acceptTerms,
+        timezone: body.timezone,
       });
       res.status(202).json(result);
     },

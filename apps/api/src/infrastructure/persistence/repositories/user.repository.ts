@@ -3,6 +3,8 @@ import { uuidv7 } from 'uuidv7';
 import type { UserAccount, UserRepository } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
+const DEFAULT_TIMEZONE = 'America/La_Paz';
+
 /** Prisma implementation of the initial rows of a new user, bound to the transaction `tx`. */
 export function createUserRepository(tx: TransactionClient): UserRepository {
   return {
@@ -53,8 +55,9 @@ export function createUserRepository(tx: TransactionClient): UserRepository {
 
     async createUnconfirmed(user) {
       const rows = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO auth_user (id, name, email, terms_accepted_at, registered_at)
-        VALUES (${user.id}::uuid, ${user.name}, ${user.email}, now(), now())
+        INSERT INTO auth_user (id, name, email, timezone, terms_accepted_at, registered_at)
+        VALUES (${user.id}::uuid, ${user.name}, ${user.email},
+                ${user.timezone ?? DEFAULT_TIMEZONE}, now(), now())
         ON CONFLICT (email) DO NOTHING
         RETURNING id::text AS id`;
       if (rows.length === 0) {

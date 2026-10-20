@@ -216,7 +216,12 @@ export const buildContainer = (env: Env): Container => {
     fakeEmail === null
       ? null
       : {
-          mailbox: (to) => fakeEmail.inboxOf(to),
+          // Nothing else ticks in the end-to-end run: reading the mailbox also sends what is due,
+          // so the polling client sees the email on its next read.
+          mailbox: (to) => {
+            jobs.tick().catch(() => undefined);
+            return fakeEmail.inboxOf(to);
+          },
           createUser: createTestUserFactory({ prisma, uow, auth }),
         };
   return {

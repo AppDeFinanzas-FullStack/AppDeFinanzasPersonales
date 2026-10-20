@@ -1003,7 +1003,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-13`: dos peticiones el mismo día disparan una sola puesta al día, y un día nuevo la vuelve a disparar.
     - Un error en la puesta al día no cambia la respuesta de la petición.
 
-- [ ] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
+- [x] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
   - **Dependencias:** Requiere TASK-046, TASK-060
   - **Trazabilidad SDD:** plan §4.1.4 (rutas públicas), plan §4.2.4 (guardas); RF-M1-01, RF-M1-03, RF-M1-05, RF-M1-11, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**
