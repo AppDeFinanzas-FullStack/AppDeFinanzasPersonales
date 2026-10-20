@@ -47,6 +47,7 @@ import { createMarketRateRepository } from '../infrastructure/persistence/reposi
 import { createUserFxEventRepository } from '../infrastructure/persistence/repositories/user-fx-event.repository.js';
 import { createAccountRepository } from '../infrastructure/persistence/repositories/account.repository.js';
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
+import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
@@ -114,6 +115,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
   accounts: createAccountRepository(tx, userId ?? NO_USER),
   ledger: createLedgerRepository(tx, userId ?? NO_USER),
+  categories: createCategoryRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';

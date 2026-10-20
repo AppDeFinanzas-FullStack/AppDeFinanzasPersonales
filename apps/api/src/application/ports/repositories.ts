@@ -194,6 +194,7 @@ export interface Repositories {
   userFxEvents: UserFxEventRepository;
   accounts: AccountRepository;
   ledger: LedgerRepository;
+  categories: CategoryRepository;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -352,4 +353,69 @@ export interface LedgerRepository {
   balances(accountIds: string[]): Promise<Map<string, Decimal>>;
   /** Balance at the end of each day of the range, both ends included, in ascending order (RN-01). */
   balanceSeries(accountId: string, from: LocalDate, to: LocalDate): Promise<BalancePoint[]>;
+}
+
+// ---------- Categorías (M5) ----------
+
+export interface CategoryRow {
+  id: string;
+  kind: CategoryKind;
+  parentId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  isSystem: boolean;
+  status: LifecycleStatus;
+  archivedAt: Date | null;
+  sortOrder: number;
+}
+
+/** A category created by the user: it is always active and never of the system. */
+export type NewUserCategory = Pick<
+  CategoryRow,
+  'id' | 'kind' | 'parentId' | 'name' | 'color' | 'icon' | 'sortOrder'
+>;
+
+/** Editable fields of a category; the kind never changes (RF-M5-01). */
+export type CategoryPatch = Partial<Pick<CategoryRow, 'name' | 'color' | 'icon' | 'parentId'>>;
+
+/** A node of the two-level tree (`CategoryNode`, plan §4.5.1). */
+export interface CategoryTreeNode {
+  id: string;
+  kind: CategoryKind;
+  name: string;
+  color: string;
+  icon: string;
+  isSystem: boolean;
+  status: LifecycleStatus;
+  children: CategoryTreeNode[];
+}
+
+/** What points to a category: its budgets, recurring rules and shortcuts (plan §4.5.1). */
+export interface CategoryUsage {
+  budgets: { id: string }[];
+  recurring: { id: string; name: string }[];
+  shortcuts: { id: string; name: string }[];
+}
+
+/** Categories of the user bound to the transaction; another user's category does not exist (RN-09). */
+export interface CategoryRepository {
+  /**
+   * The categories of that kind and status as a two-level tree, each level by `sortOrder`. A root
+   * is a category without a parent, or one whose parent has another status.
+   */
+  tree(kind: CategoryKind, status: LifecycleStatus): Promise<CategoryTreeNode[]>;
+  get(id: string): Promise<CategoryRow | null>;
+  insert(category: NewUserCategory): Promise<void>;
+  update(id: string, patch: CategoryPatch): Promise<void>;
+  /** Gives each category the position of its id in the list as its `sortOrder`. */
+  setOrder(ids: string[]): Promise<void>;
+  /** How many categories the user has, active or archived. */
+  count(): Promise<number>;
+  /** `true` when any transaction uses the category, including deleted ones not yet purged. */
+  hasMovements(id: string): Promise<boolean>;
+  /** The budgets, recurring rules and shortcuts that use the category. */
+  usage(id: string): Promise<CategoryUsage>;
+  /** The id of the category and those of its subcategories; `[]` when it does not exist. */
+  idsWithChildren(id: string): Promise<string[]>;
 }

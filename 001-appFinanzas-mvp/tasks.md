@@ -1691,7 +1691,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-01`: `UpdateCategoryInput` rechaza `kind`.
     - `RF-M5-04`: `color` es opcional al crear e `icon` es obligatorio.
 
-- [ ] **`TASK-110`: Repositorio de categorías**
+- [x] **`TASK-110`: Repositorio de categorías**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.5, plan §4.5.2; RF-M5-03, RN-09
   - **Archivos en Alcance:**
