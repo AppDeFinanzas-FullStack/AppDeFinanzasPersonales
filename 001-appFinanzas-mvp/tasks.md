@@ -1712,7 +1712,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `hasMovements` cuenta una transacción eliminada que todavía puede deshacerse.
     - `RN-09`: un usuario no ve las categorías de otro.
 
-- [ ] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
+- [x] **`TASK-111`: `CategoriesService`: crear, editar, mover y reordenar**
   - **Dependencias:** Requiere TASK-037, TASK-109, TASK-110
   - **Trazabilidad SDD:** plan §4.5.2 (`POST`, `PATCH`, `PUT /order`), plan §4.5.3; RF-M5-01, RF-M5-02, RF-M5-04, RF-M5-05, EC-M5-01, EC-M5-03, EC-M5-05, RNF-28
   - **Archivos en Alcance:**
