@@ -53,6 +53,8 @@
     "rate": "Tipo de cambio guardado",
     "fee": "Comisión",
     "edit": "Editar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…",
     "gone": "Este movimiento ya no existe.",
     "goneBack": "Volver a Movimientos",
     "loadError": "No se pudo cargar el movimiento. Revisa tu conexión e inténtalo de nuevo.",
@@ -98,6 +100,13 @@
     "help": "Lo calculamos con el tipo de cambio guardado. Confírmalo o corrígelo.",
     "helpNoRate": "El movimiento no guardó el tipo de cambio de {{code}}. Escribe el monto en esa moneda.",
     "tooLarge": "El monto convertido superaría 999.999.999,99. Elige otra cuenta o corrige el monto."
+  },
+  "undo": {
+    "deleted": "Movimiento eliminado",
+    "action": "Deshacer",
+    "undoing": "Deshaciendo…",
+    "remaining": "{{count}} s",
+    "remainingLabel": "Quedan {{count}} segundos para deshacer"
   },
   "empty": "No hay movimientos con estos filtros. Cambia el mes o limpia los filtros.",
   "loadError": "No se pudieron cargar los movimientos. Revisa tu conexión e inténtalo de nuevo.",

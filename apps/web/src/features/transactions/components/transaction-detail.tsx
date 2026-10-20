@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
 
 import { Badge } from '@/components/ui/badge';
@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
+import { messageForError } from '@/lib/i18n-errors';
 
 import { TransactionItem } from '../api';
+import { useDeleteTransaction } from '../hooks/use-delete-transaction';
 import { TRANSACTIONS_KEY } from '../hooks/use-transactions';
 
 import { useSignedMoney } from './transaction-row';
@@ -68,6 +70,9 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
   const signed = useSignedMoney();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const remove = useDeleteTransaction();
   const nameOf = (accountId: string) => accountNames.get(accountId) ?? '';
 
   const transfer = transaction.kind === 'transfer';
@@ -182,9 +187,38 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
         </div>
       )}
 
-      <Button type="button" className="h-11 self-start" onClick={onEdit}>
-        {t('detail.edit')}
-      </Button>
+      {remove.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {isGone(remove.error)
+            ? t('detail.gone')
+            : messageForError(remove.error instanceof ApiError ? remove.error : { code: '' })}
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" className="h-11" onClick={onEdit}>
+          {t('detail.edit')}
+        </Button>
+        {/* A linked movement is deleted only from its origin (RF-M6-09). */}
+        {!transaction.linkedLocked && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 text-destructive"
+            disabled={remove.isPending}
+            onClick={() => {
+              remove.mutate(transaction.id, {
+                onSuccess: () => {
+                  if (location.key === 'default') void navigate('/movimientos');
+                  else void navigate(-1);
+                },
+              });
+            }}
+          >
+            {remove.isPending ? t('detail.deleting') : t('detail.delete')}
+          </Button>
+        )}
+      </div>
     </article>
   );
 }

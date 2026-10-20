@@ -2060,7 +2060,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-02`: editar algo eliminado en otro contexto muestra "Este movimiento ya no existe".
     - `RF-M3-10`: cambiar la fecha no cambia la tasa mostrada.
 
-- [ ] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
+- [x] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
   - **Dependencias:** Requiere TASK-131
   - **Trazabilidad SDD:** plan §4.6.4 (global, optimismo), plan §4.6.3; RF-M7-07, EC-M6-06
   - **Archivos en Alcance:**
