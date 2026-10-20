@@ -2060,7 +2060,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M6-02`: editar algo eliminado en otro contexto muestra "Este movimiento ya no existe".
     - `RF-M3-10`: cambiar la fecha no cambia la tasa mostrada.
 
-- [ ] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
+- [x] **`TASK-132`: Web: aviso global de "Deshacer" y eliminación**
   - **Dependencias:** Requiere TASK-131
   - **Trazabilidad SDD:** plan §4.6.4 (global, optimismo), plan §4.6.3; RF-M7-07, EC-M6-06
   - **Archivos en Alcance:**
@@ -2075,7 +2075,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Eliminar y deshacer" (E2E): el saldo sube Bs 35,00 al instante, se ve "Movimiento eliminado · Deshacer" y, al tocarlo, el gasto vuelve.
     - `EC-M6-06`: cambiar de pantalla oculta el "Deshacer".
 
-- [ ] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
+- [x] **`TASK-133`: Web: movimientos en el detalle de una cuenta**
   - **Dependencias:** Requiere TASK-108, TASK-129
   - **Trazabilidad SDD:** plan §4.4.4 (`MovementsByDay`, filtro compartido); spec §2.4.1 (consultar)
   - **Archivos en Alcance:**

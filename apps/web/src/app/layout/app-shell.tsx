@@ -9,6 +9,7 @@ import { Header } from './header';
 import { OfflineOverlay } from './offline-overlay';
 import { SessionExpiredDialog } from './session-expired-dialog';
 import { Sidebar } from './sidebar';
+import { UndoToast } from './undo-toast';
 
 // The layout registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'navigation', navigation, true, true);
@@ -27,6 +28,7 @@ export function AppShell() {
           </main>
         </div>
         <BottomTabBar />
+        <UndoToast />
       </div>
       <OfflineOverlay />
       <SessionExpiredDialog />
