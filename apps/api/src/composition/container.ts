@@ -12,6 +12,7 @@ import {
   type MeService,
   type MeStore,
 } from '../application/services/me.service.js';
+import { createFxJobs } from '../application/jobs/fx.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -25,6 +26,10 @@ import type { Env } from '../infrastructure/config/env.js';
 import { createBetterAuthGateway } from '../infrastructure/auth/better-auth.js';
 import { ResendEmailGateway } from '../infrastructure/integrations/resend.js';
 import { FakeEmailGateway } from '../infrastructure/integrations/resend.fake.js';
+import { createFakeBcbGateway } from '../infrastructure/integrations/bcb.fake.js';
+import { createBcbGateway } from '../infrastructure/integrations/bcb.js';
+import { createFakeRatesGateway } from '../infrastructure/integrations/paralelo-bo.fake.js';
+import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
 import {
@@ -37,6 +42,9 @@ import { createEmailOutboxRepository } from '../infrastructure/persistence/repos
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
+import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
+import { createMarketRateRepository } from '../infrastructure/persistence/repositories/market-rate.repository.js';
+import { createUserFxEventRepository } from '../infrastructure/persistence/repositories/user-fx-event.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
@@ -91,13 +99,31 @@ const createEmailGateway = (env: Env, fake: FakeEmailGateway | null): EmailGatew
   fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
-const buildRepositories = (tx: TransactionClient): Repositories => ({
+const NO_USER = '00000000-0000-0000-0000-000000000000';
+
+const buildRepositories = (tx: TransactionClient, userId: string | undefined): Repositories => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
   users: createUserRepository(tx),
+  marketRates: createMarketRateRepository(tx),
+  currencies: createCurrencyRepository(tx, userId ?? NO_USER),
+  userFxEvents: createUserFxEventRepository(tx, userId ?? NO_USER),
 });
+
+const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
+const BCB_URL = 'https://www.bcb.gob.bo/bcb_tco_publico_ultima_cotizacion.php';
+const SOURCE_TIMEOUT_MS = 10_000;
+
+/** Real sources (paralelo.bo and the BCB) or their fakes, by `env.INTEGRATIONS` (plan §1.4). */
+const buildRateSources = (env: Env) =>
+  env.INTEGRATIONS === 'real'
+    ? {
+        rates: createParaleloBoGateway({ url: PARALELO_BO_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+        bcb: createBcbGateway({ url: BCB_URL, timeoutMs: SOURCE_TIMEOUT_MS }),
+      }
+    : { rates: createFakeRatesGateway(), bcb: createFakeBcbGateway() };
 
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
@@ -194,11 +220,11 @@ export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
   const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
-  const jobs = createJobs({
-    jobRuns: createJobRuns(prisma),
-    clock: systemClock,
-    release: env.RELEASE,
-  });
+  const jobRuns = createJobRuns(prisma);
+  const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
+  const fxJobs = createFxJobs({ ...buildRateSources(env), uow, jobRuns, clock: systemClock });
+  jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
+  jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
   jobs.registerJob(
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),

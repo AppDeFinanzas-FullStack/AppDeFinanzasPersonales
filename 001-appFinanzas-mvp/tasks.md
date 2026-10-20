@@ -1207,7 +1207,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 8 — M3 Monedas y tipo de cambio (V1.0)
 
-- [ ] **`TASK-077`: Contratos de M3**
+- [x] **`TASK-077`: Contratos de M3**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.3.1; RF-M3-02, RF-M3-12, RF-M3-05
   - **Archivos en Alcance:**
@@ -1220,7 +1220,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RateHistoryQuery` solo admite los rangos 7d, 30d, 90d y 1y.
     - `RF-M3-05`: cada referencia de `RatesCurrentDto` trae `observedAt` y `source`.
 
-- [ ] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
+- [x] **`TASK-078`: Dominio `fx`: compra y venta, y brecha**
   - **Dependencias:** Requiere TASK-026
   - **Trazabilidad SDD:** plan §4.3.1 (`classifyBidAsk`, `gap`), ADR-06; RF-M3-12, spec §1.5 (referencia del dólar)
   - **Archivos en Alcance:**
@@ -1232,7 +1232,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-078`: `classifyBidAsk(10.30, 10.10)` da compra 10,10 y venta 10,30.
     - `RF-M3-12`: con paralelo 10,25 y oficial 6,96, la brecha es 47,27 % y Bs 3,29.
 
-- [ ] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
+- [x] **`TASK-079`: Dominio `fx`: `resolveUsdRate` (tasa del dólar para una fecha)**
   - **Dependencias:** Requiere TASK-027, TASK-078
   - **Trazabilidad SDD:** plan §4.3.1 (`resolveUsdRate`); RF-M3-03, RF-M3-06, RF-M3-13, EC-M3-03, RN-04
   - **Archivos en Alcance:**
@@ -1246,7 +1246,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M3-03`: un día sin datos usa el anterior más cercano y, antes del primer dato, el primero.
     - Sin ninguna tasa, devuelve `null`.
 
-- [ ] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
+- [x] **`TASK-080`: Dominio `fx`: conversión, tasa de monedas agregadas y precarga de transferencias**
   - **Dependencias:** Requiere TASK-079
   - **Trazabilidad SDD:** plan §4.3.1 (`convert`, `transferPrefill`), plan §4.6.1 (convención de la tasa declarada); RF-M3-07, RF-M3-08, EC-M3-06, RN-05, RN-06
   - **Archivos en Alcance:**
@@ -1259,7 +1259,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-08`: editar el monto que llega recalcula la tasa, con una diferencia máxima de 0,01.
     - Entre dos monedas agregadas se usa la tasa cruzada a través de BOB.
 
-- [ ] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
+- [x] **`TASK-081`: Integración con paralelo.bo (JSON-RPC) y su *fake* (prueba técnica S-2)**
   - **Dependencias:** Requiere TASK-031, TASK-078
   - **Trazabilidad SDD:** ADR-06, plan §1.3 (S-2), plan §4.3.2 (jobs); EC-M3-04, RF-M3-04
   - **Archivos en Alcance:**
@@ -1273,7 +1273,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Las respuestas se clasifican en compra y venta con `classifyBidAsk`.
     - Un *timeout* se informa como un fallo de la fuente, sin lanzar errores internos.
 
-- [ ] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
+- [x] **`TASK-082`: Respaldo con el widget del BCB y su *fake***
   - **Dependencias:** Requiere TASK-081
   - **Trazabilidad SDD:** ADR-06 (TCO con respaldo en el BCB), plan §4.3.2 (`fx.fetchOfficial`)
   - **Archivos en Alcance:**
@@ -1284,7 +1284,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-082`: con una respuesta de ejemplo, devuelve el valor y su fecha de vigencia; con HTML inesperado, informa el fallo.
 
-- [ ] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
+- [x] **`TASK-083`: Repositorios de tasas de mercado, monedas y eventos de tipo de cambio**
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §3.4, ADR-12; RF-M3-13, RN-09
   - **Archivos en Alcance:**
@@ -1292,13 +1292,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/infrastructure/persistence/repositories/market-rate.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/currency.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/user-fx-event.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/fx-repositories.test.ts`
   - **Especificación de Implementación:** `market_rate`: `upsertIfNewer`, `latest(kind)` y `series(kind, from, to)`. `currency`: `list`, `get`, `lockForUpdate`, `lockForShare` e `insert`. `user_fx_event`: `insert` y `eventsUntil(instant)`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M3-13`: `upsertIfNewer` solo reemplaza el valor del día si la observación es más reciente.
     - `RN-09`: las monedas y los eventos de un usuario no son visibles para otro.
 
-- [ ] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
+- [x] **`TASK-084`: Jobs `fx.fetchParallel` y `fx.fetchOfficial`**
   - **Dependencias:** Requiere TASK-038, TASK-082, TASK-083
   - **Trazabilidad SDD:** plan §4.3.2 (jobs), plan §4.3.3 (una sola actualización a la vez); RF-M3-04, EC-M3-01, EC-M3-04, RNF-21
   - **Archivos en Alcance:**
@@ -1402,7 +1403,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-090`: después de fijar 10,10 y 10,30, `GET /api/rates/current` los devuelve; con `INTEGRATIONS=real`, la ruta responde 404.
 
-- [ ] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
+- [x] **`TASK-091`: Script de carga única del histórico de tasas (`fx-backfill`)**
   - **Dependencias:** Requiere TASK-083
   - **Trazabilidad SDD:** ADR-06, plan §4.3.2 (script `fx-backfill`)
   - **Archivos en Alcance:**
