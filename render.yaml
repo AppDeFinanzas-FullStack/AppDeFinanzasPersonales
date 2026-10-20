@@ -1,0 +1,33 @@
+# Render Blueprint of the API (plan §1.5, ADR-20). Render does not deploy from Git on its own:
+# deploy.yml calls the Deploy Hook after CI and the migrations pass.
+services:
+  - type: web
+    name: finanzas-api
+    runtime: node
+    plan: free
+    branch: main
+    autoDeploy: false
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @finanzas/db generate && pnpm --filter api build
+    startCommand: pnpm --filter api start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: '22'
+      - key: DATABASE_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: HMAC_SECRET
+        sync: false
+      - key: JOBS_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RELEASE
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: INTEGRATIONS
+        sync: false
