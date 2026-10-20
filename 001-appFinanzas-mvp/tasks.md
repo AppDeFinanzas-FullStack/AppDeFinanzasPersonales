@@ -1061,7 +1061,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 7 — M2 Navegación y estructura, perfil y ajustes base (V1.0)
 
-- [ ] **`TASK-068`: Contratos de ajustes (M9)**
+- [x] **`TASK-068`: Contratos de ajustes (M9)**
   - **Dependencias:** Requiere TASK-021
   - **Trazabilidad SDD:** plan §4.9.1, plan §4.2.1; RF-M9-01, RF-M2-09, RF-M8-10
   - **Archivos en Alcance:**
@@ -1074,7 +1074,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `favoriteCategories` admite como máximo 8 ids.
     - `RF-M2-09`: `{ sidebarCollapsed: true }` es una entrada válida; un campo desconocido no.
 
-- [ ] **`TASK-069`: Servicio y rutas de ajustes generales**
+- [x] **`TASK-069`: Servicio y rutas de ajustes generales**
   - **Dependencias:** Requiere TASK-059, TASK-068
   - **Trazabilidad SDD:** plan §4.9.2 (`GET` y `PATCH /api/settings`), plan §4.2.2, plan §4.9.3; RF-M9-01, RF-M2-09, EC-M9-01, RNF-08
   - **Archivos en Alcance:**
@@ -1094,7 +1094,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-01` / `RNF-08`: con dos `PATCH` seguidos gana el último.
     - Hay un test de aislamiento entre usuarios.
 
-- [ ] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
+- [x] **`TASK-070`: Web: `useSettings`, `useFormatters` y tema desde el servidor**
   - **Dependencias:** Requiere TASK-029, TASK-045, TASK-069
   - **Trazabilidad SDD:** plan §4.9.1 (`packages/domain/format`), plan §4.9.3, plan §4.9.4 (estado); RF-M9-01, RF-M9-02, RF-M9-03
   - **Archivos en Alcance:**
@@ -1109,7 +1109,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-02` / `RF-M9-03`: `buildFormatters` respeta cada formato de número y de fecha.
     - `RF-M9-01`: el tema del servidor reemplaza al de localStorage al cargar.
 
-- [ ] **`TASK-071`: Web: guardas de rutas**
+- [x] **`TASK-071`: Web: guardas de rutas**
   - **Dependencias:** Requiere TASK-065
   - **Trazabilidad SDD:** plan §4.2.4 (guardas), ADR-18; RF-M2-03, RF-M1-04
   - **Archivos en Alcance:**
@@ -1121,7 +1121,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-04`: sin sesión, una ruta privada lleva a `/entrar`.
     - `RF-M2-03` (`@release-1.0`): `/presupuestos` muestra la página 404 con `RELEASE=1.0`.
 
-- [ ] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
+- [x] **`TASK-072`: Web: AppShell, cabecera, barra inferior y barra lateral**
   - **Dependencias:** Requiere TASK-070, TASK-071
   - **Trazabilidad SDD:** plan §4.2.3 (disposición), plan §4.2.4 (árbol); RF-M2-01, RF-M2-02, RF-M2-03, RF-M2-09, RF-M7-01, EC-M2-03, RNF-05, RNF-06
   - **Archivos en Alcance:**
@@ -1132,8 +1132,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/nav-items.ts`
     - `apps/web/src/app/router.tsx`
     - `apps/web/src/locales/es-BO/navigation.json`
+    - `e2e/playwright.config.ts`
     - `e2e/m2-navigation.spec.ts`
-  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar.
+  - **Especificación de Implementación:** `BottomTabBar` (`lg:hidden`) con Inicio · Movimientos · Registrar · Cuentas · Más, y `Sidebar` (`hidden lg:flex`) con todos los módulos liberados, en el orden de spec §2.2.1. Las dos están siempre montadas. La barra lateral se contrae a solo íconos, con *tooltips* y foco por teclado, y guarda `sidebarCollapsed` en el servidor. La cabecera muestra el título y deja un espacio para la ficha del dólar. `playwright.config.ts` excluye los casos `@release-1.0` (`grepInvert`) cuando `RELEASE` no es `1.0`; solo corren con `e2e:release-1.0` (plan §5.1).
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Registrar en el centro de la barra en el celular" (360 px): las 5 pestañas en orden y Registrar en el centro (`RF-M2-01`, `RF-M7-01`).
     - Escenario «Sin "Más" en escritorio» (1280 px) (`RF-M2-02`).
@@ -1141,7 +1142,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M2-03`: cambiar el tamaño de 360 a 1280 px no pierde el estado.
     - `RNF-06`: sin violaciones de axe.
 
-- [ ] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
+- [x] **`TASK-073`: Web: menú "Más", memoria por pestaña y botón Atrás**
   - **Dependencias:** Requiere TASK-044, TASK-072
   - **Trazabilidad SDD:** plan §4.2.3 (memoria por módulo, botón Atrás), plan §4.2.4; RF-M2-04, RF-M2-05, RF-M2-06, RF-M2-12
   - **Archivos en Alcance:**
@@ -1156,7 +1157,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-12` (`@release-1.0`): con `RELEASE=1.0`, PLANIFICAR no aparece.
     - `RF-M2-04`: al cambiar de pestaña y volver, se restauran la URL y la posición.
     - `RF-M2-05`: tocar la pestaña activa lleva a su raíz.
-    - `RF-M2-06`: el botón Atrás cierra un diálogo abierto sin salir de la pantalla.
+    - `RF-M2-06`: el botón Atrás vuelve de un módulo abierto desde "Más" a `/mas`. Todavía no hay pantallas con diálogos: la prueba de que Atrás cierra un diálogo con `useBackToClose` sin salir de la pantalla la agrega la primera tarea que monte un diálogo (plan §4.2.3).
 
 - [ ] **`TASK-074`: Web: pantalla de perfil**
   - **Dependencias:** Requiere TASK-043, TASK-061, TASK-073

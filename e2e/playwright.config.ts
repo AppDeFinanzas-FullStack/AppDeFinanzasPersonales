@@ -33,6 +33,8 @@ const projects = BROWSERS.flatMap(({ name, device }) =>
 export default defineConfig({
   testDir: '.',
   testMatch: '**/*.spec.ts',
+  // Cases tagged @release-1.0 only run with `e2e:release-1.0` (plan §5.1).
+  ...(RELEASE === '1.0' ? {} : { grepInvert: /@release-1\.0/ }),
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
