@@ -1482,7 +1482,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 9 — M4 Cuentas (V1.0)
 
-- [ ] **`TASK-096`: Contratos de M4**
+- [x] **`TASK-096`: Contratos de M4**
   - **Dependencias:** Requiere TASK-024, TASK-077
   - **Trazabilidad SDD:** plan §4.4.1; RF-M4-01, RF-M4-02, RF-M4-07, RF-M4-08
   - **Archivos en Alcance:**
