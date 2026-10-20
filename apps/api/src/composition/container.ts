@@ -16,6 +16,7 @@ import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
+import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
@@ -30,6 +31,7 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
+import { createReadinessProbe } from '../infrastructure/persistence/readiness.js';
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
@@ -66,6 +68,8 @@ export interface Container {
 
   /** Test-support routes (plan §1.5); `null` unless `INTEGRATIONS=fake`. */
   readonly testSupport: TestSupportControllerDeps | null;
+  /** Database check of `GET /api/health/ready` (plan §4.2.2). */
+  readonly readiness: ReadinessProbe;
 }
 
 /** System clock: the current instant, and today's date in the user's timezone (RN-07). */
@@ -235,6 +239,7 @@ export const buildContainer = (env: Env): Container => {
     auth,
     authService,
     meService,
+    readiness: createReadinessProbe(prisma),
   };
 };
 
@@ -256,5 +261,6 @@ export const createApp = (container: Container): Express => {
       session,
     },
     me: { meService: container.meService, release: container.env.RELEASE, session },
+    readiness: container.readiness,
   });
 };
