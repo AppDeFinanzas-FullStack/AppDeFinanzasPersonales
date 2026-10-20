@@ -1331,7 +1331,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M3-06`: un movimiento en BOB guarda igualmente la tasa boliviano-dólar.
     - `EC-M3-02`: `ratesForMovement` lanza `RATE_REQUIRED` cuando el movimiento no es en BOB y `resolveUsdRate` devuelve `null` (plan §4.3.3). La prueba de ese error queda en TASK-121 (escenario "Sin ninguna tasa disponible"), porque el archivo de pruebas de esta tarea ya quedó cerrado.
 
-- [ ] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
+- [x] **`TASK-086`: Endpoints de tasas: `/api/rates/current` y `/api/rates/history`**
   - **Dependencias:** Requiere TASK-084, TASK-085
   - **Trazabilidad SDD:** plan §4.3.2; RF-M3-04, RF-M3-05, RNF-04, RNF-27
   - **Archivos en Alcance:**
