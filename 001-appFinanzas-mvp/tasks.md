@@ -933,6 +933,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/internal/test-support.controller.ts`
     - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/test-support.test.ts`
   - **Especificación de Implementación:** Solo con `INTEGRATIONS=fake`: `GET /internal/test/mailbox?to=` devuelve los correos del *fake*, y `POST /internal/test/users` crea un usuario confirmado, con el Onboarding terminado, y devuelve sus credenciales. Con `INTEGRATIONS=real`, estas rutas no se montan.
   - **Criterios de Verificación (Tests & DoD):**
