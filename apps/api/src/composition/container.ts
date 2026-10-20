@@ -32,6 +32,10 @@ import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
+import {
+  createTransactionsService,
+  type TransactionsService,
+} from '../application/services/transactions.service.js';
 import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
@@ -114,6 +118,7 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  readonly transactionsService: TransactionsService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -407,6 +412,11 @@ export const buildContainer = (env: Env): Container => {
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
   const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
+  const transactionsService = createTransactionsService({
+    uow,
+    rates: ratesService,
+    ledgerHooks,
+  });
 
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
@@ -439,6 +449,7 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    transactionsService,
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -481,6 +492,11 @@ export const createApp = (container: Container): Express => {
     accounts: {
       accountsService: container.accountsService,
       balanceSeries: container.balanceSeries,
+      clock: container.clock,
+      session,
+    },
+    transactions: {
+      transactionsService: container.transactionsService,
       clock: container.clock,
       session,
     },

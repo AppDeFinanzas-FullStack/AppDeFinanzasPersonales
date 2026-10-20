@@ -1973,7 +1973,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-11`: los pendientes no aparecen (no existen en `ledger_transaction`).
     - `RF-M6-12`: los totales excluyen lo de RN-02.
 
-- [ ] **`TASK-127`: Rutas HTTP de movimientos**
+- [x] **`TASK-127`: Rutas HTTP de movimientos**
   - **Dependencias:** Requiere TASK-125, TASK-126
   - **Trazabilidad SDD:** plan §4.6.2 (tabla de endpoints), ADR-11; RNF-14, RNF-11
   - **Archivos en Alcance:**

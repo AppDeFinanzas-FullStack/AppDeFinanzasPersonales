@@ -53,10 +53,15 @@ export type TransferTransactionInput = Extract<CreateTransactionInput, { kind: '
 export interface CreateTransactionResult {
   /** `true` for a new movement (201); `false` for the existing one with the same id and data (200). */
   created: boolean;
-  transaction: LedgerTransactionDetail;
+  transaction: DescribedTransactionDetail;
   /** The `undo_action(create)` of a new movement; `null` when it already existed. */
   undoToken: string | null;
 }
+
+/** A creation before its movement is described for the answer. */
+type CreatedMovement = Omit<CreateTransactionResult, 'transaction'> & {
+  transaction: LedgerTransactionDetail;
+};
 
 export interface DeleteTransactionResult {
   /** The `undo_action(delete)` that restores the movement with its fee (ADR-07). */
@@ -89,8 +94,8 @@ export interface BatchResult {
   undoToken: string | null;
 }
 
-/** A movement of the list, with its value in the base currency and its RN-12 mark. */
-export interface ListedTransaction extends LedgerTransactionView {
+/** A movement as the answers show it (`TransactionDto`, plan §4.6.1). */
+export interface DescribedTransaction extends LedgerTransactionView {
   /**
    * Its signed amount in the base currency, with the rates it stored or, for a base it did not
    * store, the user's rate on its date (RN-04); for a transfer, what leaves the origin account.
@@ -99,11 +104,20 @@ export interface ListedTransaction extends LedgerTransactionView {
   amountInBase: Decimal | null;
   /** Dated before the initial balance of one of its accounts, so it does not change it (RN-12). */
   beforeInitialBalance: boolean;
+  /** Linked to a debt, a goal or a transfer: its amount, account and date are locked (RF-M6-09). */
+  linkedLocked: boolean;
+  /** Its category with the name; `null` for transfers and adjustments. */
+  category: { id: string; name: string } | null;
+}
+
+/** A movement with its fee, as the answers show it (RF-M6-05). */
+export interface DescribedTransactionDetail extends DescribedTransaction {
+  fee: DescribedTransaction | null;
 }
 
 /** A page of the movement list (RF-M6-02, RF-M6-12). */
 export interface TransactionListPage extends Omit<LedgerPage, 'items'> {
-  items: ListedTransaction[];
+  items: DescribedTransaction[];
 }
 
 export interface TransactionsService {
@@ -120,7 +134,12 @@ export interface TransactionsService {
     ctx: RatesContext,
     id: string,
     input: UpdateTransactionInput,
-  ): Promise<LedgerTransactionDetail>;
+  ): Promise<DescribedTransactionDetail>;
+  /**
+   * The user's movement with its fee and its origin for "Ir a…"; another user's or a deleted one
+   * gives `NOT_FOUND` (RNF-09, RNF-14, plan §4.6.2).
+   */
+  get(ctx: RatesContext, id: string): Promise<DescribedTransactionDetail>;
   /**
    * Deletes the user's movement with its fee (EC-M6-05); it can be undone with the returned token
    * until it expires (plan §4.6.2, §4.6.3).
@@ -686,30 +705,82 @@ function amountInBase(
         .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 }
 
+/** Describes movements for the answers, reading each account and category once per call. */
+interface Describer {
+  movement(movement: LedgerTransactionView): Promise<DescribedTransaction>;
+  detail(movement: LedgerTransactionDetail): Promise<DescribedTransactionDetail>;
+}
+
+async function describerFor(repos: Repositories, ctx: RatesContext): Promise<Describer> {
+  const base = await baseCurrency(repos, ctx);
+  const events = await repos.userFxEvents.eventsUntil(ctx.now);
+  const accounts = new Map<string, AccountRow>();
+  const categoryNames = new Map<string, string>();
+
+  async function categoryOf(id: string | null): Promise<DescribedTransaction['category']> {
+    if (id === null) {
+      return null;
+    }
+    const name = categoryNames.get(id) ?? (await repos.categories.get(id))?.name;
+    if (name === undefined) {
+      throw new Error('The category of the movement could not be read');
+    }
+    categoryNames.set(id, name);
+    return { id, name };
+  }
+
+  async function movement(item: LedgerTransactionView): Promise<DescribedTransaction> {
+    let beforeInitialBalance = false;
+    for (const { accountId } of item.entries) {
+      const account = accounts.get(accountId) ?? (await storedAccount(repos, accountId));
+      accounts.set(account.id, account);
+      beforeInitialBalance ||= item.date < account.initialBalanceDate;
+    }
+    return {
+      ...item,
+      amountInBase: amountInBase(item, base, events, ctx.timezone),
+      beforeInitialBalance,
+      linkedLocked: !UNLINKED_ORIGINS.has(item.origin),
+      category: await categoryOf(item.categoryId),
+    };
+  }
+
+  return {
+    movement,
+    async detail(item) {
+      return {
+        ...(await movement(item)),
+        fee: item.fee === null ? null : await movement(item.fee),
+      };
+    },
+  };
+}
+
 async function listMovements(
   repos: Repositories,
   ctx: RatesContext,
   query: ListQuery,
 ): Promise<TransactionListPage> {
   const page = await repos.ledger.list(filtersOf(ctx, query), query.cursor ?? null);
-  const base = await baseCurrency(repos, ctx);
-  const events = await repos.userFxEvents.eventsUntil(ctx.now);
-  const accounts = new Map<string, AccountRow>();
-  const items: ListedTransaction[] = [];
-  for (const movement of page.items) {
-    let beforeInitialBalance = false;
-    for (const { accountId } of movement.entries) {
-      const account = accounts.get(accountId) ?? (await storedAccount(repos, accountId));
-      accounts.set(account.id, account);
-      beforeInitialBalance ||= movement.date < account.initialBalanceDate;
-    }
-    items.push({
-      ...movement,
-      amountInBase: amountInBase(movement, base, events, ctx.timezone),
-      beforeInitialBalance,
-    });
+  const describer = await describerFor(repos, ctx);
+  const items: DescribedTransaction[] = [];
+  for (const item of page.items) {
+    items.push(await describer.movement(item));
   }
   return { ...page, items };
+}
+
+async function getMovement(
+  repos: Repositories,
+  ctx: RatesContext,
+  id: string,
+): Promise<DescribedTransactionDetail> {
+  const movement = await repos.ledger.get(id);
+  if (movement === null) {
+    // Deleted, or another user's (RNF-09, RNF-14).
+    throw new AppError('NOT_FOUND');
+  }
+  return (await describerFor(repos, ctx)).detail(movement);
 }
 
 export function createTransactionsService({
@@ -802,7 +873,7 @@ export function createTransactionsService({
     ctx: RatesContext,
     id: string,
     change: LedgerChange,
-  ): Promise<CreateTransactionResult> {
+  ): Promise<CreatedMovement> {
     await ledgerHooks.afterChange(repos, ctx.userId, change);
     const payload: UndoMovementsPayload = { transactionIds: [id] };
     const undo = await repos.undoActions.create('create', payload);
@@ -818,7 +889,7 @@ export function createTransactionsService({
     repos: Repositories,
     ctx: RatesContext,
     input: SimpleTransactionInput,
-  ): Promise<CreateTransactionResult> {
+  ): Promise<CreatedMovement> {
     const existing = await repos.ledger.get(input.id);
     if (existing !== null) {
       if (!sameMovement(existing, input)) {
@@ -885,7 +956,7 @@ export function createTransactionsService({
     repos: Repositories,
     ctx: RatesContext,
     input: TransferTransactionInput,
-  ): Promise<CreateTransactionResult> {
+  ): Promise<CreatedMovement> {
     const existing = await repos.ledger.get(input.id);
     if (existing !== null) {
       if (!sameTransfer(existing, input)) {
@@ -1485,16 +1556,33 @@ export function createTransactionsService({
   return {
     async create(ctx, input) {
       return uow.run(
-        (repos) =>
-          input.kind === 'transfer'
-            ? createTransfer(repos, ctx, input)
-            : createSimple(repos, ctx, input),
+        async (repos) => {
+          const result =
+            input.kind === 'transfer'
+              ? await createTransfer(repos, ctx, input)
+              : await createSimple(repos, ctx, input);
+          const describer = await describerFor(repos, ctx);
+          return { ...result, transaction: await describer.detail(result.transaction) };
+        },
         { userLock: ctx.userId },
       );
     },
 
     async update(ctx, id, input) {
-      return uow.run((repos) => updateMovement(repos, ctx, id, input), { userLock: ctx.userId });
+      return uow.run(
+        async (repos) => {
+          const transaction = await updateMovement(repos, ctx, id, input);
+          return (await describerFor(repos, ctx)).detail(transaction);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async get(ctx, id) {
+      return uow.run((repos) => getMovement(repos, ctx, id), {
+        userLock: ctx.userId,
+        readOnly: true,
+      });
     },
 
     async delete(ctx, id) {
