@@ -1574,6 +1574,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/accounts-create-list.test.ts`
   - **Especificación de Implementación:** `create` es idempotente (ADR-11), usa `withUserLock`, `assertLimit(50)` y `FOR SHARE` sobre la moneda (que debe estar activa), y guarda la deuda de la tarjeta como negativa. `list(status)` trae los saldos, sus equivalentes y los datos de tarjeta. `summary` da el total neto y el desglose con la tasa vigente. Registra en `CurrencyUsage` el uso por cuentas activas.
   - **Criterios de Verificación (Tests & DoD):**
