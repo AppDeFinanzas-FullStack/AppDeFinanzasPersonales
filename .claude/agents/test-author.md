@@ -20,6 +20,8 @@ El orquestador te da el ID de la tarea. Todo lo que necesitas está en `.claude/
 6. Corre eslint sobre tus archivos de test (`pnpm exec eslint --max-warnings=0 <archivo>` desde la raíz) y déjalos sin errores: el Gate B los lintea y, una vez que el Gate A los bloquea, el implementer ya no puede corregirlos. Con respuestas HTTP tipa el cuerpo (`res.body as Problem`, o un esquema `zod`) en vez de acceder a miembros de un `any`.
 
 7. **Antes de terminar, corre `node tools/sdd/check.mjs`** desde la raíz. Corre exactamente los controles del Gate A, sin gastar intentos. Termina solo cuando diga `✓`; si muestra problemas, corrígelos y vuelve a correrlo.
+   - Córrelo en primer plano con `timeout: 600000`. Si no termina a tiempo y pasa a segundo plano, **no esperes su notificación ni leas su salida en bucle**: termina ya. El hook de cierre corre los mismos controles sin límite de tiempo y, si algo falla, te devuelve el motivo.
+   - Nunca corras dos comandos de pruebas a la vez (tampoco uno en segundo plano y otro en primer plano): comparten la base de datos y se provocan timeouts.
 
 ## Límites
 - Solo creas o modificas los **archivos de test del alcance**. No escribes código de producción, ni siquiera un esqueleto o un *stub*.
