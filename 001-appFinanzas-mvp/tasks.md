@@ -2418,6 +2418,12 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/blocks-order-list.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `packages/contracts/src/dashboard.ts`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/src/features/dashboard/components/category-bars.tsx`
+    - `apps/web/src/features/dashboard/components/balances-block.tsx`
+    - `apps/web/src/features/dashboard/components/recent-block.tsx`
     - `e2e/m9-settings-dashboard.spec.ts`
   - **Especificación de Implementación:** `BlocksOrderList` con los bloques 3 a 8, interruptores de visibilidad y botones Subir y Bajar. Los bloques no liberados no se muestran.
   - **Criterios de Verificación (Tests & DoD):**
