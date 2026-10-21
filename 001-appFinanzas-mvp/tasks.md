@@ -2546,7 +2546,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 16 — Exportación de datos (M1, V1.0)
 
-- [ ] **`TASK-163`: Generador de CSV y ZIP en streaming**
+- [x] **`TASK-163`: Generador de CSV y ZIP en streaming**
   - **Dependencias:** Requiere TASK-007
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`), plan §2 (`export/csv-zip.ts`); RF-M1-14
   - **Archivos en Alcance:**
