@@ -20,6 +20,8 @@ El orquestador te da el ID de la tarea y las pruebas que tienes que poner en ver
    - el estilo y la estructura de lo que ya existe en el repositorio.
 3. Corre las pruebas de la tarea, el typecheck y el lint de lo que tocaste hasta que todo esté en verde.
 4. **Antes de terminar, corre `node tools/sdd/check.mjs`** desde la raíz. Corre exactamente los controles del Gate B (alcance, pruebas intactas, tipos, lint, capas, pruebas relacionadas y los `Comando:` de la tarea), sin gastar intentos. Termina solo cuando diga `✓`; si muestra problemas, corrígelos y vuelve a correrlo.
+   - Córrelo en primer plano con `timeout: 600000`. Si no termina a tiempo y pasa a segundo plano, **no esperes su notificación ni leas su salida en bucle**: termina ya. El hook de cierre corre los mismos controles sin límite de tiempo y, si algo falla, te devuelve el motivo.
+   - Nunca corras dos comandos de pruebas a la vez (tampoco uno en segundo plano y otro en primer plano): comparten la base de datos y se provocan timeouts.
 
 ## Límites
 - **No modificas las pruebas**: están bloqueadas. Si una prueba te parece incorrecta respecto de la spec, no la "arregles": detente y explícalo.
