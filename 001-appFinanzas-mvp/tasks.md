@@ -2345,7 +2345,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 14 — M9 Ajustes y personalización (V1.0)
 
-- [ ] **`TASK-149`: Ajustes: cuenta por defecto y categorías favoritas**
+- [x] **`TASK-149`: Ajustes: cuenta por defecto y categorías favoritas**
   - **Dependencias:** Requiere TASK-069, TASK-104, TASK-112
   - **Trazabilidad SDD:** plan §4.9.2 (`PATCH /api/settings`); RF-M7-03, RF-M7-04, EC-M9-02
   - **Archivos en Alcance:**

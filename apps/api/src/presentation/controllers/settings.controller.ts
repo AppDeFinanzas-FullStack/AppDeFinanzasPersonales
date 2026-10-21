@@ -40,8 +40,10 @@ export function createSettingsController({
         weekStart: body.weekStart,
         theme: body.theme,
         sidebarCollapsed: body.sidebarCollapsed,
+        defaultAccountId: body.defaultAccountId,
         alwaysShowNote: body.alwaysShowNote,
         dashboardBlocks: body.dashboardBlocks,
+        favoriteCategories: body.favoriteCategories,
       });
       res.status(200).json(SettingsPresenter.toDto(settings));
     },

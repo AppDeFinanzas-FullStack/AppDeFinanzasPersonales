@@ -201,10 +201,23 @@ export type UserSettingsChanges = Partial<
     | 'weekStart'
     | 'theme'
     | 'sidebarCollapsed'
+    | 'defaultAccountId'
     | 'alwaysShowNote'
     | 'dashboardBlocks'
   >
 >;
+
+/** Favorite categories of one kind, in their order; they replace the ones of that kind. */
+export interface FavoriteCategoriesChange {
+  kind: CategoryKind;
+  ids: string[];
+}
+
+/** The `favorite_category` rows of a user (plan §3.4). */
+export interface FavoriteCategoryRepository {
+  /** Replaces the favorites of `kind` with `ids`, keeping their order as the position. */
+  replace(userId: string, kind: CategoryKind, ids: string[]): Promise<void>;
+}
 
 /** The exchange-rate settings of a user, as stored in `user_settings` (plan §3.4). */
 export interface UserFxSettings {
@@ -233,6 +246,8 @@ export interface UserSettingsRepository {
   fxSettings(userId: string): Promise<UserFxSettings | null>;
   /** Updates only the given fields; the last write wins (EC-M9-01). */
   update(userId: string, changes: UserSettingsChanges): Promise<void>;
+  /** Replaces the favorite categories of one kind (RF-M7-04). */
+  replaceFavorites(userId: string, change: FavoriteCategoriesChange): Promise<void>;
   /** Clears the default account of the user when it is that account (RF-M4-12, EC-M7-05). */
   clearDefaultAccount(userId: string, accountId: string): Promise<void>;
   /** Turns the manual USD value on with its start, or off with `null` (plan §4.3.3, RF-M3-03). */

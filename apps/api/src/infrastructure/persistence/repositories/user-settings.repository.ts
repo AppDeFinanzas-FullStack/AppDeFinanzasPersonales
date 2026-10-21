@@ -7,6 +7,7 @@ import type {
   UserSettingsRepository,
 } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
+import { createFavoriteCategoryRepository } from './favorite-category.repository.js';
 
 type SettingsRow = Omit<UserSettingsData, 'favorites'>;
 
@@ -19,6 +20,7 @@ interface FxSettingsRow {
 
 /** Prisma implementation of the general settings, bound to the transaction `tx`. */
 export function createUserSettingsRepository(tx: TransactionClient): UserSettingsRepository {
+  const favoriteCategories = createFavoriteCategoryRepository(tx);
   return {
     async find(userId) {
       const rows = await tx.$queryRaw<SettingsRow[]>`
@@ -67,6 +69,7 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
 
     async update(userId, changes) {
       const blocks: DashboardBlock[] | undefined = changes.dashboardBlocks;
+      const setDefaultAccount = changes.defaultAccountId !== undefined;
       await tx.$executeRaw`
         UPDATE user_settings
            SET number_format = COALESCE(${changes.numberFormat ?? null}::number_format, number_format),
@@ -74,9 +77,16 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
                week_start = COALESCE(${changes.weekStart ?? null}::week_start, week_start),
                theme = COALESCE(${changes.theme ?? null}::theme_mode, theme),
                sidebar_collapsed = COALESCE(${changes.sidebarCollapsed ?? null}::boolean, sidebar_collapsed),
+               default_account_id = CASE WHEN ${setDefaultAccount}::boolean
+                                         THEN ${changes.defaultAccountId ?? null}::uuid
+                                         ELSE default_account_id END,
                always_show_note = COALESCE(${changes.alwaysShowNote ?? null}::boolean, always_show_note),
                dashboard_blocks = COALESCE(${blocks === undefined ? null : JSON.stringify(blocks)}::jsonb, dashboard_blocks)
          WHERE user_id = ${userId}::uuid`;
+    },
+
+    async replaceFavorites(userId, change) {
+      await favoriteCategories.replace(userId, change.kind, change.ids);
     },
 
     async clearDefaultAccount(userId, accountId) {
