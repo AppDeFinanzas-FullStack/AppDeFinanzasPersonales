@@ -2352,6 +2352,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/settings.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/favorite-category.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+    - `apps/api/src/presentation/controllers/settings.controller.ts`
     - `apps/api/test/http/settings-register.test.ts`
   - **Especificación de Implementación:** `defaultAccountId` debe ser una cuenta activa (si no, `ACCOUNT_ARCHIVED`). `favoriteCategories` reemplaza las favoritas del tipo dentro de una transacción: hasta 8, activas y del tipo indicado (si no, `CATEGORY_ARCHIVED` o `VALIDATION_ERROR`).
   - **Criterios de Verificación (Tests & DoD):**
