@@ -2573,7 +2573,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-14`: con `RELEASE=1.0` no hay CSV de presupuestos, metas, deudas, recurrentes ni avisos.
     - `RN-09`: el ZIP no contiene datos de otro usuario.
 
-- [ ] **`TASK-165`: Web: exportar mis datos**
+- [x] **`TASK-165`: Web: exportar mis datos**
   - **Dependencias:** Requiere TASK-076, TASK-164
   - **Trazabilidad SDD:** plan §4.1.4 (exportar); RF-M1-14, RF-M1-15
   - **Archivos en Alcance:**
