@@ -1,11 +1,11 @@
-import type { DashboardDto } from '@finanzas/contracts';
+import type { DashboardViewDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 
 interface Props {
-  data: DashboardDto['recent'];
+  data: NonNullable<DashboardViewDto['recent']>;
   symbol: string;
 }
 

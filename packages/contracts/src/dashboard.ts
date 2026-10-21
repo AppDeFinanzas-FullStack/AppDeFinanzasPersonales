@@ -61,3 +61,12 @@ export const DashboardDto = z.object({
   recent: z.array(TransactionDto).max(5),
 });
 export type DashboardDto = z.infer<typeof DashboardDto>;
+
+/** The answer of the Inicio: the blocks hidden by the user come without data (RF-M8-10). */
+export const DashboardViewDto = DashboardDto.partial({
+  byCategory: true,
+  pace: true,
+  balances: true,
+  recent: true,
+});
+export type DashboardViewDto = z.infer<typeof DashboardViewDto>;

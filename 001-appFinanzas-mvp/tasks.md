@@ -2411,7 +2411,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-10`: reordenar los atajos con el teclado se refleja en Registrar.
     - `RF-M7-13`: activar la nota la muestra en el primer nivel.
 
-- [ ] **`TASK-153`: Web: Ajustes del Inicio**
+- [x] **`TASK-153`: Web: Ajustes del Inicio**
   - **Dependencias:** Requiere TASK-148, TASK-151
   - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/inicio`); RF-M8-10, RNF-06
   - **Archivos en Alcance:**

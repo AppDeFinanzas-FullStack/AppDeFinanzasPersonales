@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router';
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import settings from '@/locales/es-BO/settings.json';
 
+import { BlocksOrderList } from './components/blocks-order-list';
 import { GeneralSettings } from './components/general-settings';
 import { RegisterSettings } from './components/register-settings';
 import { SettingsHub } from './components/settings-hub';
@@ -15,4 +16,5 @@ export const settingsRoutes: RouteObject[] = [
   { path: 'ajustes', element: <SettingsHub /> },
   { path: 'ajustes/general', element: <GeneralSettings /> },
   { path: 'ajustes/registrar', element: <RegisterSettings /> },
+  { path: 'ajustes/inicio', element: <BlocksOrderList /> },
 ];

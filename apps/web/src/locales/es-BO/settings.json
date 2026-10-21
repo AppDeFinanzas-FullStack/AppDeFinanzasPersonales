@@ -101,6 +101,18 @@
       "hint": "La nota aparece al registrar, sin abrir «Más opciones»."
     }
   },
+  "dashboard": {
+    "description": "Elige qué bloques se ven en el Inicio y en qué orden.",
+    "listLabel": "Bloques del Inicio",
+    "blocks": {
+      "byCategory": "Gasto por categoría",
+      "pace": "Ritmo del gasto",
+      "balances": "Saldos por cuenta",
+      "recent": "Últimos movimientos"
+    },
+    "up": "Subir {{name}}",
+    "down": "Bajar {{name}}"
+  },
   "reset": {
     "button": "Restablecer valores por defecto",
     "title": "¿Restablecer los valores por defecto?",
