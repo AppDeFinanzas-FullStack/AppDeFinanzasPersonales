@@ -2438,6 +2438,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/base-currency-select.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `packages/contracts/src/fx.ts`
+    - `apps/api/src/application/services/currencies.service.ts`
+    - `apps/api/src/presentation/presenters/currencies.presenter.ts`
     - `e2e/m9-settings-currencies.spec.ts`
   - **Especificación de Implementación:** `BaseCurrencySelect` con las monedas activas, más los componentes del panel de Tipo de cambio (referencia, valor manual y monedas).
   - **Criterios de Verificación (Tests & DoD):**
