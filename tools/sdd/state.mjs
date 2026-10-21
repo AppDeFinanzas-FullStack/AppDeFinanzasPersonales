@@ -5,6 +5,7 @@
 //   node tools/sdd/state.mjs block "<motivo>"
 //   node tools/sdd/state.mjs unblock
 //   node tools/sdd/state.mjs abort        (abandona la tarea activa; no toca los archivos)
+//   node tools/sdd/state.mjs wait [min]   (solo lee: espera a que el gate de la fase pase o la tarea se bloquee)
 import { loadState, saveState, clearState, bumpEpoch, verdicts, worktreeFingerprint, MAX_AUDIT_ROUNDS } from './lib/state.mjs';
 import { findTask } from './lib/tasks.mjs';
 import { buildContext } from './lib/context.mjs';
@@ -97,6 +98,38 @@ switch (cmd) {
     clearState();
     printJson({ task: state.task, aborted: true, note: 'Los archivos modificados quedan como están; revísalos con git status.' });
     break;
+  case 'wait':
+    await waitForGate(Number(arg) || 9);
+    break;
   default:
-    fail('Uso: state.mjs show | phase <fase> | block "<motivo>" | unblock | abort');
+    fail('Uso: state.mjs show | phase <fase> | block "<motivo>" | unblock | abort | wait [min]');
+}
+
+/**
+ * Espera, sin modificar nada, a que el subagente de la fase termine: el gate de la fase pasó o la tarea se
+ * bloqueó (parada del subagente o intentos agotados). Así el orquestador no depende de la notificación de fin.
+ * Corta a los `minutes` minutos (por defecto 9, bajo el límite de 10 de Bash) con `done: false`.
+ */
+async function waitForGate(minutes) {
+  const gate = { tests: 'A', implement: 'B' }[state.phase];
+  if (!gate) fail(`En la fase "${state.phase}" no hay gate que esperar.`);
+  const deadline = Date.now() + minutes * 60_000;
+  for (;;) {
+    const s = loadState();
+    const done = !s || s.status === 'blocked' || s.phase !== state.phase || s.gates[gate].passed;
+    if (done || Date.now() >= deadline) {
+      printJson({
+        done,
+        task: state.task,
+        phase: s?.phase ?? null,
+        status: s?.status ?? 'cleared',
+        gate,
+        passed: s?.gates[gate].passed ?? false,
+        attempts: s?.gates[gate].attempts ?? 0,
+        blockedReason: s?.blockedReason ?? null,
+      });
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 10_000));
+  }
 }

@@ -2546,7 +2546,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 16 — Exportación de datos (M1, V1.0)
 
-- [ ] **`TASK-163`: Generador de CSV y ZIP en streaming**
+- [x] **`TASK-163`: Generador de CSV y ZIP en streaming**
   - **Dependencias:** Requiere TASK-007
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`), plan §2 (`export/csv-zip.ts`); RF-M1-14
   - **Archivos en Alcance:**
@@ -2556,7 +2556,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-14`: una nota "=SUM(A1)" queda neutralizada; un monto se escribe como "1234.56"; una nota con comas y tildes se lee igual.
 
-- [ ] **`TASK-164`: Exportadores de V1.0 y endpoint `/api/me/export`**
+- [x] **`TASK-164`: Exportadores de V1.0 y endpoint `/api/me/export`**
   - **Dependencias:** Requiere TASK-136, TASK-163
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16, RN-09
   - **Archivos en Alcance:**
@@ -2573,7 +2573,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-14`: con `RELEASE=1.0` no hay CSV de presupuestos, metas, deudas, recurrentes ni avisos.
     - `RN-09`: el ZIP no contiene datos de otro usuario.
 
-- [ ] **`TASK-165`: Web: exportar mis datos**
+- [x] **`TASK-165`: Web: exportar mis datos**
   - **Dependencias:** Requiere TASK-076, TASK-164
   - **Trazabilidad SDD:** plan §4.1.4 (exportar); RF-M1-14, RF-M1-15
   - **Archivos en Alcance:**

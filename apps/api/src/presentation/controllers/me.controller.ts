@@ -1,13 +1,17 @@
+import { pipeline } from 'node:stream/promises';
+
 import type { UpdateMeInput } from '@finanzas/contracts';
 import type { Request, RequestHandler } from 'express';
 
 import { AppError } from '../../application/errors.js';
+import type { ExportService } from '../../application/services/export.service.js';
 import type { MeService } from '../../application/services/me.service.js';
 import type { SessionContext } from '../middlewares/require-session.js';
 import { MePresenter, type Release } from '../presenters/me.presenter.js';
 
 export interface MeControllerDeps {
   meService: MeService;
+  exportService: ExportService;
   release: Release;
 }
 
@@ -22,10 +26,18 @@ export interface MeController {
   get: RequestHandler;
   update: RequestHandler;
   deleteAccount: RequestHandler;
+  exportData: RequestHandler;
 }
 
 /** Handlers of `/api/me` (plan §4.1.2). The user always comes from the session (RN-09). */
-export function createMeController({ meService, release }: MeControllerDeps): MeController {
+/** Name of the downloaded archive. */
+const EXPORT_FILE_NAME = 'finanzas-export.zip';
+
+export function createMeController({
+  meService,
+  exportService,
+  release,
+}: MeControllerDeps): MeController {
   return {
     async get(req, res) {
       const profile = await meService.get(sessionOf(req).userId);
@@ -49,6 +61,12 @@ export function createMeController({ meService, release }: MeControllerDeps): Me
         confirmation: body.confirmation,
       });
       res.status(204).end();
+    },
+
+    async exportData(req, res) {
+      const archive = exportService.export(sessionOf(req).userId);
+      res.status(200).type('application/zip').attachment(EXPORT_FILE_NAME);
+      await pipeline(archive, res);
     },
   };
 }

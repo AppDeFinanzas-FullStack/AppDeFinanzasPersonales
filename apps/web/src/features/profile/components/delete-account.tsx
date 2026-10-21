@@ -12,6 +12,8 @@ import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { clearAllDrafts } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
 
+import { ExportButton } from './export-button';
+
 const CONFIRMATION_WORD = 'ELIMINAR';
 
 const deleteAccountEndpoint: Endpoint<DeleteAccountInput, void> = {
@@ -21,7 +23,10 @@ const deleteAccountEndpoint: Endpoint<DeleteAccountInput, void> = {
   output: z.void(),
 };
 
-/** `/perfil/eliminar`: asks for the password and the word ELIMINAR (RF-M1-15, EC-M1-08). */
+/**
+ * `/perfil/eliminar`: asks for the password and the word ELIMINAR (RF-M1-15, EC-M1-08) and offers
+ * "Exportar antes".
+ */
 export function DeleteAccount({ userId }: { userId: string }) {
   const { t } = useTranslation('profile');
   const navigate = useNavigate();
@@ -64,6 +69,10 @@ export function DeleteAccount({ userId }: { userId: string }) {
         <li>{t('delete.itemSessions')}</li>
         <li>{t('delete.itemIrreversible')}</li>
       </ul>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">{t('delete.exportHint')}</p>
+        <ExportButton label={t('delete.exportBefore')} />
+      </div>
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="delete-password">{t('delete.password')}</Label>

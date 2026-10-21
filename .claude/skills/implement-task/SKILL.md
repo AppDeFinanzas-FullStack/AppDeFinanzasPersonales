@@ -13,10 +13,17 @@ La tarea a ejecutar viene en los argumentos: `$ARGUMENTS`. Si no hay un ID con l
 ## Reglas que nunca rompes
 1. No escribes ni editas código, pruebas, `tasks.md`, la spec, el plan ni la constitución durante la tarea. La única excepción es `docs/design-direction.md` en el paso 0b. Si algo hay que corregir, lo hace el subagente de esa etapa o se detiene el pipeline.
 2. El estado solo cambia con `node tools/sdd/state.mjs …`. Nunca editas `.claude/run/` a mano.
-3. Un subagente a la vez. Lanzas el siguiente solo cuando el anterior terminó (espera su notificación de fin).
+3. Un subagente a la vez, y **nunca terminas tu turno esperándolo**: la notificación de fin no siempre te despierta. Lanzas el siguiente solo cuando el anterior terminó, y eso lo sabes así (ver **Esperar al subagente**).
 4. A cada subagente le pasas **solo** el mensaje de la plantilla de abajo: nada de la conversación.
 5. Ningún guardarraíl se salta: nada de `--no-verify`, ni push directo a `develop`, `qa` o `main`.
 6. Si el pipeline se detiene, conservas el estado y le explicas al usuario qué pasó y qué opciones hay. No improvisas una solución.
+
+## Esperar al subagente
+- **test-author e implementer:** apenas lo lances, corre en primer plano `node tools/sdd/state.mjs wait` (Bash con `timeout: 600000`). Solo lee el estado: vuelve cuando el gate de la fase pasó o la tarea se bloqueó (`done: true`), o a los 9 minutos con `done: false`. Mientras diga `done: false`, vuelve a correrlo **en el mismo turno**, sin escribirle al usuario más que una línea de avance cada tanto. Si te llega el informe del subagente o su notificación de fin, tampoco cierras el turno: corres `wait` otra vez, porque el hook del gate puede seguir corriendo (en una PC lenta, el Gate B puede tardar 10 minutos o más).
+- Con `done: true`, sigue el paso correspondiente con `passed` y `status`.
+- Si ya llegó la notificación de fin y `wait` responde `done: false` dos veces seguidas, el subagente terminó sin que el gate lo aprobara: aplica la regla de relanzarlo una vez.
+- Si pasan **60 minutos** sin `done: true` y sin notificación de fin, no lo canceles ni lo relances por tu cuenta: ve a **Detenerse** y explícale al usuario cuánto lleva y qué muestra `git status`.
+- **sdd-auditor:** no tiene gate que esperar. Su informe de entrega (el mensaje del subagente) es su respuesta completa: úsalo apenas llegue, sin esperar la notificación de fin.
 
 ## Paso 0 — Preflight
 ```
@@ -38,7 +45,7 @@ Las tareas de interfaz escriben pantallas, componentes o estilos de `apps/web`. 
 1. `node tools/sdd/state.mjs phase tests`
 2. Lanza el subagente **test-author** con:
    > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo. Escribe las pruebas en estos archivos y en ningún otro: `<testFiles>`. `<Si verificationOnly: "Es una tarea de verificación: las pruebas deben pasar.">`
-3. Al terminar, revisa su respuesta y `node tools/sdd/state.mjs show`:
+3. Espera con `node tools/sdd/state.mjs wait` (ver **Esperar al subagente**). Con `done: true`, revisa su respuesta y `node tools/sdd/state.mjs show`:
    - Empieza con `NEEDS_CLARIFICATION` o `SCOPE_CHANGE_REQUEST` → ve a **Detenerse**. El hook ya dejó la tarea `blocked` con ese motivo y no gastó intentos.
    - `status: blocked` (el Gate A agotó sus intentos) → ve a **Detenerse** con el final de `gate.log`.
    - `gates.A.passed: true` → sigue. (Si no pasó y no está bloqueado, el subagente terminó sin que el gate lo aprobara: relánzalo una vez con el mismo mensaje; si se repite, **Detenerse**.)
@@ -47,13 +54,13 @@ Las tareas de interfaz escriben pantallas, componentes o estilos de `apps/web`. 
 1. `node tools/sdd/state.mjs phase implement`
 2. Lanza el subagente **implementer** con:
    > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo `<en una segunda ronda: ", incluidos los hallazgos de la auditoría al final">`. Pon en verde estas pruebas sin modificarlas: `<testFiles>`. Solo puedes escribir estos archivos: `<implFiles>`.
-3. Al terminar, igual que en el paso 1, pero con `gates.B.passed`.
+3. Espera con `node tools/sdd/state.mjs wait`, y con `done: true` sigue igual que en el paso 1, pero con `gates.B.passed`.
 
 ## Paso 3 — Auditoría
 1. `node tools/sdd/state.mjs phase audit`
 2. Lanza el subagente **sdd-auditor** con:
    > Tarea `<TASK>`. Lee `.claude/run/<TASK>/context.md` completo y audita el cambio del árbol de trabajo (`git status --porcelain -uall` y `git diff HEAD`). No modifiques nada.
-3. Guarda su respuesta **textual y completa** en `.claude/run/<TASK>/verdict.md` (es el único archivo que escribes, y está fuera del repositorio versionado) y regístrala:
+3. Apenas llegue su informe, guarda su respuesta **textual y completa** en `.claude/run/<TASK>/verdict.md` (es el único archivo que escribes, y está fuera del repositorio versionado) y regístrala:
    ```
    node tools/sdd/audit.mjs record .claude/run/<TASK>/verdict.md
    ```
