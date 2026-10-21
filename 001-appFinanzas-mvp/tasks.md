@@ -2374,7 +2374,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-05`: después de cada sección, las cuentas, los movimientos, las categorías, los atajos, las monedas y la moneda base no cambian.
     - `RF-M9-05`: `currencies` desactiva el valor manual y deja `parallel_median`.
 
-- [ ] **`TASK-151`: Web: Ajustes y sección General**
+- [x] **`TASK-151`: Web: Ajustes y sección General**
   - **Dependencias:** Requiere TASK-070, TASK-150
   - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (rutas, restablecer); RF-M9-01, RF-M9-02, RF-M9-03, RF-M9-05, EC-M9-01
   - **Archivos en Alcance:**
