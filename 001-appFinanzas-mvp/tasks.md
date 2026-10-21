@@ -2419,6 +2419,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
     - `packages/contracts/src/dashboard.ts`
+    - `apps/web/src/features/dashboard/api.ts`
     - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
     - `apps/web/src/features/dashboard/components/pace-chart.tsx`
     - `apps/web/src/features/dashboard/components/category-bars.tsx`
