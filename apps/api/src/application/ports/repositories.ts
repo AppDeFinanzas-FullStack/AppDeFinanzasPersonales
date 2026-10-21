@@ -261,6 +261,39 @@ export interface Repositories {
   userSettings: UserSettingsRepository;
   shortcuts: ShortcutRepository;
   dashboard: DashboardRepository;
+  exports: ExportRepository;
+}
+
+// ---------- Exportación de datos (M1) ----------
+
+/**
+ * A table of the export, every cell already as text (RF-M1-14): decimals with a dot and no
+ * thousands separator (`1234.56`, ADR-03), dates as `YYYY-MM-DD`, instants in ISO 8601 UTC and an
+ * absent value as an empty cell.
+ */
+export interface ExportTable {
+  columns: string[];
+  rows: string[][];
+}
+
+/** Every row of the user bound to the transaction, archived ones included (RNF-16, RN-09). */
+export interface ExportRepository {
+  /** The user's profile: one row. */
+  profile(): Promise<ExportTable>;
+  /** The general and exchange-rate settings: one row. */
+  settings(): Promise<ExportTable>;
+  /** The favorite categories of Registrar, in their order. */
+  favoriteCategories(): Promise<ExportTable>;
+  currencies(): Promise<ExportTable>;
+  /** The exchange-rate events: reference changes, manual USD values and custom rates. */
+  fxEvents(): Promise<ExportTable>;
+  accounts(): Promise<ExportTable>;
+  categories(): Promise<ExportTable>;
+  /** The movements that are not deleted, with the rates stored in each one (RN-05). */
+  transactions(): Promise<ExportTable>;
+  /** The entries of the movements that are not deleted (ADR-04). */
+  entries(): Promise<ExportTable>;
+  shortcuts(): Promise<ExportTable>;
 }
 
 // ---------- Inicio (M8) ----------

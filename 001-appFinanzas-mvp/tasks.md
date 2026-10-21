@@ -2556,7 +2556,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-14`: una nota "=SUM(A1)" queda neutralizada; un monto se escribe como "1234.56"; una nota con comas y tildes se lee igual.
 
-- [ ] **`TASK-164`: Exportadores de V1.0 y endpoint `/api/me/export`**
+- [x] **`TASK-164`: Exportadores de V1.0 y endpoint `/api/me/export`**
   - **Dependencias:** Requiere TASK-136, TASK-163
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16, RN-09
   - **Archivos en Alcance:**
