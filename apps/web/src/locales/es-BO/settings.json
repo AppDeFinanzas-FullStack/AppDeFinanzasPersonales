@@ -53,6 +53,54 @@
       }
     }
   },
+  "register": {
+    "defaultAccount": {
+      "label": "Cuenta por defecto",
+      "hint": "Se elige primero al registrar un gasto o un ingreso. Puede ser una cuenta dedicada a una meta.",
+      "none": "Sin cuenta por defecto",
+      "loadError": "No se pudieron cargar tus cuentas. Revisa tu conexión y recarga la página."
+    },
+    "favorites": {
+      "title": "Categorías favoritas",
+      "description": "Hasta 8 por tipo. Aparecen primero en la grilla, en el orden en que las elegiste.",
+      "expense": "Favoritas de gastos",
+      "income": "Favoritas de ingresos",
+      "count": "{{selected}} de {{max}} elegidas.",
+      "full": "Quita una para elegir otra.",
+      "expand": "Ver las subcategorías de {{name}}",
+      "collapse": "Ocultar las subcategorías de {{name}}",
+      "loadError": "No se pudieron cargar las categorías. Revisa tu conexión y recarga la página."
+    },
+    "shortcuts": {
+      "title": "Atajos",
+      "description": "Los atajos se crean con «Guardar como atajo» al registrar. Aquí puedes cambiarles el nombre, reordenarlos y eliminarlos.",
+      "empty": "Todavía no tienes atajos. Crea uno con «Guardar como atajo» al registrar un movimiento.",
+      "loadError": "No se pudieron cargar tus atajos. Revisa tu conexión y recarga la página.",
+      "reorderError": "No se pudo guardar el nuevo orden y volvió al anterior. Inténtalo de nuevo.",
+      "kind": {
+        "expense": "Gasto",
+        "income": "Ingreso",
+        "transfer": "Transferencia"
+      },
+      "up": "Subir {{name}}",
+      "down": "Bajar {{name}}",
+      "edit": "Editar {{name}}",
+      "remove": "Eliminar {{name}}",
+      "editTitle": "Editar atajo",
+      "editDescription": "Cambia el nombre con el que aparece al registrar.",
+      "name": "Nombre",
+      "nameError": "Escribe un nombre de hasta {{max}} caracteres.",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "removeTitle": "¿Eliminar el atajo {{name}}?",
+      "removeDescription": "El atajo deja de aparecer al registrar. Tus movimientos no cambian.",
+      "removeConfirm": "Eliminar"
+    },
+    "alwaysShowNote": {
+      "label": "Mostrar la nota siempre",
+      "hint": "La nota aparece al registrar, sin abrir «Más opciones»."
+    }
+  },
   "reset": {
     "button": "Restablecer valores por defecto",
     "title": "¿Restablecer los valores por defecto?",

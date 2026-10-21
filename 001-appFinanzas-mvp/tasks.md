@@ -2393,7 +2393,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-03`: con la fecha en AAAA-MM-DD, la lista de movimientos usa ese formato.
     - `RF-M9-05`: restablecer General vuelve a "Bs 1.234,56".
 
-- [ ] **`TASK-152`: Web: Ajustes de Registrar**
+- [x] **`TASK-152`: Web: Ajustes de Registrar**
   - **Dependencias:** Requiere TASK-140, TASK-151
   - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/registrar`); RF-M7-03, RF-M7-04, RF-M7-10, RF-M7-13, EC-M9-02, RNF-06
   - **Archivos en Alcance:**
