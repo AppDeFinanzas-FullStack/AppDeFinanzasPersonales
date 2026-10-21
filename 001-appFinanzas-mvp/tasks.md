@@ -2402,6 +2402,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/shortcuts-manager.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `apps/api/src/composition/container.ts`
     - `e2e/m9-settings-register.spec.ts`
   - **Especificación de Implementación:** Cuenta por defecto (activas, incluidas las dedicadas a metas), `FavoritesPicker` con hasta 8 por tipo, atajos (editar, reordenar con Subir y Bajar, eliminar) y "Mostrar la nota siempre".
   - **Criterios de Verificación (Tests & DoD):**
