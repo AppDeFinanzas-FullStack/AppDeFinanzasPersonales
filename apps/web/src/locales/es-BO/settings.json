@@ -53,6 +53,14 @@
       }
     }
   },
+  "currencies": {
+    "loadError": "No se pudieron cargar tus monedas y tasas. Revisa tu conexión y recarga la página.",
+    "resetDescription": "La referencia del dólar vuelve a la mediana del paralelo y se desactiva el valor manual. Tus cuentas, movimientos y monedas agregadas no cambian.",
+    "base": {
+      "label": "Moneda base",
+      "hint": "Los saldos y totales se muestran en esta moneda. Tus movimientos no cambian."
+    }
+  },
   "register": {
     "defaultAccount": {
       "label": "Cuenta por defecto",

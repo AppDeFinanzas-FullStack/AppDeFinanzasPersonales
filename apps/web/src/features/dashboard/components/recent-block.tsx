@@ -40,8 +40,14 @@ export function RecentBlock({ data, symbol }: Props) {
                   <span className="text-sm text-muted-foreground">{formatters.date(tx.date)}</span>
                 </span>
                 <span className="tabular-nums">
-                  {signOf(tx.kind)}
-                  {formatters.money(tx.amountInBase.replace('-', ''), symbol)}
+                  {tx.amountInBase === null ? (
+                    t('recent.noRate')
+                  ) : (
+                    <>
+                      {signOf(tx.kind)}
+                      {formatters.money(tx.amountInBase.replace('-', ''), symbol)}
+                    </>
+                  )}
                 </span>
               </Link>
             </li>

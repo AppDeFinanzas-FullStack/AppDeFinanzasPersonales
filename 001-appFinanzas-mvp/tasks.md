@@ -2430,7 +2430,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M8-10`: ocultar "Ritmo del gasto" lo quita del Inicio, y moverlo arriba cambia el orden.
 
-- [ ] **`TASK-154`: Web: Ajustes de monedas**
+- [x] **`TASK-154`: Web: Ajustes de monedas**
   - **Dependencias:** Requiere TASK-095, TASK-151
   - **Trazabilidad SDD:** plan §4.3.4 (`/ajustes/monedas`), plan §4.9.4; RF-M3-11, RF-M3-03
   - **Archivos en Alcance:**
