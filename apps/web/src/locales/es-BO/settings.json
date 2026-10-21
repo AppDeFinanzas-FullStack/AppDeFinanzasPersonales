@@ -1,0 +1,64 @@
+{
+  "title": "Ajustes",
+  "sections": {
+    "general": {
+      "title": "General",
+      "description": "Formatos de números y fechas, primer día de la semana y tema"
+    },
+    "currencies": {
+      "title": "Monedas y tipo de cambio",
+      "description": "Monedas activas, moneda base, referencia y valor manual"
+    },
+    "register": {
+      "title": "Registrar",
+      "description": "Cuenta por defecto, categorías favoritas, atajos y nota"
+    },
+    "dashboard": {
+      "title": "Inicio",
+      "description": "Orden y visibilidad de los bloques"
+    }
+  },
+  "general": {
+    "autosave": "Los cambios se guardan solos.",
+    "loadError": "No se pudieron cargar tus ajustes. Revisa tu conexión y recarga la página.",
+    "saveError": "No se pudo guardar el cambio y volvió al valor anterior. Revisa tu conexión e inténtalo de nuevo.",
+    "numberFormat": {
+      "label": "Formato de números",
+      "options": {
+        "dot_comma": "Bs 1.234,56",
+        "comma_dot": "Bs 1,234.56"
+      }
+    },
+    "dateFormat": {
+      "label": "Formato de fecha",
+      "options": {
+        "dmy": "DD/MM/AAAA",
+        "iso": "AAAA-MM-DD",
+        "short_text": "15 oct 2026"
+      }
+    },
+    "weekStart": {
+      "label": "Primer día de la semana",
+      "options": {
+        "monday": "Lunes",
+        "sunday": "Domingo"
+      }
+    },
+    "theme": {
+      "label": "Tema",
+      "options": {
+        "system": "Sistema",
+        "light": "Claro",
+        "dark": "Oscuro"
+      }
+    }
+  },
+  "reset": {
+    "button": "Restablecer valores por defecto",
+    "title": "¿Restablecer los valores por defecto?",
+    "description": "Los ajustes de esta sección vuelven a sus valores iniciales. Tus cuentas, movimientos y categorías no cambian.",
+    "cancel": "Cancelar",
+    "confirm": "Restablecer",
+    "error": "No se pudieron restablecer los ajustes. Revisa tu conexión e inténtalo de nuevo."
+  }
+}
