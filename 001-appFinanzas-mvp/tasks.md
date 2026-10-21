@@ -2361,7 +2361,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-02`: una cuenta archivada como cuenta por defecto da `ACCOUNT_ARCHIVED`.
     - `RF-M7-04`: guardar 3 favoritas las pone primeras en la grilla, en su orden.
 
-- [ ] **`TASK-150`: Restablecer ajustes por sección**
+- [x] **`TASK-150`: Restablecer ajustes por sección**
   - **Dependencias:** Requiere TASK-087, TASK-149
   - **Trazabilidad SDD:** plan §4.9.2 (`POST /api/settings/reset`); RF-M9-05
   - **Archivos en Alcance:**
