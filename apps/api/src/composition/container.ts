@@ -10,6 +10,10 @@ import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import {
+  createExportService,
+  type ExportService,
+} from '../application/services/export.service.js';
+import {
   createMeService,
   type MeService,
   type MeStore,
@@ -78,6 +82,7 @@ import {
   type FakeRatesGateway,
 } from '../infrastructure/integrations/paralelo-bo.fake.js';
 import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
+import { createZipStream } from '../infrastructure/export/csv-zip.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
 import {
@@ -102,6 +107,7 @@ import {
   createDashboardExpenseReader,
   createDashboardRepository,
 } from '../infrastructure/persistence/repositories/dashboard.repository.js';
+import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -137,6 +143,8 @@ export interface Container {
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  /** The ZIP of `GET /api/me/export` (plan §4.1.2). */
+  readonly exportService: ExportService;
   readonly settingsService: SettingsService;
   readonly ratesService: RatesService;
   readonly fxSettingsService: FxSettingsService;
@@ -200,6 +208,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   userSettings: createUserSettingsRepository(tx),
   shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
   dashboard: createDashboardRepository(tx, userId ?? NO_USER),
+  exports: createExportRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -581,6 +590,7 @@ export const buildContainer = (env: Env): Container => {
     auth,
     authService,
     meService,
+    exportService: createExportService({ uow, release: env.RELEASE, archive: createZipStream }),
     settingsService,
     ratesService,
     fxSettingsService,
@@ -616,7 +626,12 @@ export const createApp = (container: Container): Express => {
       release: container.env.RELEASE,
       session,
     },
-    me: { meService: container.meService, release: container.env.RELEASE, session },
+    me: {
+      meService: container.meService,
+      exportService: container.exportService,
+      release: container.env.RELEASE,
+      session,
+    },
     settings: { settingsService: container.settingsService, session },
     rates: {
       ratesService: container.ratesService,

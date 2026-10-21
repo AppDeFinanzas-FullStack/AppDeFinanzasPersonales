@@ -25,6 +25,7 @@ export const meRouter = (deps: MeRoutesDeps): Router => {
 
   router.get('/', ...withSession, controller.get);
   router.patch('/', ...withSession, validate(UpdateMeInput), controller.update);
+  router.get('/export', ...withSession, controller.exportData);
   router.post('/delete', ...withSession, validate(DeleteAccountBody), controller.deleteAccount);
 
   return router;
