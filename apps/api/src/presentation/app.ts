@@ -22,6 +22,7 @@ import {
   type FxRoutesDeps,
   type RatesRoutesDeps,
 } from './routes/fx.routes.js';
+import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
@@ -49,6 +50,8 @@ export interface AppDeps {
   currencies?: CurrenciesRoutesDeps;
   /** The routes `/api/accounts` (plan §4.4.2). */
   accounts?: AccountsRoutesDeps;
+  /** The routes `/api/dashboard` (plan §4.8.2). */
+  dashboard?: DashboardRoutesDeps;
   /** The routes `/api/shortcuts` (plan §4.7.2). */
   shortcuts?: ShortcutsRoutesDeps;
   /** The routes `/api/register` (plan §4.7.2). */
@@ -118,6 +121,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.accounts !== undefined) {
     app.use('/api/accounts', accountsRouter(deps.accounts));
+  }
+  if (deps.dashboard !== undefined) {
+    app.use('/api/dashboard', dashboardRouter(deps.dashboard));
   }
   if (deps.shortcuts !== undefined) {
     app.use('/api/shortcuts', shortcutsRouter(deps.shortcuts));

@@ -37,6 +37,11 @@ import {
   type CategoriesService,
 } from '../application/services/categories.service.js';
 import {
+  createDashboardService,
+  createDashboardViewService,
+  type DashboardViewService,
+} from '../application/services/dashboard.service.js';
+import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
@@ -93,6 +98,10 @@ import { createAccountRepository } from '../infrastructure/persistence/repositor
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
 import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
 import { createShortcutRepository } from '../infrastructure/persistence/repositories/shortcut.repository.js';
+import {
+  createDashboardExpenseReader,
+  createDashboardRepository,
+} from '../infrastructure/persistence/repositories/dashboard.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -139,6 +148,8 @@ export interface Container {
   readonly categoryTree: CategoryTreeReader;
   readonly transactionsService: TransactionsService;
   readonly registerService: RegisterService;
+  /** The blocks of `GET /api/dashboard` (plan §4.8.2). */
+  readonly dashboardService: DashboardViewService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -188,6 +199,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   categories: createCategoryRepository(tx, userId ?? NO_USER),
   userSettings: createUserSettingsRepository(tx),
   shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
+  dashboard: createDashboardRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -530,6 +542,14 @@ export const buildContainer = (env: Env): Container => {
     transactions: transactionsService,
   });
 
+  const dashboardService = createDashboardViewService({
+    uow,
+    dashboard: createDashboardService({ uow }),
+    accounts: accountsService,
+    transactions: transactionsService,
+    expenses: createDashboardExpenseReader(prisma),
+  });
+
   const fakeRates = rateSources.fake;
   const testSupport: TestSupportControllerDeps | null =
     fakeEmail === null || fakeRates === null
@@ -566,6 +586,7 @@ export const buildContainer = (env: Env): Container => {
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     registerService,
+    dashboardService,
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -619,6 +640,11 @@ export const createApp = (container: Container): Express => {
     transactions: {
       transactionsService: container.transactionsService,
       register: container.registerService,
+      clock: container.clock,
+      session,
+    },
+    dashboard: {
+      dashboardService: container.dashboardService,
       clock: container.clock,
       session,
     },

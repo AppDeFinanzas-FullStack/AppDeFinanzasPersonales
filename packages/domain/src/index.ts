@@ -53,3 +53,5 @@ export { formatMoney, parseAmountInput } from './format.js';
 export type { NumberFormat } from './format.js';
 export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
+export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
+export type { ComparisonWindow } from './dashboard.js';

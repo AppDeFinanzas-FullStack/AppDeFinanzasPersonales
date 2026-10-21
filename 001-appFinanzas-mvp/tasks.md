@@ -2243,7 +2243,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 13 — M8 Inicio (V1.0)
 
-- [ ] **`TASK-143`: Contratos de M8**
+- [x] **`TASK-143`: Contratos de M8**
   - **Dependencias:** Requiere TASK-096, TASK-118
   - **Trazabilidad SDD:** plan §4.8.1; RF-M8-01, RF-M8-03
   - **Archivos en Alcance:**
@@ -2255,7 +2255,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-01`: `month` exige el formato AAAA-MM.
     - `RF-M8-03`: `savingsRatePct` admite `null`.
 
-- [ ] **`TASK-144`: Dominio `dashboard`: comparación, variación y tasa de ahorro**
+- [x] **`TASK-144`: Dominio `dashboard`: comparación, variación y tasa de ahorro**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.8.1 (`packages/domain/dashboard`); RF-M8-03, RF-M8-04, EC-M8-03
   - **Archivos en Alcance:**
@@ -2269,13 +2269,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Tasa de ahorro oculta" (`RF-M8-03`): con ingresos 3.000 y gastos 3.500, da `null`.
     - Con un valor anterior de 0, `pctChange` da `null`.
 
-- [ ] **`TASK-145`: `DashboardService`: tarjetas, variaciones y rango de meses**
+- [x] **`TASK-145`: `DashboardService`: tarjetas, variaciones y rango de meses**
   - **Dependencias:** Requiere TASK-126, TASK-143, TASK-144
   - **Trazabilidad SDD:** plan §4.8.2, plan §4.8.3; RF-M8-01, RF-M8-02, RF-M8-03, RF-M8-04, EC-M8-02, RN-02, RN-05, RN-12
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/dashboard.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/dashboard.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/dashboard-cards.test.ts`
   - **Especificación de Implementación:** Dentro de una transacción de solo lectura, con una consulta SQL por bloque: ingresos y gastos sin lo de RN-02, convertidos con las tasas guardadas; balance; tasa de ahorro; variaciones según `comparisonWindow`. El rango va desde el mes del primer movimiento o del primer saldo inicial hasta el mes actual.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2284,7 +2285,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-01`: el rango empieza en el mes del primer saldo inicial y no incluye meses futuros.
     - `RN-12`: un gasto anterior al saldo inicial cuenta en los gastos del mes.
 
-- [ ] **`TASK-146`: `DashboardService`: bloques y endpoint `/api/dashboard`**
+- [x] **`TASK-146`: `DashboardService`: bloques y endpoint `/api/dashboard`**
   - **Dependencias:** Requiere TASK-145
   - **Trazabilidad SDD:** plan §4.8.2 (`GET /api/dashboard`), plan §4.8.3; RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, RF-M5-03, RF-M5-09, EC-M8-04, RNF-14
   - **Archivos en Alcance:**
@@ -2305,7 +2306,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-10`: un bloque oculto no viene en la respuesta.
     - `RNF-14`: el usuario B nunca ve datos de A.
 
-- [ ] **`TASK-147`: Web: Inicio, selector de mes y tarjetas**
+- [x] **`TASK-147`: Web: Inicio, selector de mes y tarjetas**
   - **Dependencias:** Requiere TASK-107, TASK-129, TASK-146
   - **Trazabilidad SDD:** plan §4.8.4 (`/`); RF-M8-01, RF-M8-03, RF-M8-04, RF-M8-11, EC-M8-01, EC-M8-02
   - **Archivos en Alcance:**
@@ -2323,7 +2324,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-04`: una variación de gastos positiva se muestra en rojo, con un texto accesible que no depende solo del color.
     - `EC-M8-02`: en un mes vacío, la tasa de ahorro no aparece.
 
-- [ ] **`TASK-148`: Web: bloques del Inicio y navegación**
+- [x] **`TASK-148`: Web: bloques del Inicio y navegación**
   - **Dependencias:** Requiere TASK-147
   - **Trazabilidad SDD:** plan §4.8.4 (orden de `dashboard_blocks`, navegación); RF-M8-05, RF-M8-06, RF-M8-07, RF-M8-10, EC-M8-04
   - **Archivos en Alcance:**

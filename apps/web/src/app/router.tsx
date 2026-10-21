@@ -4,6 +4,7 @@ import { createBrowserRouter, Outlet } from 'react-router';
 import { accountsRoutes } from '@/features/accounts/routes';
 import { authRoutes } from '@/features/auth/routes';
 import { categoriesRoutes } from '@/features/categories/routes';
+import { dashboardRoutes } from '@/features/dashboard/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
 import { registerRoutes } from '@/features/register/routes';
@@ -56,7 +57,7 @@ export const router = createBrowserRouter([
               {
                 element: <AppShell />,
                 children: [
-                  { index: true },
+                  ...dashboardRoutes,
                   ...transactionsRoutes,
                   ...registerRoutes,
                   ...accountsRoutes,
