@@ -2374,7 +2374,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-05`: después de cada sección, las cuentas, los movimientos, las categorías, los atajos, las monedas y la moneda base no cambian.
     - `RF-M9-05`: `currencies` desactiva el valor manual y deja `parallel_median`.
 
-- [x] **`TASK-151`: Web: Ajustes y sección General**
+- [ ] **`TASK-151`: Web: Ajustes y sección General**
   - **Dependencias:** Requiere TASK-070, TASK-150
   - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (rutas, restablecer); RF-M9-01, RF-M9-02, RF-M9-03, RF-M9-05, EC-M9-01
   - **Archivos en Alcance:**
@@ -2393,7 +2393,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-03`: con la fecha en AAAA-MM-DD, la lista de movimientos usa ese formato.
     - `RF-M9-05`: restablecer General vuelve a "Bs 1.234,56".
 
-- [x] **`TASK-152`: Web: Ajustes de Registrar**
+- [ ] **`TASK-152`: Web: Ajustes de Registrar**
   - **Dependencias:** Requiere TASK-140, TASK-151
   - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/registrar`); RF-M7-03, RF-M7-04, RF-M7-10, RF-M7-13, EC-M9-02, RNF-06
   - **Archivos en Alcance:**

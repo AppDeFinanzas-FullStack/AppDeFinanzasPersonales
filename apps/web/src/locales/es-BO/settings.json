@@ -53,65 +53,6 @@
       }
     }
   },
-  "register": {
-    "move": {
-      "up": "Subir {{name}}",
-      "down": "Bajar {{name}}",
-      "upShort": "Subir",
-      "downShort": "Bajar"
-    },
-    "defaultAccount": {
-      "label": "Cuenta por defecto",
-      "hint": "Registrar la elige al abrirse, para gastos e ingresos. Sin cuenta por defecto usa la última que usaste.",
-      "none": "Sin cuenta por defecto",
-      "goal": "Cuenta de la meta {{name}}",
-      "loadError": "No se pudieron cargar tus cuentas. Revisa tu conexión y recarga la página."
-    },
-    "favorites": {
-      "expense": { "title": "Categorías favoritas de gastos" },
-      "income": { "title": "Categorías favoritas de ingresos" },
-      "count": "{{count}} de {{max}}",
-      "empty": "Sin favoritas. Registrar muestra las que más usas.",
-      "add": "Agregar categoría",
-      "addOne": "Agregar {{name}} a favoritas",
-      "full": "Llegaste al máximo. Quita una favorita para agregar otra.",
-      "remove": "Quitar {{name}} de favoritas",
-      "removeShort": "Quitar",
-      "loadError": "No se pudieron cargar las categorías. Revisa tu conexión y recarga la página."
-    },
-    "shortcuts": {
-      "title": "Atajos",
-      "description": "Se crean desde Registrar con «Guardar como atajo». Aquí los editas, ordenas y eliminas.",
-      "empty": "Aún no tienes atajos.",
-      "loadError": "No se pudieron cargar tus atajos. Revisa tu conexión y recarga la página.",
-      "reorderError": "No se pudo guardar el orden y volvió al anterior. Inténtalo de nuevo.",
-      "kind": {
-        "expense": "Gasto",
-        "income": "Ingreso",
-        "transfer": "Transferencia"
-      },
-      "edit": "Editar {{name}}",
-      "editShort": "Editar",
-      "remove": "Eliminar {{name}}",
-      "removeShort": "Eliminar",
-      "editTitle": "Editar atajo",
-      "editDescription": "La cuenta y la categoría del atajo no cambian.",
-      "name": "Nombre",
-      "nameError": "Escribe un nombre de hasta 30 caracteres.",
-      "amount": "Monto (opcional)",
-      "amountError": "Escribe un monto válido, por ejemplo 35,50.",
-      "note": "Nota (opcional)",
-      "cancel": "Cancelar",
-      "save": "Guardar",
-      "removeTitle": "¿Eliminar este atajo?",
-      "removeDescription": "«{{name}}» deja de aparecer en Registrar. Tus movimientos no cambian.",
-      "removeConfirm": "Eliminar"
-    },
-    "alwaysShowNote": {
-      "label": "Mostrar la nota siempre",
-      "hint": "Registrar muestra el campo de nota en el primer nivel."
-    }
-  },
   "reset": {
     "button": "Restablecer valores por defecto",
     "title": "¿Restablecer los valores por defecto?",
