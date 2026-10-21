@@ -8,6 +8,7 @@ import { dashboardRoutes } from '@/features/dashboard/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { profileRoutes } from '@/features/profile/routes';
 import { registerRoutes } from '@/features/register/routes';
+import { settingsRoutes } from '@/features/settings/routes';
 import { transactionsRoutes } from '@/features/transactions/routes';
 
 import { RequireOnboardingDone, RequireSession } from './guards';
@@ -65,7 +66,7 @@ export const router = createBrowserRouter([
                   ...categoriesRoutes,
                   ...fxRoutes,
                   ...profileRoutes,
-                  { path: 'ajustes' },
+                  ...settingsRoutes,
                 ],
               },
             ],

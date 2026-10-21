@@ -29,6 +29,7 @@
     "title": "Últimos movimientos",
     "empty": "Aún no tienes movimientos.",
     "seeAll": "Ver todos",
+    "noRate": "Sin tipo de cambio",
     "kind": {
       "expense": "Gasto",
       "income": "Ingreso",

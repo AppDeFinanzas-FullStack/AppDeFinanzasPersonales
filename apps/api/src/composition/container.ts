@@ -309,7 +309,8 @@ interface RegisterUsageRecord {
 /**
  * The reads of Registrar (plan §4.7.2): one composite query for the grid and the preselected
  * accounts, always bound to the user (RN-09). Uses count the live movements of the last 60 days by
- * exact category; the last account is the one of the last movement created of each kind.
+ * exact category; the last account is the one of the last movement created of each kind. The
+ * preloaded categories come in their order: each main one followed by its own subcategories.
  */
 const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader => ({
   async read(userId, today) {
@@ -324,10 +325,14 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
                     AND t.kind IN ('expense', 'income') AND t.category_id IS NOT NULL
                     AND t.date > ${today}::date - 60
                   GROUP BY t.category_id) u) AS "categoryUses",
-        (SELECT COALESCE(json_agg(c.id::text ORDER BY c.seed_order), '[]'::json)
-           FROM category c
-          WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
-            AND c.status = 'active') AS seeded,
+        (SELECT COALESCE(json_agg(s.id::text ORDER BY s.root_order, s.is_child, s.seed_order),
+                         '[]'::json)
+           FROM (SELECT c.id, c.seed_order, (c.parent_id IS NOT NULL) AS is_child,
+                        COALESCE(p.seed_order, c.seed_order) AS root_order
+                   FROM category c
+                   LEFT JOIN category p ON p.user_id = c.user_id AND p.id = c.parent_id
+                  WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
+                    AND c.status = 'active') s) AS seeded,
         (SELECT e.account_id::text
            FROM ledger_transaction t
            JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id

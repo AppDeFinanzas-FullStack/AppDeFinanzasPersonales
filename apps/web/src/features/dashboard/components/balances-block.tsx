@@ -1,4 +1,4 @@
-import type { DashboardDto } from '@finanzas/contracts';
+import type { DashboardViewDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
@@ -6,7 +6,7 @@ import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 
 interface Props {
-  data: DashboardDto['balances'];
+  data: NonNullable<DashboardViewDto['balances']>;
   baseCode: string;
   otherCode: string;
 }

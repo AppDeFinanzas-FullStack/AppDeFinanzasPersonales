@@ -84,3 +84,10 @@ export const CurrencyDto = z.object({
   rate: Rate,
 });
 export type CurrencyDto = z.infer<typeof CurrencyDto>;
+
+export const CurrencyStatus = z.enum(['active', 'inactive']);
+export type CurrencyStatus = z.infer<typeof CurrencyStatus>;
+
+/** An item of `GET /api/currencies`: the currency with its status, so Ajustes can offer the active ones. */
+export const CurrencyListItemDto = CurrencyDto.extend({ status: CurrencyStatus });
+export type CurrencyListItemDto = z.infer<typeof CurrencyListItemDto>;

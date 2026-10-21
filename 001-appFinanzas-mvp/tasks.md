@@ -2345,13 +2345,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 14 — M9 Ajustes y personalización (V1.0)
 
-- [ ] **`TASK-149`: Ajustes: cuenta por defecto y categorías favoritas**
+- [x] **`TASK-149`: Ajustes: cuenta por defecto y categorías favoritas**
   - **Dependencias:** Requiere TASK-069, TASK-104, TASK-112
   - **Trazabilidad SDD:** plan §4.9.2 (`PATCH /api/settings`); RF-M7-03, RF-M7-04, EC-M9-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/settings.service.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/favorite-category.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
+    - `apps/api/src/presentation/controllers/settings.controller.ts`
     - `apps/api/test/http/settings-register.test.ts`
   - **Especificación de Implementación:** `defaultAccountId` debe ser una cuenta activa (si no, `ACCOUNT_ARCHIVED`). `favoriteCategories` reemplaza las favoritas del tipo dentro de una transacción: hasta 8, activas y del tipo indicado (si no, `CATEGORY_ARCHIVED` o `VALIDATION_ERROR`).
   - **Criterios de Verificación (Tests & DoD):**
@@ -2359,7 +2361,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M9-02`: una cuenta archivada como cuenta por defecto da `ACCOUNT_ARCHIVED`.
     - `RF-M7-04`: guardar 3 favoritas las pone primeras en la grilla, en su orden.
 
-- [ ] **`TASK-150`: Restablecer ajustes por sección**
+- [x] **`TASK-150`: Restablecer ajustes por sección**
   - **Dependencias:** Requiere TASK-087, TASK-149
   - **Trazabilidad SDD:** plan §4.9.2 (`POST /api/settings/reset`); RF-M9-05
   - **Archivos en Alcance:**
@@ -2372,7 +2374,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-05`: después de cada sección, las cuentas, los movimientos, las categorías, los atajos, las monedas y la moneda base no cambian.
     - `RF-M9-05`: `currencies` desactiva el valor manual y deja `parallel_median`.
 
-- [ ] **`TASK-151`: Web: Ajustes y sección General**
+- [x] **`TASK-151`: Web: Ajustes y sección General**
   - **Dependencias:** Requiere TASK-070, TASK-150
   - **Trazabilidad SDD:** plan §4.9.3, plan §4.9.4 (rutas, restablecer); RF-M9-01, RF-M9-02, RF-M9-03, RF-M9-05, EC-M9-01
   - **Archivos en Alcance:**
@@ -2391,7 +2393,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M9-03`: con la fecha en AAAA-MM-DD, la lista de movimientos usa ese formato.
     - `RF-M9-05`: restablecer General vuelve a "Bs 1.234,56".
 
-- [ ] **`TASK-152`: Web: Ajustes de Registrar**
+- [x] **`TASK-152`: Web: Ajustes de Registrar**
   - **Dependencias:** Requiere TASK-140, TASK-151
   - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/registrar`); RF-M7-03, RF-M7-04, RF-M7-10, RF-M7-13, EC-M9-02, RNF-06
   - **Archivos en Alcance:**
@@ -2400,6 +2402,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/shortcuts-manager.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `apps/api/src/composition/container.ts`
     - `e2e/m9-settings-register.spec.ts`
   - **Especificación de Implementación:** Cuenta por defecto (activas, incluidas las dedicadas a metas), `FavoritesPicker` con hasta 8 por tipo, atajos (editar, reordenar con Subir y Bajar, eliminar) y "Mostrar la nota siempre".
   - **Criterios de Verificación (Tests & DoD):**
@@ -2408,19 +2411,26 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-10`: reordenar los atajos con el teclado se refleja en Registrar.
     - `RF-M7-13`: activar la nota la muestra en el primer nivel.
 
-- [ ] **`TASK-153`: Web: Ajustes del Inicio**
+- [x] **`TASK-153`: Web: Ajustes del Inicio**
   - **Dependencias:** Requiere TASK-148, TASK-151
   - **Trazabilidad SDD:** plan §4.9.4 (`/ajustes/inicio`); RF-M8-10, RNF-06
   - **Archivos en Alcance:**
     - `apps/web/src/features/settings/components/blocks-order-list.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `packages/contracts/src/dashboard.ts`
+    - `apps/web/src/features/dashboard/api.ts`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/src/features/dashboard/components/category-bars.tsx`
+    - `apps/web/src/features/dashboard/components/balances-block.tsx`
+    - `apps/web/src/features/dashboard/components/recent-block.tsx`
     - `e2e/m9-settings-dashboard.spec.ts`
   - **Especificación de Implementación:** `BlocksOrderList` con los bloques 3 a 8, interruptores de visibilidad y botones Subir y Bajar. Los bloques no liberados no se muestran.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M8-10`: ocultar "Ritmo del gasto" lo quita del Inicio, y moverlo arriba cambia el orden.
 
-- [ ] **`TASK-154`: Web: Ajustes de monedas**
+- [x] **`TASK-154`: Web: Ajustes de monedas**
   - **Dependencias:** Requiere TASK-095, TASK-151
   - **Trazabilidad SDD:** plan §4.3.4 (`/ajustes/monedas`), plan §4.9.4; RF-M3-11, RF-M3-03
   - **Archivos en Alcance:**
@@ -2428,6 +2438,12 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/base-currency-select.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `packages/contracts/src/fx.ts`
+    - `apps/api/src/application/services/currencies.service.ts`
+    - `apps/api/src/presentation/presenters/currencies.presenter.ts`
+    - `packages/contracts/src/dashboard.ts`
+    - `apps/web/src/features/dashboard/components/recent-block.tsx`
+    - `apps/web/src/locales/es-BO/dashboard.json`
     - `e2e/m9-settings-currencies.spec.ts`
   - **Especificación de Implementación:** `BaseCurrencySelect` con las monedas activas, más los componentes del panel de Tipo de cambio (referencia, valor manual y monedas).
   - **Criterios de Verificación (Tests & DoD):**

@@ -1,11 +1,11 @@
-import type { DashboardDto } from '@finanzas/contracts';
+import type { DashboardViewDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 
 interface Props {
-  data: DashboardDto['recent'];
+  data: NonNullable<DashboardViewDto['recent']>;
   symbol: string;
 }
 
@@ -40,8 +40,14 @@ export function RecentBlock({ data, symbol }: Props) {
                   <span className="text-sm text-muted-foreground">{formatters.date(tx.date)}</span>
                 </span>
                 <span className="tabular-nums">
-                  {signOf(tx.kind)}
-                  {formatters.money(tx.amountInBase.replace('-', ''), symbol)}
+                  {tx.amountInBase === null ? (
+                    t('recent.noRate')
+                  ) : (
+                    <>
+                      {signOf(tx.kind)}
+                      {formatters.money(tx.amountInBase.replace('-', ''), symbol)}
+                    </>
+                  )}
                 </span>
               </Link>
             </li>
