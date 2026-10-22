@@ -2462,7 +2462,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M10-03`: saltar el paso 2 no crea cuentas.
     - `RF-M10-06`: saltar el paso 3 conserva todas las precargadas.
 
-- [ ] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
+- [x] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-101, TASK-156
   - **Trazabilidad SDD:** plan §4.10.2 (`step2`); RF-M10-04, EC-M10-01, EC-M10-02, RF-M4-01, RF-M4-02
   - **Archivos en Alcance:**
