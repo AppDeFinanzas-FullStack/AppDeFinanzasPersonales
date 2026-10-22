@@ -3091,7 +3091,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-07`: `UpdateBudgetInput` rechaza `currencyCode`.
     - `RF-M11-08`: `DecisionInput` exige `carry` y `discard` en un sobrante, y `mode` en un exceso.
 
-- [ ] **`TASK-194`: Dominio `budget`: períodos**
+- [x] **`TASK-194`: Dominio `budget`: períodos**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.11.1 (`periodFor`); RF-M11-04, RF-M11-07, EC-M11-07
   - **Archivos en Alcance:**
