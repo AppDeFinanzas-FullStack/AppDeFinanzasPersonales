@@ -34,6 +34,16 @@ export const CurrencyUsage = {
   },
 };
 
+// Goals (M12): a goal that is not archived uses its currency (EC-M3-05).
+CurrencyUsage.register('goals', async (tx, _userId, code) => {
+  // Units of work wired before the goals existed have no goal repository.
+  const goals: Repositories['goals'] | undefined = tx.goals;
+  if (!goals) {
+    return false;
+  }
+  return (await goals.list()).some((goal) => goal.currencyCode === code);
+});
+
 // Accounts (M4): an active account in the currency uses it (plan §4.3.3).
 CurrencyUsage.register('accounts', async (tx, _userId, code) =>
   (await tx.accounts.list('active')).some((account) => account.currencyCode === code),

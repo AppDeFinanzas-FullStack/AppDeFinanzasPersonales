@@ -1,12 +1,25 @@
 import { CalendarDays } from 'lucide-react';
-import { useState } from 'react';
-import { es } from 'react-day-picker/locale';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import type { CalendarProps } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
+
+/**
+ * The calendar (react-day-picker and date-fns) loads when the picker opens, not with the screen
+ * (RNF-01), already in Spanish.
+ */
+const SpanishCalendar = lazy(async () => {
+  const [{ Calendar }, { es }] = await Promise.all([
+    import('@/components/ui/calendar'),
+    import('react-day-picker/locale/es'),
+  ]);
+  return {
+    default: (props: CalendarProps) => <Calendar locale={es} {...props} />,
+  };
+});
 
 /** The calendar day before 'YYYY-MM-DD'. */
 export function dayBefore(date: string): string {
@@ -84,19 +97,20 @@ export function DateChips({ value, today, weekStart, onChange }: DateChipsProps)
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start" aria-label={t('date.pick')}>
-            <Calendar
-              mode="single"
-              locale={es}
-              weekStartsOn={weekStart === 'monday' ? 1 : 0}
-              selected={toDate(value)}
-              defaultMonth={toDate(value)}
-              disabled={{ after: toDate(today) }}
-              onSelect={(day) => {
-                if (day === undefined) return;
-                onChange(toLocalDate(day));
-                setOpen(false);
-              }}
-            />
+            <Suspense fallback={null}>
+              <SpanishCalendar
+                mode="single"
+                weekStartsOn={weekStart === 'monday' ? 1 : 0}
+                selected={toDate(value)}
+                defaultMonth={toDate(value)}
+                disabled={{ after: toDate(today) }}
+                onSelect={(day) => {
+                  if (day === undefined) return;
+                  onChange(toLocalDate(day));
+                  setOpen(false);
+                }}
+              />
+            </Suspense>
           </PopoverContent>
         </Popover>
       </div>

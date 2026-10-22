@@ -13,6 +13,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "test:integration": "vitest run --config vitest.config.ts",
     "fx-backfill": "tsx scripts/fx-backfill.ts",
+    "seed:e2e": "tsx --env-file-if-exists=../../.env seed/e2e.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

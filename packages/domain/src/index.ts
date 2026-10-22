@@ -57,3 +57,13 @@ export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './
 export type { ComparisonWindow } from './dashboard.js';
 export { installment, isFinished, nextDates, skippedDates } from './recurrence.js';
 export type { Installment, RecurrenceEnd, RecurrenceFrequency, RecurrenceRule } from './recurrence.js';
+export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
+export type {
+  EarmarkSource,
+  EarmarkTake,
+  GoalMoney,
+  GoalRates,
+  GoalStatus,
+  GoalStatusInput,
+  SuggestedMonthly,
+} from './goals.js';

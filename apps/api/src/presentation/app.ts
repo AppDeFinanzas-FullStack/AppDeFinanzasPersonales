@@ -23,6 +23,7 @@ import {
   type RatesRoutesDeps,
 } from './routes/fx.routes.js';
 import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.routes.js';
+import { goalsRouter, type GoalsRoutesDeps } from './routes/goals.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { onboardingRouter, type OnboardingRoutesDeps } from './routes/onboarding.routes.js';
@@ -65,6 +66,8 @@ export interface AppDeps {
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
+  /** The routes `/api/goals` (plan §4.12.2). */
+  goals?: GoalsRoutesDeps;
   /** The routes `/api/onboarding` (plan §4.10.2). */
   onboarding?: OnboardingRoutesDeps;
   /** The routes `/api/notifications` (plan §4.15.2). */
@@ -145,6 +148,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));
+  }
+  if (deps.goals !== undefined) {
+    app.use('/api/goals', goalsRouter(deps.goals));
   }
   if (deps.onboarding !== undefined) {
     app.use('/api/onboarding', onboardingRouter(deps.onboarding));

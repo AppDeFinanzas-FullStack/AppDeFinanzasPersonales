@@ -11,6 +11,7 @@ import { useCurrencySymbol } from '../hooks/use-accounts';
  */
 export function AccountHeader({ account, base }: { account: AccountDto; base: string }) {
   const { t } = useTranslation('accounts');
+  const { t: tGoals } = useTranslation('goals');
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
   const symbol = symbolOf(account.currencyCode);
@@ -47,6 +48,26 @@ export function AccountHeader({ account, base }: { account: AccountDto; base: st
           </p>
         )}
       </div>
+      {card === undefined && (
+        <dl className="flex flex-col divide-y divide-border rounded-lg border border-border">
+          <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+            <dt>{tGoals('summary.balance')}</dt>
+            <dd className="text-right tabular-nums">{formatters.money(account.balance, symbol)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+            <dt>{tGoals('summary.earmarked')}</dt>
+            <dd className="text-right tabular-nums">
+              {formatters.money(account.earmarked, symbol)}
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+            <dt>{tGoals('summary.free')}</dt>
+            <dd className="text-right font-medium tabular-nums">
+              {formatters.money(account.free, symbol)}
+            </dd>
+          </div>
+        </dl>
+      )}
       {card !== undefined && (
         <dl className="flex flex-col divide-y divide-border rounded-lg border border-border">
           <div className="flex items-baseline justify-between gap-4 px-4 py-3">

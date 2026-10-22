@@ -313,6 +313,8 @@ export interface Repositories {
   notificationPreferences: NotificationPreferenceRepository;
   recurringRules: RecurringRuleRepository;
   recurringOccurrences: RecurringOccurrenceRepository;
+  goals: GoalRepository;
+  goalAllocations: GoalAllocationRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -915,4 +917,114 @@ export interface RecurringOccurrenceRepository {
   decideIf(id: string, expectedStatus: OccurrenceStatus, newStatus: OccurrenceStatus): Promise<boolean>;
   /** The user's pending occurrences whose `pendingSince` is before the instant. */
   expiredPending(before: Instant): Promise<RecurringOccurrenceRow[]>;
+}
+
+// ---------- Metas de ahorro (M12) ----------
+
+export type AllocationOrigin =
+  | 'manual'
+  | 'budget'
+  | 'dedicated_account'
+  | 'confirmed_spend'
+  | 'use_and_close'
+  | 'adjustment';
+
+/** A savings goal as stored (plan §3.6). */
+export interface GoalRow {
+  id: string;
+  name: string;
+  target: Decimal;
+  currencyCode: string;
+  /** `YYYY-MM-DD`. */
+  targetDate: LocalDate | null;
+  icon: string;
+  color: string;
+  dedicatedAccountId: string | null;
+  celebratedAt: Instant | null;
+  archivedAt: Instant | null;
+}
+
+export type NewGoal = Pick<
+  GoalRow,
+  | 'id'
+  | 'name'
+  | 'target'
+  | 'currencyCode'
+  | 'targetDate'
+  | 'icon'
+  | 'color'
+  | 'dedicatedAccountId'
+>;
+
+/** The fields of a goal that change; absent fields stay as they are. */
+export type GoalPatch = Partial<
+  Pick<GoalRow, 'name' | 'target' | 'currencyCode' | 'targetDate' | 'icon' | 'color'>
+>;
+
+/** Goals of the user bound to the transaction (RN-09). */
+export interface GoalRepository {
+  insert(goal: NewGoal): Promise<void>;
+  get(id: string): Promise<GoalRow | null>;
+  update(id: string, patch: GoalPatch): Promise<void>;
+  /** Sets the dedicated account of the goal. */
+  setDedicatedAccount(id: string, accountId: string): Promise<void>;
+  /** How many goals the user has, archived ones included (RNF-28). */
+  count(): Promise<number>;
+  /** The goals that are not archived, oldest first. */
+  list(): Promise<GoalRow[]>;
+  /** The goal that has the account as its dedicated one, if any. */
+  findByDedicatedAccount(accountId: string): Promise<GoalRow | null>;
+  /** Removes the dedicated account of the goal, which turns it into a normal account. */
+  clearDedicatedAccount(id: string): Promise<void>;
+  /** Archives the goal, or restores it when `archived` is false. */
+  setArchived(id: string, archived: boolean): Promise<void>;
+  /** Marks `celebrated_at` once; a goal already celebrated keeps its date. */
+  markCelebrated(id: string): Promise<void>;
+  /** Deletes the goal. */
+  remove(id: string): Promise<void>;
+}
+
+export interface NewAllocationEvent {
+  id: string;
+  goalId: string;
+  accountId: string;
+  /** Signed: an earmark (+) or a withdrawal (-). */
+  amount: Decimal;
+  origin: AllocationOrigin;
+  relatedTransactionId: string | null;
+}
+
+export interface GoalEarmark {
+  goalId: string;
+  amount: Decimal;
+}
+
+export interface AccountEarmark {
+  accountId: string;
+  amount: Decimal;
+}
+
+/** An item of the history of a goal, with its origin (RF-M12-07). */
+export interface GoalHistoryItem {
+  accountId: string;
+  amount: Decimal;
+  origin: AllocationOrigin;
+  /** `YYYY-MM-DD` date of the item. */
+  date: LocalDate;
+  createdAt: Instant;
+  /** The kind of the ledger movement for items taken from the ledger; `null` for events. */
+  ledgerKind: string | null;
+}
+
+/** Allocation events of the user bound to the transaction (RN-09). */
+export interface GoalAllocationRepository {
+  insert(event: NewAllocationEvent): Promise<void>;
+  /** Σ of the events on the account, one item per goal. */
+  earmarkedByAccount(accountId: string): Promise<GoalEarmark[]>;
+  /** Σ of the events of the goal, one item per account. */
+  earmarkedByGoal(goalId: string): Promise<AccountEarmark[]>;
+  /** The events of the goal plus the ledger entries of its dedicated account (RF-M12-07). */
+  history(goalId: string): Promise<GoalHistoryItem[]>;
+  /** Deletes all the events of the goal. */
+  deleteByGoal(goalId: string): Promise<void>;
 }
