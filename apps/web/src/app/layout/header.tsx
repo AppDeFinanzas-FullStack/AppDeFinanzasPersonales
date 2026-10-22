@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
 import { RateChip } from '@/features/fx/components/rate-chip';
+import { BellButton } from '@/features/notifications/components/bell-button';
 
 import { ALL_ITEMS } from './nav-items';
 
@@ -19,7 +20,10 @@ export function Header() {
   return (
     <header className="flex h-14 items-center justify-between border-b border-border px-4">
       <h1 className="text-2xl font-semibold">{key ? t(`items.${key}`) : ''}</h1>
-      <RateChip />
+      <div className="flex items-center gap-1">
+        <RateChip />
+        <BellButton />
+      </div>
     </header>
   );
 }

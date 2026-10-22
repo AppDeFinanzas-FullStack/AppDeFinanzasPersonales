@@ -5,6 +5,7 @@ import { Decimal } from 'decimal.js';
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { AppError } from '../application/errors.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
@@ -123,6 +124,7 @@ import {
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 import type {
+  TestNotificationInput,
   TestRatesInput,
   TestSupportControllerDeps,
   TestUserCredentials,
@@ -588,6 +590,30 @@ const createTestUserFactory =
     return { email, password };
   };
 
+/**
+ * `POST /internal/test/notifications` (plan §1.5): creates the notification for the user with that
+ * email, once per `eventKey` (RN-10). An unknown email answers 404.
+ */
+const createTestNotificationFactory =
+  (uow: UnitOfWork) =>
+  async ({ email, ...notification }: TestNotificationInput): Promise<void> => {
+    await uow.run(async (repos) => {
+      const user = await repos.users.findByEmail(email);
+      if (user === null) {
+        throw new AppError('NOT_FOUND');
+      }
+      await repos.notifications.insertIfAbsent({
+        id: uuidv7(),
+        userId: user.id,
+        type: notification.type,
+        eventKey: notification.eventKey,
+        params: notification.params,
+        targetRoute: notification.targetRoute,
+        ...(notification.decision === undefined ? {} : { decision: notification.decision }),
+      });
+    });
+  };
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
@@ -661,6 +687,7 @@ export const buildContainer = (env: Env): Container => {
           },
           createUser: createTestUserFactory({ prisma, uow, auth }),
           setRates: createTestRatesSetter({ fake: fakeRates, fxJobs, clock: systemClock }),
+          createNotification: createTestNotificationFactory(uow),
         };
   return {
     testSupport,

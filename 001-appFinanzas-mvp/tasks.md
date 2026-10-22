@@ -2831,7 +2831,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M15-05`: un aviso de 91 días se borra, salvo si espera una decisión; uno de 89 días se conserva.
 
-- [ ] **`TASK-179`: Web: campana y bandeja de avisos**
+- [x] **`TASK-179`: Web: campana y bandeja de avisos**
   - **Dependencias:** Requiere TASK-072, TASK-177
   - **Trazabilidad SDD:** plan §4.15.4 (cabecera, `NotificationsPanel`), plan §4.2.4; RF-M15-06, RF-M15-11, RF-M15-12, RNF-06
   - **Archivos en Alcance:**
