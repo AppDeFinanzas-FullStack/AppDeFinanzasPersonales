@@ -3,7 +3,9 @@
   "empty": "Aún no tienes metas. Crea una para empezar a apartar dinero.",
   "loadError": "No se pudieron cargar las metas. Inténtalo de nuevo.",
   "back": "Volver a metas",
-  "ring": { "label": "Progreso de {{name}}" },
+  "ring": {
+    "label": "Progreso de {{name}}"
+  },
   "status": {
     "in_progress": "En curso",
     "achieved": "Lograda",
@@ -15,7 +17,10 @@
     "reachedOf": "{{progress}} de {{target}}",
     "until": "hasta {{date}}"
   },
-  "byAccount": { "title": "Progreso por cuenta", "dedicated": "cuenta dedicada" },
+  "byAccount": {
+    "title": "Progreso por cuenta",
+    "dedicated": "cuenta dedicada"
+  },
   "history": {
     "title": "Historial",
     "empty": "Aún no hay apartados ni retiros.",
@@ -41,5 +46,61 @@
     "title": "¡Lograste tu meta {{name}}!",
     "description": "Alcanzaste el objetivo que te propusiste.",
     "close": "Cerrar"
+  },
+  "new": "Nueva meta",
+  "actions": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "earmark": "Apartar",
+    "release": "Liberar",
+    "dedicate": "Dedicar",
+    "useAndClose": "Usar y cerrar"
+  },
+  "form": {
+    "title": "Nueva meta",
+    "description": "Define cuánto quieres ahorrar y para qué.",
+    "name": "Nombre",
+    "target": "Objetivo",
+    "currency": "Moneda",
+    "targetDate": "Fecha límite (opcional)",
+    "icon": "Ícono",
+    "color": "Color",
+    "submit": "Crear meta",
+    "saving": "Guardando…",
+    "errors": {
+      "name": "Escribe un nombre de 1 a 40 caracteres.",
+      "target": "Escribe un monto mayor que 0.",
+      "targetDate": "Elige hoy o una fecha futura."
+    }
+  },
+  "amount": {
+    "label": "Monto",
+    "error": "Escribe un monto mayor que 0."
+  },
+  "earmark": {
+    "title": "Apartar dinero",
+    "description": "Aparta parte del saldo libre de una cuenta para esta meta.",
+    "account": "Cuenta",
+    "free": "Saldo libre: {{free}}",
+    "noAccounts": "No tienes cuentas disponibles para apartar.",
+    "submit": "Apartar"
+  },
+  "release": {
+    "title": "Liberar dinero",
+    "description": "Devuelve dinero apartado al saldo libre de la cuenta.",
+    "account": "Cuenta",
+    "earmarked": "Apartado: {{amount}}",
+    "submit": "Liberar"
+  },
+  "dedicate": {
+    "title": "Dedicar una cuenta",
+    "description": "Elige la cuenta que se dedica solo a esta meta.",
+    "none": "No tienes cuentas disponibles para dedicar.",
+    "submit": "Dedicar cuenta"
+  },
+  "useAndClose": {
+    "title": "Usar y cerrar",
+    "description": "Se liberan todos los apartados y la meta {{name}} queda archivada con su historia.",
+    "submit": "Usar y cerrar"
   }
 }

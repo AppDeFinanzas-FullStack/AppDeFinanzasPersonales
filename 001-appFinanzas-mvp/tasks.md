@@ -3032,7 +3032,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-06`: se ve el aporte mensual sugerido.
     - La celebración aparece una sola vez.
 
-- [ ] **`TASK-191`: Web: crear meta, apartar, liberar, dedicar y usar y cerrar**
+- [x] **`TASK-191`: Web: crear meta, apartar, liberar, dedicar y usar y cerrar**
   - **Dependencias:** Requiere TASK-190
   - **Trazabilidad SDD:** plan §4.12.4 (diálogos); RF-M12-01, RF-M12-03, RF-M12-09, EC-M12-01, EC-M12-08
   - **Archivos en Alcance:**
