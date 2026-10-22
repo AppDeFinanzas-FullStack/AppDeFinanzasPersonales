@@ -2518,7 +2518,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Saltar todo": la base es BOB, no hay cuentas, están todas las categorías y el Inicio invita a crear la primera cuenta.
     - Sin tasa, se ve el mensaje "Aún no pudimos obtener el dólar".
 
-- [ ] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
+- [x] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-160
   - **Trazabilidad SDD:** plan §4.10.4 (`AccountsStep`, borradores); RF-M10-04, EC-M10-01, EC-M10-02
   - **Archivos en Alcance:**

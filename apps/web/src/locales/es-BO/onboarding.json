@@ -20,5 +20,33 @@
     "rate": "Usaremos el dólar paralelo: {{value}} (puedes cambiarlo en Ajustes).",
     "noRate": "Aún no pudimos obtener el dólar; te lo pediremos al registrar algo en dólares.",
     "continue": "Continuar"
+  },
+  "accounts": {
+    "intro": "Marca las cuentas que usas y escribe cuánto tienes en cada una hoy.",
+    "name": "Nombre",
+    "balance": "Saldo de hoy",
+    "balanceHint": {
+      "nonNegative": "El efectivo empieza en 0 o más.",
+      "any": "Escribe 0 si prefieres empezar sin saldo. Puede ser negativo si estás en rojo."
+    },
+    "type": "Tipo",
+    "currency": "Moneda",
+    "types": {
+      "cash": "Efectivo",
+      "bank": "Banco",
+      "ewallet": "Billetera digital",
+      "savings": "Ahorro",
+      "other": "Otra"
+    },
+    "addOther": "+ Otra cuenta",
+    "remove": "Quitar",
+    "removeLabel": "Quitar esta cuenta",
+    "continue": "Continuar",
+    "errors": {
+      "name": "Escribe un nombre de 1 a 40 caracteres.",
+      "nameTaken": "Ya tienes una cuenta con ese nombre. Escribe otro.",
+      "amount": "Escribe un monto de hasta 999.999.999,99 con hasta dos decimales, por ejemplo 1250,50.",
+      "negative": "Esta cuenta no puede empezar en negativo. Escribe 0 o un monto mayor."
+    }
   }
 }

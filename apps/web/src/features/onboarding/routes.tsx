@@ -1,4 +1,10 @@
-import type { MeDto, OnboardingDto, SkipInput, Step1Input } from '@finanzas/contracts';
+import type {
+  MeDto,
+  OnboardingDto,
+  SkipInput,
+  Step1Input,
+  Step2Input,
+} from '@finanzas/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,8 +22,10 @@ import {
   skipAllEndpoint,
   skipEndpoint,
   step1Endpoint,
+  step2Endpoint,
   type OnboardingProgress,
 } from './api';
+import { AccountsStep } from './components/accounts-step';
 import { BaseCurrencyStep } from './components/base-currency-step';
 import { OnboardingStepper } from './components/onboarding-stepper';
 
@@ -28,12 +36,17 @@ const ONBOARDING_KEY = ['onboarding'] as const;
 
 /** What a button of the Onboarding sends (plan §4.10.2). */
 type OnboardingAction =
-  { kind: 'step1'; input: Step1Input } | { kind: 'skip'; input: SkipInput } | { kind: 'skipAll' };
+  | { kind: 'step1'; input: Step1Input }
+  | { kind: 'step2'; input: Step2Input }
+  | { kind: 'skip'; input: SkipInput }
+  | { kind: 'skipAll' };
 
 function send(action: OnboardingAction): Promise<OnboardingProgress> {
   switch (action.kind) {
     case 'step1':
       return call(step1Endpoint, action.input);
+    case 'step2':
+      return call(step2Endpoint, action.input);
     case 'skip':
       return call(skipEndpoint, action.input);
     case 'skipAll':
@@ -102,7 +115,7 @@ function OnboardingFlow() {
     );
   }
 
-  const { step, rate } = state.data;
+  const { step, rate, presets } = state.data;
   const busy = action.isPending;
   const error =
     action.error === null
@@ -127,6 +140,15 @@ function OnboardingFlow() {
           busy={busy}
           onContinue={(baseCurrency) => {
             action.mutate({ kind: 'step1', input: { baseCurrency } });
+          }}
+        />
+      )}
+      {step === 2 && (
+        <AccountsStep
+          presets={presets.accounts}
+          busy={busy}
+          onContinue={(accounts, onSaved) => {
+            action.mutate({ kind: 'step2', input: { accounts } }, { onSuccess: onSaved });
           }}
         />
       )}
