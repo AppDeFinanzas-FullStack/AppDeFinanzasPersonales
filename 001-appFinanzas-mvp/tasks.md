@@ -2787,7 +2787,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - abrir en el navegador `$API_URL/api/health/ready`, `$WEB_URL/` y `$WEB_URL/api/health/ready`;
        - pasar las URLs reales al README en un commit `docs(readme)`.
 
-- [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
+- [x] **`TASK-174`: Workflow manual `fx-backfill.yml`**
   - **Dependencias:** Requiere TASK-091, TASK-173
   - **Trazabilidad SDD:** plan §1.5 (`fx-backfill.yml`), ADR-06
   - **Archivos en Alcance:**
