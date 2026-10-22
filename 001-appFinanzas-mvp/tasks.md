@@ -2475,7 +2475,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos cuentas con el mismo nombre dan `NAME_TAKEN`.
     - Reenviar el paso con los mismos ids no duplica las cuentas.
 
-- [ ] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
+- [x] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
   - **Dependencias:** Requiere TASK-111, TASK-157
   - **Trazabilidad SDD:** plan §4.10.2 (`step3`), plan §4.5.3 (seed); RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**

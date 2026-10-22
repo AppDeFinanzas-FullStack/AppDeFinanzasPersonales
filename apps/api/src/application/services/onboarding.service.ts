@@ -7,11 +7,13 @@ import type {
   SkipInput,
   Step1Input,
   Step2Input,
+  Step3Input,
 } from '@finanzas/contracts';
 import { todayFor } from '@finanzas/domain';
 
 import { AppError } from '../errors.js';
 import type {
+  CategoryRow,
   CategoryTreeNode,
   OnboardingProgress,
   OnboardingStep,
@@ -21,6 +23,7 @@ import type {
 import type { UnitOfWork, UnitOfWorkOptions } from '../ports/unit-of-work.js';
 import { createLedgerHooks } from '../shared/ledger-hooks.js';
 import { createAccountsService, type AccountsService } from './accounts.service.js';
+import { createCategoriesService, type CategoriesService } from './categories.service.js';
 import { createRatesService, type RatesContext, type RatesService } from './rates.service.js';
 
 /** Request context built from the session (plan §1.4). */
@@ -51,6 +54,13 @@ export interface OnboardingService {
    * RF-M4-01 or RF-M4-02 leaves none of them and the Onboarding in step 2 (EC-M10-01, EC-M10-02).
    */
   step2(ctx: OnboardingContext, input: Step2Input): Promise<OnboardingProgress>;
+  /**
+   * Removes the unchecked categories, each parent with its subcategories, creates the new ones,
+   * idempotent by their ids (ADR-11), and finishes the Onboarding, all in the same transaction:
+   * unchecking a system category is `SYSTEM_CATEGORY` (RF-M10-05) and leaves everything as it was,
+   * with the Onboarding in step 3. Every non-system category of a kind may go (EC-M10-03).
+   */
+  step3(ctx: OnboardingContext, input: Step3Input): Promise<OnboardingProgress>;
   /**
    * Skips the pending step: step 1 leaves BOB as the base (RF-M10-02), step 2 creates no account
    * (RF-M10-03) and step 3 keeps every category (RF-M10-06) and finishes the Onboarding.
@@ -160,6 +170,55 @@ function accountsWithin(repos: Repositories, userId: string): AccountsService {
   });
 }
 
+/**
+ * The `CategoriesService` of an open transaction: over this unit of work its removals and creations
+ * commit or roll back with the end of the Onboarding.
+ */
+function categoriesWithin(repos: Repositories, userId: string): CategoriesService {
+  return createCategoriesService({ uow: joinedTo(repos, userId) });
+}
+
+/**
+ * Removes the unchecked categories of step 3 with their subcategories (spec §2.10.1). Every one is
+ * checked before any is removed: a system category is `SYSTEM_CATEGORY` (RF-M10-05). An id the user
+ * does not have, another user's included, removes nothing.
+ */
+async function removeUnchecked(
+  repos: Repositories,
+  categories: CategoriesService,
+  userId: string,
+  ids: readonly string[],
+): Promise<void> {
+  const unchecked: CategoryRow[] = [];
+  for (const id of new Set(ids)) {
+    const category = await repos.categories.get(id);
+    if (category === null) {
+      continue;
+    }
+    if (category.isSystem) {
+      throw new AppError('SYSTEM_CATEGORY');
+    }
+    unchecked.push(category);
+  }
+  const removing = new Set(unchecked.map((category) => category.id));
+  for (const category of unchecked) {
+    // Removing a parent removes its subcategories, so one unchecked with its parent goes with it.
+    if (category.parentId === null || !removing.has(category.parentId)) {
+      await categories.remove(userId, category.id);
+    }
+  }
+}
+
+/** The new categories of step 3, the main ones first: a new subcategory may hang from one of them. */
+function mainCategoriesFirst(
+  categories: Step3Input['newCategories'],
+): Step3Input['newCategories'] {
+  return [
+    ...categories.filter((category) => category.parentId === null),
+    ...categories.filter((category) => category.parentId !== null),
+  ];
+}
+
 /** The transition that skips step `from`: skipping step 1 leaves BOB as the base (RF-M10-02). */
 function skipping(from: OnboardingStep, to: OnboardingTransition['to']): OnboardingTransition {
   return from === 1 ? { from, to, baseCurrency: DEFAULT_BASE } : { from, to };
@@ -225,6 +284,21 @@ export function createOnboardingService({
             });
           }
           return advance(repos, ctx.userId, { from: 2, to: 3 });
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async step3(ctx, input) {
+      return uow.run(
+        async (repos) => {
+          await requireStep(repos, ctx.userId, 3);
+          const categories = categoriesWithin(repos, ctx.userId);
+          await removeUnchecked(repos, categories, ctx.userId, input.removeCategoryIds);
+          for (const category of mainCategoriesFirst(input.newCategories)) {
+            await categories.create(ctx.userId, category);
+          }
+          return advance(repos, ctx.userId, { from: 3, to: 'done' });
         },
         { userLock: ctx.userId },
       );
