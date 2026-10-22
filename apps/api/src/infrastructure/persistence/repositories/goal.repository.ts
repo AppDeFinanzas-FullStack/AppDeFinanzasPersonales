@@ -22,7 +22,12 @@ interface GoalRecord {
   archivedAt: Date | null;
 }
 
-const toRow = (record: GoalRecord): GoalRow => ({
+const COLUMNS = Prisma.sql`g.id::text AS id, g.name, g.target::text AS target,
+               g.currency_code::text AS "currencyCode", g.target_date::text AS "targetDate",
+               g.icon, g.color, g.dedicated_account_id::text AS "dedicatedAccountId",
+               g.celebrated_at AS "celebratedAt", g.archived_at AS "archivedAt"`;
+
+const toRow =(record: GoalRecord): GoalRow => ({
   ...record,
   target: new Decimal(record.target),
 });
@@ -59,12 +64,33 @@ export function createGoalRepository(tx: TransactionClient, userId: string): Goa
 
     async get(id: string): Promise<GoalRow | null> {
       const records = await tx.$queryRaw<GoalRecord[]>`
-        SELECT g.id::text AS id, g.name, g.target::text AS target,
-               g.currency_code::text AS "currencyCode", g.target_date::text AS "targetDate",
-               g.icon, g.color, g.dedicated_account_id::text AS "dedicatedAccountId",
-               g.celebrated_at AS "celebratedAt", g.archived_at AS "archivedAt"
+        SELECT ${COLUMNS}
           FROM goal g
          WHERE g.user_id = ${userId}::uuid AND g.id = ${id}::uuid`;
+      const record = records[0];
+      return record === undefined ? null : toRow(record);
+    },
+
+    async count(): Promise<number> {
+      const rows = await tx.$queryRaw<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM goal WHERE user_id = ${userId}::uuid`;
+      return rows[0]?.n ?? 0;
+    },
+
+    async list(): Promise<GoalRow[]> {
+      const records = await tx.$queryRaw<GoalRecord[]>`
+        SELECT ${COLUMNS}
+          FROM goal g
+         WHERE g.user_id = ${userId}::uuid AND g.archived_at IS NULL
+         ORDER BY g.created_at, g.id`;
+      return records.map(toRow);
+    },
+
+    async findByDedicatedAccount(accountId: string): Promise<GoalRow | null> {
+      const records = await tx.$queryRaw<GoalRecord[]>`
+        SELECT ${COLUMNS}
+          FROM goal g
+         WHERE g.user_id = ${userId}::uuid AND g.dedicated_account_id = ${accountId}::uuid`;
       const record = records[0];
       return record === undefined ? null : toRow(record);
     },

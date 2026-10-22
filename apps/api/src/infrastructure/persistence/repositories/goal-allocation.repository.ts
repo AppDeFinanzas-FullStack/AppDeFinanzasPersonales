@@ -16,6 +16,7 @@ interface HistoryRecord {
   origin: AllocationOrigin;
   date: string;
   createdAt: Date;
+  ledgerKind: string | null;
 }
 
 /** Prisma implementation over `goal_allocation_event`, filtered by the user of the transaction (RN-09). */
@@ -55,12 +56,12 @@ export function createGoalAllocationRepository(
       const rows = await tx.$queryRaw<HistoryRecord[]>`
         SELECT e.account_id::text AS "accountId", e.amount::text AS amount,
                e.origin::text AS origin, (e.created_at AT TIME ZONE 'UTC')::date::text AS date,
-               e.created_at AS "createdAt"
+               e.created_at AS "createdAt", NULL::text AS "ledgerKind"
           FROM goal_allocation_event e
          WHERE e.user_id = ${userId}::uuid AND e.goal_id = ${goalId}::uuid
         UNION ALL
         SELECT le.account_id::text, le.amount::text, 'dedicated_account', le.date::text,
-               le.date::timestamp AT TIME ZONE 'UTC'
+               le.date::timestamp AT TIME ZONE 'UTC', t.kind::text
           FROM goal g
           JOIN ledger_entry le ON le.user_id = g.user_id AND le.account_id = g.dedicated_account_id
           JOIN ledger_transaction t ON t.id = le.transaction_id AND t.deleted_at IS NULL

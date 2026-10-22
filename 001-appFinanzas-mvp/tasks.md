@@ -2929,7 +2929,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-13`: el lote omite el movimiento que tocaría un apartado.
     - `EC-M12-07`: el ajuste negativo pide confirmación y, al confirmar, registra el retiro.
 
-- [ ] **`TASK-185`: `GoalsService`: crear, editar, listar, detalle e historial**
+- [x] **`TASK-185`: `GoalsService`: crear, editar, listar, detalle e historial**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-180, TASK-183
   - **Trazabilidad SDD:** plan §4.12.2 (`GET`, `POST`, `PATCH`); RF-M12-01, RF-M12-02, RF-M12-06, RF-M12-07, RF-M4-05, RNF-28
   - **Archivos en Alcance:**

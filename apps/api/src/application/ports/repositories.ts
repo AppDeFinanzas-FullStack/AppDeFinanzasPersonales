@@ -851,6 +851,12 @@ export interface GoalRepository {
   insert(goal: NewGoal): Promise<void>;
   get(id: string): Promise<GoalRow | null>;
   update(id: string, patch: GoalPatch): Promise<void>;
+  /** How many goals the user has, archived ones included (RNF-28). */
+  count(): Promise<number>;
+  /** The goals that are not archived, oldest first. */
+  list(): Promise<GoalRow[]>;
+  /** The goal that has the account as its dedicated one, if any. */
+  findByDedicatedAccount(accountId: string): Promise<GoalRow | null>;
 }
 
 export interface NewAllocationEvent {
@@ -881,6 +887,8 @@ export interface GoalHistoryItem {
   /** `YYYY-MM-DD` date of the item. */
   date: LocalDate;
   createdAt: Instant;
+  /** The kind of the ledger movement for items taken from the ledger; `null` for events. */
+  ledgerKind: string | null;
 }
 
 /** Allocation events of the user bound to the transaction (RN-09). */
