@@ -1,4 +1,5 @@
 import {
+  DeleteTransactionInput,
   ListQuery,
   Uuid,
   type BatchDeleteInput,
@@ -135,13 +136,21 @@ export function createTransactionsController({
     },
 
     async remove(req, res) {
-      const result = await transactionsService.delete(contextOf(req, res.locals), idOf(req));
+      // The body is optional: it only carries the earmark withdrawals the user confirmed.
+      const options = parseQuery(DeleteTransactionInput, req.body ?? {});
+      const result = await transactionsService.delete(
+        contextOf(req, res.locals),
+        idOf(req),
+        options,
+      );
       res.status(200).json(TransactionsPresenter.deleted(result));
     },
 
     async undo(req, res) {
-      const { undoToken } = req.body as UndoInput;
-      await transactionsService.undo(contextOf(req, res.locals), undoToken);
+      const { undoToken, earmarkWithdrawals } = req.body as UndoInput;
+      await transactionsService.undo(contextOf(req, res.locals), undoToken, {
+        earmarkWithdrawals,
+      });
       res.status(204).end();
     },
 

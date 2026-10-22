@@ -2911,7 +2911,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-10`: dos gastos concurrentes evalúan los apartados con el saldo vigente.
     - Una cuenta dedicada no pide confirmación.
 
-- [ ] **`TASK-184`: Protección de apartados en movimientos, deshacer y ajustes**
+- [x] **`TASK-184`: Protección de apartados en movimientos, deshacer y ajustes**
   - **Dependencias:** Requiere TASK-103, TASK-125, TASK-183
   - **Trazabilidad SDD:** plan §4.6.2 (errores `EARMARK_CONFIRMATION_REQUIRED`), plan §4.12.3; RF-M12-05, RF-M6-08, RF-M6-13, EC-M12-07
   - **Archivos en Alcance:**

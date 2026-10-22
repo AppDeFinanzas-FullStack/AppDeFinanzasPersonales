@@ -529,6 +529,11 @@ export function createAccountsService({
           const today = todayFor(ctx.timezone, ctx.now);
           await BalanceGuard.apply(repos, ctx.userId, [{ accountId: id, amount: delta }], {
             mode: 'interactive',
+            earmarkWithdrawals: (input.earmarkWithdrawals ?? []).map((w) => ({
+              goalId: w.goalId,
+              accountId: w.accountId,
+              amount: new Decimal(w.amount),
+            })),
           });
           // RN-04: the adjustment stores the rates of its day like any movement.
           const { rateCurBob, rateUsdBob } = await rates.ratesForMovement(
