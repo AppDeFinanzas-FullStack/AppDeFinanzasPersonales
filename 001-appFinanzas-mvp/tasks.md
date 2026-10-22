@@ -3262,6 +3262,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-201
   - **Trazabilidad SDD:** plan §4.11.3 (closed_pending → defaulted); RF-M11-10, RNF-12, RNF-13
   - **Archivos en Alcance:**
+    - `apps/api/src/composition/container.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
