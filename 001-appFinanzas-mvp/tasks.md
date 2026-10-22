@@ -3077,7 +3077,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 20 — M11 Presupuestos (V1.1)
 
-- [ ] **`TASK-193`: Contratos de M11**
+- [x] **`TASK-193`: Contratos de M11**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.11.1; RF-M11-04, RF-M11-07, RF-M11-08, RF-M11-13
   - **Archivos en Alcance:**
