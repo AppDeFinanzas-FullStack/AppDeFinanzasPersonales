@@ -2844,6 +2844,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/header.tsx`
     - `apps/web/src/locales/es-BO/notifications.json`
     - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `e2e/m15-inbox.spec.ts`
   - **Especificación de Implementación:** `BellButton` con el contador, refrescado cada 60 s con `X-Background` y al reenfocar la ventana. `NotificationsPanel` (Sheet) con el texto i18n de cada tipo y sus parámetros: tocar un aviso lo marca como leído y navega; un menú "…" permite eliminarlo; está "Marcar todo como leído". `ResourceNotFound` muestra "Esto ya no existe" y lo usan las pantallas de detalle. Solo con `INTEGRATIONS=fake`, `POST /internal/test/notifications` crea avisos para E2E.
   - **Criterios de Verificación (Tests & DoD):**
