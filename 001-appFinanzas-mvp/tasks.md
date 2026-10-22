@@ -3063,6 +3063,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/accounts/components/account-header.tsx`
     - `apps/web/src/features/accounts/components/net-worth-summary.tsx`
     - `apps/web/src/locales/es-BO/goals.json`
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/app/layout/undo-toast.tsx`
     - `e2e/m12-earmark-confirm.spec.ts`
   - **Especificación de Implementación:** `EarmarkConfirmDialog` muestra "Este gasto usa X apartados" y las metas afectadas, con la propuesta editable; al confirmar, reenvía con el mismo `id` y `earmarkWithdrawals`; al cancelar, no cambia nada. Lo usan Registrar, la edición, la eliminación, deshacer y el ajuste. `AccountChip` muestra "Esto resta a tu meta X" en las dedicadas. El detalle de la cuenta y el desglose muestran Saldo · Apartado para metas · Libre.
   - **Criterios de Verificación (Tests & DoD):**
