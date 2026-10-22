@@ -1,7 +1,7 @@
 import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams, type RouteObject } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { QuickAccountForm } from '@/features/accounts/components/quick-account-form';
@@ -9,7 +9,9 @@ import { useAccounts, useCurrencySymbol } from '@/features/accounts/hooks/use-ac
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { MonthSelector } from '@/features/transactions/components/month-selector';
+import accounts from '@/locales/es-BO/accounts.json';
 import dashboard from '@/locales/es-BO/dashboard.json';
+import transactions from '@/locales/es-BO/transactions.json';
 
 import { DashboardBlocks } from './components/dashboard-blocks';
 import { SummaryCards } from './components/summary-cards';
@@ -17,6 +19,9 @@ import { useDashboard } from './hooks/use-dashboard';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'dashboard', dashboard, true, true);
+// The first account form and the month selector reuse these namespaces.
+i18n.addResourceBundle(LANGUAGE, 'accounts', accounts, true, true);
+i18n.addResourceBundle(LANGUAGE, 'transactions', transactions, true, true);
 
 function DashboardContent() {
   const { t } = useTranslation('dashboard');
@@ -80,6 +85,3 @@ export function DashboardPage() {
   if (active.data.items.length === 0) return <QuickAccountForm />;
   return <DashboardContent />;
 }
-
-/** The private route of the Inicio (plan §4.8.4). */
-export const dashboardRoutes: RouteObject[] = [{ index: true, element: <DashboardPage /> }];

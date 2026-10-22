@@ -2630,7 +2630,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-02`: el p95 del endpoint de guardar es menor que 300 ms.
     - `RNF-03`: el p95 del Inicio es menor que 1,2 s y ninguna consulta hace *seq scan* sobre `ledger_transaction` ni `ledger_entry`.
 
-- [ ] **`TASK-248`: Web: división de código por ruta y presupuesto de bundle**
+- [x] **`TASK-248`: Web: división de código por ruta y presupuesto de bundle**
   - **Dependencias:** Requiere TASK-142, TASK-148, TASK-162, TASK-165
   - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
   - **Archivos en Alcance:**

@@ -10,15 +10,14 @@ import { useFormatters } from '@/features/settings/hooks/use-settings';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 
-import { TransactionItem } from '../api';
+import { TransactionDetailData } from '../detail-data';
 import { useDeleteTransaction } from '../hooks/use-delete-transaction';
 import { TRANSACTIONS_KEY } from '../hooks/use-transactions';
 
 import { useSignedMoney } from './transaction-row';
 
-/** A movement with its fee and its origin for "Ir a…" (`GET /api/transactions/:id`). */
-export const TransactionDetailData = TransactionItem.extend({ fee: TransactionItem.optional() });
-export type TransactionDetailData = z.infer<typeof TransactionDetailData>;
+// The schema lives in `detail-data.ts`, free of components; it is re-exported for its importers.
+export { TransactionDetailData };
 
 export const transactionEndpoint = (id: string): Endpoint<undefined, TransactionDetailData> => ({
   method: 'GET',
