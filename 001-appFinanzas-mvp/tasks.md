@@ -2770,7 +2770,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 18 — M15 Bandeja de avisos (V1.1)
 
-- [ ] **`TASK-175`: Contratos de avisos (M15)**
+- [x] **`TASK-175`: Contratos de avisos (M15)**
   - **Dependencias:** Requiere TASK-023
   - **Trazabilidad SDD:** plan §4.15.1; RF-M15-01, RF-M15-02, RF-M15-08
   - **Archivos en Alcance:**
