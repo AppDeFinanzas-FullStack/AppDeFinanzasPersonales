@@ -2866,7 +2866,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M12-01`: el nombre va de 1 a 40 caracteres y el objetivo es mayor que 0; la moneda es editable y `dedicatedAccountId` no se acepta en `UpdateGoalInput`.
 
-- [ ] **`TASK-181`: Dominio `goals`: progreso, estado, sugerido y propuesta de retiro**
+- [x] **`TASK-181`: Dominio `goals`: progreso, estado, sugerido y propuesta de retiro**
   - **Dependencias:** Requiere TASK-080
   - **Trazabilidad SDD:** plan §4.12.1 (`packages/domain/goals`), ADR-13; RF-M12-02, RF-M12-05, RF-M12-06, EC-M12-03, EC-M12-04
   - **Archivos en Alcance:**
