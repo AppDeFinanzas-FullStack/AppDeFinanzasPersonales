@@ -2951,6 +2951,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.12.2 (`earmarks`, `release`, `dedicate`); RF-M12-03, RF-M12-04, EC-M12-01, EC-M12-06, EC-M12-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
     - `apps/api/test/integration/goals-earmarks.test.ts`
   - **Especificación de Implementación:** Apartar, con la cuenta bajo `FOR UPDATE`: el monto debe ser ≤ el saldo libre (si no, `EARMARK_EXCEEDS_FREE {free}`); una tarjeta da `ACCOUNT_NOT_DEDICABLE`. Liberar: el monto debe ser ≤ lo apartado en esa cuenta (si no, `RELEASE_EXCEEDS_EARMARK`). Dedicar: la cuenta no es tarjeta, no está dedicada a otra meta ni tiene apartados de otras metas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2965,6 +2967,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.12.2 (`use-and-close`, `archive`, `restore`, `DELETE`, `celebrated`), plan §4.12.3; RF-M12-09, spec §2.12.2
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
     - `apps/api/test/integration/goals-lifecycle.test.ts`
   - **Especificación de Implementación:** "Usar y cerrar" inserta eventos `use_and_close` que dejan cada apartado en 0, quita la cuenta dedicada y archiva la meta. Archivar o eliminar solo procede con la meta vacía (si no, `GOAL_NOT_EMPTY`). Restaurar no recupera los apartados. `celebrated` marca `celebrated_at` una sola vez.
   - **Criterios de Verificación (Tests & DoD):**
