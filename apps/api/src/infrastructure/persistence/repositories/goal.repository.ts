@@ -95,6 +95,13 @@ export function createGoalRepository(tx: TransactionClient, userId: string): Goa
       return record === undefined ? null : toRow(record);
     },
 
+    async setDedicatedAccount(id: string, accountId: string): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE goal
+           SET dedicated_account_id = ${accountId}::uuid, updated_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
+
     async update(id: string, patch: GoalPatch): Promise<void> {
       const sets = assignments(patch);
       if (sets.length === 0) {

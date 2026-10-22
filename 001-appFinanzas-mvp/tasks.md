@@ -2946,7 +2946,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-05`: un ajuste en la dedicada aparece en el historial con el origen "ajuste" y cambia el progreso.
     - `EC-M3-05`: desactivar la moneda de una meta da `CURRENCY_IN_USE` con "goals".
 
-- [ ] **`TASK-186`: Apartar, liberar y dedicar una cuenta**
+- [x] **`TASK-186`: Apartar, liberar y dedicar una cuenta**
   - **Dependencias:** Requiere TASK-185
   - **Trazabilidad SDD:** plan §4.12.2 (`earmarks`, `release`, `dedicate`); RF-M12-03, RF-M12-04, EC-M12-01, EC-M12-06, EC-M12-08
   - **Archivos en Alcance:**

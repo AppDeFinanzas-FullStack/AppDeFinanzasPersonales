@@ -851,6 +851,8 @@ export interface GoalRepository {
   insert(goal: NewGoal): Promise<void>;
   get(id: string): Promise<GoalRow | null>;
   update(id: string, patch: GoalPatch): Promise<void>;
+  /** Sets the dedicated account of the goal. */
+  setDedicatedAccount(id: string, accountId: string): Promise<void>;
   /** How many goals the user has, archived ones included (RNF-28). */
   count(): Promise<number>;
   /** The goals that are not archived, oldest first. */

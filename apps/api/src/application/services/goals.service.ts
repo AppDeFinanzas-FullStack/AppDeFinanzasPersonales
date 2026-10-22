@@ -1,4 +1,11 @@
-import type { CreateGoalInput, GoalDto, UpdateGoalInput } from '@finanzas/contracts';
+import type {
+  CreateGoalInput,
+  DedicateInput,
+  EarmarkInput,
+  GoalDto,
+  ReleaseInput,
+  UpdateGoalInput,
+} from '@finanzas/contracts';
 import {
   progress as goalProgress,
   status as goalStatus,
@@ -7,6 +14,7 @@ import {
   toMoneyString,
 } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
+import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../errors.js';
 import type {
@@ -33,6 +41,12 @@ export interface GoalsService {
   list(ctx: GoalsContext): Promise<GoalDto[]>;
   /** One goal with its progress by account and its history (RF-M12-07). */
   get(ctx: GoalsContext, id: string): Promise<GoalDetail>;
+  /** Earmarks an amount of an account for the goal, within its free balance (RF-M12-04). */
+  earmark(ctx: GoalsContext, goalId: string, input: EarmarkInput): Promise<GoalDto>;
+  /** Releases part of what the goal has earmarked in an account (RF-M12-04). */
+  release(ctx: GoalsContext, goalId: string, input: ReleaseInput): Promise<GoalDto>;
+  /** Dedicates an account to the goal (RF-M12-03). */
+  dedicate(ctx: GoalsContext, goalId: string, input: DedicateInput): Promise<GoalDto>;
 }
 
 export interface GoalsServiceDeps {
@@ -316,6 +330,100 @@ export function createGoalsService({ uow, rates }: GoalsServiceDeps): GoalsServi
         { userLock: ctx.userId, readOnly: true },
       );
       return { ...(await single(ctx, snapshot)), history: snapshot.history };
+    },
+
+    async earmark(ctx, goalId, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const goal = await repos.goals.get(goalId);
+          if (goal === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const [account] = await repos.accounts.lockForUpdate([input.accountId]);
+          if (account === undefined) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (account.type === 'credit_card') {
+            throw new AppError('ACCOUNT_NOT_DEDICABLE');
+          }
+          const balances = await repos.ledger.balances([account.id]);
+          const balance = balances.get(account.id) ?? account.initialBalance;
+          const earmarked = (await repos.goalAllocations.earmarkedByAccount(account.id)).reduce(
+            (sum, row) => sum.plus(row.amount),
+            new Decimal(0),
+          );
+          const free = balance.minus(earmarked);
+          const amount = new Decimal(input.amount);
+          if (amount.greaterThan(free)) {
+            throw new AppError('EARMARK_EXCEEDS_FREE', { free: toMoneyString(free) });
+          }
+          await repos.goalAllocations.insert({
+            id: input.id,
+            goalId,
+            accountId: account.id,
+            amount,
+            origin: 'manual',
+            relatedTransactionId: null,
+          });
+          return snapshotOf(repos, goal, false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async release(ctx, goalId, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const goal = await repos.goals.get(goalId);
+          if (goal === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const [account] = await repos.accounts.lockForUpdate([input.accountId]);
+          if (account === undefined) {
+            throw new AppError('NOT_FOUND');
+          }
+          const earmarked =
+            (await repos.goalAllocations.earmarkedByAccount(account.id)).find(
+              (row) => row.goalId === goalId,
+            )?.amount ?? new Decimal(0);
+          const amount = new Decimal(input.amount);
+          if (amount.greaterThan(earmarked)) {
+            throw new AppError('RELEASE_EXCEEDS_EARMARK');
+          }
+          await repos.goalAllocations.insert({
+            id: uuidv7(),
+            goalId,
+            accountId: account.id,
+            amount: amount.negated(),
+            origin: 'manual',
+            relatedTransactionId: null,
+          });
+          return snapshotOf(repos, goal, false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async dedicate(ctx, goalId, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const goal = await repos.goals.get(goalId);
+          if (goal === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          await assertDedicable(repos, input.accountId);
+          await repos.goals.setDedicatedAccount(goalId, input.accountId);
+          const updated = await repos.goals.get(goalId);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return snapshotOf(repos, updated, false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
     },
   };
 }
