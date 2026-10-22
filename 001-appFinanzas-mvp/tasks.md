@@ -2677,7 +2677,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el Inicio carga en menos de 2 s.
     - El JavaScript de `/registrar` pesa 300 KB gzip o menos.
 
-- [ ] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
+- [x] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
   - **Dependencias:** Requiere TASK-154, TASK-162, TASK-165
   - **Trazabilidad SDD:** plan §5.3 (RNF-05, RNF-06), plan §5.4 (definición de terminado, punto 5); RNF-05, RNF-06, RF-M7-12
   - **Archivos en Alcance:**
