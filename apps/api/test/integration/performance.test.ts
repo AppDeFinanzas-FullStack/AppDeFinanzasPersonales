@@ -9,9 +9,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildContainer, createApp, type Container } from '../../src/composition/container.js';
 import { parseEnv } from '../../src/infrastructure/config/env.js';
-import type { TransactionClient } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { deleteLedgerOf } from '../factories/ledger.factory.js';
 import { disconnectTestPrisma, testPrisma } from './setup/db.js';
+
+/** The client of a transaction opened on the test database. */
+type TransactionClient = Parameters<
+  Parameters<ReturnType<typeof testPrisma>['$transaction']>[0]
+>[0];
 
 /**
  * Performance of the API against Postgres with the `seed:e2e` seed (TASK-166: 5.000 movements

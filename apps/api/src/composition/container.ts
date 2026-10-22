@@ -10,10 +10,7 @@ import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
-import {
-  createExportService,
-  type ExportService,
-} from '../application/services/export.service.js';
+import { createExportService, type ExportService } from '../application/services/export.service.js';
 import {
   createMeService,
   type MeService,
@@ -33,6 +30,7 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
   type AccountsService,
@@ -121,6 +119,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
+import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -164,6 +164,8 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The goals of `/api/goals` (plan §4.12.2). */
+  readonly goalsService: GoalsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -229,6 +231,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   exports: createExportRepository(tx, userId ?? NO_USER),
   notifications: createNotificationRepository(tx),
   notificationPreferences: createNotificationPreferenceRepository(tx),
+  goals: createGoalRepository(tx, userId ?? NO_USER),
+  goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -396,7 +400,7 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
 });
 
 /** The user's category tree of a kind and status. */
-const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
+const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
   tree(userId, kind, status) {
     return uow.run((repos) => repos.categories.tree(kind, status), {
       userLock: userId,
@@ -713,6 +717,7 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    goalsService: createGoalsService({ uow, rates: ratesService }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
@@ -789,6 +794,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    goals: { goalsService: container.goalsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },

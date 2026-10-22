@@ -58,6 +58,7 @@ const categories = () => import('@/features/categories/routes');
 const fx = () => import('@/features/fx/routes');
 const profile = () => import('@/features/profile/routes');
 const settings = () => import('@/features/settings/routes');
+const goals = () => import('@/features/goals/routes');
 
 /** Public routes of M1 (plan §4.1.4). */
 const authRoutes: RouteObject[] = [
@@ -102,6 +103,12 @@ const categoriesRoutes: RouteObject[] = [
   { path: 'categorias/nueva', ...screen(categories, 'CategoryFormPage') },
   { path: 'categorias/archivadas', ...screen(categories, 'ArchivedCategoriesPage') },
   { path: 'categorias/:id/editar', ...screen(categories, 'CategoryFormPage') },
+];
+
+/** Private routes of the goals (plan §4.12.4). */
+const goalsRoutes: RouteObject[] = [
+  { path: 'metas', ...screen(goals, 'GoalsPage') },
+  { path: 'metas/:id', ...screen(goals, 'GoalDetailPage') },
 ];
 
 /** Private routes of the exchange rate (plan §4.3.4). */
@@ -152,6 +159,7 @@ export const router = createBrowserRouter([
                   { path: 'mas', element: <MoreMenu /> },
                   ...categoriesRoutes,
                   ...fxRoutes,
+                  ...goalsRoutes,
                   ...profileRoutes,
                   ...settingsRoutes,
                 ],

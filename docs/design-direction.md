@@ -53,3 +53,9 @@ Una sola familia, pesos 400, 500 y 600, cargada desde Google Fonts con `font-dis
 - **Estados vacíos y errores:** dicen qué pasó y qué hacer; sin disculpas ni humor. Los textos van en `locales/es-BO`, nunca en el código.
 - **Movimiento:** solo como respuesta a una acción (abrir, expandir, confirmar) y breve. Sin animaciones de entrada ni efectos al pasar el cursor. Respetar `prefers-reduced-motion`.
 - **Accesibilidad:** contraste AA (≥ 4,5:1), navegación completa con teclado, `aria-label` en botones de solo ícono, y los íconos de lucide-react nunca son la única señal.
+
+## Metas (M12)
+
+- **Anillo de progreso:** SVG de trazo de 4 px (8 px en el detalle), pista en `--muted` y avance en el color de la meta (`PALETTE`). El porcentaje va en texto dentro o al lado del anillo; el color nunca es la única señal (`role="progressbar"` con `aria-valuenow`).
+- **Estado de la meta:** insignia de texto (en curso, lograda, vencida, archivada) con estilo neutro; "lograda" puede usar el color de la meta en el borde, nunca `--destructive` para "vencida".
+- **Celebración:** un diálogo de shadcn con el ícono de la meta, el título y el monto logrado en 32 px / 600, y un solo botón primario para cerrarlo. Sin confeti ni animaciones propias: solo la transición del diálogo, que respeta `prefers-reduced-motion`.
