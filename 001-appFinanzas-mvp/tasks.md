@@ -2664,7 +2664,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `e2e/perf.spec.ts`
     - `e2e/support/network-profiles.ts`
-  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`.
+    - `apps/web/src/app/guards.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/dashboard/hooks/use-dashboard.ts`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/index.html`
+  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`. La primera medición del Inicio tardó de 7 a 10 s, y `GET /api/dashboard` solo 0,4 s: el tiempo se va en la cascada de descargas y peticiones (sesión, bloque de la ruta, gráfico y datos, uno detrás de otro). Reduce esa cascada sin cambiar lo que muestra el Inicio: pide los datos del mes actual en cuanto la sesión confirma el Onboarding terminado (igual que Registrar con su contexto, plan §4.7.4), precarga el bloque de la ruta, y carga el gráfico de ritmo de forma diferida para que las tarjetas aparezcan sin esperar a `recharts`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-01`: el flujo completo tarda menos de 10 s.
     - `RNF-03`: el Inicio carga en menos de 2 s.
@@ -2676,7 +2683,11 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `e2e/a11y-v1-0.spec.ts`
     - `e2e/keyboard-v1-0.spec.ts`
-  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar).
+    - `apps/web/src/index.css`
+    - `apps/web/src/components/ui/tabs.tsx`
+    - `apps/web/src/features/fx/components/rate-history-chart.tsx`
+    - `apps/web/src/features/transactions/components/transaction-row.tsx`
+  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar). La primera corrida de axe encontró 11 violaciones reales que esta tarea corrige: los tokens `--destructive`, `--destructive-foreground` y `--muted-foreground` no llegaban a 4,5:1 (los valores nuevos están en `docs/design-direction.md`); los gatillos del selector de rango de Tipo de cambio apuntan con `aria-controls` a un contenido que no existe; y la fila seleccionada de Movimientos y la pestaña de ingresos de Categorías heredan el contraste bajo de `--muted-foreground`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-06`: ninguna violación seria o crítica de axe en ninguna pantalla de V1.0.
     - `RF-M7-12`: se registra un gasto solo con el teclado.
