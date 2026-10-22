@@ -3155,6 +3155,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.11.2 (`PATCH`, `pause`, `resume`, `reset-carryover`, `DELETE`), plan §4.11.3; RF-M11-06, RF-M11-07, RF-M11-12, EC-M11-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/budgets.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/test/integration/budgets-lifecycle.test.ts`
   - **Especificación de Implementación:** El monto, la acción y los umbrales se aplican al período en curso. `startDay` se guarda en `next_start_day` y la respuesta trae la fecha de fin del período alargado. Pausar guarda el arrastre en `frozen_carryover` y elimina el período en curso si no tiene decisión. Reanudar crea el período que contiene hoy con ese arrastre. Reiniciar el arrastre pone `carryover_in = 0` y anula los ajustes tardíos. Eliminar borra el presupuesto en cascada y resuelve sus avisos de decisión.
   - **Criterios de Verificación (Tests & DoD):**
