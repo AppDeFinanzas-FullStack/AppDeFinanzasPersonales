@@ -3150,7 +3150,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-02`: si los hijos suman más que el padre, `childrenExceedParent` es verdadero.
     - `RF-M9-06`: cada presupuesto guarda sus propios umbrales y acción.
 
-- [ ] **`TASK-198`: Editar, pausar, reanudar, reiniciar el arrastre y eliminar presupuestos**
+- [x] **`TASK-198`: Editar, pausar, reanudar, reiniciar el arrastre y eliminar presupuestos**
   - **Dependencias:** Requiere TASK-197
   - **Trazabilidad SDD:** plan §4.11.2 (`PATCH`, `pause`, `resume`, `reset-carryover`, `DELETE`), plan §4.11.3; RF-M11-06, RF-M11-07, RF-M11-12, EC-M11-08
   - **Archivos en Alcance:**

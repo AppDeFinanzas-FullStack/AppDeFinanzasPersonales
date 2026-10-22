@@ -1046,6 +1046,9 @@ export type NewBudgetPeriod = Pick<
   'id' | 'budgetId' | 'startDate' | 'endDate' | 'amount' | 'carryoverIn'
 >;
 
+/** The fields of a period that change; absent fields stay as they are. */
+export type BudgetPeriodPatch = Partial<Pick<BudgetPeriodRow, 'endDate' | 'amount' | 'carryoverIn'>>;
+
 export interface NewLateAdjustment {
   id: string;
   /** The period in course. */
@@ -1070,6 +1073,9 @@ export interface BudgetPeriodRepository {
   get(id: string): Promise<BudgetPeriodRow | null>;
   /** The periods of the budget, newest first, at most `limit`. */
   listByBudget(budgetId: string, limit: number): Promise<BudgetPeriodRow[]>;
+  update(id: string, patch: BudgetPeriodPatch): Promise<void>;
+  /** Deletes the period with its late adjustments and threshold notices. */
+  delete(id: string): Promise<void>;
   insertLateAdjustment(adjustment: NewLateAdjustment): Promise<void>;
   /** The late adjustments of the period, oldest first, voided ones included. */
   lateAdjustments(periodId: string): Promise<LateAdjustmentRow[]>;

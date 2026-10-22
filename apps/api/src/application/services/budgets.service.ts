@@ -1,4 +1,4 @@
-import type { BudgetDto, CreateBudgetInput } from '@finanzas/contracts';
+import type { BudgetDto, CreateBudgetInput, UpdateBudgetInput } from '@finanzas/contracts';
 import {
   available as availableOf,
   pace as paceOf,
@@ -10,6 +10,7 @@ import {
   todayShouldBe,
   toMoneyString,
 } from '@finanzas/domain';
+import type { BudgetPeriod, LocalDate } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
 
 import { AppError } from '../errors.js';
@@ -26,6 +27,16 @@ import type { NotificationEmitter } from '../shared/notification-emitter.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
 export type BudgetsContext = RatesContext;
+
+/**
+ * Regular period that contains `date`; with a pending `nextStartDay` it stretches
+ * until the day before the first new start day after its regular end (RF-M11-07).
+ */
+function periodFrom(startDay: number, nextStartDay: number | null, date: LocalDate): BudgetPeriod {
+  const regular = periodFor(startDay, null, date);
+  if (nextStartDay === null) return regular;
+  return { start: regular.start, end: periodFor(nextStartDay, null, regular.end).end };
+}
 
 /** A past or current period of a budget, as the detail shows it (plan §4.11.4). */
 export interface BudgetPeriodSummary {
@@ -49,6 +60,19 @@ export interface BudgetsService {
   list(ctx: BudgetsContext): Promise<BudgetDto[]>;
   /** One budget with its 12 last periods (plan §4.11.2). */
   get(ctx: BudgetsContext, id: string): Promise<BudgetDetail>;
+  /**
+   * Amount, default action and thresholds apply to the period in course (RF-M11-06); `startDay`
+   * is kept as `nextStartDay` and stretches the period in course (RF-M11-07).
+   */
+  update(ctx: BudgetsContext, id: string, input: UpdateBudgetInput): Promise<BudgetDto>;
+  /** Freezes the carryover in force and drops the period in course (plan §4.11.3). */
+  pause(ctx: BudgetsContext, id: string): Promise<void>;
+  /** Opens the period that contains today with the frozen carryover (EC-M11-08). */
+  resume(ctx: BudgetsContext, id: string): Promise<void>;
+  /** Carryover of the period in course to 0 and its late adjustments voided (RF-M11-12). */
+  resetCarryover(ctx: BudgetsContext, id: string): Promise<void>;
+  /** Deletes the budget with its history and resolves its decision notices (plan §4.11.2). */
+  remove(ctx: BudgetsContext, id: string): Promise<void>;
 }
 
 export interface BudgetsServiceDeps {
@@ -60,6 +84,9 @@ export interface BudgetsServiceDeps {
 
 /** How many past periods the detail shows (plan §4.11.4). */
 const HISTORY_SIZE = 12;
+
+/** Upper bound to read every period of a budget. */
+const ALL_PERIODS = 10_000;
 
 const LIVE_STATUSES: readonly BudgetRow['status'][] = ['active', 'paused'];
 
@@ -141,6 +168,19 @@ function available(view: PeriodView): string {
     toMoneyString(view.period.carryoverIn),
     view.lateAdjustments.map((adjustment) => toMoneyString(adjustment.amount)),
   );
+}
+
+async function requireBudget(repos: Repositories, id: string): Promise<BudgetRow> {
+  const budget = await repos.budgets.get(id);
+  if (budget === null) {
+    throw new AppError('NOT_FOUND');
+  }
+  return budget;
+}
+
+async function openPeriodOf(repos: Repositories, budgetId: string): Promise<BudgetPeriodRow | null> {
+  const periods = await repos.budgetPeriods.listByBudget(budgetId, HISTORY_SIZE);
+  return periods.find((period) => period.status === 'open') ?? null;
 }
 
 async function requireActiveCurrency(repos: Repositories, code: string): Promise<void> {
@@ -406,6 +446,120 @@ export function createBudgetsService({
           status: period.status,
         })),
       };
+    },
+
+    async update(ctx, id, input) {
+      const { snapshot, family } = await uow.run(
+        async (repos) => {
+          const budget = await requireBudget(repos, id);
+          const amount = input.amount === undefined ? undefined : new Decimal(input.amount);
+          const nextStartDay =
+            input.startDay === undefined
+              ? undefined
+              : input.startDay === budget.startDay
+                ? null
+                : input.startDay;
+          await repos.budgets.update(id, {
+            ...(amount === undefined ? {} : { amount }),
+            ...(input.defaultAction === undefined ? {} : { defaultAction: input.defaultAction }),
+            ...(input.thresholds === undefined ? {} : { thresholds: input.thresholds }),
+            ...(nextStartDay === undefined ? {} : { nextStartDay }),
+          });
+
+          const open = await openPeriodOf(repos, id);
+          if (open !== null) {
+            const endDate =
+              nextStartDay === undefined
+                ? undefined
+                : periodFrom(budget.startDay, nextStartDay, open.startDate).end;
+            await repos.budgetPeriods.update(open.id, {
+              ...(amount === undefined ? {} : { amount }),
+              ...(endDate === undefined ? {} : { endDate }),
+            });
+          }
+
+          return {
+            snapshot: await snapshotOf(repos, await requireBudget(repos, id), false),
+            family: await familyOf(repos),
+          };
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot, family);
+    },
+
+    async pause(ctx, id) {
+      await uow.run(
+        async (repos) => {
+          const budget = await requireBudget(repos, id);
+          if (budget.status !== 'active') {
+            throw new AppError('INVALID_STATE');
+          }
+          const open = await openPeriodOf(repos, id);
+          await repos.budgets.update(id, {
+            status: 'paused',
+            frozenCarryover: open?.carryoverIn ?? new Decimal(0),
+          });
+          if (open !== null) {
+            await repos.budgetPeriods.delete(open.id);
+          }
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async resume(ctx, id) {
+      await uow.run(
+        async (repos) => {
+          const budget = await requireBudget(repos, id);
+          if (budget.status !== 'paused') {
+            throw new AppError('INVALID_STATE');
+          }
+          const range = periodFrom(
+            budget.startDay,
+            budget.nextStartDay,
+            todayFor(ctx.timezone, ctx.now),
+          );
+          await repos.budgetPeriods.insert({
+            id: ids.next(),
+            budgetId: id,
+            startDate: range.start,
+            endDate: range.end,
+            amount: budget.amount,
+            carryoverIn: budget.frozenCarryover ?? new Decimal(0),
+          });
+          await repos.budgets.update(id, { status: 'active', frozenCarryover: null });
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async resetCarryover(ctx, id) {
+      await uow.run(
+        async (repos) => {
+          await requireBudget(repos, id);
+          const open = await openPeriodOf(repos, id);
+          if (open === null) {
+            throw new AppError('INVALID_STATE');
+          }
+          await repos.budgetPeriods.update(open.id, { carryoverIn: new Decimal(0) });
+          await repos.budgetPeriods.voidLateAdjustments(open.id);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async remove(ctx, id) {
+      await uow.run(
+        async (repos) => {
+          await requireBudget(repos, id);
+          for (const period of await repos.budgetPeriods.listByBudget(id, ALL_PERIODS)) {
+            await notifications.resolveDecision(repos, ctx.userId, 'budget_period', period.id);
+          }
+          await repos.budgets.delete(id);
+        },
+        { userLock: ctx.userId },
+      );
     },
   };
 }

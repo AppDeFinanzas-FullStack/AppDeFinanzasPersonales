@@ -2,6 +2,7 @@ import { Prisma } from '@finanzas/db';
 import { Decimal } from 'decimal.js';
 
 import type {
+  BudgetPeriodPatch,
   BudgetPeriodRepository,
   BudgetPeriodRow,
   BudgetPeriodStatus,
@@ -32,6 +33,21 @@ const COLUMNS = Prisma.sql`p.id::text AS id, p.budget_id::text AS "budgetId",
                to_char(p.start_date, 'YYYY-MM-DD') AS "startDate",
                to_char(p.end_date, 'YYYY-MM-DD') AS "endDate", p.amount::text AS amount,
                p.carryover_in::text AS "carryoverIn", p.status::text AS status`;
+
+/** The `SET` assignments of the fields present in the patch. */
+function assignments(patch: BudgetPeriodPatch): Prisma.Sql[] {
+  const sets: Prisma.Sql[] = [];
+  if (patch.endDate !== undefined) {
+    sets.push(Prisma.sql`end_date = ${patch.endDate}::date`);
+  }
+  if (patch.amount !== undefined) {
+    sets.push(Prisma.sql`amount = ${patch.amount.toFixed(2)}::numeric`);
+  }
+  if (patch.carryoverIn !== undefined) {
+    sets.push(Prisma.sql`carryover_in = ${patch.carryoverIn.toFixed(2)}::numeric`);
+  }
+  return sets;
+}
 
 const toRow = (record: PeriodRecord): BudgetPeriodRow => ({
   ...record,
@@ -76,6 +92,22 @@ export function createBudgetPeriodRepository(
          ORDER BY p.start_date DESC
          LIMIT ${limit}`;
       return records.map(toRow);
+    },
+
+    async update(id: string, patch: BudgetPeriodPatch): Promise<void> {
+      const sets = assignments(patch);
+      if (sets.length === 0) {
+        return;
+      }
+      await tx.$executeRaw`
+        UPDATE budget_period
+           SET ${Prisma.join(sets, ', ')}
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
+
+    async delete(id: string): Promise<void> {
+      await tx.$executeRaw`
+        DELETE FROM budget_period WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
     },
 
     async insertLateAdjustment(adjustment: NewLateAdjustment): Promise<void> {
