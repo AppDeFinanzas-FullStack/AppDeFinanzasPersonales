@@ -3553,6 +3553,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/recurring-rule.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/recurring-occurrence.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/recurring.factory.ts`
     - `apps/api/test/integration/recurring-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de reglas con `lockForUpdate`. Ocurrencias: `insertIfAbsent(ruleId, date)` con `ON CONFLICT (rule_id, scheduled_date) DO NOTHING RETURNING`, `pending()`, `decideIf(id, expectedStatus, newStatus)` y `expiredPending(before)`.
