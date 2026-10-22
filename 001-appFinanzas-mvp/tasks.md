@@ -2532,7 +2532,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos nombres iguales muestran el error de duplicado.
     - `RF-M10-04`: las cuentas creadas tienen el saldo indicado con fecha de hoy.
 
-- [ ] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
+- [x] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
   - **Dependencias:** Requiere TASK-161
   - **Trazabilidad SDD:** plan §4.10.4 (`CategoriesStep`); RF-M10-01, RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**

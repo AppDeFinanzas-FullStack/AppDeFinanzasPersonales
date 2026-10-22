@@ -48,5 +48,29 @@
       "amount": "Escribe un monto de hasta 999.999.999,99 con hasta dos decimales, por ejemplo 1250,50.",
       "negative": "Esta cuenta no puede empezar en negativo. Escribe 0 o un monto mayor."
     }
+  },
+  "categories": {
+    "intro": "Desmarca las categorías que no vas a usar. Al desmarcar una principal, se quitan también sus subcategorías.",
+    "kinds": {
+      "expense": "Gastos",
+      "income": "Ingresos"
+    },
+    "kindOptions": {
+      "expense": "Gasto",
+      "income": "Ingreso"
+    },
+    "systemHint": "Categoría del sistema: siempre se conserva.",
+    "add": "+ Agregar",
+    "name": "Nombre",
+    "kind": "Tipo",
+    "confirmAdd": "Agregar categoría",
+    "cancelAdd": "Cancelar",
+    "remove": "Quitar",
+    "removeLabel": "Quitar la categoría {{name}}",
+    "continue": "Continuar",
+    "errors": {
+      "name": "Escribe un nombre de 1 a 30 caracteres.",
+      "nameTaken": "Ya tienes una categoría con ese nombre. Escribe otro."
+    }
   }
 }

@@ -4,6 +4,7 @@ import type {
   SkipInput,
   Step1Input,
   Step2Input,
+  Step3Input,
 } from '@finanzas/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -23,10 +24,12 @@ import {
   skipEndpoint,
   step1Endpoint,
   step2Endpoint,
+  step3Endpoint,
   type OnboardingProgress,
 } from './api';
 import { AccountsStep } from './components/accounts-step';
 import { BaseCurrencyStep } from './components/base-currency-step';
+import { CategoriesStep } from './components/categories-step';
 import { OnboardingStepper } from './components/onboarding-stepper';
 
 // The feature registers its own namespace (RNF-07).
@@ -38,6 +41,7 @@ const ONBOARDING_KEY = ['onboarding'] as const;
 type OnboardingAction =
   | { kind: 'step1'; input: Step1Input }
   | { kind: 'step2'; input: Step2Input }
+  | { kind: 'step3'; input: Step3Input }
   | { kind: 'skip'; input: SkipInput }
   | { kind: 'skipAll' };
 
@@ -47,6 +51,8 @@ function send(action: OnboardingAction): Promise<OnboardingProgress> {
       return call(step1Endpoint, action.input);
     case 'step2':
       return call(step2Endpoint, action.input);
+    case 'step3':
+      return call(step3Endpoint, action.input);
     case 'skip':
       return call(skipEndpoint, action.input);
     case 'skipAll':
@@ -152,6 +158,15 @@ function OnboardingFlow() {
           }}
         />
       )}
+      {step === 3 && (
+        <CategoriesStep
+          categories={presets.categories}
+          busy={busy}
+          onContinue={(input, onSaved) => {
+            action.mutate({ kind: 'step3', input }, { onSuccess: onSaved });
+          }}
+        />
+      )}
     </OnboardingStepper>
   );
 }
@@ -171,7 +186,11 @@ export function OnboardingPage() {
   );
 }
 
-/** The private route of the Onboarding, outside the app shell (plan §4.10.4). */
+/**
+ * The private route of the Onboarding, outside the app shell (plan §4.10.4). Signing in sends a
+ * user with the Onboarding pending to `/onboarding`, which leads to the page (RF-M10-01).
+ */
 export const onboardingRoutes: RouteObject[] = [
   { path: 'bienvenida', element: <OnboardingPage /> },
+  { path: 'onboarding', element: <Navigate to="/bienvenida" replace /> },
 ];
