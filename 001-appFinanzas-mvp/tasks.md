@@ -2819,7 +2819,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con un aviso de A.
     - Con `RELEASE=1.0`, las rutas dan `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-178`: Job `maintenance`: retención de avisos**
+- [x] **`TASK-178`: Job `maintenance`: retención de avisos**
   - **Dependencias:** Requiere TASK-063, TASK-176
   - **Trazabilidad SDD:** plan §4.15.3 (retención), plan §3.9; RF-M15-05, RNF-26
   - **Archivos en Alcance:**
