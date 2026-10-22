@@ -2682,7 +2682,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-12`: se registra un gasto solo con el teclado.
     - `RNF-05`: las pruebas pasan en Chromium, WebKit y Firefox a 360 px y a 1280 px.
 
-- [ ] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
+- [x] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
   - **Dependencias:** Requiere TASK-164
   - **Trazabilidad SDD:** plan §5.1 (aislamiento), plan §5.3 (RNF-14, RNF-17), plan §3.9 (logs); RNF-14, RNF-17
   - **Archivos en Alcance:**
