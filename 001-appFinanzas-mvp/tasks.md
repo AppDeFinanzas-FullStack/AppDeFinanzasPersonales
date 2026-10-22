@@ -3286,7 +3286,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 21 — M13 Deudas y préstamos (V1.1)
 
-- [ ] **`TASK-208`: Contratos de M13**
+- [x] **`TASK-208`: Contratos de M13**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.13.1; RF-M13-01, RF-M13-03, RF-M13-10
   - **Archivos en Alcance:**
