@@ -1,5 +1,6 @@
 import type { Decimal } from 'decimal.js';
 
+import type { RecurrenceEnd, RecurrenceFrequency } from '../../domain/index.js';
 import type { Instant, LocalDate } from './clock.js';
 import type { EmailKind, EmailPayload } from './email-gateway.js';
 
@@ -310,6 +311,8 @@ export interface Repositories {
   exports: ExportRepository;
   notifications: NotificationRepository;
   notificationPreferences: NotificationPreferenceRepository;
+  recurringRules: RecurringRuleRepository;
+  recurringOccurrences: RecurringOccurrenceRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -831,4 +834,85 @@ export interface ShortcutRepository {
   remove(id: string): Promise<boolean>;
   /** How many shortcuts the user has, hidden ones included (RF-M7-09). */
   count(): Promise<number>;
+}
+
+// ---------- Recurrentes (M14) ----------
+
+export type RuleKind = 'expense' | 'income' | 'transfer';
+export type RuleMode = 'auto' | 'confirm';
+export type RuleStatus = 'active' | 'paused' | 'finished';
+export type OccurrenceStatus = 'pending' | 'registered' | 'skipped' | 'omitted';
+
+/** A recurring rule of the user (plan §3.6, §4.14.1). */
+export interface RecurringRuleRow {
+  id: string;
+  name: string;
+  kind: RuleKind;
+  /** `null` when the amount is "to be defined" (only in confirm mode). */
+  amount: Decimal | null;
+  accountId: string;
+  /** Only in a transfer. */
+  destAccountId: string | null;
+  /** Never in a transfer. */
+  categoryId: string | null;
+  note: string | null;
+  frequency: RecurrenceFrequency;
+  startDate: LocalDate;
+  end: RecurrenceEnd;
+  mode: RuleMode;
+  status: RuleStatus;
+  pausedAt: Instant | null;
+  generatedCount: number;
+  lastGeneratedDate: LocalDate | null;
+}
+
+/** A new rule: it is always created active, with nothing generated. */
+export type NewRecurringRule = Omit<
+  RecurringRuleRow,
+  'status' | 'pausedAt' | 'generatedCount' | 'lastGeneratedDate'
+>;
+
+/** The fields of a rule that change; absent fields stay as they are. */
+export type RecurringRulePatch = Partial<Omit<RecurringRuleRow, 'id'>>;
+
+/** Recurring rules of the user bound to the transaction (RN-09). */
+export interface RecurringRuleRepository {
+  insert(rule: NewRecurringRule): Promise<void>;
+  /** The rule, or `null` when the user has no such rule. */
+  get(id: string): Promise<RecurringRuleRow | null>;
+  /** Like `get`, locking the row (`FOR UPDATE`) until the end of the transaction. */
+  lockForUpdate(id: string): Promise<RecurringRuleRow | null>;
+  list(): Promise<RecurringRuleRow[]>;
+  update(id: string, patch: RecurringRulePatch): Promise<void>;
+  /** Deletes the rule and its occurrences; `false` when the user has no such rule. */
+  remove(id: string): Promise<boolean>;
+}
+
+/** An occurrence of a rule on a date (plan §3.6). */
+export interface RecurringOccurrenceRow {
+  id: string;
+  ruleId: string;
+  scheduledDate: LocalDate;
+  status: OccurrenceStatus;
+  transactionId: string | null;
+  pendingSince: Instant | null;
+  decidedAt: Instant | null;
+}
+
+/** Occurrences of the user bound to the transaction (RN-09). */
+export interface RecurringOccurrenceRepository {
+  /**
+   * Inserts a pending occurrence of the user's rule on that date and returns it, or `null` when the
+   * rule already has one on that date or the user has no such rule (RF-M14-12).
+   */
+  insertIfAbsent(ruleId: string, date: LocalDate): Promise<RecurringOccurrenceRow | null>;
+  /** The user's pending occurrences, by date. */
+  pending(): Promise<RecurringOccurrenceRow[]>;
+  /**
+   * Changes the status only when the occurrence is in the expected one; `true` when it changed.
+   * Of simultaneous calls, only one succeeds.
+   */
+  decideIf(id: string, expectedStatus: OccurrenceStatus, newStatus: OccurrenceStatus): Promise<boolean>;
+  /** The user's pending occurrences whose `pendingSince` is before the instant. */
+  expiredPending(before: Instant): Promise<RecurringOccurrenceRow[]>;
 }

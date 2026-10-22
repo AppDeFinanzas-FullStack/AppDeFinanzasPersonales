@@ -3546,7 +3546,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M14-06`: si el fin pasó durante la pausa, solo se devuelven las fechas hasta el fin.
     - `RF-M14-13`: `installment` da "Cuota 3 de 12".
 
-- [ ] **`TASK-225`: Repositorios de reglas y ocurrencias**
+- [x] **`TASK-225`: Repositorios de reglas y ocurrencias**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6 (`recurring_rule`, `recurring_occurrence`); RF-M14-12, RN-09
   - **Archivos en Alcance:**

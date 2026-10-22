@@ -121,6 +121,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createRecurringOccurrenceRepository } from '../infrastructure/persistence/repositories/recurring-occurrence.repository.js';
+import { createRecurringRuleRepository } from '../infrastructure/persistence/repositories/recurring-rule.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -229,6 +231,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   exports: createExportRepository(tx, userId ?? NO_USER),
   notifications: createNotificationRepository(tx),
   notificationPreferences: createNotificationPreferenceRepository(tx),
+  recurringRules: createRecurringRuleRepository(tx, userId ?? NO_USER),
+  recurringOccurrences: createRecurringOccurrenceRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
