@@ -2855,7 +2855,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 19 — M12 Metas de ahorro (V1.1)
 
-- [ ] **`TASK-180`: Contratos de M12**
+- [x] **`TASK-180`: Contratos de M12**
   - **Dependencias:** Requiere TASK-024, TASK-077
   - **Trazabilidad SDD:** plan §4.12.1; RF-M12-01
   - **Archivos en Alcance:**
