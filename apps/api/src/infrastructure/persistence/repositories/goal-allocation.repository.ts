@@ -52,6 +52,12 @@ export function createGoalAllocationRepository(
       return rows.map((row) => ({ accountId: row.accountId, amount: new Decimal(row.amount) }));
     },
 
+    async deleteByGoal(goalId: string): Promise<void> {
+      await tx.$executeRaw`
+        DELETE FROM goal_allocation_event
+         WHERE user_id = ${userId}::uuid AND goal_id = ${goalId}::uuid`;
+    },
+
     async history(goalId: string): Promise<GoalHistoryItem[]> {
       const rows = await tx.$queryRaw<HistoryRecord[]>`
         SELECT e.account_id::text AS "accountId", e.amount::text AS amount,

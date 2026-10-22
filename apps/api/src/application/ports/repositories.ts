@@ -859,6 +859,14 @@ export interface GoalRepository {
   list(): Promise<GoalRow[]>;
   /** The goal that has the account as its dedicated one, if any. */
   findByDedicatedAccount(accountId: string): Promise<GoalRow | null>;
+  /** Removes the dedicated account of the goal, which turns it into a normal account. */
+  clearDedicatedAccount(id: string): Promise<void>;
+  /** Archives the goal, or restores it when `archived` is false. */
+  setArchived(id: string, archived: boolean): Promise<void>;
+  /** Marks `celebrated_at` once; a goal already celebrated keeps its date. */
+  markCelebrated(id: string): Promise<void>;
+  /** Deletes the goal. */
+  remove(id: string): Promise<void>;
 }
 
 export interface NewAllocationEvent {
@@ -902,4 +910,6 @@ export interface GoalAllocationRepository {
   earmarkedByGoal(goalId: string): Promise<AccountEarmark[]>;
   /** The events of the goal plus the ledger entries of its dedicated account (RF-M12-07). */
   history(goalId: string): Promise<GoalHistoryItem[]>;
+  /** Deletes all the events of the goal. */
+  deleteByGoal(goalId: string): Promise<void>;
 }

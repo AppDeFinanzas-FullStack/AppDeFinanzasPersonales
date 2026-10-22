@@ -47,6 +47,16 @@ export interface GoalsService {
   release(ctx: GoalsContext, goalId: string, input: ReleaseInput): Promise<GoalDto>;
   /** Dedicates an account to the goal (RF-M12-03). */
   dedicate(ctx: GoalsContext, goalId: string, input: DedicateInput): Promise<GoalDto>;
+  /** Releases every earmark, drops the dedicated account and archives the goal (RF-M12-09). */
+  useAndClose(ctx: GoalsContext, goalId: string): Promise<GoalDto>;
+  /** Archives an empty goal. */
+  archive(ctx: GoalsContext, goalId: string): Promise<GoalDto>;
+  /** Restores an archived goal; earmarks are not recovered. */
+  restore(ctx: GoalsContext, goalId: string): Promise<GoalDto>;
+  /** Deletes an empty goal with its history. */
+  remove(ctx: GoalsContext, goalId: string): Promise<void>;
+  /** Marks the celebration as shown, once. */
+  celebrated(ctx: GoalsContext, goalId: string): Promise<void>;
 }
 
 export interface GoalsServiceDeps {
@@ -92,6 +102,22 @@ async function assertDedicable(repos: Repositories, accountId: string): Promise<
   if (earmarks.some((earmark) => earmark.amount.greaterThan(0))) {
     throw new AppError('ACCOUNT_HAS_OTHER_EARMARKS');
   }
+}
+
+/** A goal is empty when it has no earmarks and no dedicated account. */
+async function assertEmpty(repos: Repositories, goal: GoalRow): Promise<void> {
+  const earmarks = await repos.goalAllocations.earmarkedByGoal(goal.id);
+  if (goal.dedicatedAccountId !== null || earmarks.some((row) => !row.amount.isZero())) {
+    throw new AppError('GOAL_NOT_EMPTY');
+  }
+}
+
+async function requireGoal(repos: Repositories, id: string): Promise<GoalRow> {
+  const goal = await repos.goals.get(id);
+  if (goal === null) {
+    throw new AppError('NOT_FOUND');
+  }
+  return goal;
 }
 
 function sameGoal(row: GoalRow, input: CreateGoalInput): boolean {
@@ -424,6 +450,77 @@ export function createGoalsService({ uow, rates }: GoalsServiceDeps): GoalsServi
         { userLock: ctx.userId },
       );
       return single(ctx, snapshot);
+    },
+
+    async useAndClose(ctx, goalId) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const goal = await requireGoal(repos, goalId);
+          for (const row of await repos.goalAllocations.earmarkedByGoal(goalId)) {
+            if (row.amount.isZero()) continue;
+            await repos.goalAllocations.insert({
+              id: uuidv7(),
+              goalId,
+              accountId: row.accountId,
+              amount: row.amount.negated(),
+              origin: 'use_and_close',
+              relatedTransactionId: null,
+            });
+          }
+          if (goal.dedicatedAccountId !== null) {
+            await repos.goals.clearDedicatedAccount(goalId);
+          }
+          await repos.goals.setArchived(goalId, true);
+          return snapshotOf(repos, await requireGoal(repos, goalId), false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async archive(ctx, goalId) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          await assertEmpty(repos, await requireGoal(repos, goalId));
+          await repos.goals.setArchived(goalId, true);
+          return snapshotOf(repos, await requireGoal(repos, goalId), false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async restore(ctx, goalId) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          await requireGoal(repos, goalId);
+          await repos.goals.setArchived(goalId, false);
+          return snapshotOf(repos, await requireGoal(repos, goalId), false);
+        },
+        { userLock: ctx.userId },
+      );
+      return single(ctx, snapshot);
+    },
+
+    async remove(ctx, goalId) {
+      await uow.run(
+        async (repos) => {
+          await assertEmpty(repos, await requireGoal(repos, goalId));
+          await repos.goalAllocations.deleteByGoal(goalId);
+          await repos.goals.remove(goalId);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async celebrated(ctx, goalId) {
+      await uow.run(
+        async (repos) => {
+          await requireGoal(repos, goalId);
+          await repos.goals.markCelebrated(goalId);
+        },
+        { userLock: ctx.userId },
+      );
     },
   };
 }

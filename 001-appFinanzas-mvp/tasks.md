@@ -2962,7 +2962,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-03`: dedicar una cuenta ya dedicada da `ACCOUNT_ALREADY_DEDICATED`.
     - Dos apartados simultáneos no superan el saldo libre.
 
-- [ ] **`TASK-187`: Usar y cerrar, archivar, restaurar, eliminar y celebración**
+- [x] **`TASK-187`: Usar y cerrar, archivar, restaurar, eliminar y celebración**
   - **Dependencias:** Requiere TASK-186
   - **Trazabilidad SDD:** plan §4.12.2 (`use-and-close`, `archive`, `restore`, `DELETE`, `celebrated`), plan §4.12.3; RF-M12-09, spec §2.12.2
   - **Archivos en Alcance:**

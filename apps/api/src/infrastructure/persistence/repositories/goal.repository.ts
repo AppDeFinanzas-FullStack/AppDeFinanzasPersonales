@@ -102,6 +102,32 @@ export function createGoalRepository(tx: TransactionClient, userId: string): Goa
          WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
     },
 
+    async clearDedicatedAccount(id: string): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE goal
+           SET dedicated_account_id = NULL, updated_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
+
+    async setArchived(id: string, archived: boolean): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE goal
+           SET archived_at = CASE WHEN ${archived} THEN now() ELSE NULL END, updated_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
+
+    async markCelebrated(id: string): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE goal
+           SET celebrated_at = now(), updated_at = now()
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND celebrated_at IS NULL`;
+    },
+
+    async remove(id: string): Promise<void> {
+      await tx.$executeRaw`
+        DELETE FROM goal WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+    },
+
     async update(id: string, patch: GoalPatch): Promise<void> {
       const sets = assignments(patch);
       if (sets.length === 0) {
