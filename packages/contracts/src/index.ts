@@ -11,4 +11,5 @@ export * from './transactions.js';
 export * from './settings.js';
 export * from './register.js';
 export * from './dashboard.js';
+export * from './onboarding.js';
 export * from './notifications.js';
