@@ -2452,6 +2452,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.10.2 (`GET`, `step1`, `skip`, `skip-all`), plan §4.10.3; RF-M10-01, RF-M10-02, RF-M10-03, RF-M10-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/onboarding-step1.test.ts`
   - **Especificación de Implementación:** `get` devuelve el paso, las cuentas sugeridas ("Efectivo (Bs)" ✓, "Banco (Bs)" ✓, "Dólares en efectivo ($)" sin marcar), el árbol de categorías y la tasa en uso o `null`. `step1` y `skip` hacen `UPDATE … WHERE onboarding_step = N AND onboarding_completed_at IS NULL` (si no, `STEP_MISMATCH {currentStep}`). `skipAll` termina el Onboarding. Si ya terminó, todo responde `ONBOARDING_DONE`.
   - **Criterios de Verificación (Tests & DoD):**
