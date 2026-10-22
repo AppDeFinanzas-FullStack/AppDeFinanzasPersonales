@@ -3299,7 +3299,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-03`: `UpdateDebtInput` rechaza la tasa y el período.
     - `RF-M13-10`: `UpdateDebtInput` no acepta la dirección ni la moneda.
 
-- [ ] **`TASK-209`: Dominio `debts`: interés, desglose y validación de pagos**
+- [x] **`TASK-209`: Dominio `debts`: interés, desglose y validación de pagos**
   - **Dependencias:** Requiere TASK-026, TASK-027
   - **Trazabilidad SDD:** plan §4.13.1 (`packages/domain/debts`), ADR-14; RF-M13-02, RF-M13-05, RF-M13-06, EC-M13-01, EC-M13-02, RNF-18
   - **Archivos en Alcance:**
