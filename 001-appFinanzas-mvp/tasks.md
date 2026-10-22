@@ -2978,7 +2978,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Eliminar una meta vacía borra su historia.
     - `firstAchievement` es verdadero solo hasta marcar `celebrated`.
 
-- [ ] **`TASK-188`: Cuentas con apartados y cuentas dedicadas**
+- [x] **`TASK-188`: Cuentas con apartados y cuentas dedicadas**
   - **Dependencias:** Requiere TASK-135, TASK-186
   - **Trazabilidad SDD:** plan §4.4.2 (archivar, cambio de tipo, eliminar), plan §4.12.3 (total neto); RF-M4-07, RF-M4-10, RF-M7-11, RF-M12-08, EC-M12-02
   - **Archivos en Alcance:**

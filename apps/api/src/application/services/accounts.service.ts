@@ -24,6 +24,7 @@ import { AppError } from '../errors.js';
 import type {
   AccountPatch,
   AccountRow,
+  GoalEarmark,
   LedgerTransactionDetail,
   LifecycleStatus,
   Repositories,
@@ -93,14 +94,19 @@ export interface AccountsServiceDeps {
   ledgerHooks: LedgerHooks;
 }
 
-/** Set aside for goals: nothing until V1.1 (RF-M4-10). */
-const NO_EARMARK = '0.00';
-
 /** Accounts read in one transaction, with their balances and the user's base currency. */
 interface Snapshot {
   rows: AccountRow[];
   balances: Map<string, Decimal>;
+  /** Positive amount set aside for goals, per account (RF-M12-01). */
+  earmarks: Map<string, GoalEarmark[]>;
+  /** The goal each dedicated account belongs to. */
+  dedicated: Map<string, { id: string; name: string }>;
   baseCurrency: string;
+}
+
+function earmarkTotal(items: readonly GoalEarmark[] | undefined): Decimal {
+  return (items ?? []).reduce((sum, item) => sum.plus(item.amount), new Decimal(0));
 }
 
 /** The other one of BOB and USD; BOB when the base is any other currency (glossary). */
@@ -229,7 +235,20 @@ async function snapshotOf(
   rows: AccountRow[],
 ): Promise<Snapshot> {
   const balances = await repos.ledger.balances(rows.map((row) => row.id));
-  return { rows, balances, baseCurrency: await baseCurrencyOf(repos, userId) };
+  const earmarks = new Map<string, GoalEarmark[]>();
+  for (const row of rows) {
+    const items = (await repos.goalAllocations.earmarkedByAccount(row.id)).filter((item) =>
+      item.amount.greaterThan(0),
+    );
+    earmarks.set(row.id, items);
+  }
+  const dedicated = new Map<string, { id: string; name: string }>();
+  for (const goal of await repos.goals.list()) {
+    if (goal.dedicatedAccountId !== null) {
+      dedicated.set(goal.dedicatedAccountId, { id: goal.id, name: goal.name });
+    }
+  }
+  return { rows, balances, earmarks, dedicated, baseCurrency: await baseCurrencyOf(repos, userId) };
 }
 
 export function createAccountsService({
@@ -271,6 +290,8 @@ export function createAccountsService({
     return snapshot.rows.map((row) => {
       const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
       const text = toMoneyString(balance);
+      const earmarked = earmarkTotal(snapshot.earmarks.get(row.id));
+      const dedicatedGoal = snapshot.dedicated.get(row.id);
       const dto: AccountDto = {
         id: row.id,
         type: row.type,
@@ -285,9 +306,12 @@ export function createAccountsService({
         balance: text,
         balanceInBase: equivalent(balance, row.currencyCode, base),
         balanceInOther: equivalent(balance, row.currencyCode, other),
-        earmarked: NO_EARMARK,
-        free: text,
+        earmarked: toMoneyString(earmarked),
+        free: toMoneyString(balance.minus(earmarked)),
       };
+      if (dedicatedGoal !== undefined) {
+        dto.dedicatedGoal = dedicatedGoal;
+      }
       if (row.type === 'credit_card') {
         const limit = row.cardLimit === null ? null : toMoneyString(row.cardLimit);
         const view = cardView(text, limit);
@@ -379,7 +403,7 @@ export function createAccountsService({
         { userLock: ctx.userId, readOnly: true },
       );
       const perUnit = await bobPerUnit(ctx, snapshot);
-      return netWorth(
+      const result = netWorth(
         snapshot.rows.map((row) => ({
           type: row.type,
           currencyCode: row.currencyCode,
@@ -391,6 +415,29 @@ export function createAccountsService({
           bobPerUnit: perUnit,
         },
       );
+      // RF-M12-08: the earmarks plus the positive balance of dedicated accounts; the total stays.
+      const baseRate = perUnit[snapshot.baseCurrency] ?? null;
+      let earmarked: Decimal | null = new Decimal(0);
+      for (const row of snapshot.rows) {
+        const rate = perUnit[row.currencyCode] ?? null;
+        if (rate === null || baseRate === null) {
+          earmarked = null;
+          break;
+        }
+        let amount = earmarkTotal(snapshot.earmarks.get(row.id));
+        if (snapshot.dedicated.has(row.id)) {
+          const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
+          if (balance.greaterThan(0)) amount = amount.plus(balance);
+        }
+        earmarked = earmarked.plus(convert(amount, rate, baseRate));
+      }
+      return {
+        ...result,
+        breakdown: {
+          ...result.breakdown,
+          earmarked: earmarked === null ? null : toMoneyString(earmarked),
+        },
+      };
     },
 
     async update(ctx, id, input) {
@@ -434,14 +481,17 @@ export function createAccountsService({
           const type = changes.type ?? current.type;
           if (type !== current.type) {
             const balances = await repos.ledger.balances([id]);
-            // Goals arrive in V1.1: no account is dedicated nor has earmarks yet.
+            const dedicated = await repos.goals.findByDedicatedAccount(id);
+            const earmarks = (await repos.goalAllocations.earmarkedByAccount(id)).filter((item) =>
+              item.amount.greaterThan(0),
+            );
             const rule = validateTypeChange({
               from: current.type,
               to: type,
               initialBalance: toMoneyString(current.initialBalance),
               currentBalance: toMoneyString(balances.get(id) ?? current.initialBalance),
-              dedicated: false,
-              hasEarmarks: false,
+              dedicated: dedicated !== null,
+              hasEarmarks: earmarks.length > 0,
             });
             if (!rule.ok) {
               throw new AppError('TYPE_CHANGE_INVALID', { reason: rule.reason });
@@ -585,6 +635,17 @@ export function createAccountsService({
         async (repos) => {
           const account = await lockedAccount(repos, id);
           if (account.status === 'active') {
+            if ((await repos.goals.findByDedicatedAccount(id)) !== null) {
+              throw new AppError('ACCOUNT_DEDICATED');
+            }
+            const earmarks = (await repos.goalAllocations.earmarkedByAccount(id)).filter((item) =>
+              item.amount.greaterThan(0),
+            );
+            if (earmarks.length > 0) {
+              throw new AppError('ACCOUNT_HAS_EARMARKS', {
+                goals: earmarks.map((item) => item.goalId),
+              });
+            }
             const balances = await repos.ledger.balances([id]);
             const balance = balances.get(id) ?? account.initialBalance;
             if (!balance.isZero() && !input.confirmNonZero) {
@@ -623,6 +684,9 @@ export function createAccountsService({
       await uow.run(
         async (repos) => {
           await lockedAccount(repos, id);
+          if ((await repos.goals.findByDedicatedAccount(id)) !== null) {
+            throw new AppError('ACCOUNT_DEDICATED');
+          }
           // Entries of deleted movements still count: they may be undone (RF-M4-13).
           if (await repos.accounts.hasEntries(id)) {
             throw new AppError('ACCOUNT_HAS_MOVEMENTS');
