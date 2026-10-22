@@ -3321,6 +3321,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/debt.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/debt-payment.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/debt.factory.ts`
     - `apps/api/test/integration/debt-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de deudas con `lockForUpdate`, `person_key = lower(unaccent(person))`, la lista de personas para el autocompletado y los pagos, con `last(debtId)` según el mayor `created_at`.
