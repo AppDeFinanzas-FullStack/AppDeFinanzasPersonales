@@ -2897,7 +2897,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-07`: el historial incluye los asientos de la dedicada con el origen "cuenta dedicada" y los ajustes con el origen "ajuste".
     - `RN-09`: no se ven las metas de otro usuario.
 
-- [ ] **`TASK-183`: `BalanceGuard`: protección de apartados**
+- [x] **`TASK-183`: `BalanceGuard`: protección de apartados**
   - **Dependencias:** Requiere TASK-100, TASK-181, TASK-182
   - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`, paso 4), plan §4.12.3 (protección de apartados); RF-M12-05, EC-M12-07, RNF-10
   - **Archivos en Alcance:**
