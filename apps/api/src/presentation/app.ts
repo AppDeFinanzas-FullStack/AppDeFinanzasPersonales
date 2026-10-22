@@ -26,6 +26,7 @@ import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.ro
 import { goalsRouter, type GoalsRoutesDeps } from './routes/goals.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
+import { onboardingRouter, type OnboardingRoutesDeps } from './routes/onboarding.routes.js';
 import {
   notificationsRouter,
   type NotificationsRoutesDeps,
@@ -67,6 +68,8 @@ export interface AppDeps {
   transactions?: TransactionsRoutesDeps;
   /** The routes `/api/goals` (plan §4.12.2). */
   goals?: GoalsRoutesDeps;
+  /** The routes `/api/onboarding` (plan §4.10.2). */
+  onboarding?: OnboardingRoutesDeps;
   /** The routes `/api/notifications` (plan §4.15.2). */
   notifications?: NotificationsRoutesDeps;
 
@@ -148,6 +151,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.goals !== undefined) {
     app.use('/api/goals', goalsRouter(deps.goals));
+  }
+  if (deps.onboarding !== undefined) {
+    app.use('/api/onboarding', onboardingRouter(deps.onboarding));
   }
   if (deps.notifications !== undefined) {
     app.use('/api/notifications', notificationsRouter(deps.notifications));

@@ -2452,7 +2452,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 15 — M10 Onboarding (V1.0)
 
-- [ ] **`TASK-155`: Contratos de M10**
+- [x] **`TASK-155`: Contratos de M10**
   - **Dependencias:** Requiere TASK-096, TASK-109
   - **Trazabilidad SDD:** plan §4.10.1; RF-M10-04
   - **Archivos en Alcance:**
@@ -2463,11 +2463,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M10-04`: `Step2Input` acepta el saldo con las reglas de `AmountAbs`; `Step1Input` solo acepta BOB o USD.
 
-- [ ] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
+- [x] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
   - **Dependencias:** Requiere TASK-085, TASK-155
   - **Trazabilidad SDD:** plan §4.10.2 (`GET`, `step1`, `skip`, `skip-all`), plan §4.10.3; RF-M10-01, RF-M10-02, RF-M10-03, RF-M10-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/onboarding-step1.test.ts`
   - **Especificación de Implementación:** `get` devuelve el paso, las cuentas sugeridas ("Efectivo (Bs)" ✓, "Banco (Bs)" ✓, "Dólares en efectivo ($)" sin marcar), el árbol de categorías y la tasa en uso o `null`. `step1` y `skip` hacen `UPDATE … WHERE onboarding_step = N AND onboarding_completed_at IS NULL` (si no, `STEP_MISMATCH {currentStep}`). `skipAll` termina el Onboarding. Si ya terminó, todo responde `ONBOARDING_DONE`.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2476,7 +2478,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M10-03`: saltar el paso 2 no crea cuentas.
     - `RF-M10-06`: saltar el paso 3 conserva todas las precargadas.
 
-- [ ] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
+- [x] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-101, TASK-156
   - **Trazabilidad SDD:** plan §4.10.2 (`step2`); RF-M10-04, EC-M10-01, EC-M10-02, RF-M4-01, RF-M4-02
   - **Archivos en Alcance:**
@@ -2489,7 +2491,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos cuentas con el mismo nombre dan `NAME_TAKEN`.
     - Reenviar el paso con los mismos ids no duplica las cuentas.
 
-- [ ] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
+- [x] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
   - **Dependencias:** Requiere TASK-111, TASK-157
   - **Trazabilidad SDD:** plan §4.10.2 (`step3`), plan §4.5.3 (seed); RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**
@@ -2501,7 +2503,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-03`: se pueden quitar todas las de gasto.
     - Al terminar, el Onboarding queda completado.
 
-- [ ] **`TASK-159`: Rutas HTTP del Onboarding**
+- [x] **`TASK-159`: Rutas HTTP del Onboarding**
   - **Dependencias:** Requiere TASK-158
   - **Trazabilidad SDD:** plan §4.10.2 (tabla de endpoints); RNF-14
   - **Archivos en Alcance:**
@@ -2516,7 +2518,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores, incluido `ONBOARDING_DONE`.
     - `RNF-14`: el Onboarding de un usuario no afecta a otro.
 
-- [ ] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
+- [x] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
   - **Dependencias:** Requiere TASK-147, TASK-159
   - **Trazabilidad SDD:** plan §4.10.4 (`/bienvenida`); RF-M10-01, RF-M10-02, spec §2.10.1
   - **Archivos en Alcance:**
@@ -2532,7 +2534,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Saltar todo": la base es BOB, no hay cuentas, están todas las categorías y el Inicio invita a crear la primera cuenta.
     - Sin tasa, se ve el mensaje "Aún no pudimos obtener el dólar".
 
-- [ ] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
+- [x] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-160
   - **Trazabilidad SDD:** plan §4.10.4 (`AccountsStep`, borradores); RF-M10-04, EC-M10-01, EC-M10-02
   - **Archivos en Alcance:**
@@ -2546,7 +2548,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos nombres iguales muestran el error de duplicado.
     - `RF-M10-04`: las cuentas creadas tienen el saldo indicado con fecha de hoy.
 
-- [ ] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
+- [x] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
   - **Dependencias:** Requiere TASK-161
   - **Trazabilidad SDD:** plan §4.10.4 (`CategoriesStep`); RF-M10-01, RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**

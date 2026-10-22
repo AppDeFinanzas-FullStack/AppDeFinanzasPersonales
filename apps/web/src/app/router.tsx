@@ -7,6 +7,7 @@ import { categoriesRoutes } from '@/features/categories/routes';
 import { dashboardRoutes } from '@/features/dashboard/routes';
 import { fxRoutes } from '@/features/fx/routes';
 import { goalsRoutes } from '@/features/goals/routes';
+import { onboardingRoutes } from '@/features/onboarding/routes';
 import { profileRoutes } from '@/features/profile/routes';
 import { registerRoutes } from '@/features/register/routes';
 import { settingsRoutes } from '@/features/settings/routes';
@@ -53,6 +54,7 @@ export const router = createBrowserRouter([
       {
         element: <RequireSession />,
         children: [
+          ...onboardingRoutes,
           {
             element: <RequireOnboardingDone />,
             children: [

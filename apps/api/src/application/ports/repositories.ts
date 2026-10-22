@@ -238,6 +238,25 @@ export interface UserFxSettingsChanges {
   manualUsd?: { value: Decimal; since: Date } | null;
 }
 
+export type OnboardingStep = 1 | 2 | 3;
+
+/** Where the Onboarding of a user is, as stored in `user_settings` (plan §4.10.3). */
+export interface OnboardingProgress {
+  /** The pending step; once finished, the step it was finished from. */
+  step: OnboardingStep;
+  completed: boolean;
+}
+
+/**
+ * A move of the Onboarding out of step `from`: to the step `to`, or to Terminado with `'done'`,
+ * which keeps the step (plan §4.10.3). `baseCurrency`, when given, is stored with it.
+ */
+export interface OnboardingTransition {
+  from: OnboardingStep;
+  to: 2 | 3 | 'done';
+  baseCurrency?: string;
+}
+
 /** Reads and writes the `user_settings` row of the user the transaction is locked to. */
 export interface UserSettingsRepository {
   /** The settings of the user, or `null` when it has none. */
@@ -254,6 +273,18 @@ export interface UserSettingsRepository {
   setManualUsd(userId: string, manual: { value: Decimal; since: Date } | null): Promise<void>;
   /** Updates only the given exchange-rate fields of `user_settings`. */
   updateFx(userId: string, changes: UserFxSettingsChanges): Promise<void>;
+  /** The Onboarding progress of the user, or `null` when it has no settings. */
+  onboarding(userId: string): Promise<OnboardingProgress | null>;
+  /**
+   * Applies the transition only while the Onboarding is in step `from` and not finished
+   * (`UPDATE … WHERE onboarding_step = N AND onboarding_completed_at IS NULL`, plan §4.10.3), so a
+   * double submit or two devices never advance twice. Returns the new progress, or `null` when
+   * nothing changed.
+   */
+  advanceOnboarding(
+    userId: string,
+    transition: OnboardingTransition,
+  ): Promise<OnboardingProgress | null>;
 }
 
 /**
