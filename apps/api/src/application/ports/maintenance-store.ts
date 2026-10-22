@@ -15,4 +15,9 @@ export interface MaintenanceStore {
   deleteRemovedTransactions(deletedBefore: Instant): Promise<void>;
   /** Deletes the undo actions that expired before the cutoff (ADR-07). */
   deleteExpiredUndoActions(expiredBefore: Instant): Promise<void>;
+  /**
+   * Deletes the notifications created before the cutoff, except those awaiting a decision
+   * (RF-M15-05, plan §4.15.3).
+   */
+  deleteOldNotifications(createdBefore: Instant): Promise<void>;
 }

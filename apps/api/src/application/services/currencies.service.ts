@@ -3,7 +3,7 @@ import { Decimal } from 'decimal.js';
 
 import { AppError } from '../errors.js';
 import type { IdGenerator } from '../ports/id-generator.js';
-import type { Repositories } from '../ports/repositories.js';
+import type { CurrencyStatus, Repositories } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { CurrencyUsage } from '../shared/currency-usage.js';
 
@@ -19,6 +19,7 @@ export interface CurrencyView {
   code: string;
   symbol: string;
   rate: Decimal;
+  status: CurrencyStatus;
 }
 
 export interface NewCurrency {
@@ -110,7 +111,12 @@ export function createCurrenciesService({
             }
             const rate = customRateOn(events, currency.code, today, ctx.timezone);
             if (rate !== null) {
-              views.push({ code: currency.code, symbol: currency.symbol, rate });
+              views.push({
+                code: currency.code,
+                symbol: currency.symbol,
+                rate,
+                status: currency.status,
+              });
             }
           }
           return views;
@@ -131,7 +137,7 @@ export function createCurrenciesService({
         },
         { userLock: ctx.userId },
       );
-      return { code: currency.code, symbol: currency.symbol, rate: currency.rate };
+      return { code: currency.code, symbol: currency.symbol, rate: currency.rate, status: 'active' };
     },
 
     async update(ctx, code, changes) {

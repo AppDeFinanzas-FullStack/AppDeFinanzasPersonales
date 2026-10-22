@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { AccountDto } from './accounts.js';
 import { LocalDate, Money, Uuid } from './common.js';
-import { TransactionDto } from './transactions.js';
+import { TransactionKind } from './transactions.js';
 
 const Month = z.string().regex(/^\d{4}-\d{2}$/);
 
@@ -26,6 +26,20 @@ export const UpcomingItemDto = z.object({
   dueDate: LocalDate,
 });
 export type UpcomingItemDto = z.infer<typeof UpcomingItemDto>;
+
+/**
+ * A movement of the "Últimos movimientos" block. With USD as the base, a movement saved without a
+ * dollar rate has no amount in the base currency (EC-M3-02), so `amountInBase` can be null.
+ */
+export const RecentMovementDto = z.object({
+  id: Uuid,
+  kind: TransactionKind,
+  date: LocalDate,
+  note: z.string().nullable(),
+  category: z.object({ id: Uuid, name: z.string() }).nullable().optional(),
+  amountInBase: Money.nullable(),
+});
+export type RecentMovementDto = z.infer<typeof RecentMovementDto>;
 
 export const DashboardDto = z.object({
   range: z.object({ firstMonth: Month, currentMonth: Month }),
@@ -58,6 +72,15 @@ export const DashboardDto = z.object({
     top: z.array(AccountDto).max(5),
     asOfToday: z.literal(true),
   }),
-  recent: z.array(TransactionDto).max(5),
+  recent: z.array(RecentMovementDto).max(5),
 });
 export type DashboardDto = z.infer<typeof DashboardDto>;
+
+/** The answer of the Inicio: the blocks hidden by the user come without data (RF-M8-10). */
+export const DashboardViewDto = DashboardDto.partial({
+  byCategory: true,
+  pace: true,
+  balances: true,
+  recent: true,
+});
+export type DashboardViewDto = z.infer<typeof DashboardViewDto>;

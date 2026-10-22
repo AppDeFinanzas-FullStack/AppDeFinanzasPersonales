@@ -1,0 +1,29 @@
+{
+  "bell": {
+    "label": "Avisos",
+    "labelUnread": "Avisos, {{value}} sin leer",
+    "overflow": "99+"
+  },
+  "panel": {
+    "title": "Avisos",
+    "description": "Tus avisos dentro de la app, del más nuevo al más antiguo.",
+    "markAllRead": "Marcar todo como leído",
+    "empty": "No tienes avisos. Aquí verás tus alertas de presupuesto, cierres y pagos próximos.",
+    "loadError": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
+    "loadMore": "Ver más avisos",
+    "close": "Cerrar"
+  },
+  "item": {
+    "unread": "Sin leer",
+    "more": "Más opciones del aviso",
+    "remove": "Eliminar"
+  },
+  "types": {
+    "payment_upcoming": "Tienes un pago próximo.",
+    "budget_alert": "Un presupuesto llegó a su alerta.",
+    "period_close": "Terminó un período de presupuesto. Revisa cómo cerrarlo.",
+    "recurring_pending": "Tienes un movimiento recurrente pendiente.",
+    "log_day": "¿Ya registraste tus movimientos de hoy?",
+    "goal_progress": "Tu meta avanzó."
+  }
+}

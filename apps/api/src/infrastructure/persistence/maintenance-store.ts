@@ -32,5 +32,12 @@ export function createMaintenanceStore(prisma: PrismaClient): MaintenanceStore {
       await prisma.$executeRaw`
         DELETE FROM undo_action WHERE expires_at < ${expiredBefore}::timestamptz`;
     },
+
+    async deleteOldNotifications(createdBefore: Instant): Promise<void> {
+      await prisma.$executeRaw`
+        DELETE FROM notification
+         WHERE created_at < ${createdBefore}::timestamptz
+           AND (decision_status IS NULL OR decision_status = 'resolved')`;
+    },
   };
 }

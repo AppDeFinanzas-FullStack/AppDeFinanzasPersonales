@@ -1,9 +1,9 @@
-import type { DashboardDto } from '@finanzas/contracts';
+import type { DashboardViewDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
 import { CartesianGrid, Legend, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 interface Props {
-  data: DashboardDto['pace'];
+  data: NonNullable<DashboardViewDto['pace']>;
 }
 
 interface Point {
@@ -12,7 +12,7 @@ interface Point {
   previous?: number;
 }
 
-function merge(pace: DashboardDto['pace']): Point[] {
+function merge(pace: NonNullable<DashboardViewDto['pace']>): Point[] {
   const byDay = new Map<number, Point>();
   for (const row of pace.previous) {
     byDay.set(row.day, { day: row.day, previous: Number(row.cumulative) });
