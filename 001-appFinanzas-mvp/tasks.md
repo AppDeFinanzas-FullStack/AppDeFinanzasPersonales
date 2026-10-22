@@ -3050,7 +3050,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M12-01`: apartar más que el saldo libre muestra el saldo libre.
     - `EC-M12-08`: el diálogo de dedicar no lista tarjetas.
 
-- [ ] **`TASK-192`: Web: confirmación de apartados y avisos de cuenta dedicada**
+- [x] **`TASK-192`: Web: confirmación de apartados y avisos de cuenta dedicada**
   - **Dependencias:** Requiere TASK-142, TASK-184, TASK-191
   - **Trazabilidad SDD:** plan §4.7.3 (errores), plan §4.12.4 (`EarmarkConfirmDialog` compartido); RF-M12-05, RF-M7-14, EC-M7-03, RF-M4-10
   - **Archivos en Alcance:**

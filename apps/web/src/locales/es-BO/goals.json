@@ -98,6 +98,19 @@
     "none": "No tienes cuentas disponibles para dedicar.",
     "submit": "Dedicar cuenta"
   },
+  "confirm": {
+    "title": "Este gasto usa {{amount}} apartados",
+    "description": "Elige de qué metas tomar ese dinero. Puedes cambiar la propuesta.",
+    "goal": "Meta",
+    "short": "Los montos deben sumar al menos {{amount}}.",
+    "over": "No puedes tomar más de {{amount}} de esta meta.",
+    "submit": "Confirmar"
+  },
+  "summary": {
+    "earmarked": "Apartado para metas",
+    "free": "Libre",
+    "balance": "Saldo"
+  },
   "useAndClose": {
     "title": "Usar y cerrar",
     "description": "Se liberan todos los apartados y la meta {{name}} queda archivada con su historia.",
