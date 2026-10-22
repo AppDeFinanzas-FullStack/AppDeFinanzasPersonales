@@ -2888,6 +2888,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/goal.factory.ts`
     - `apps/api/test/integration/goal-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de metas. Eventos de apartado: `insert`, `earmarkedByAccount(accountId)` (por meta), `earmarkedByGoal(goalId)` y `history(goalId)`, que une los eventos con los asientos de la cuenta dedicada, cada uno con su origen.
