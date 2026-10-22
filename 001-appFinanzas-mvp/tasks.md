@@ -2607,7 +2607,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 17 — Cierre de V1.0: rendimiento, accesibilidad y despliegue
 
-- [ ] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
+- [x] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
   - **Dependencias:** Requiere TASK-053, TASK-121
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: `seed:e2e`), plan §5.1 (rendimiento); RNF-03
   - **Archivos en Alcance:**
