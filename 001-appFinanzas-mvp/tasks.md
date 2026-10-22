@@ -26,7 +26,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 | **14** | M9 Ajustes y personalización | V1.0 | TASK-149 a TASK-154 |
 | **15** | M10 Onboarding | V1.0 | TASK-155 a TASK-162 |
 | **16** | Exportación de datos (M1) | V1.0 | TASK-163 a TASK-165 |
-| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 |
+| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 y TASK-248 |
 | **18** | M15 Bandeja de avisos | V1.1 | TASK-175 a TASK-179 |
 | **19** | M12 Metas de ahorro | V1.1 | TASK-180 a TASK-192 |
 | **20** | M11 Presupuestos | V1.1 | TASK-193 a TASK-207 |
@@ -2630,8 +2630,31 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-02`: el p95 del endpoint de guardar es menor que 300 ms.
     - `RNF-03`: el p95 del Inicio es menor que 1,2 s y ninguna consulta hace *seq scan* sobre `ledger_transaction` ni `ledger_entry`.
 
+- [ ] **`TASK-248`: Web: división de código por ruta y presupuesto de bundle**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-162, TASK-165
+  - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/features/categories/routes.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/features/profile/routes.tsx`
+    - `apps/web/src/features/register/routes.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/features/transactions/routes.tsx`
+    - `apps/web/vite.config.ts`
+    - `apps/web/test/bundle-budget.test.ts`
+  - **Especificación de Implementación:** Hoy la web compila un solo archivo de JavaScript (2,1 MB, unos 617 KB en gzip), así que cualquier pantalla descarga todo. Pasa la pantalla de cada ruta a carga diferida con la propiedad `lazy` del router, de modo que el JavaScript de cada pantalla (y su espacio de nombres de i18n) se descargue solo al entrar en ella. Las librerías pesadas de una sola pantalla (gráficos del Inicio, arrastrar y soltar de Categorías) deben quedar fuera del paquete de entrada y de `/registrar`. Ajusta `vite.config.ts` solo si hace falta para separar bloques estables (por ejemplo, las librerías compartidas). No cambia la apariencia ni el comportamiento de ninguna pantalla.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-01`: la prueba compila la web y comprueba que el JavaScript que descarga `/registrar` (paquete de entrada más los bloques que esa ruta importa) pesa 150 KB gzip o menos.
+    - `RNF-03`: los gráficos del Inicio y el arrastrar y soltar de Categorías no están en el paquete de entrada ni en los bloques de `/registrar`.
+    - Las pruebas de la web y los E2E existentes siguen pasando.
+
 - [ ] **`TASK-168`: Pruebas de rendimiento E2E**
-  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166, TASK-248
   - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
   - **Archivos en Alcance:**
     - `e2e/perf.spec.ts`
