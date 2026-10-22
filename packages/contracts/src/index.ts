@@ -13,3 +13,4 @@ export * from './register.js';
 export * from './dashboard.js';
 export * from './onboarding.js';
 export * from './notifications.js';
+export * from './recurring.js';

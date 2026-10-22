@@ -3517,7 +3517,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 23 — M14 Recurrentes (V1.2)
 
-- [ ] **`TASK-223`: Contratos de M14**
+- [x] **`TASK-223`: Contratos de M14**
   - **Dependencias:** Requiere TASK-118
   - **Trazabilidad SDD:** plan §4.14.1; RF-M14-01, RF-M14-03, RF-M14-14, RF-M14-15
   - **Archivos en Alcance:**
