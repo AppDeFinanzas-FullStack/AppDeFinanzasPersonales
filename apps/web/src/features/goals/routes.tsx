@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams, type RouteObject } from 'react-router';
+import { Link, useParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ResourceNotFound } from '@/components/resource-not-found';
@@ -129,9 +129,3 @@ export function GoalDetailPage() {
     </div>
   );
 }
-
-/** Private routes of the goals (plan §4.12.4). */
-export const goalsRoutes: RouteObject[] = [
-  { path: 'metas', element: <GoalsPage /> },
-  { path: 'metas/:id', element: <GoalDetailPage /> },
-];

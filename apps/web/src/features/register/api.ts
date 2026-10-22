@@ -2,7 +2,7 @@ import { CreateTransactionInput, RegisterContextDto } from '@finanzas/contracts'
 import { z } from 'zod';
 
 import { TransactionItem } from '@/features/transactions/api';
-import { TransactionDetailData } from '@/features/transactions/components/transaction-detail';
+import { TransactionDetailData } from '@/features/transactions/detail-data';
 import type { Endpoint } from '@/lib/api-client';
 
 /**

@@ -9,13 +9,14 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, type RouteObject } from 'react-router';
+import { Navigate } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ME_QUERY_KEY, useMe } from '@/features/auth/hooks/use-me';
 import { ApiError, call } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import { uiStore } from '@/lib/ui-store';
+import accounts from '@/locales/es-BO/accounts.json';
 import onboarding from '@/locales/es-BO/onboarding.json';
 
 import {
@@ -34,6 +35,8 @@ import { OnboardingStepper } from './components/onboarding-stepper';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'onboarding', onboarding, true, true);
+// The step of the accounts reuses the form of `accounts`.
+i18n.addResourceBundle(LANGUAGE, 'accounts', accounts, true, true);
 
 const ONBOARDING_KEY = ['onboarding'] as const;
 
@@ -185,12 +188,3 @@ export function OnboardingPage() {
     </main>
   );
 }
-
-/**
- * The private route of the Onboarding, outside the app shell (plan §4.10.4). Signing in sends a
- * user with the Onboarding pending to `/onboarding`, which leads to the page (RF-M10-01).
- */
-export const onboardingRoutes: RouteObject[] = [
-  { path: 'bienvenida', element: <OnboardingPage /> },
-  { path: 'onboarding', element: <Navigate to="/bienvenida" replace /> },
-];
