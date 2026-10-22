@@ -2801,7 +2801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-01`: emitir no inserta filas en `email_outbox`.
     - `resolveDecision` deja el aviso en `resolved`.
 
-- [ ] **`TASK-177`: Servicio y endpoints de la bandeja**
+- [x] **`TASK-177`: Servicio y endpoints de la bandeja**
   - **Dependencias:** Requiere TASK-176
   - **Trazabilidad SDD:** plan §4.15.2 (endpoints); RF-M15-06, RF-M15-12, RNF-14
   - **Archivos en Alcance:**
