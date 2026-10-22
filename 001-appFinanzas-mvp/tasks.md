@@ -2937,6 +2937,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/shared/currency-usage.ts`
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
     - `apps/api/test/integration/goals-crud.test.ts`
   - **Especificación de Implementación:** `create` es idempotente, con un tope de 50; si dedica una cuenta, valida lo mismo que `/dedicate`. `update` exige una fecha objetivo ≥ hoy (`TARGET_DATE_IN_PAST`). `list` y `get` calculan el progreso, el estado y el sugerido al leer, y el detalle trae el progreso por cuenta y el historial. Registra en `CurrencyUsage` el uso por metas no archivadas.
   - **Criterios de Verificación (Tests & DoD):**
