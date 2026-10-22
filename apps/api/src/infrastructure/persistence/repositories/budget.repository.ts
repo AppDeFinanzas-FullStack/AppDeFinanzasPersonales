@@ -53,6 +53,9 @@ function assignments(patch: BudgetPatch): Prisma.Sql[] {
   if (patch.thresholds !== undefined) {
     sets.push(Prisma.sql`thresholds = ${patch.thresholds}::smallint[]`);
   }
+  if (patch.startDay !== undefined) {
+    sets.push(Prisma.sql`start_day = ${patch.startDay}::smallint`);
+  }
   if (patch.nextStartDay !== undefined) {
     sets.push(Prisma.sql`next_start_day = ${patch.nextStartDay}::smallint`);
   }
@@ -197,6 +200,16 @@ export function createBudgetRepository(tx: TransactionClient, userId: string): B
              AND status IN ('active', 'paused')
         ) AS used`;
       return rows[0]?.used === true;
+    },
+
+    async ownersWithEndedPeriods(now: Date): Promise<string[]> {
+      const rows = await tx.$queryRaw<{ userId: string }[]>`
+        SELECT DISTINCT p.user_id::text AS "userId"
+          FROM budget_period p
+          JOIN auth_user u ON u.id = p.user_id
+         WHERE p.status = 'open'
+           AND p.end_date < (${now}::timestamptz AT TIME ZONE u.timezone)::date`;
+      return rows.map((row) => row.userId);
     },
   };
 }

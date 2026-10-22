@@ -3222,7 +3222,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-05`: eliminar un gasto de un período decidido con arrastre sube el arrastre del período en curso por ese monto; con "descartar", no cambia nada.
     - `RF-M11-11`: un tardío con la decisión pendiente cambia el resultado mostrado sin crear ajustes.
 
-- [ ] **`TASK-200`: Job `budgets.close`**
+- [x] **`TASK-200`: Job `budgets.close`**
   - **Dependencias:** Requiere TASK-064, TASK-199
   - **Trazabilidad SDD:** plan §4.11.3 (open → closed_pending); RF-M11-10, RF-M11-13, EC-M11-09, RNF-13, RNF-20
   - **Archivos en Alcance:**

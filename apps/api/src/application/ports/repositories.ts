@@ -987,7 +987,13 @@ export type NewBudget = Pick<
 export type BudgetPatch = Partial<
   Pick<
     BudgetRow,
-    'amount' | 'defaultAction' | 'thresholds' | 'nextStartDay' | 'status' | 'frozenCarryover'
+    | 'amount'
+    | 'defaultAction'
+    | 'thresholds'
+    | 'startDay'
+    | 'nextStartDay'
+    | 'status'
+    | 'frozenCarryover'
   >
 >;
 
@@ -1018,6 +1024,11 @@ export interface BudgetRepository {
   listAffected(categoryIds: string[]): Promise<BudgetRow[]>;
   /** `true` when an active or paused budget uses the currency (EC-M3-05). */
   usesCurrency(code: string): Promise<boolean>;
+  /**
+   * The users, of every user and not only the bound one, with an `open` period whose end is
+   * before their today at `now`, in the timezone of each user (`budgets.close` tick, RNF-20).
+   */
+  ownersWithEndedPeriods(now: Instant): Promise<string[]>;
 }
 
 /** A closed period that waits for its decision, with the deadline to make it. */
@@ -1104,6 +1115,16 @@ export interface BudgetPeriodRepository {
   recordThresholdHit(periodId: string, threshold: number): Promise<boolean>;
   /** The `open` period of the budget, the one in course. */
   current(budgetId: string): Promise<BudgetPeriodRow | null>;
+  /**
+   * The `open` periods whose end is before the today of the user at `now`, in their timezone
+   * (RNF-20), oldest first.
+   */
+  listEnded(now: Instant): Promise<BudgetPeriodRow[]>;
+  /**
+   * Moves the period from `open` to `closed_pending` with its decision deadline; `false` when it
+   * was no longer open (RNF-13).
+   */
+  close(id: string, deadline: Instant): Promise<boolean>;
   /** The decided or defaulted periods of the budget that contain any of the dates (RF-M11-11). */
   closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]>;
   /**

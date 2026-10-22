@@ -163,6 +163,25 @@ export function createBudgetPeriodRepository(
       return record === undefined ? null : toRow(record);
     },
 
+    async listEnded(now: Date): Promise<BudgetPeriodRow[]> {
+      const records = await tx.$queryRaw<PeriodRecord[]>`
+        SELECT ${COLUMNS}
+          FROM budget_period p
+          JOIN auth_user u ON u.id = p.user_id
+         WHERE p.user_id = ${userId}::uuid AND p.status = 'open'
+           AND p.end_date < (${now}::timestamptz AT TIME ZONE u.timezone)::date
+         ORDER BY p.start_date, p.id`;
+      return records.map(toRow);
+    },
+
+    async close(id: string, deadline: Date): Promise<boolean> {
+      const updated = await tx.$executeRaw`
+        UPDATE budget_period
+           SET status = 'closed_pending', decision_deadline = ${deadline}::timestamptz
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'open'`;
+      return updated > 0;
+    },
+
     async closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]> {
       if (dates.length === 0) {
         return [];

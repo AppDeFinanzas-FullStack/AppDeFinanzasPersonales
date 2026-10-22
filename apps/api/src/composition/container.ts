@@ -6,6 +6,7 @@ import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../application/errors.js';
+import { createBudgetsJobs } from '../application/jobs/budgets.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
@@ -650,6 +651,16 @@ export const buildContainer = (env: Env): Container => {
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
   );
+  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
+  const budgetsJobs = createBudgetsJobs({
+    uow,
+    clock: systemClock,
+    notifications: notificationEmitter,
+    ids: uuidv7Ids,
+  });
+  jobs.registerJob('budgets.close', () => budgetsJobs.close(), {
+    forUser: (userId) => budgetsJobs.closeForUser(userId),
+  });
   jobs.registerJob(
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
@@ -669,7 +680,7 @@ export const buildContainer = (env: Env): Container => {
   const ledgerHooks = createLedgerHooks();
   ledgerHooks.register(
     createBudgetLedgerHook({
-      notifications: createNotificationEmitter({ release: env.RELEASE }),
+      notifications: notificationEmitter,
       ids: uuidv7Ids,
     }),
   );
