@@ -1000,6 +1000,31 @@ export interface BudgetRepository {
   delete(id: string): Promise<void>;
   /** How many budgets the user has, in any status. */
   count(): Promise<number>;
+  /** The budgets of the user, in any status, oldest first. */
+  list(): Promise<BudgetRow[]>;
+  /**
+   * The id of the active, paused or finalizing budget of that category, or of the general one when
+   * `categoryId` is `null` (RF-M11-01); `null` when there is none.
+   */
+  findLive(categoryId: string | null): Promise<string | null>;
+  /** The system key of the category of the user, `null` for one of the user or a missing one. */
+  categorySystemKey(categoryId: string): Promise<SystemCategoryKey | null>;
+  /** The closed period of the budget that waits for a decision, with its deadline (RF-M11-08). */
+  pendingClose(budgetId: string): Promise<PendingClosePeriod | null>;
+  /** `true` when an active or paused budget uses the currency (EC-M3-05). */
+  usesCurrency(code: string): Promise<boolean>;
+}
+
+/** A closed period that waits for its decision, with the deadline to make it. */
+export interface PendingClosePeriod {
+  id: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  amount: Decimal;
+  carryoverIn: Decimal;
+  deadline: Instant | null;
 }
 
 /** A period of a budget as stored (plan §3.6). */

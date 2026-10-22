@@ -9,6 +9,8 @@ import type {
   BudgetScope,
   BudgetStatus,
   NewBudget,
+  PendingClosePeriod,
+  SystemCategoryKey,
 } from '../../../application/ports/repositories.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
@@ -107,6 +109,76 @@ export function createBudgetRepository(tx: TransactionClient, userId: string): B
       const rows = await tx.$queryRaw<{ n: number }[]>`
         SELECT count(*)::int AS n FROM budget WHERE user_id = ${userId}::uuid`;
       return rows[0]?.n ?? 0;
+    },
+
+    async list(): Promise<BudgetRow[]> {
+      const records = await tx.$queryRaw<BudgetRecord[]>`
+        SELECT ${COLUMNS}
+          FROM budget b
+         WHERE b.user_id = ${userId}::uuid
+         ORDER BY b.created_at, b.id`;
+      return records.map(toRow);
+    },
+
+    async findLive(categoryId: string | null): Promise<string | null> {
+      const scope =
+        categoryId === null
+          ? Prisma.sql`b.scope = 'general'`
+          : Prisma.sql`b.scope = 'category' AND b.category_id = ${categoryId}::uuid`;
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        SELECT b.id::text AS id
+          FROM budget b
+         WHERE b.user_id = ${userId}::uuid AND ${scope}
+           AND b.status IN ('active', 'paused', 'finalizing')
+         LIMIT 1`;
+      return rows[0]?.id ?? null;
+    },
+
+    async categorySystemKey(categoryId: string): Promise<SystemCategoryKey | null> {
+      const rows = await tx.$queryRaw<{ systemKey: SystemCategoryKey | null }[]>`
+        SELECT system_key::text AS "systemKey"
+          FROM category
+         WHERE user_id = ${userId}::uuid AND id = ${categoryId}::uuid`;
+      return rows[0]?.systemKey ?? null;
+    },
+
+    async pendingClose(budgetId: string): Promise<PendingClosePeriod | null> {
+      const records = await tx.$queryRaw<
+        {
+          id: string;
+          startDate: string;
+          endDate: string;
+          amount: string;
+          carryoverIn: string;
+          deadline: Date | null;
+        }[]
+      >`
+        SELECT p.id::text AS id, to_char(p.start_date, 'YYYY-MM-DD') AS "startDate",
+               to_char(p.end_date, 'YYYY-MM-DD') AS "endDate", p.amount::text AS amount,
+               p.carryover_in::text AS "carryoverIn", p.decision_deadline AS deadline
+          FROM budget_period p
+         WHERE p.user_id = ${userId}::uuid AND p.budget_id = ${budgetId}::uuid
+           AND p.status = 'closed_pending'
+         ORDER BY p.start_date DESC
+         LIMIT 1`;
+      const record = records[0];
+      return record === undefined
+        ? null
+        : {
+            ...record,
+            amount: new Decimal(record.amount),
+            carryoverIn: new Decimal(record.carryoverIn),
+          };
+    },
+
+    async usesCurrency(code: string): Promise<boolean> {
+      const rows = await tx.$queryRaw<{ used: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM budget
+           WHERE user_id = ${userId}::uuid AND currency_code = ${code}
+             AND status IN ('active', 'paused')
+        ) AS used`;
+      return rows[0]?.used === true;
     },
   };
 }

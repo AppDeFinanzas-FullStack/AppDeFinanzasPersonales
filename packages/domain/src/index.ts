@@ -55,8 +55,17 @@ export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
 export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
 export type { ComparisonWindow } from './dashboard.js';
-export { nextPeriod, periodFor, periodLabel } from './budget.js';
-export type { BudgetPeriod } from './budget.js';
+export {
+  available,
+  nextPeriod,
+  pace,
+  periodFor,
+  periodLabel,
+  result,
+  thresholdsCrossed,
+  todayShouldBe,
+} from './budget.js';
+export type { BudgetPace, BudgetPeriod } from './budget.js';
 export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
 export type {
   EarmarkSource,

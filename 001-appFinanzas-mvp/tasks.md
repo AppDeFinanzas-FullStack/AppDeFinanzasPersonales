@@ -3132,7 +3132,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-02`: un gasto de una subcategoría cuenta en su presupuesto, en el del padre y en el general.
     - `RN-02`: el general no suma las transferencias ni "Deudas y préstamos" (salvo "Intereses").
 
-- [ ] **`TASK-197`: `BudgetsService`: crear, listar y detalle**
+- [x] **`TASK-197`: `BudgetsService`: crear, listar y detalle**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-176, TASK-193, TASK-195, TASK-196
   - **Trazabilidad SDD:** plan §4.11.2 (`GET`, `POST`); RF-M11-01, RF-M11-02, RF-M11-13, RF-M9-06, EC-M11-06, RNF-28
   - **Archivos en Alcance:**
