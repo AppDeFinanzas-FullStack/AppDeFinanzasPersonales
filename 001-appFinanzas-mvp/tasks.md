@@ -2783,7 +2783,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-02`: los valores por defecto coinciden con la tabla (`log_day` y `goal_progress` desactivados; `log_day` a las 21).
     - `PreferencesInput` limita la hora a 0–23 y la anticipación a 0–7.
 
-- [ ] **`TASK-176`: `NotificationEmitter`: avisos únicos por evento y decisiones**
+- [x] **`TASK-176`: `NotificationEmitter`: avisos únicos por evento y decisiones**
   - **Dependencias:** Requiere TASK-120, TASK-175
   - **Trazabilidad SDD:** plan §4.15.3 (un solo aviso por evento, generación por eventos, entrega); RN-10, RF-M15-01, RF-M15-03, RF-M15-04, RF-M15-07, RNF-12
   - **Archivos en Alcance:**

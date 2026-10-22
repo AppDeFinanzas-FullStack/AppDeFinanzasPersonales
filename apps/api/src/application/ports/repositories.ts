@@ -277,6 +277,44 @@ export interface Repositories {
   shortcuts: ShortcutRepository;
   dashboard: DashboardRepository;
   exports: ExportRepository;
+  notifications: NotificationRepository;
+  notificationPreferences: NotificationPreferenceRepository;
+}
+
+// ---------- Bandeja de avisos (M15) ----------
+
+/** The decision a notification waits for (plan §4.15.3). */
+export type NotificationDecisionKind = 'budget_period' | 'occurrence';
+
+/** An in-app notification to create (plan §3.7, §4.15.3). */
+export interface NewNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  /** The event that produces it; one event never produces two notifications (RN-10). */
+  eventKey: string;
+  /** Data for the i18n text. */
+  params: Record<string, unknown>;
+  targetRoute: string;
+  /** When present, the notification is created waiting for that decision. */
+  decision?: { kind: NotificationDecisionKind; ref: string };
+}
+
+/** The `notification` rows of a user (plan §3.7). */
+export interface NotificationRepository {
+  /**
+   * Inserts the notification unless the user already has one with that `eventKey`
+   * (`ON CONFLICT (user_id, event_key) DO NOTHING`). `true` when it was inserted.
+   */
+  insertIfAbsent(notification: NewNotification): Promise<boolean>;
+  /** Marks as `resolved` the user's notifications waiting for that decision; returns how many. */
+  resolveDecision(userId: string, kind: NotificationDecisionKind, ref: string): Promise<number>;
+}
+
+/** The `notification_preference` rows of a user (plan §3.7). */
+export interface NotificationPreferenceRepository {
+  /** `true` when the user has that type turned on; `false` when it is off or has no row. */
+  isEnabled(userId: string, type: NotificationType): Promise<boolean>;
 }
 
 // ---------- Exportación de datos (M1) ----------
