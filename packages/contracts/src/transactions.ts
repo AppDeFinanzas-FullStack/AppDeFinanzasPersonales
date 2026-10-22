@@ -2,9 +2,11 @@ import { z } from 'zod';
 
 import { Amount, CurrencyCode, LocalDate, Money, Note, Rate, Uuid } from './common.js';
 
-const EarmarkWithdrawals = z.array(
+export const EarmarkWithdrawals = z.array(
   z.object({ goalId: Uuid, accountId: Uuid, amount: Amount }),
 );
+
+export type EarmarkWithdrawals = z.infer<typeof EarmarkWithdrawals>;
 
 const SimpleTransactionInput = {
   id: Uuid,
@@ -88,8 +90,16 @@ export type BatchDeleteInput = z.infer<typeof BatchDeleteInput>;
 export const BatchRecategorizeInput = BatchDeleteInput.extend({ categoryId: Uuid });
 export type BatchRecategorizeInput = z.infer<typeof BatchRecategorizeInput>;
 
-export const UndoInput = z.object({ undoToken: Uuid });
+export const UndoInput = z.object({
+  undoToken: Uuid,
+  earmarkWithdrawals: EarmarkWithdrawals.optional(),
+});
 export type UndoInput = z.infer<typeof UndoInput>;
+
+export const DeleteTransactionInput = z.object({
+  earmarkWithdrawals: EarmarkWithdrawals.optional(),
+});
+export type DeleteTransactionInput = z.infer<typeof DeleteTransactionInput>;
 
 export interface TransactionDto {
   id: string;

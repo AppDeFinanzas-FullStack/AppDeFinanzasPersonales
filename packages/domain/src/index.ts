@@ -55,3 +55,13 @@ export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
 export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
 export type { ComparisonWindow } from './dashboard.js';
+export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
+export type {
+  EarmarkSource,
+  EarmarkTake,
+  GoalMoney,
+  GoalRates,
+  GoalStatus,
+  GoalStatusInput,
+  SuggestedMonthly,
+} from './goals.js';

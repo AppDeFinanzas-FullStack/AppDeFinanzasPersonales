@@ -17,6 +17,8 @@ import { createLedgerHooks } from '../../src/application/shared/ledger-hooks.js'
 import { createAccountRepository } from '../../src/infrastructure/persistence/repositories/account.repository.js';
 import { createCategoryRepository } from '../../src/infrastructure/persistence/repositories/category.repository.js';
 import { createCurrencyRepository } from '../../src/infrastructure/persistence/repositories/currency.repository.js';
+import { createGoalAllocationRepository } from '../../src/infrastructure/persistence/repositories/goal-allocation.repository.js';
+import { createGoalRepository } from '../../src/infrastructure/persistence/repositories/goal.repository.js';
 import { createDashboardRepository } from '../../src/infrastructure/persistence/repositories/dashboard.repository.js';
 import { createEmailLinkRepository } from '../../src/infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
@@ -95,6 +97,8 @@ const uow: UnitOfWork = createUnitOfWork(prisma, (tx, userId) => ({
   shortcuts: createShortcutRepository(tx, userId ?? NIL_USER),
   dashboard: createDashboardRepository(tx, userId ?? NIL_USER),
   exports: createExportRepository(tx, userId ?? NIL_USER),
+  goals: createGoalRepository(tx, userId ?? NIL_USER),
+  goalAllocations: createGoalAllocationRepository(tx, userId ?? NIL_USER),
 }));
 
 const rates = createRatesService({ uow });
