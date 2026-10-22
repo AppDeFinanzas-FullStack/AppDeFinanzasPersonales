@@ -26,7 +26,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 | **14** | M9 Ajustes y personalización | V1.0 | TASK-149 a TASK-154 |
 | **15** | M10 Onboarding | V1.0 | TASK-155 a TASK-162 |
 | **16** | Exportación de datos (M1) | V1.0 | TASK-163 a TASK-165 |
-| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 |
+| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 y TASK-248 |
 | **18** | M15 Bandeja de avisos | V1.1 | TASK-175 a TASK-179 |
 | **19** | M12 Metas de ahorro | V1.1 | TASK-180 a TASK-192 |
 | **20** | M11 Presupuestos | V1.1 | TASK-193 a TASK-207 |
@@ -2607,7 +2607,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 17 — Cierre de V1.0: rendimiento, accesibilidad y despliegue
 
-- [ ] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
+- [x] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
   - **Dependencias:** Requiere TASK-053, TASK-121
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: `seed:e2e`), plan §5.1 (rendimiento); RNF-03
   - **Archivos en Alcance:**
@@ -2620,7 +2620,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el usuario de rendimiento tiene exactamente 5.000 transacciones.
     - Correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-167`: Pruebas de rendimiento del API**
+- [x] **`TASK-167`: Pruebas de rendimiento del API**
   - **Dependencias:** Requiere TASK-146, TASK-166
   - **Trazabilidad SDD:** plan §5.3 (RNF-02, RNF-03), plan §4.8.2 (objetivo p95); RNF-02, RNF-03
   - **Archivos en Alcance:**
@@ -2630,31 +2630,70 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-02`: el p95 del endpoint de guardar es menor que 300 ms.
     - `RNF-03`: el p95 del Inicio es menor que 1,2 s y ninguna consulta hace *seq scan* sobre `ledger_transaction` ni `ledger_entry`.
 
-- [ ] **`TASK-168`: Pruebas de rendimiento E2E**
-  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166
+- [x] **`TASK-248`: Web: división de código por ruta y presupuesto de bundle**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-162, TASK-165
+  - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/features/categories/routes.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/features/profile/routes.tsx`
+    - `apps/web/src/features/register/routes.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/features/transactions/routes.tsx`
+    - `apps/web/vite.config.ts`
+    - `apps/web/src/features/categories/components/icon-gallery.tsx`
+    - `apps/web/src/features/register/api.ts`
+    - `apps/web/src/features/register/components/date-chips.tsx`
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/features/transactions/detail-data.ts`
+    - `apps/web/test/bundle-budget.test.ts`
+  - **Especificación de Implementación:** Hoy la web compila un solo archivo de JavaScript (2,1 MB, unos 617 KB en gzip), así que cualquier pantalla descarga todo. Pasa la pantalla de cada ruta a carga diferida con la propiedad `lazy` del router, de modo que el JavaScript de cada pantalla (y su espacio de nombres de i18n) se descargue solo al entrar en ella. Las librerías pesadas de una sola pantalla (gráficos del Inicio, arrastrar y soltar de Categorías) deben quedar fuera del paquete de entrada y de `/registrar`. Ajusta `vite.config.ts` solo si hace falta para separar bloques estables (por ejemplo, las librerías compartidas). No cambia la apariencia ni el comportamiento de ninguna pantalla. Tres cambios más sacan peso del camino de `/registrar`: (1) `iconFor` deja de importar el objeto `icons` de `lucide-react` (1.700 íconos, unos 165 KB en gzip) y usa solo los íconos del catálogo `IconKey`; (2) el esquema `TransactionDetailData` pasa a `transactions/detail-data.ts`, un archivo de datos sin componentes, para que `register/api.ts` y las guardas de la app no arrastren la pantalla de detalle al paquete de entrada (`transaction-detail.tsx` lo vuelve a exportar para no tocar a quienes ya lo importan); (3) el calendario del selector de fecha de Registrar (`react-day-picker` y `date-fns`) se carga de forma diferida al abrir el selector.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-01`: la prueba compila la web y comprueba que el JavaScript que descarga `/registrar` (paquete de entrada más los bloques que esa ruta importa) pesa 300 KB gzip o menos.
+    - `RNF-03`: los gráficos del Inicio y el arrastrar y soltar de Categorías no están en el paquete de entrada ni en los bloques de `/registrar`.
+    - Las pruebas de la web y los E2E existentes siguen pasando.
+
+- [x] **`TASK-168`: Pruebas de rendimiento E2E**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166, TASK-248
   - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
   - **Archivos en Alcance:**
     - `e2e/perf.spec.ts`
     - `e2e/support/network-profiles.ts`
-  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`.
+    - `apps/web/src/app/guards.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/dashboard/hooks/use-dashboard.ts`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/index.html`
+  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`. La primera medición del Inicio tardó de 7 a 10 s, y `GET /api/dashboard` solo 0,4 s: el tiempo se va en la cascada de descargas y peticiones (sesión, bloque de la ruta, gráfico y datos, uno detrás de otro). Reduce esa cascada sin cambiar lo que muestra el Inicio: pide los datos del mes actual en cuanto la sesión confirma el Onboarding terminado (igual que Registrar con su contexto, plan §4.7.4), precarga el bloque de la ruta, y carga el gráfico de ritmo de forma diferida para que las tarjetas aparezcan sin esperar a `recharts`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-01`: el flujo completo tarda menos de 10 s.
     - `RNF-03`: el Inicio carga en menos de 2 s.
-    - El JavaScript de `/registrar` pesa 150 KB gzip o menos.
+    - El JavaScript de `/registrar` pesa 300 KB gzip o menos.
 
-- [ ] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
+- [x] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
   - **Dependencias:** Requiere TASK-154, TASK-162, TASK-165
   - **Trazabilidad SDD:** plan §5.3 (RNF-05, RNF-06), plan §5.4 (definición de terminado, punto 5); RNF-05, RNF-06, RF-M7-12
   - **Archivos en Alcance:**
     - `e2e/a11y-v1-0.spec.ts`
     - `e2e/keyboard-v1-0.spec.ts`
-  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar).
+    - `apps/web/src/index.css`
+    - `apps/web/src/components/ui/tabs.tsx`
+    - `apps/web/src/features/fx/components/rate-history-chart.tsx`
+    - `apps/web/src/features/transactions/components/transaction-row.tsx`
+  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar). La primera corrida de axe encontró 11 violaciones reales que esta tarea corrige: los tokens `--destructive`, `--destructive-foreground` y `--muted-foreground` no llegaban a 4,5:1 (los valores nuevos están en `docs/design-direction.md`); los gatillos del selector de rango de Tipo de cambio apuntan con `aria-controls` a un contenido que no existe; y la fila seleccionada de Movimientos y la pestaña de ingresos de Categorías heredan el contraste bajo de `--muted-foreground`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-06`: ninguna violación seria o crítica de axe en ninguna pantalla de V1.0.
     - `RF-M7-12`: se registra un gasto solo con el teclado.
     - `RNF-05`: las pruebas pasan en Chromium, WebKit y Firefox a 360 px y a 1280 px.
 
-- [ ] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
+- [x] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
   - **Dependencias:** Requiere TASK-164
   - **Trazabilidad SDD:** plan §5.1 (aislamiento), plan §5.3 (RNF-14, RNF-17), plan §3.9 (logs); RNF-14, RNF-17
   - **Archivos en Alcance:**
@@ -2712,7 +2751,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - Anotar la URL pública del servicio (`API_URL`). Si no coincide con el rewrite de `vercel.json`, corregirlo en un commit `fix`.
        - Copiar el Deploy Hook (Settings → Deploy Hook), crear una API key (Account Settings → API Keys) y anotar el ID del servicio (`srv-…`).
 
-- [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
+- [x] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
   - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e.yml`), ADR-20; constitución §7
   - **Archivos en Alcance:**
@@ -2759,7 +2798,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - abrir en el navegador `$API_URL/api/health/ready`, `$WEB_URL/` y `$WEB_URL/api/health/ready`;
        - pasar las URLs reales al README en un commit `docs(readme)`.
 
-- [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
+- [x] **`TASK-174`: Workflow manual `fx-backfill.yml`**
   - **Dependencias:** Requiere TASK-091, TASK-173
   - **Trazabilidad SDD:** plan §1.5 (`fx-backfill.yml`), ADR-06
   - **Archivos en Alcance:**

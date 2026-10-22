@@ -3,7 +3,7 @@ import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
 import { ChevronLeft } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate, useParams, type RouteObject } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
@@ -13,6 +13,7 @@ import { useAccounts } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { useValidatedSearch } from '@/lib/search-params';
+import accounts from '@/locales/es-BO/accounts.json';
 import transactions from '@/locales/es-BO/transactions.json';
 
 import type { TransactionFilters } from './api';
@@ -26,6 +27,8 @@ import { useTransactions } from './hooks/use-transactions';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'transactions', transactions, true, true);
+// The form to edit a movement reuses the account form of `accounts`.
+i18n.addResourceBundle(LANGUAGE, 'accounts', accounts, true, true);
 
 /**
  * The month and the filters of `/movimientos` live in the URL, so going back to the tab keeps
@@ -283,9 +286,3 @@ export function TransactionDetailPage() {
     </div>
   );
 }
-
-/** Private routes of the movements (plan §4.6.4). */
-export const transactionsRoutes: RouteObject[] = [
-  { path: 'movimientos', element: <TransactionsPage /> },
-  { path: 'movimientos/:id', element: <TransactionDetailPage /> },
-];
