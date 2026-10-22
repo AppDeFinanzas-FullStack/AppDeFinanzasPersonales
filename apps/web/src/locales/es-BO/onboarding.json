@@ -1,0 +1,24 @@
+{
+  "loadError": "No pudimos cargar la configuración inicial. Revisa tu conexión e inténtalo de nuevo.",
+  "stepper": {
+    "progress": "Paso {{step}} de {{total}}",
+    "skipStep": "Saltar paso",
+    "skipAll": "Saltar todo"
+  },
+  "steps": {
+    "1": { "title": "Tu moneda base" },
+    "2": { "title": "Tus cuentas" },
+    "3": { "title": "Tus categorías" }
+  },
+  "baseCurrency": {
+    "label": "Moneda base",
+    "options": {
+      "BOB": "Bolivianos (BOB)",
+      "USD": "Dólares (USD)"
+    },
+    "bothCurrencies": "Siempre trabajaremos con bolivianos y dólares.",
+    "rate": "Usaremos el dólar paralelo: {{value}} (puedes cambiarlo en Ajustes).",
+    "noRate": "Aún no pudimos obtener el dólar; te lo pediremos al registrar algo en dólares.",
+    "continue": "Continuar"
+  }
+}

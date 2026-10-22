@@ -2502,7 +2502,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores, incluido `ONBOARDING_DONE`.
     - `RNF-14`: el Onboarding de un usuario no afecta a otro.
 
-- [ ] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
+- [x] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
   - **Dependencias:** Requiere TASK-147, TASK-159
   - **Trazabilidad SDD:** plan §4.10.4 (`/bienvenida`); RF-M10-01, RF-M10-02, spec §2.10.1
   - **Archivos en Alcance:**
