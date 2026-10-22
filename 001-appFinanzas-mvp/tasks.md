@@ -2620,7 +2620,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el usuario de rendimiento tiene exactamente 5.000 transacciones.
     - Correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-167`: Pruebas de rendimiento del API**
+- [x] **`TASK-167`: Pruebas de rendimiento del API**
   - **Dependencias:** Requiere TASK-146, TASK-166
   - **Trazabilidad SDD:** plan §5.3 (RNF-02, RNF-03), plan §4.8.2 (objetivo p95); RNF-02, RNF-03
   - **Archivos en Alcance:**
