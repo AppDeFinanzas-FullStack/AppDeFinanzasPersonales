@@ -1,4 +1,9 @@
-import type { BudgetDto, CreateBudgetInput, UpdateBudgetInput } from '@finanzas/contracts';
+import type {
+  BudgetDto,
+  CreateBudgetInput,
+  DecisionInput,
+  UpdateBudgetInput,
+} from '@finanzas/contracts';
 import {
   available as availableOf,
   pace as paceOf,
@@ -12,9 +17,11 @@ import {
 } from '@finanzas/domain';
 import type { BudgetPeriod, LocalDate } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
+import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../errors.js';
 import type {
+  AccountRow,
   BudgetPeriodRow,
   BudgetPeriodStatus,
   BudgetRow,
@@ -22,6 +29,7 @@ import type {
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import { BalanceGuard } from '../shared/balance-guard.js';
 import { assertLimit } from '../shared/limits.js';
 import type { NotificationEmitter } from '../shared/notification-emitter.js';
 import type { RatesContext, RatesService } from './rates.service.js';
@@ -73,11 +81,21 @@ export interface BudgetsService {
   resetCarryover(ctx: BudgetsContext, id: string): Promise<void>;
   /** Deletes the budget with its history and resolves its decision notices (plan §4.11.2). */
   remove(ctx: BudgetsContext, id: string): Promise<void>;
+  /**
+   * Decides a closed period once (RNF-11): a surplus is split into carry, goal and discard, a
+   * deficit is carried or absorbed; the carry replaces that of the next period (RF-M11-08).
+   */
+  decide(
+    ctx: BudgetsContext,
+    budgetId: string,
+    periodId: string,
+    input: DecisionInput,
+  ): Promise<void>;
 }
 
 export interface BudgetsServiceDeps {
   uow: UnitOfWork;
-  rates: Pick<RatesService, 'currentRateFor'>;
+  rates: Pick<RatesService, 'currentRateFor' | 'ratesForMovement' | 'transferRate'>;
   notifications: NotificationEmitter;
   ids: { next: () => string };
 }
@@ -209,6 +227,38 @@ async function requireBudgetable(repos: Repositories, categoryId: string): Promi
   return category;
 }
 
+/** Budgets that only carry or discard: a finalizing or finalized one has no next period (EC-M11-09). */
+const ENDED_STATUSES: readonly BudgetRow['status'][] = ['finalizing', 'finalized'];
+
+/** The period right after `period`, the one a carry goes to. */
+async function nextPeriodOf(
+  repos: Repositories,
+  period: BudgetPeriodRow,
+): Promise<BudgetPeriodRow | null> {
+  const later = (await repos.budgetPeriods.listByBudget(period.budgetId, ALL_PERIODS)).filter(
+    (candidate) => candidate.startDate > period.endDate,
+  );
+  return later[later.length - 1] ?? null;
+}
+
+/**
+ * "Enviar a meta" exists only in the general budget or, when there is none, in the budgets of root
+ * categories (RF-M11-09).
+ */
+async function assertToGoalAllowed(repos: Repositories, budget: BudgetRow): Promise<void> {
+  if (budget.categoryId === null) {
+    return;
+  }
+  const category = await repos.categories.get(budget.categoryId);
+  if (
+    category === null ||
+    category.parentId !== null ||
+    (await repos.budgets.findLive(null)) !== null
+  ) {
+    throw new AppError('TO_GOAL_NOT_ALLOWED');
+  }
+}
+
 export function createBudgetsService({
   uow,
   rates,
@@ -316,6 +366,159 @@ export function createBudgetsService({
       throw new AppError('INTERNAL_ERROR');
     }
     return dto;
+  };
+
+  /** The carry replaces the carryover of the next period, or the frozen one of a paused budget. */
+  const applyCarry = async (
+    repos: Repositories,
+    budget: BudgetRow,
+    period: BudgetPeriodRow,
+    carry: Decimal,
+  ): Promise<void> => {
+    if (ENDED_STATUSES.includes(budget.status)) {
+      return;
+    }
+    const next = await nextPeriodOf(repos, period);
+    if (next !== null) {
+      await repos.budgetPeriods.update(next.id, { carryoverIn: carry });
+      return;
+    }
+    if (budget.status === 'paused') {
+      await repos.budgets.update(budget.id, { frozenCarryover: carry });
+      return;
+    }
+    if (!carry.isZero()) {
+      throw new AppError('INVALID_STATE');
+    }
+  };
+
+  /** The amount of the budget in the currency of the account, with the reference in force. */
+  const convert = async (
+    repos: Repositories,
+    ctx: BudgetsContext,
+    amount: Decimal,
+    from: string,
+    to: string,
+  ): Promise<Decimal> => {
+    if (from === to) {
+      return amount;
+    }
+    const today = todayFor(ctx.timezone, ctx.now);
+    const fromRate = (await rates.ratesForMovement(repos, ctx, from, today)).rateCurBob;
+    const toRate = (await rates.ratesForMovement(repos, ctx, to, today)).rateCurBob;
+    return amount.times(fromRate).div(toRate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  };
+
+  /** "Enviar a meta": an earmark within the free balance, or a real transfer (RF-M11-09). */
+  const sendToGoal = async (
+    repos: Repositories,
+    ctx: BudgetsContext,
+    budget: BudgetRow,
+    toGoal: NonNullable<Extract<DecisionInput, { result: 'surplus' }>['toGoal']>,
+  ): Promise<void> => {
+    const goal = await repos.goals.get(toGoal.goalId);
+    if (goal === null || goal.archivedAt !== null) {
+      throw new AppError('GOAL_NOT_AVAILABLE');
+    }
+    const amount = new Decimal(toGoal.amount);
+
+    if (toGoal.mode === 'earmark') {
+      const [account] = await repos.accounts.lockForUpdate([toGoal.accountId]);
+      if (account === undefined) {
+        throw new AppError('NOT_FOUND');
+      }
+      if (account.type === 'credit_card') {
+        throw new AppError('ACCOUNT_NOT_DEDICABLE');
+      }
+      const balance =
+        (await repos.ledger.balances([account.id])).get(account.id) ?? account.initialBalance;
+      const earmarked = (await repos.goalAllocations.earmarkedByAccount(account.id)).reduce(
+        (sum, row) => sum.plus(row.amount),
+        new Decimal(0),
+      );
+      const free = balance.minus(earmarked);
+      const earmark = await convert(repos, ctx, amount, budget.currencyCode, account.currencyCode);
+      if (earmark.greaterThan(free)) {
+        throw new AppError('EARMARK_EXCEEDS_FREE', { free: toMoneyString(free) });
+      }
+      await repos.goalAllocations.insert({
+        id: ids.next(),
+        goalId: goal.id,
+        accountId: account.id,
+        amount: earmark,
+        origin: 'budget',
+        relatedTransactionId: null,
+      });
+      return;
+    }
+
+    if (goal.dedicatedAccountId === null) {
+      throw new AppError('VALIDATION_ERROR', {
+        issues: [{ path: 'toGoal.mode', code: 'no_dedicated_account' }],
+      });
+    }
+    if (goal.dedicatedAccountId === toGoal.accountId) {
+      throw new AppError('VALIDATION_ERROR', {
+        issues: [{ path: 'toGoal.accountId', code: 'same_account' }],
+      });
+    }
+    const accounts = await repos.accounts.lockForUpdate([
+      toGoal.accountId,
+      goal.dedicatedAccountId,
+    ]);
+    const from = accounts.find((account: AccountRow) => account.id === toGoal.accountId);
+    const to = accounts.find((account: AccountRow) => account.id === goal.dedicatedAccountId);
+    if (from === undefined || to === undefined) {
+      throw new AppError('NOT_FOUND');
+    }
+    const amountOut = (
+      await convert(repos, ctx, amount, budget.currencyCode, from.currencyCode)
+    ).negated();
+    const amountIn = await convert(repos, ctx, amount, budget.currencyCode, to.currencyCode);
+    await BalanceGuard.apply(
+      repos,
+      ctx.userId,
+      [
+        { accountId: from.id, amount: amountOut },
+        { accountId: to.id, amount: amountIn },
+      ],
+      { mode: 'interactive' },
+    );
+    const today = todayFor(ctx.timezone, ctx.now);
+    const { rateCurBob, rateUsdBob } = await rates.ratesForMovement(
+      repos,
+      ctx,
+      from.currencyCode,
+      today,
+    );
+    const declaredRate =
+      from.currencyCode === to.currencyCode
+        ? null
+        : await rates.transferRate(repos, ctx, from.currencyCode, to.currencyCode, today);
+    const inserted = await repos.ledger.insertTransaction(
+      {
+        id: ids.next(),
+        kind: 'transfer',
+        date: today,
+        note: null,
+        categoryId: null,
+        origin: 'goal_transfer',
+        originId: goal.id,
+        parentTransactionId: null,
+        recurringRuleId: null,
+        recurringLabel: null,
+        rateCurBob,
+        rateUsdBob,
+        declaredRate,
+      },
+      [
+        { id: uuidv7(), accountId: from.id, amount: amountOut },
+        { id: uuidv7(), accountId: to.id, amount: amountIn },
+      ],
+    );
+    if (!inserted) {
+      throw new AppError('INTERNAL_ERROR');
+    }
   };
 
   return {
@@ -557,6 +760,62 @@ export function createBudgetsService({
             await notifications.resolveDecision(repos, ctx.userId, 'budget_period', period.id);
           }
           await repos.budgets.delete(id);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+    async decide(ctx, budgetId, periodId, input) {
+      await uow.run(
+        async (repos) => {
+          const budget = await requireBudget(repos, budgetId);
+          const period = await repos.budgetPeriods.get(periodId);
+          if (period === null || period.budgetId !== budget.id) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (period.status !== 'closed_pending') {
+            throw new AppError('DECISION_ALREADY_MADE');
+          }
+
+          const view = await periodView(repos, budget, period);
+          const result = new Decimal(resultOf(available(view), toMoneyString(view.spent)));
+          const carry =
+            input.result === 'surplus'
+              ? new Decimal(input.carry)
+              : input.mode === 'carry'
+                ? result
+                : new Decimal(0);
+          if (input.result === 'surplus') {
+            // The split must add up exactly to the surplus (RF-M11-08).
+            const split = new Decimal(input.carry)
+              .plus(input.discard)
+              .plus(input.toGoal?.amount ?? 0);
+            if (result.isNegative() || !split.equals(result)) {
+              throw new AppError('SPLIT_MISMATCH');
+            }
+          } else if (!result.isNegative()) {
+            throw new AppError('SPLIT_MISMATCH');
+          }
+          if (!carry.isZero() && ENDED_STATUSES.includes(budget.status)) {
+            throw new AppError('INVALID_STATE');
+          }
+
+          const decided = await repos.budgetPeriods.decide(period.id, {
+            spentAtDecision: view.spent,
+            resultAtDecision: result,
+            decision: input,
+          });
+          if (!decided) {
+            throw new AppError('DECISION_ALREADY_MADE');
+          }
+
+          if (input.result === 'surplus' || input.mode === 'carry') {
+            await applyCarry(repos, budget, period, carry);
+          }
+          if (input.result === 'surplus' && input.toGoal !== undefined) {
+            await assertToGoalAllowed(repos, budget);
+            await sendToGoal(repos, ctx, budget, input.toGoal);
+          }
+          await notifications.resolveDecision(repos, ctx.userId, 'budget_period', period.id);
         },
         { userLock: ctx.userId },
       );

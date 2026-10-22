@@ -1097,6 +1097,15 @@ export interface ClosedBudgetPeriod {
   adjusted: Decimal;
 }
 
+/** What a decision freezes on its closed period (plan §4.11.3). */
+export interface PeriodDecision {
+  spentAtDecision: Decimal;
+  /** Surplus (positive) or deficit (negative): available − spent. */
+  resultAtDecision: Decimal;
+  /** The `DecisionInput` that was applied, kept in the `decision` jsonb. */
+  decision: unknown;
+}
+
 /** Periods, late adjustments and threshold notices of the user bound to the transaction (RN-09). */
 export interface BudgetPeriodRepository {
   insert(period: NewBudgetPeriod): Promise<void>;
@@ -1125,6 +1134,11 @@ export interface BudgetPeriodRepository {
    * was no longer open (RNF-13).
    */
   close(id: string, deadline: Instant): Promise<boolean>;
+  /**
+   * Moves the period from `closed_pending` to `decided` with what was frozen at the decision;
+   * `false` when it was no longer pending (RNF-11).
+   */
+  decide(id: string, decision: PeriodDecision): Promise<boolean>;
   /** The decided or defaulted periods of the budget that contain any of the dates (RF-M11-11). */
   closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]>;
   /**

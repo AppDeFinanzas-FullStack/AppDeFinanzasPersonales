@@ -10,6 +10,7 @@ import type {
   LateAdjustmentRow,
   NewBudgetPeriod,
   NewLateAdjustment,
+  PeriodDecision,
 } from '../../../application/ports/repositories.js';
 import type { LocalDate } from '../../../application/ports/clock.js';
 import type { TransactionClient } from '../unit-of-work.js';
@@ -180,6 +181,18 @@ export function createBudgetPeriodRepository(
            SET status = 'closed_pending', decision_deadline = ${deadline}::timestamptz
          WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'open'`;
       return updated > 0;
+    },
+
+    async decide(id: string, decision: PeriodDecision): Promise<boolean> {
+      const updated = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE budget_period
+           SET status = 'decided', decided_at = now(),
+               spent_at_decision = ${decision.spentAtDecision.toFixed(2)}::numeric,
+               result_at_decision = ${decision.resultAtDecision.toFixed(2)}::numeric,
+               decision = ${JSON.stringify(decision.decision)}::jsonb
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'closed_pending'
+        RETURNING id::text AS id`;
+      return updated.length > 0;
     },
 
     async closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]> {

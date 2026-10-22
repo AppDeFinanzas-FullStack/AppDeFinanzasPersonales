@@ -3239,7 +3239,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-09`: un presupuesto `finalizing` pasa a `finalized` sin período siguiente.
     - `RNF-20`: el cierre usa la medianoche de la zona del usuario.
 
-- [ ] **`TASK-201`: Decidir el cierre de un período**
+- [x] **`TASK-201`: Decidir el cierre de un período**
   - **Dependencias:** Requiere TASK-186, TASK-200
   - **Trazabilidad SDD:** plan §4.11.2 (`decision`), plan §4.11.3 (closed_pending → decided); RF-M11-08, RF-M11-09, EC-M11-02, EC-M11-03, EC-M11-09, RNF-11
   - **Archivos en Alcance:**
