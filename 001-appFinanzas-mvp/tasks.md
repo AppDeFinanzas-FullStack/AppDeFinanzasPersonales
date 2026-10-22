@@ -2436,7 +2436,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 15 — M10 Onboarding (V1.0)
 
-- [ ] **`TASK-155`: Contratos de M10**
+- [x] **`TASK-155`: Contratos de M10**
   - **Dependencias:** Requiere TASK-096, TASK-109
   - **Trazabilidad SDD:** plan §4.10.1; RF-M10-04
   - **Archivos en Alcance:**
