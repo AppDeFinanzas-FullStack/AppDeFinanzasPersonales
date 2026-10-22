@@ -3103,7 +3103,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-04`: con el día de inicio 15, el 03/11 cae en el período 15/10–14/11.
     - `EC-M11-07` / `RF-M11-07`: al cambiar de 1 a 15 durante octubre, el período va del 01/10 al 14/11 y el siguiente empieza el 15/11.
 
-- [ ] **`TASK-195`: Dominio `budget`: disponible, reparto, umbrales y ritmo**
+- [x] **`TASK-195`: Dominio `budget`: disponible, reparto, umbrales y ritmo**
   - **Dependencias:** Requiere TASK-026, TASK-194
   - **Trazabilidad SDD:** plan §4.11.1 (`available`, `result`, `validateSplit`, `thresholdsCrossed`, `paceText`); RF-M11-05, RF-M11-08, RF-M11-13, RF-M11-14, EC-M11-01
   - **Archivos en Alcance:**
