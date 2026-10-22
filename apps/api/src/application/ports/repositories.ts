@@ -279,6 +279,8 @@ export interface Repositories {
   exports: ExportRepository;
   notifications: NotificationRepository;
   notificationPreferences: NotificationPreferenceRepository;
+  goals: GoalRepository;
+  goalAllocations: GoalAllocationRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -800,4 +802,94 @@ export interface ShortcutRepository {
   remove(id: string): Promise<boolean>;
   /** How many shortcuts the user has, hidden ones included (RF-M7-09). */
   count(): Promise<number>;
+}
+
+// ---------- Metas de ahorro (M12) ----------
+
+export type AllocationOrigin =
+  | 'manual'
+  | 'budget'
+  | 'dedicated_account'
+  | 'confirmed_spend'
+  | 'use_and_close'
+  | 'adjustment';
+
+/** A savings goal as stored (plan §3.6). */
+export interface GoalRow {
+  id: string;
+  name: string;
+  target: Decimal;
+  currencyCode: string;
+  /** `YYYY-MM-DD`. */
+  targetDate: LocalDate | null;
+  icon: string;
+  color: string;
+  dedicatedAccountId: string | null;
+  celebratedAt: Instant | null;
+  archivedAt: Instant | null;
+}
+
+export type NewGoal = Pick<
+  GoalRow,
+  | 'id'
+  | 'name'
+  | 'target'
+  | 'currencyCode'
+  | 'targetDate'
+  | 'icon'
+  | 'color'
+  | 'dedicatedAccountId'
+>;
+
+/** The fields of a goal that change; absent fields stay as they are. */
+export type GoalPatch = Partial<
+  Pick<GoalRow, 'name' | 'target' | 'currencyCode' | 'targetDate' | 'icon' | 'color'>
+>;
+
+/** Goals of the user bound to the transaction (RN-09). */
+export interface GoalRepository {
+  insert(goal: NewGoal): Promise<void>;
+  get(id: string): Promise<GoalRow | null>;
+  update(id: string, patch: GoalPatch): Promise<void>;
+}
+
+export interface NewAllocationEvent {
+  id: string;
+  goalId: string;
+  accountId: string;
+  /** Signed: an earmark (+) or a withdrawal (-). */
+  amount: Decimal;
+  origin: AllocationOrigin;
+  relatedTransactionId: string | null;
+}
+
+export interface GoalEarmark {
+  goalId: string;
+  amount: Decimal;
+}
+
+export interface AccountEarmark {
+  accountId: string;
+  amount: Decimal;
+}
+
+/** An item of the history of a goal, with its origin (RF-M12-07). */
+export interface GoalHistoryItem {
+  accountId: string;
+  amount: Decimal;
+  origin: AllocationOrigin;
+  /** `YYYY-MM-DD` date of the item. */
+  date: LocalDate;
+  createdAt: Instant;
+}
+
+/** Allocation events of the user bound to the transaction (RN-09). */
+export interface GoalAllocationRepository {
+  insert(event: NewAllocationEvent): Promise<void>;
+  /** Σ of the events on the account, one item per goal. */
+  earmarkedByAccount(accountId: string): Promise<GoalEarmark[]>;
+  /** Σ of the events of the goal, one item per account. */
+  earmarkedByGoal(goalId: string): Promise<AccountEarmark[]>;
+  /** The events of the goal plus the ledger entries of its dedicated account (RF-M12-07). */
+  history(goalId: string): Promise<GoalHistoryItem[]>;
 }

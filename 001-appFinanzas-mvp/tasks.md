@@ -2881,7 +2881,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-06`: (objetivo − progreso) ÷ meses restantes, incluido el actual; con la fecha en este mes, la variante "Faltan X este mes".
     - `RF-M12-05`: la propuesta toma primero de la meta sin fecha.
 
-- [ ] **`TASK-182`: Repositorios de metas y apartados**
+- [x] **`TASK-182`: Repositorios de metas y apartados**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6, plan §4.12.2 (historial); RF-M12-04, RF-M12-07, RN-09
   - **Archivos en Alcance:**
