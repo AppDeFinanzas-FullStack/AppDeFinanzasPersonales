@@ -3116,7 +3116,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-13`: si un período empieza en el 120 % con umbrales 80 y 100, solo se avisa el 100.
     - `RF-M11-14`: un presupuesto superado sigue sumando el gasto.
 
-- [ ] **`TASK-196`: Repositorios de presupuestos y gasto del período**
+- [x] **`TASK-196`: Repositorios de presupuestos y gasto del período**
   - **Dependencias:** Requiere TASK-119
   - **Trazabilidad SDD:** plan §3.6, plan §4.11.2 (gasto del período); RF-M11-02, RF-M11-03, RN-02, RN-09
   - **Archivos en Alcance:**

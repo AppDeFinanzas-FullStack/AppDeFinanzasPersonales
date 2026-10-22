@@ -119,6 +119,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createBudgetPeriodRepository } from '../infrastructure/persistence/repositories/budget-period.repository.js';
+import { createBudgetRepository } from '../infrastructure/persistence/repositories/budget.repository.js';
 import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
 import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
@@ -233,6 +235,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   notificationPreferences: createNotificationPreferenceRepository(tx),
   goals: createGoalRepository(tx, userId ?? NO_USER),
   goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
+  budgets: createBudgetRepository(tx, userId ?? NO_USER),
+  budgetPeriods: createBudgetPeriodRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';

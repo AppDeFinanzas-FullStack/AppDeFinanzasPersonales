@@ -312,6 +312,8 @@ export interface Repositories {
   notificationPreferences: NotificationPreferenceRepository;
   goals: GoalRepository;
   goalAllocations: GoalAllocationRepository;
+  budgets: BudgetRepository;
+  budgetPeriods: BudgetPeriodRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -943,4 +945,120 @@ export interface GoalAllocationRepository {
   history(goalId: string): Promise<GoalHistoryItem[]>;
   /** Deletes all the events of the goal. */
   deleteByGoal(goalId: string): Promise<void>;
+}
+
+// ---------- Presupuestos (M11) ----------
+
+export type BudgetScope = 'category' | 'general';
+export type BudgetDefaultAction = 'discard' | 'carry';
+export type BudgetStatus = 'active' | 'paused' | 'finalizing' | 'finalized';
+export type BudgetPeriodStatus = 'open' | 'closed_pending' | 'decided' | 'defaulted';
+
+/** A budget as stored (plan §3.6). */
+export interface BudgetRow {
+  id: string;
+  scope: BudgetScope;
+  /** `null` in the general budget. */
+  categoryId: string | null;
+  amount: Decimal;
+  currencyCode: string;
+  startDay: number;
+  /** The start day that applies from the next period on (RF-M11-06). */
+  nextStartDay: number | null;
+  defaultAction: BudgetDefaultAction;
+  thresholds: number[];
+  status: BudgetStatus;
+  frozenCarryover: Decimal | null;
+}
+
+export type NewBudget = Pick<
+  BudgetRow,
+  | 'id'
+  | 'scope'
+  | 'categoryId'
+  | 'amount'
+  | 'currencyCode'
+  | 'startDay'
+  | 'defaultAction'
+  | 'thresholds'
+>;
+
+/** The fields of a budget that change; absent fields stay as they are. */
+export type BudgetPatch = Partial<
+  Pick<
+    BudgetRow,
+    'amount' | 'defaultAction' | 'thresholds' | 'nextStartDay' | 'status' | 'frozenCarryover'
+  >
+>;
+
+/** Budgets of the user bound to the transaction (RN-09). */
+export interface BudgetRepository {
+  insert(budget: NewBudget): Promise<void>;
+  get(id: string): Promise<BudgetRow | null>;
+  update(id: string, patch: BudgetPatch): Promise<void>;
+  /** Deletes the budget with its periods, late adjustments and threshold notices. */
+  delete(id: string): Promise<void>;
+  /** How many budgets the user has, in any status. */
+  count(): Promise<number>;
+}
+
+/** A period of a budget as stored (plan §3.6). */
+export interface BudgetPeriodRow {
+  id: string;
+  budgetId: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  /** The amount of the budget in force in the period. */
+  amount: Decimal;
+  carryoverIn: Decimal;
+  status: BudgetPeriodStatus;
+}
+
+export type NewBudgetPeriod = Pick<
+  BudgetPeriodRow,
+  'id' | 'budgetId' | 'startDate' | 'endDate' | 'amount' | 'carryoverIn'
+>;
+
+export interface NewLateAdjustment {
+  id: string;
+  /** The period in course. */
+  periodId: string;
+  /** The closed period the late movement belongs to. */
+  sourcePeriodId: string;
+  /** Signed amount, in the currency of the budget. */
+  amount: Decimal;
+}
+
+export interface LateAdjustmentRow {
+  id: string;
+  sourcePeriodId: string;
+  amount: Decimal;
+  /** Set by "Reiniciar arrastre". */
+  voidedAt: Instant | null;
+}
+
+/** Periods, late adjustments and threshold notices of the user bound to the transaction (RN-09). */
+export interface BudgetPeriodRepository {
+  insert(period: NewBudgetPeriod): Promise<void>;
+  get(id: string): Promise<BudgetPeriodRow | null>;
+  /** The periods of the budget, newest first, at most `limit`. */
+  listByBudget(budgetId: string, limit: number): Promise<BudgetPeriodRow[]>;
+  insertLateAdjustment(adjustment: NewLateAdjustment): Promise<void>;
+  /** The late adjustments of the period, oldest first, voided ones included. */
+  lateAdjustments(periodId: string): Promise<LateAdjustmentRow[]>;
+  /** Voids the live late adjustments of the period ("Reiniciar arrastre"). */
+  voidLateAdjustments(periodId: string): Promise<void>;
+  /** Saves the notice of the threshold; `false` when the period already had it (RN-10). */
+  recordThresholdHit(periodId: string, threshold: number): Promise<boolean>;
+  /**
+   * Σ of the expenses of the scope of the budget within the period (a category with its
+   * subcategories; the general one, every expense), without what RN-02 leaves out, converted to the
+   * currency of the budget with the rates each movement stored (RF-M11-02, RF-M11-03).
+   */
+  spent(
+    budget: Pick<BudgetRow, 'scope' | 'categoryId' | 'currencyCode'>,
+    period: Pick<BudgetPeriodRow, 'startDate' | 'endDate'>,
+  ): Promise<Decimal>;
 }
