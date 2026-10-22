@@ -3138,6 +3138,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
     - `apps/api/test/integration/budgets-create.test.ts`
   - **Especificación de Implementación:** `create` es idempotente, con un tope de 100. La categoría debe ser de gasto y activa; no se puede "Deudas y préstamos", pero sí "Intereses" (`CATEGORY_NOT_BUDGETABLE`). Crea el período en curso y evalúa los umbrales (solo el más alto). `list` y `get` traen el período en curso, el ritmo, el desglose del arrastre, el cierre pendiente, `childrenExceedParent` y, en el detalle, los 12 últimos períodos. Registra en `CurrencyUsage` el uso por presupuestos activos o pausados.
   - **Criterios de Verificación (Tests & DoD):**
