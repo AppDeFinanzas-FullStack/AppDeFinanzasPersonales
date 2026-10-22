@@ -2751,7 +2751,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - Anotar la URL pública del servicio (`API_URL`). Si no coincide con el rewrite de `vercel.json`, corregirlo en un commit `fix`.
        - Copiar el Deploy Hook (Settings → Deploy Hook), crear una API key (Account Settings → API Keys) y anotar el ID del servicio (`srv-…`).
 
-- [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
+- [x] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
   - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e.yml`), ADR-20; constitución §7
   - **Archivos en Alcance:**
