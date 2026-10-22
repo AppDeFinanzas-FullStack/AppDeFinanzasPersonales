@@ -46,6 +46,10 @@ import {
   type DashboardViewService,
 } from '../application/services/dashboard.service.js';
 import {
+  createOnboardingService,
+  type OnboardingService,
+} from '../application/services/onboarding.service.js';
+import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
@@ -158,6 +162,8 @@ export interface Container {
   readonly registerService: RegisterService;
   /** The blocks of `GET /api/dashboard` (plan §4.8.2). */
   readonly dashboardService: DashboardViewService;
+  /** The steps of `/api/onboarding` (plan §4.10.2). */
+  readonly onboardingService: OnboardingService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -597,6 +603,7 @@ export const buildContainer = (env: Env): Container => {
     transactionsService,
     registerService,
     dashboardService,
+    onboardingService: createOnboardingService({ uow, rates: ratesService }),
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -665,6 +672,11 @@ export const createApp = (container: Container): Express => {
     },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
+    onboarding: {
+      onboardingService: container.onboardingService,
+      clock: container.clock,
+      session,
+    },
     readiness: container.readiness,
   });
 };

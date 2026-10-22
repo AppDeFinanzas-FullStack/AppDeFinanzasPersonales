@@ -2487,7 +2487,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-03`: se pueden quitar todas las de gasto.
     - Al terminar, el Onboarding queda completado.
 
-- [ ] **`TASK-159`: Rutas HTTP del Onboarding**
+- [x] **`TASK-159`: Rutas HTTP del Onboarding**
   - **Dependencias:** Requiere TASK-158
   - **Trazabilidad SDD:** plan §4.10.2 (tabla de endpoints); RNF-14
   - **Archivos en Alcance:**

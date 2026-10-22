@@ -25,6 +25,7 @@ import {
 import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
+import { onboardingRouter, type OnboardingRoutesDeps } from './routes/onboarding.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
 import { registerRouter, type RegisterRoutesDeps } from './routes/register.routes.js';
 import { shortcutsRouter, type ShortcutsRoutesDeps } from './routes/shortcuts.routes.js';
@@ -60,6 +61,8 @@ export interface AppDeps {
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
+  /** The routes `/api/onboarding` (plan §4.10.2). */
+  onboarding?: OnboardingRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -136,6 +139,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));
+  }
+  if (deps.onboarding !== undefined) {
+    app.use('/api/onboarding', onboardingRouter(deps.onboarding));
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));
