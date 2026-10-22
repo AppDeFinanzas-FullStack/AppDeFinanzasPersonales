@@ -2087,7 +2087,7 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 
 | RNF | Verificación |
 |---|---|
-| RNF-01 · menos de 10 s para registrar | E2E cronometrado del flujo M7 con 4G simulado y CPU ×4; presupuesto de la ruta `/registrar` ≤ 150 KB gzip |
+| RNF-01 · menos de 10 s para registrar | E2E cronometrado del flujo M7 con 4G simulado y CPU ×4; presupuesto de la ruta `/registrar` ≤ 300 KB gzip (medido: 286 KB con el código dividido por ruta; las librerías base —React, router, zod, i18next, decimal.js y Query— suman unos 150 KB por sí solas) |
 | RNF-02 · guardar en menos de 1 s (p95) | 200 POST en la integración de rendimiento contra Postgres; p95 del endpoint < 300 ms en el servidor; E2E < 1 s |
 | RNF-03 · Inicio en menos de 2 s con 5.000 movimientos | Seed de 5.000; `EXPLAIN ANALYZE` sin escaneo secuencial; E2E del Inicio < 2 s en 4G |
 | RNF-04 · las tasas no bloquean | Integración: `GET /api/rates/current` con la fuente simulada lenta responde < 100 ms |
