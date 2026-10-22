@@ -3167,7 +3167,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-12`: reiniciar deja el arrastre en 0.
     - Pausar o reanudar en un estado inválido da `INVALID_STATE`.
 
-- [ ] **`TASK-199`: `LedgerHooks` de presupuestos: umbrales y movimientos tardíos**
+- [x] **`TASK-199`: `LedgerHooks` de presupuestos: umbrales y movimientos tardíos**
   - **Dependencias:** Requiere TASK-197
   - **Trazabilidad SDD:** plan §4.11.3 (movimientos tardíos, umbrales); RF-M11-11, RF-M11-13, EC-M11-05, RNF-12
   - **Archivos en Alcance:**

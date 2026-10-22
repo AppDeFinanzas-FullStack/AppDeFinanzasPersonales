@@ -171,6 +171,24 @@ export function createBudgetRepository(tx: TransactionClient, userId: string): B
           };
     },
 
+    async listAffected(categoryIds: string[]): Promise<BudgetRow[]> {
+      if (categoryIds.length === 0) {
+        return [];
+      }
+      const records = await tx.$queryRaw<BudgetRecord[]>`
+        SELECT ${COLUMNS}
+          FROM budget b
+         WHERE b.user_id = ${userId}::uuid
+           AND (b.scope = 'general'
+                OR b.category_id = ANY(${categoryIds}::uuid[])
+                OR b.category_id IN (
+                     SELECT c.parent_id FROM category c
+                      WHERE c.user_id = ${userId}::uuid AND c.id = ANY(${categoryIds}::uuid[])
+                        AND c.parent_id IS NOT NULL))
+         ORDER BY b.created_at, b.id`;
+      return records.map(toRow);
+    },
+
     async usesCurrency(code: string): Promise<boolean> {
       const rows = await tx.$queryRaw<{ used: boolean }[]>`
         SELECT EXISTS (

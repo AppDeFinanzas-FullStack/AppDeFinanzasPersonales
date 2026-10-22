@@ -6,10 +6,12 @@ import type {
   BudgetPeriodRepository,
   BudgetPeriodRow,
   BudgetPeriodStatus,
+  ClosedBudgetPeriod,
   LateAdjustmentRow,
   NewBudgetPeriod,
   NewLateAdjustment,
 } from '../../../application/ports/repositories.js';
+import type { LocalDate } from '../../../application/ports/clock.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 interface PeriodRecord {
@@ -147,6 +149,52 @@ export function createBudgetPeriodRepository(
          WHERE p.user_id = ${userId}::uuid AND p.id = ${periodId}::uuid
         ON CONFLICT (period_id, threshold) DO NOTHING`;
       return inserted > 0;
+    },
+
+    async current(budgetId: string): Promise<BudgetPeriodRow | null> {
+      const records = await tx.$queryRaw<PeriodRecord[]>`
+        SELECT ${COLUMNS}
+          FROM budget_period p
+         WHERE p.user_id = ${userId}::uuid AND p.budget_id = ${budgetId}::uuid
+           AND p.status = 'open'
+         ORDER BY p.start_date DESC
+         LIMIT 1`;
+      const record = records[0];
+      return record === undefined ? null : toRow(record);
+    },
+
+    async closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]> {
+      if (dates.length === 0) {
+        return [];
+      }
+      const records = await tx.$queryRaw<
+        {
+          id: string;
+          startDate: string;
+          endDate: string;
+          decision: unknown;
+          spentAtDecision: string | null;
+          adjusted: string;
+        }[]
+      >`
+        SELECT p.id::text AS id, to_char(p.start_date, 'YYYY-MM-DD') AS "startDate",
+               to_char(p.end_date, 'YYYY-MM-DD') AS "endDate", p.decision AS decision,
+               p.spent_at_decision::text AS "spentAtDecision",
+               COALESCE((SELECT SUM(a.amount) FROM budget_late_adjustment a
+                          WHERE a.user_id = p.user_id AND a.source_period_id = p.id), 0)::text
+                 AS adjusted
+          FROM budget_period p
+         WHERE p.user_id = ${userId}::uuid AND p.budget_id = ${budgetId}::uuid
+           AND p.status IN ('decided', 'defaulted')
+           AND EXISTS (SELECT 1 FROM unnest(${dates}::date[]) AS d(day)
+                        WHERE d.day BETWEEN p.start_date AND p.end_date)
+         ORDER BY p.start_date`;
+      return records.map((record) => ({
+        ...record,
+        spentAtDecision:
+          record.spentAtDecision === null ? null : new Decimal(record.spentAtDecision),
+        adjusted: new Decimal(record.adjusted),
+      }));
     },
 
     async spent(budget, period): Promise<Decimal> {

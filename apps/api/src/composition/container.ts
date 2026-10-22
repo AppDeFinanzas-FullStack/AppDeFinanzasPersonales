@@ -74,7 +74,9 @@ import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { createBudgetLedgerHook } from '../application/shared/budget-ledger-hook.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
+import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -665,6 +667,12 @@ export const buildContainer = (env: Env): Container => {
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
+  ledgerHooks.register(
+    createBudgetLedgerHook({
+      notifications: createNotificationEmitter({ release: env.RELEASE }),
+      ids: uuidv7Ids,
+    }),
+  );
   const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
   const transactionsService = createTransactionsService({
     uow,

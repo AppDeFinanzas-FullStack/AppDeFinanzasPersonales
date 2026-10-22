@@ -1011,6 +1011,11 @@ export interface BudgetRepository {
   categorySystemKey(categoryId: string): Promise<SystemCategoryKey | null>;
   /** The closed period of the budget that waits for a decision, with its deadline (RF-M11-08). */
   pendingClose(budgetId: string): Promise<PendingClosePeriod | null>;
+  /**
+   * The budgets, in any status, whose scope includes any of the categories: the general one, the
+   * budget of the category and that of its parent (RF-M11-02).
+   */
+  listAffected(categoryIds: string[]): Promise<BudgetRow[]>;
   /** `true` when an active or paused budget uses the currency (EC-M3-05). */
   usesCurrency(code: string): Promise<boolean>;
 }
@@ -1067,6 +1072,20 @@ export interface LateAdjustmentRow {
   voidedAt: Instant | null;
 }
 
+/** A closed period with what was frozen when its decision was made (RF-M11-11). */
+export interface ClosedBudgetPeriod {
+  id: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  /** The `DecisionInput` that was applied, as stored in the `decision` jsonb. */
+  decision: unknown;
+  spentAtDecision: Decimal | null;
+  /** Σ of the late adjustments already made for this period, voided ones included. */
+  adjusted: Decimal;
+}
+
 /** Periods, late adjustments and threshold notices of the user bound to the transaction (RN-09). */
 export interface BudgetPeriodRepository {
   insert(period: NewBudgetPeriod): Promise<void>;
@@ -1083,6 +1102,10 @@ export interface BudgetPeriodRepository {
   voidLateAdjustments(periodId: string): Promise<void>;
   /** Saves the notice of the threshold; `false` when the period already had it (RN-10). */
   recordThresholdHit(periodId: string, threshold: number): Promise<boolean>;
+  /** The `open` period of the budget, the one in course. */
+  current(budgetId: string): Promise<BudgetPeriodRow | null>;
+  /** The decided or defaulted periods of the budget that contain any of the dates (RF-M11-11). */
+  closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]>;
   /**
    * Σ of the expenses of the scope of the budget within the period (a category with its
    * subcategories; the general one, every expense), without what RN-02 leaves out, converted to the
