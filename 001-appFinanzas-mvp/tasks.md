@@ -2658,7 +2658,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: los gráficos del Inicio y el arrastrar y soltar de Categorías no están en el paquete de entrada ni en los bloques de `/registrar`.
     - Las pruebas de la web y los E2E existentes siguen pasando.
 
-- [ ] **`TASK-168`: Pruebas de rendimiento E2E**
+- [x] **`TASK-168`: Pruebas de rendimiento E2E**
   - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166, TASK-248
   - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
   - **Archivos en Alcance:**

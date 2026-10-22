@@ -1,10 +1,9 @@
-import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
-import { useState } from 'react';
+import { BOLIVIA_TIME_ZONE } from '@finanzas/domain';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
-import { QuickAccountForm } from '@/features/accounts/components/quick-account-form';
 import { useAccounts, useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
@@ -15,7 +14,14 @@ import transactions from '@/locales/es-BO/transactions.json';
 
 import { DashboardBlocks } from './components/dashboard-blocks';
 import { SummaryCards } from './components/summary-cards';
-import { useDashboard } from './hooks/use-dashboard';
+import { currentMonthFor, useDashboard } from './hooks/use-dashboard';
+
+// Only a user without accounts sees the first account form, so the rest do not download it.
+const QuickAccountForm = lazy(async () => {
+  const { QuickAccountForm: component } =
+    await import('@/features/accounts/components/quick-account-form');
+  return { default: component };
+});
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'dashboard', dashboard, true, true);
@@ -29,12 +35,11 @@ function DashboardContent() {
   const rates = useCurrentRate();
   const symbolOf = useCurrencySymbol();
   const [params, setParams] = useSearchParams();
-  const [today] = useState(() => todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date()));
+  const [thisMonth] = useState(() => currentMonthFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE));
   const requested = params.get('mes');
-  const month =
-    requested !== null && /^\d{4}-\d{2}$/.test(requested) ? requested : today.slice(0, 7);
+  const month = requested !== null && /^\d{4}-\d{2}$/.test(requested) ? requested : thisMonth;
   const query = useDashboard(month);
-  const currentMonth = query.data?.range.currentMonth ?? today.slice(0, 7);
+  const currentMonth = query.data?.range.currentMonth ?? thisMonth;
   const baseCode = rates.data?.base ?? 'BOB';
   const symbol = symbolOf(baseCode);
 
@@ -82,6 +87,12 @@ function DashboardContent() {
 export function DashboardPage() {
   const active = useAccounts('active');
   if (active.data === undefined) return null;
-  if (active.data.items.length === 0) return <QuickAccountForm />;
+  if (active.data.items.length === 0) {
+    return (
+      <Suspense fallback={null}>
+        <QuickAccountForm />
+      </Suspense>
+    );
+  }
   return <DashboardContent />;
 }

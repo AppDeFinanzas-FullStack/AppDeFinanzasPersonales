@@ -2,9 +2,10 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 
-import { RequireOnboardingDone, RequireSession } from './guards';
+import { RequireOnboardingDone, RequireSession, warmUpSession } from './guards';
 import { AppShell } from './layout/app-shell';
 import { MoreMenu } from './layout/more-menu';
+import { queryClient } from './providers/query-client';
 
 function RootLayout() {
   return (
@@ -133,6 +134,9 @@ export const router = createBrowserRouter([
       },
       {
         element: <RequireSession />,
+        // Starts the session request while the screen of the route downloads (RNF-01, RNF-03).
+        loader: () => warmUpSession(queryClient),
+        shouldRevalidate: () => false,
         children: [
           ...onboardingRoutes,
           {
