@@ -2824,6 +2824,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.15.3 (retención), plan §3.9; RF-M15-05, RNF-26
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/test/integration/maintenance-notifications.test.ts`
   - **Especificación de Implementación:** Borra los avisos de más de 90 días con `decision_status IS NULL OR decision_status = 'resolved'`.
   - **Criterios de Verificación (Tests & DoD):**
