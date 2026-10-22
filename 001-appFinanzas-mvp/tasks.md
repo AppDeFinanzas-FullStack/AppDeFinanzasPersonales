@@ -3122,6 +3122,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/test/factories/budget.factory.ts`
     - `apps/api/test/integration/budget-repositories.test.ts`
