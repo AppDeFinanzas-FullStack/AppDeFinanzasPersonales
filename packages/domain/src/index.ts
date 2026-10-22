@@ -55,3 +55,5 @@ export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
 export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
 export type { ComparisonWindow } from './dashboard.js';
+export { installment, isFinished, nextDates, skippedDates } from './recurrence.js';
+export type { Installment, RecurrenceEnd, RecurrenceFrequency, RecurrenceRule } from './recurrence.js';

@@ -3531,7 +3531,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-15`: el nombre va de 1 a 40 caracteres.
     - El fin por cantidad va de 1 a 999.
 
-- [ ] **`TASK-224`: Dominio `recurrence`: fechas, saltadas y fin**
+- [x] **`TASK-224`: Dominio `recurrence`: fechas, saltadas y fin**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.14.1 (`packages/domain/recurrence`); RF-M14-01, RF-M14-02, RF-M14-09, RF-M14-13, EC-M14-01, EC-M14-05, EC-M14-06
   - **Archivos en Alcance:**
