@@ -1,0 +1,45 @@
+{
+  "title": "Metas de ahorro",
+  "empty": "Aún no tienes metas. Crea una para empezar a apartar dinero.",
+  "loadError": "No se pudieron cargar las metas. Inténtalo de nuevo.",
+  "back": "Volver a metas",
+  "ring": { "label": "Progreso de {{name}}" },
+  "status": {
+    "in_progress": "En curso",
+    "achieved": "Lograda",
+    "overdue": "Vencida",
+    "archived": "Archivada"
+  },
+  "progress": {
+    "of": "de {{target}}",
+    "reachedOf": "{{progress}} de {{target}}",
+    "until": "hasta {{date}}"
+  },
+  "byAccount": { "title": "Progreso por cuenta", "dedicated": "cuenta dedicada" },
+  "history": {
+    "title": "Historial",
+    "empty": "Aún no hay apartados ni retiros.",
+    "otherAccount": "Otra cuenta"
+  },
+  "origin": {
+    "manual": "Manual",
+    "budget": "Presupuesto",
+    "confirmedSpend": "Gasto confirmado",
+    "confirmed_spend": "Gasto confirmado",
+    "useAndClose": "Uso y cierre",
+    "use_and_close": "Uso y cierre",
+    "adjustment": "Ajuste"
+  },
+  "suggested": {
+    "title": "Aporte mensual sugerido",
+    "monthly": "{{amount}} al mes",
+    "thisMonth": "Faltan {{amount}} este mes",
+    "calculator": "Aportando {{amount}} al mes llegas en {{month}}",
+    "pickNewDate": "Elige una nueva fecha"
+  },
+  "celebration": {
+    "title": "¡Lograste tu meta {{name}}!",
+    "description": "Alcanzaste el objetivo que te propusiste.",
+    "close": "Cerrar"
+  }
+}

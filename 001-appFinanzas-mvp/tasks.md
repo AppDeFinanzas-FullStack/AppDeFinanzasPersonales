@@ -3010,7 +3010,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con una meta de A, también al apartar en una cuenta de A.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-190`: Web: lista y detalle de metas**
+- [x] **`TASK-190`: Web: lista y detalle de metas**
   - **Dependencias:** Requiere TASK-179, TASK-189
   - **Trazabilidad SDD:** plan §4.12.4 (`/metas`, `/metas/:id`); RF-M12-02, RF-M12-06, RF-M12-07, spec §2.12.2 (celebración)
   - **Archivos en Alcance:**
