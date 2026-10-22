@@ -3314,7 +3314,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M13-01` / `RF-M13-06`: un pago mayor que el saldo pendiente es inválido.
     - `RNF-18`: 365 acumulaciones diarias no acumulan error de redondeo.
 
-- [ ] **`TASK-210`: Repositorios de deudas y pagos**
+- [x] **`TASK-210`: Repositorios de deudas y pagos**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6, plan §4.13.2 (vista por persona); RF-M13-13, EC-M13-06, RN-09
   - **Archivos en Alcance:**

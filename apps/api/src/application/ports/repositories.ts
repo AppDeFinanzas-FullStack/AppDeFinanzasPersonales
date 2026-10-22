@@ -279,6 +279,8 @@ export interface Repositories {
   exports: ExportRepository;
   notifications: NotificationRepository;
   notificationPreferences: NotificationPreferenceRepository;
+  debts: DebtRepository;
+  debtPayments: DebtPaymentRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -800,4 +802,103 @@ export interface ShortcutRepository {
   remove(id: string): Promise<boolean>;
   /** How many shortcuts the user has, hidden ones included (RF-M7-09). */
   count(): Promise<number>;
+}
+
+// ---------- Deudas y préstamos (M13) ----------
+
+export type DebtDirection = 'i_owe' | 'owed_to_me';
+/** Stored status; `overdue` is derived when reading (plan §4.13.2). */
+export type StoredDebtStatus = 'active' | 'paid' | 'forgiven';
+export type DebtInterestPeriod = 'monthly' | 'yearly';
+
+/** A `debt` row of the user (plan §3.6). */
+export interface DebtRow {
+  id: string;
+  direction: DebtDirection;
+  person: string;
+  /** `lower(unaccent(person))`: groups a person regardless of case and accents (EC-M13-06). */
+  personKey: string;
+  principal: Decimal;
+  currencyCode: string;
+  startDate: LocalDate;
+  dueDate: LocalDate | null;
+  note: string | null;
+  interestRate: Decimal | null;
+  interestPeriod: DebtInterestPeriod | null;
+  status: StoredDebtStatus;
+  forgivenAmount: Decimal | null;
+  initialTransactionId: string | null;
+  capitalOutstanding: Decimal;
+  interestUnpaid: Decimal;
+  accruedThrough: LocalDate;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** A new debt: the repository derives `personKey`; it is created active and without interest owed. */
+export type NewDebt = Omit<
+  DebtRow,
+  'personKey' | 'status' | 'forgivenAmount' | 'interestUnpaid' | 'createdAt' | 'updatedAt'
+>;
+
+/** The fields of a debt that change; absent fields stay as they are. */
+export type DebtPatch = Partial<
+  Pick<
+    DebtRow,
+    | 'person'
+    | 'note'
+    | 'dueDate'
+    | 'principal'
+    | 'status'
+    | 'forgivenAmount'
+    | 'capitalOutstanding'
+    | 'interestUnpaid'
+    | 'accruedThrough'
+    | 'initialTransactionId'
+  >
+>;
+
+/** Debts of the user bound to the transaction; another user's debt does not exist (RN-09). */
+export interface DebtRepository {
+  insert(debt: NewDebt): Promise<void>;
+  get(id: string): Promise<DebtRow | null>;
+  /** Locks the debt row (`SELECT … FOR UPDATE`) and returns it; `null` when there is none. */
+  lockForUpdate(id: string): Promise<DebtRow | null>;
+  /** Every debt of the user, whatever its status. */
+  list(): Promise<DebtRow[]>;
+  /** Updates the given fields; a new `person` also recalculates `personKey`. */
+  update(id: string, patch: DebtPatch): Promise<void>;
+  /** Deletes the debt; its payments go with it. */
+  delete(id: string): Promise<void>;
+  /** The distinct `person` values the user already used, for the autocompletion (plan §4.13.4). */
+  persons(): Promise<string[]>;
+}
+
+/** A `debt_payment` row of the user (plan §3.6). */
+export interface DebtPaymentRow {
+  id: string;
+  debtId: string;
+  amount: Decimal;
+  interestPart: Decimal;
+  capitalPart: Decimal;
+  date: LocalDate;
+  accountId: string | null;
+  declaredRate: Decimal | null;
+  accountAmount: Decimal | null;
+  capitalTransactionId: string | null;
+  interestTransactionId: string | null;
+  note: string | null;
+  createdAt: Date;
+}
+
+export type NewDebtPayment = Omit<DebtPaymentRow, 'createdAt'>;
+
+/** Payments of the user's debts bound to the transaction (RN-09). */
+export interface DebtPaymentRepository {
+  insert(payment: NewDebtPayment): Promise<void>;
+  /** The payments of the debt, oldest first. */
+  list(debtId: string): Promise<DebtPaymentRow[]>;
+  /** The payment with the greatest `created_at`; `null` when the debt has none. */
+  last(debtId: string): Promise<DebtPaymentRow | null>;
+  delete(id: string): Promise<void>;
 }
