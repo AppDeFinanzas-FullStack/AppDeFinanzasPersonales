@@ -3171,6 +3171,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-197
   - **Trazabilidad SDD:** plan §4.11.3 (movimientos tardíos, umbrales); RF-M11-11, RF-M11-13, EC-M11-05, RNF-12
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/shared/budget-ledger-hook.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/budget-ledger-hook.test.ts`
@@ -3184,6 +3187,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-064, TASK-199
   - **Trazabilidad SDD:** plan §4.11.3 (open → closed_pending); RF-M11-10, RF-M11-13, EC-M11-09, RNF-13, RNF-20
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/jobs/budgets.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/budgets-close-job.test.ts`
@@ -3198,6 +3204,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-186, TASK-200
   - **Trazabilidad SDD:** plan §4.11.2 (`decision`), plan §4.11.3 (closed_pending → decided); RF-M11-08, RF-M11-09, EC-M11-02, EC-M11-03, EC-M11-09, RNF-11
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/test/integration/budgets-decision.test.ts`
   - **Especificación de Implementación:** `UPDATE budget_period … WHERE status = 'closed_pending' RETURNING` (si no, `DECISION_ALREADY_MADE`). Guarda `spent_at_decision` y `result_at_decision`. Sobrante: el arrastre reemplaza el `carryover_in` del período siguiente; "Enviar a meta" crea un apartado (`origin = budget`) con la cuenta bajo `FOR UPDATE` y el monto convertido con la referencia vigente, o una transferencia real si la meta tiene cuenta dedicada (`origin = goal_transfer`); el resto se descarta. Exceso: arrastrar (negativo) o absorber. Resuelve el aviso.
@@ -3214,6 +3223,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-201
   - **Trazabilidad SDD:** plan §4.11.3 (closed_pending → defaulted); RF-M11-10, RNF-12, RNF-13
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/jobs/budgets.ts`
     - `apps/api/test/integration/budgets-default-job.test.ts`
   - **Especificación de Implementación:** Si `decision_deadline` < `now()`, aplica la `default_action` (ante un exceso, descartar equivale a absorber; un período finalizado no arrastra), pasa a `defaulted` y resuelve el aviso.
@@ -3225,6 +3237,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-114, TASK-201
   - **Trazabilidad SDD:** plan §4.5.2 (archivar, fusionar), plan §4.11.3 (finalizing); RF-M5-07, RF-M5-08, EC-M11-04, EC-M5-03
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/services/categories.service.ts`
     - `apps/api/test/integration/categories-budgets.test.ts`
   - **Especificación de Implementación:** Archivar una categoría pasa su presupuesto a `finalizing`; la decisión pendiente sigue disponible hasta su plazo. Fusionar: si A tiene un cierre pendiente, da `MERGE_PENDING_CLOSE`; el presupuesto de A pasa a B si B no tenía; si los dos tenían, se conserva el de B y se elimina el de A, con un aviso en la respuesta.
