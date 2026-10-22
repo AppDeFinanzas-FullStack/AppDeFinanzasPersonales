@@ -2791,6 +2791,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/notification.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/notification-preference.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/notification-emitter.test.ts`
   - **Especificación de Implementación:** `emit(tx, userId, { type, eventKey, params, targetRoute, decision? })` no crea nada si el tipo no está liberado o su preferencia está desactivada. Si no, hace `INSERT … ON CONFLICT (user_id, event_key) DO NOTHING`. `resolveDecision(tx, userId, kind, ref)` pasa a `resolved` los avisos que esperan esa decisión. Nunca escribe en `email_outbox`.
   - **Criterios de Verificación (Tests & DoD):**
