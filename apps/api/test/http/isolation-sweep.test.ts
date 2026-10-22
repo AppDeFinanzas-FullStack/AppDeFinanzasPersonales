@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildContainer, createApp, type Container } from '../../src/composition/container.js';
 import { parseEnv } from '../../src/infrastructure/config/env.js';
+import { deleteGoalsOf } from '../factories/goal.factory.js';
 import { disconnectTestPrisma, testPrisma } from '../integration/setup/db.js';
 
 /**
@@ -66,11 +67,12 @@ interface Ids {
   category: string;
   transaction: string;
   shortcut: string;
+  goal: string;
   notification: string;
   undoToken: string;
   currency: string;
   /** Resources of the user who sends the request. */
-  own: { account: string; category: string; transaction: string };
+  own: { account: string; category: string; transaction: string; goal: string };
 }
 
 type Build = (ids: Ids) => Spec;
@@ -418,6 +420,106 @@ const COVERAGE: Record<string, Coverage> = {
     path: `/api/transactions/${a.transaction}`,
   })),
 
+  'GET /api/goals': 'session',
+  'POST /api/goals': {
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: '/api/goals',
+        body: {
+          id: uuidv7(),
+          name: `Meta ${randomUUID().slice(0, 8)}`,
+          target: '100.00',
+          currencyCode: 'BOB',
+          icon: 'piggy-bank',
+          color: 'blue',
+          dedicatedAccountId: a.account,
+        },
+      }),
+    ],
+  },
+  'GET /api/goals/:id': onlyForeign((a) => ({
+    method: 'GET',
+    path: `/api/goals/${a.goal}`,
+  })),
+  'PATCH /api/goals/:id': onlyForeign((a) => ({
+    method: 'PATCH',
+    path: `/api/goals/${a.goal}`,
+    body: { name: 'Cambiada por otro' },
+  })),
+  'DELETE /api/goals/:id': onlyForeign((a) => ({
+    method: 'DELETE',
+    path: `/api/goals/${a.goal}`,
+  })),
+  'POST /api/goals/:id/earmarks': {
+    foreign: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.goal}/earmarks`,
+        body: { id: uuidv7(), accountId: a.own.account, amount: '10.00' },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.own.goal}/earmarks`,
+        body: { id: uuidv7(), accountId: a.account, amount: '10.00' },
+      }),
+    ],
+  },
+  'POST /api/goals/:id/earmarks/release': {
+    foreign: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.goal}/earmarks/release`,
+        body: { accountId: a.own.account, amount: '10.00' },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.own.goal}/earmarks/release`,
+        body: { accountId: a.account, amount: '10.00' },
+      }),
+    ],
+  },
+  'POST /api/goals/:id/dedicate': {
+    foreign: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.goal}/dedicate`,
+        body: { accountId: a.own.account },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/goals/${a.own.goal}/dedicate`,
+        body: { accountId: a.account },
+      }),
+    ],
+  },
+  'POST /api/goals/:id/use-and-close': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/goals/${a.goal}/use-and-close`,
+    body: {},
+  })),
+  'POST /api/goals/:id/archive': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/goals/${a.goal}/archive`,
+    body: {},
+  })),
+  'POST /api/goals/:id/restore': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/goals/${a.goal}/restore`,
+    body: {},
+  })),
+  'POST /api/goals/:id/celebrated': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/goals/${a.goal}/celebrated`,
+    body: {},
+  })),
+
   'POST /api/notifications/:id/read': onlyForeign((a) => ({
     method: 'POST',
     path: `/api/notifications/${a.notification}/read`,
@@ -454,6 +556,7 @@ const MOUNTS = [
   '/api/transactions',
   '/api/onboarding',
   '/api/notifications',
+  '/api/goals',
   '/internal/jobs',
   '/internal/test',
 ];
@@ -568,6 +671,7 @@ async function seedUser(owner: Account, label: 'A' | 'B') {
   const category = uuidv7();
   const transaction = uuidv7();
   const shortcut = uuidv7();
+  const goal = uuidv7();
   await seed(
     {
       method: 'POST',
@@ -629,7 +733,22 @@ async function seedUser(owner: Account, label: 'A' | 'B') {
     },
     owner.cookie,
   );
-  return { account, category, transaction, shortcut };
+  await seed(
+    {
+      method: 'POST',
+      path: '/api/goals',
+      body: {
+        id: goal,
+        name: `Meta ${label} ${marker}`,
+        target: '500.00',
+        currencyCode: 'BOB',
+        icon: 'piggy-bank',
+        color: 'blue',
+      },
+    },
+    owner.cookie,
+  );
+  return { account, category, transaction, shortcut, goal };
 }
 
 async function notificationOf(owner: Account): Promise<string> {
@@ -665,6 +784,7 @@ const ownTexts = (): string[] => [
   theirs.category,
   theirs.transaction,
   theirs.shortcut,
+  theirs.goal,
   theirs.notification,
   marker,
 ];
@@ -714,13 +834,19 @@ beforeAll(async () => {
     notification: await notificationOf(a),
     undoToken,
     currency: CUSTOM_CODE,
-    own: { account: own.account, category: own.category, transaction: own.transaction },
+    own: {
+      account: own.account,
+      category: own.category,
+      transaction: own.transaction,
+      goal: own.goal,
+    },
   };
   unknown = {
     account: uuidv7(),
     category: uuidv7(),
     transaction: uuidv7(),
     shortcut: uuidv7(),
+    goal: uuidv7(),
     notification: uuidv7(),
     undoToken: uuidv7(),
     currency: UNKNOWN_CODE,
@@ -731,6 +857,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (originalRelease === undefined) delete process.env['RELEASE'];
   else process.env['RELEASE'] = originalRelease;
+  await deleteGoalsOf([a.userId, b.userId]);
   if (emails.length > 0) {
     await testPrisma().$executeRaw`DELETE FROM auth_user WHERE email = ANY(${emails}::text[])`;
   }
@@ -859,6 +986,7 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
     { method: 'GET', path: '/api/transactions' },
     { method: 'GET', path: '/api/shortcuts' },
     { method: 'GET', path: '/api/notifications' },
+    { method: 'GET', path: '/api/goals' },
     { method: 'GET', path: '/api/currencies' },
     { method: 'GET', path: '/api/dashboard', query: { month } },
     { method: 'GET', path: '/api/register/context' },
@@ -905,6 +1033,11 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
     expect(shortcuts.text).toContain(theirs.shortcut);
     expect(shortcuts.text).toContain(`Atajo A ${marker}`);
 
+    const goal = await send({ method: 'GET', path: `/api/goals/${theirs.goal}` }, a.cookie);
+    expect(goal.status).toBe(200);
+    expect(goal.text).toContain(`Meta A ${marker}`);
+    expect(goal.text).not.toContain('Cambiada por otro');
+
     const notifications = await send({ method: 'GET', path: '/api/notifications' }, a.cookie);
     expect(notifications.text).toContain(theirs.notification);
 
@@ -919,8 +1052,9 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
         (SELECT count(*) FROM account WHERE id = ${theirs.account}::uuid AND user_id = ${a.userId}::uuid AND name = ${`Caja A ${marker}`}) +
         (SELECT count(*) FROM category WHERE id = ${theirs.category}::uuid AND user_id = ${a.userId}::uuid AND name = ${`Cat A ${marker}`}) +
         (SELECT count(*) FROM shortcut WHERE id = ${theirs.shortcut}::uuid AND user_id = ${a.userId}::uuid) +
+        (SELECT count(*) FROM goal WHERE id = ${theirs.goal}::uuid AND user_id = ${a.userId}::uuid AND archived_at IS NULL AND name = ${`Meta A ${marker}`}) +
         (SELECT count(*) FROM notification WHERE id = ${theirs.notification}::uuid AND user_id = ${a.userId}::uuid AND read_at IS NULL)
       )::int AS n`;
-    expect(rows[0]?.n).toBe(4);
+    expect(rows[0]?.n).toBe(5);
   });
 });
