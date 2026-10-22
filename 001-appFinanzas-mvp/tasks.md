@@ -2447,7 +2447,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M10-04`: `Step2Input` acepta el saldo con las reglas de `AmountAbs`; `Step1Input` solo acepta BOB o USD.
 
-- [ ] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
+- [x] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
   - **Dependencias:** Requiere TASK-085, TASK-155
   - **Trazabilidad SDD:** plan §4.10.2 (`GET`, `step1`, `skip`, `skip-all`), plan §4.10.3; RF-M10-01, RF-M10-02, RF-M10-03, RF-M10-06
   - **Archivos en Alcance:**

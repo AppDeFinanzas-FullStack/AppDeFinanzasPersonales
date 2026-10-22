@@ -3,6 +3,7 @@ import { Decimal } from 'decimal.js';
 import type {
   DashboardBlock,
   MarketRateKind,
+  OnboardingProgress,
   UserSettingsData,
   UserSettingsRepository,
 } from '../../../application/ports/repositories.js';
@@ -108,6 +109,30 @@ export function createUserSettingsRepository(tx: TransactionClient): UserSetting
                                        THEN ${manual?.since ?? null}::timestamptz
                                        ELSE manual_usd_since END
          WHERE user_id = ${userId}::uuid`;
+    },
+
+    async onboarding(userId) {
+      const rows = await tx.$queryRaw<OnboardingProgress[]>`
+        SELECT onboarding_step::int AS step,
+               (onboarding_completed_at IS NOT NULL) AS completed
+          FROM user_settings
+         WHERE user_id = ${userId}::uuid`;
+      return rows[0] ?? null;
+    },
+
+    async advanceOnboarding(userId, { from, to, baseCurrency }) {
+      const done = to === 'done';
+      const rows = await tx.$queryRaw<OnboardingProgress[]>`
+        UPDATE user_settings
+           SET onboarding_step = ${done ? from : to}::smallint,
+               onboarding_completed_at = CASE WHEN ${done}::boolean THEN now() ELSE NULL END,
+               base_currency = COALESCE(${baseCurrency ?? null}::char(3), base_currency)
+         WHERE user_id = ${userId}::uuid
+           AND onboarding_step = ${from}::smallint
+           AND onboarding_completed_at IS NULL
+        RETURNING onboarding_step::int AS step,
+                  (onboarding_completed_at IS NOT NULL) AS completed`;
+      return rows[0] ?? null;
     },
   };
 }
