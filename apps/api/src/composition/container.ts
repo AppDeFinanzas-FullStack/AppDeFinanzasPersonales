@@ -10,10 +10,7 @@ import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
-import {
-  createExportService,
-  type ExportService,
-} from '../application/services/export.service.js';
+import { createExportService, type ExportService } from '../application/services/export.service.js';
 import {
   createMeService,
   type MeService,
@@ -33,6 +30,7 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
   type AccountsService,
@@ -162,6 +160,8 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The goals of `/api/goals` (plan §4.12.2). */
+  readonly goalsService: GoalsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -394,7 +394,7 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
 });
 
 /** The user's category tree of a kind and status. */
-const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
+const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
   tree(userId, kind, status) {
     return uow.run((repos) => repos.categories.tree(kind, status), {
       userLock: userId,
@@ -711,6 +711,7 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    goalsService: createGoalsService({ uow, rates: ratesService }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
@@ -786,6 +787,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    goals: { goalsService: container.goalsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },

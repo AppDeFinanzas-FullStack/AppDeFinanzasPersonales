@@ -2993,7 +2993,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-11`: la ficha de Registrar recibe el saldo libre.
     - `RF-M4-07`: pasar a tarjeta una cuenta dedicada da `TYPE_CHANGE_INVALID`.
 
-- [ ] **`TASK-189`: Rutas HTTP de metas**
+- [x] **`TASK-189`: Rutas HTTP de metas**
   - **Dependencias:** Requiere TASK-187, TASK-188
   - **Trazabilidad SDD:** plan §4.12.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
