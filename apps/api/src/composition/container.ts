@@ -5,6 +5,7 @@ import { Decimal } from 'decimal.js';
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { AppError } from '../application/errors.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
@@ -54,6 +55,12 @@ import {
   type RegisterService,
   type RegisterUsageReader,
 } from '../application/services/register.service.js';
+import {
+  createNotificationsService,
+  type NotificationRecord,
+  type NotificationsService,
+  type NotificationsStore,
+} from '../application/services/notifications.service.js';
 import {
   createTransactionsService,
   type TransactionsService,
@@ -108,6 +115,8 @@ import {
   createDashboardRepository,
 } from '../infrastructure/persistence/repositories/dashboard.repository.js';
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
+import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
+import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import {
   createUnitOfWork,
@@ -115,6 +124,7 @@ import {
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 import type {
+  TestNotificationInput,
   TestRatesInput,
   TestSupportControllerDeps,
   TestUserCredentials,
@@ -158,6 +168,8 @@ export interface Container {
   readonly registerService: RegisterService;
   /** The blocks of `GET /api/dashboard` (plan §4.8.2). */
   readonly dashboardService: DashboardViewService;
+  /** The inbox of `/api/notifications` (plan §4.15.2). */
+  readonly notificationsService: NotificationsService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -209,6 +221,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
   dashboard: createDashboardRepository(tx, userId ?? NO_USER),
   exports: createExportRepository(tx, userId ?? NO_USER),
+  notifications: createNotificationRepository(tx),
+  notificationPreferences: createNotificationPreferenceRepository(tx),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -486,6 +500,78 @@ const createMeStore = (prisma: PrismaClient): MeStore => ({
   },
 });
 
+/** The row of a notification of the inbox, before it becomes a `NotificationRecord`. */
+interface NotificationRow {
+  id: string;
+  type: NotificationRecord['type'];
+  params: Record<string, unknown>;
+  targetRoute: string;
+  createdAt: Date;
+  createdAtKey: string;
+  readAt: Date | null;
+  decisionKind: 'budget_period' | 'occurrence' | null;
+  decisionRef: string | null;
+  decisionStatus: 'waiting' | 'resolved' | null;
+}
+
+/** The notifications of the inbox (plan §3.7, §4.15.2), always bound to the user (RN-09). */
+const createNotificationsStore = (prisma: PrismaClient): NotificationsStore => ({
+  async list(userId, after, limit) {
+    const rows = await prisma.$queryRaw<NotificationRow[]>`
+      SELECT n.id::text AS id, n.type::text AS type, n.params AS params,
+             n.target_route AS "targetRoute", n.created_at AS "createdAt",
+             to_char(n.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+               AS "createdAtKey",
+             n.read_at AS "readAt", n.decision_kind AS "decisionKind",
+             n.decision_ref::text AS "decisionRef", n.decision_status::text AS "decisionStatus"
+        FROM notification n
+       WHERE n.user_id = ${userId}::uuid
+         AND (${after === null}::boolean
+              OR (n.created_at, n.id) <
+                 (${after?.createdAt ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+       ORDER BY n.created_at DESC, n.id DESC
+       LIMIT ${limit}::int`;
+    return rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      params: row.params,
+      targetRoute: row.targetRoute,
+      createdAt: row.createdAt,
+      createdAtKey: row.createdAtKey,
+      readAt: row.readAt,
+      decision:
+        row.decisionKind === null || row.decisionRef === null || row.decisionStatus === null
+          ? null
+          : { kind: row.decisionKind, ref: row.decisionRef, status: row.decisionStatus },
+    }));
+  },
+  async countUnread(userId) {
+    const rows = await prisma.$queryRaw<{ count: number }[]>`
+      SELECT count(*)::int AS count
+        FROM notification
+       WHERE user_id = ${userId}::uuid AND read_at IS NULL`;
+    return rows[0]?.count ?? 0;
+  },
+  async markRead(userId, id) {
+    const updated = await prisma.$executeRaw`
+      UPDATE notification
+         SET read_at = COALESCE(read_at, now())
+       WHERE id = ${id}::uuid AND user_id = ${userId}::uuid`;
+    return updated === 1;
+  },
+  async markAllRead(userId) {
+    await prisma.$executeRaw`
+      UPDATE notification
+         SET read_at = now()
+       WHERE user_id = ${userId}::uuid AND read_at IS NULL`;
+  },
+  async remove(userId, id) {
+    const deleted = await prisma.$executeRaw`
+      DELETE FROM notification WHERE id = ${id}::uuid AND user_id = ${userId}::uuid`;
+    return deleted === 1;
+  },
+});
+
 /** Creates a confirmed user with the Onboarding finished and returns its credentials. */
 const createTestUserFactory =
   (deps: { prisma: PrismaClient; uow: UnitOfWork; auth: AuthGateway }) =>
@@ -502,6 +588,30 @@ const createTestUserFactory =
     await deps.prisma.$executeRaw`
       UPDATE user_settings SET onboarding_completed_at = now() WHERE user_id = ${id}::uuid`;
     return { email, password };
+  };
+
+/**
+ * `POST /internal/test/notifications` (plan §1.5): creates the notification for the user with that
+ * email, once per `eventKey` (RN-10). An unknown email answers 404.
+ */
+const createTestNotificationFactory =
+  (uow: UnitOfWork) =>
+  async ({ email, ...notification }: TestNotificationInput): Promise<void> => {
+    await uow.run(async (repos) => {
+      const user = await repos.users.findByEmail(email);
+      if (user === null) {
+        throw new AppError('NOT_FOUND');
+      }
+      await repos.notifications.insertIfAbsent({
+        id: uuidv7(),
+        userId: user.id,
+        type: notification.type,
+        eventKey: notification.eventKey,
+        params: notification.params,
+        targetRoute: notification.targetRoute,
+        ...(notification.decision === undefined ? {} : { decision: notification.decision }),
+      });
+    });
   };
 
 export const buildContainer = (env: Env): Container => {
@@ -577,6 +687,7 @@ export const buildContainer = (env: Env): Container => {
           },
           createUser: createTestUserFactory({ prisma, uow, auth }),
           setRates: createTestRatesSetter({ fake: fakeRates, fxJobs, clock: systemClock }),
+          createNotification: createTestNotificationFactory(uow),
         };
   return {
     testSupport,
@@ -602,6 +713,9 @@ export const buildContainer = (env: Env): Container => {
     transactionsService,
     registerService,
     dashboardService,
+    notificationsService: createNotificationsService({
+      store: createNotificationsStore(prisma),
+    }),
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -668,6 +782,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
     readiness: container.readiness,

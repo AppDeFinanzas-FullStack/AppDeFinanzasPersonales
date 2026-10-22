@@ -2770,7 +2770,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 18 — M15 Bandeja de avisos (V1.1)
 
-- [ ] **`TASK-175`: Contratos de avisos (M15)**
+- [x] **`TASK-175`: Contratos de avisos (M15)**
   - **Dependencias:** Requiere TASK-023
   - **Trazabilidad SDD:** plan §4.15.1; RF-M15-01, RF-M15-02, RF-M15-08
   - **Archivos en Alcance:**
@@ -2783,7 +2783,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-02`: los valores por defecto coinciden con la tabla (`log_day` y `goal_progress` desactivados; `log_day` a las 21).
     - `PreferencesInput` limita la hora a 0–23 y la anticipación a 0–7.
 
-- [ ] **`TASK-176`: `NotificationEmitter`: avisos únicos por evento y decisiones**
+- [x] **`TASK-176`: `NotificationEmitter`: avisos únicos por evento y decisiones**
   - **Dependencias:** Requiere TASK-120, TASK-175
   - **Trazabilidad SDD:** plan §4.15.3 (un solo aviso por evento, generación por eventos, entrega); RN-10, RF-M15-01, RF-M15-03, RF-M15-04, RF-M15-07, RNF-12
   - **Archivos en Alcance:**
@@ -2791,6 +2791,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/notification.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/notification-preference.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/notification-emitter.test.ts`
   - **Especificación de Implementación:** `emit(tx, userId, { type, eventKey, params, targetRoute, decision? })` no crea nada si el tipo no está liberado o su preferencia está desactivada. Si no, hace `INSERT … ON CONFLICT (user_id, event_key) DO NOTHING`. `resolveDecision(tx, userId, kind, ref)` pasa a `resolved` los avisos que esperan esa decisión. Nunca escribe en `email_outbox`.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2800,7 +2801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-01`: emitir no inserta filas en `email_outbox`.
     - `resolveDecision` deja el aviso en `resolved`.
 
-- [ ] **`TASK-177`: Servicio y endpoints de la bandeja**
+- [x] **`TASK-177`: Servicio y endpoints de la bandeja**
   - **Dependencias:** Requiere TASK-176
   - **Trazabilidad SDD:** plan §4.15.2 (endpoints); RF-M15-06, RF-M15-12, RNF-14
   - **Archivos en Alcance:**
@@ -2818,17 +2819,19 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con un aviso de A.
     - Con `RELEASE=1.0`, las rutas dan `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-178`: Job `maintenance`: retención de avisos**
+- [x] **`TASK-178`: Job `maintenance`: retención de avisos**
   - **Dependencias:** Requiere TASK-063, TASK-176
   - **Trazabilidad SDD:** plan §4.15.3 (retención), plan §3.9; RF-M15-05, RNF-26
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
+    - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/test/integration/maintenance-notifications.test.ts`
   - **Especificación de Implementación:** Borra los avisos de más de 90 días con `decision_status IS NULL OR decision_status = 'resolved'`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M15-05`: un aviso de 91 días se borra, salvo si espera una decisión; uno de 89 días se conserva.
 
-- [ ] **`TASK-179`: Web: campana y bandeja de avisos**
+- [x] **`TASK-179`: Web: campana y bandeja de avisos**
   - **Dependencias:** Requiere TASK-072, TASK-177
   - **Trazabilidad SDD:** plan §4.15.4 (cabecera, `NotificationsPanel`), plan §4.2.4; RF-M15-06, RF-M15-11, RF-M15-12, RNF-06
   - **Archivos en Alcance:**
@@ -2841,6 +2844,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/app/layout/header.tsx`
     - `apps/web/src/locales/es-BO/notifications.json`
     - `apps/api/src/presentation/internal/test-support.controller.ts`
+    - `apps/api/src/composition/container.ts`
     - `e2e/m15-inbox.spec.ts`
   - **Especificación de Implementación:** `BellButton` con el contador, refrescado cada 60 s con `X-Background` y al reenfocar la ventana. `NotificationsPanel` (Sheet) con el texto i18n de cada tipo y sus parámetros: tocar un aviso lo marca como leído y navega; un menú "…" permite eliminarlo; está "Marcar todo como leído". `ResourceNotFound` muestra "Esto ya no existe" y lo usan las pantallas de detalle. Solo con `INTEGRATIONS=fake`, `POST /internal/test/notifications` crea avisos para E2E.
   - **Criterios de Verificación (Tests & DoD):**
