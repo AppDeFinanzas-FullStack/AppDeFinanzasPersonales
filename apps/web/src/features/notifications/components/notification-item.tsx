@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useMe } from '@/features/auth/hooks/use-me';
+import { CloseDecisionNotice } from '@/features/budgets/components/close-decision-card';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 import { cn } from '@/lib/utils';
 
@@ -38,51 +39,71 @@ export function NotificationItem({
     todayFor(timezone, now),
   );
   const unread = !notification.read;
+  const { decision } = notification;
+  const budgetId = notification.params['budgetId'];
+  // The close of a period is decided right here, with the same endpoint as the budget (RF-M15-03).
+  const closeDecision =
+    notification.type === 'period_close' &&
+    decision?.kind === 'budget_period' &&
+    decision.status !== 'resolved' &&
+    typeof budgetId === 'string'
+      ? { budgetId, periodId: decision.ref }
+      : undefined;
 
   return (
-    <li className="flex items-start gap-2 border-b border-border py-2 last:border-b-0">
-      <button
-        type="button"
-        onClick={() => {
-          onOpen(notification);
-        }}
-        className="flex min-h-11 min-w-0 flex-1 flex-col items-start gap-1 rounded-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className={cn('text-base', unread && 'font-semibold')}>
-          {t(`types.${notification.type}`, { replace: notification.params })}
-        </span>
-        <span className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{day}</span>
-          {unread ? (
-            <span className="rounded-[calc(var(--radius)-2px)] border border-border px-1.5 text-foreground">
-              {t('item.unread')}
-            </span>
-          ) : null}
-        </span>
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-11 shrink-0"
-            aria-label={t('item.more')}
-          >
-            <MoreHorizontal aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            className="min-h-11 text-base"
-            onSelect={() => {
-              onRemove(notification.id);
-            }}
-          >
-            {t('item.remove')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <li className="flex flex-col gap-2 border-b border-border py-2 last:border-b-0">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            onOpen(notification);
+          }}
+          className="flex min-h-11 min-w-0 flex-1 flex-col items-start gap-1 rounded-md px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className={cn('text-base', unread && 'font-semibold')}>
+            {t(`types.${notification.type}`, { replace: notification.params })}
+          </span>
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{day}</span>
+            {unread ? (
+              <span className="rounded-[calc(var(--radius)-2px)] border border-border px-1.5 text-foreground">
+                {t('item.unread')}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-11 shrink-0"
+              aria-label={t('item.more')}
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="min-h-11 text-base"
+              onSelect={() => {
+                onRemove(notification.id);
+              }}
+            >
+              {t('item.remove')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {closeDecision !== undefined && (
+        <div className="px-2">
+          <CloseDecisionNotice
+            budgetId={closeDecision.budgetId}
+            periodId={closeDecision.periodId}
+          />
+        </div>
+      )}
     </li>
   );
 }

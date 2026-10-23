@@ -1,4 +1,4 @@
-import type { CreateBudgetInput, UpdateBudgetInput } from '@finanzas/contracts';
+import type { CreateBudgetInput, DecisionInput, UpdateBudgetInput } from '@finanzas/contracts';
 import {
   available,
   BOLIVIA_TIME_ZONE,
@@ -9,12 +9,16 @@ import {
 } from '@finanzas/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { ACCOUNTS_KEY } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
+import { GOALS_KEY } from '@/features/goals/hooks/use-goals';
+import { NOTIFICATIONS_KEY } from '@/features/notifications/hooks/use-notifications';
 import { call } from '@/lib/api-client';
 
 import {
   budgetActionEndpoint,
   budgetEndpoint,
+  closeDecisionEndpoint,
   createBudgetEndpoint,
   deleteBudgetEndpoint,
   listBudgetsEndpoint,
@@ -148,6 +152,26 @@ export function useDeleteBudget(id: string, onDeleted: () => Promise<void>) {
       await onDeleted();
       queryClient.removeQueries({ queryKey: budgetKey(id) });
       await queryClient.invalidateQueries({ queryKey: BUDGETS_KEY });
+    },
+  });
+}
+
+/**
+ * Applies the decision of a closed period (RF-M11-08). The budget, the goals and the accounts it may
+ * touch, and the inbox that shows the same decision, are read again afterwards.
+ */
+export function useCloseDecision(id: string, periodId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: DecisionInput) => call(closeDecisionEndpoint(id, periodId), input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: budgetKey(id) }),
+        queryClient.invalidateQueries({ queryKey: BUDGETS_KEY }),
+        queryClient.invalidateQueries({ queryKey: GOALS_KEY }),
+        queryClient.invalidateQueries({ queryKey: ACCOUNTS_KEY }),
+        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+      ]);
     },
   });
 }

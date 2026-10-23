@@ -85,5 +85,26 @@
       "amount": "Escribe un monto mayor a 0, por ejemplo 500,00.",
       "thresholds": "Usa hasta 3 números enteros distintos entre 1 y 150."
     }
+  },
+  "close": {
+    "surplusTitle": "{{name}} cerró {{label}}: sobraron {{amount}}",
+    "deficitTitle": "{{name}} cerró {{label}}: te pasaste por {{amount}}",
+    "carry": "Arrastrar",
+    "toGoal": "Enviar a meta",
+    "discard": "Descartar",
+    "goal": "Meta",
+    "chooseGoal": "Elige una meta",
+    "account": "Cuenta",
+    "chooseAccount": "Elige una cuenta",
+    "transfer": "Transferir a la cuenta de la meta ({{name}}) en lugar de apartar",
+    "remaining": "Falta repartir {{amount}}.",
+    "over": "Repartiste {{amount}} de más. Baja algún monto.",
+    "exact": "La suma cuadra con el sobrante.",
+    "invalid": "Escribe montos de 0 o más, por ejemplo 50,00.",
+    "goalMissing": "Elige la meta y la cuenta para enviar a meta.",
+    "submit": "Confirmar decisión",
+    "absorb": "Absorber",
+    "deficitHint": "Arrastrar descuenta el exceso del próximo período; absorber lo deja en este.",
+    "deficitHintFinal": "El presupuesto terminó: el exceso se absorbe en este período."
   }
 }

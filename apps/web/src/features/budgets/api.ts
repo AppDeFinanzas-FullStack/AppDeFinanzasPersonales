@@ -1,4 +1,9 @@
-import { BudgetDto, type CreateBudgetInput, type UpdateBudgetInput } from '@finanzas/contracts';
+import {
+  BudgetDto,
+  type CreateBudgetInput,
+  type DecisionInput,
+  type UpdateBudgetInput,
+} from '@finanzas/contracts';
 import { z } from 'zod';
 
 import type { Endpoint } from '@/lib/api-client';
@@ -65,4 +70,15 @@ export const updateBudgetEndpoint = (id: string): Endpoint<UpdateBudgetInput, Bu
   path: path(id),
   input: z.custom<UpdateBudgetInput>(),
   output: BudgetDto,
+});
+
+/** The decision of a closed period (RF-M11-08), the same endpoint from the budget and the inbox. */
+export const closeDecisionEndpoint = (
+  id: string,
+  periodId: string,
+): Endpoint<DecisionInput, void> => ({
+  method: 'POST',
+  path: path(id, `/periods/${encodeURIComponent(periodId)}/decision`),
+  input: z.custom<DecisionInput>(),
+  output: z.void(),
 });

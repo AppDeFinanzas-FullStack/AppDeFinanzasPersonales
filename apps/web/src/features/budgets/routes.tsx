@@ -15,6 +15,7 @@ import { BudgetForm } from './components/budget-form';
 import { BudgetList, BudgetStatusBadges } from './components/budget-list';
 import { BudgetProgress, useBudgetName } from './components/budget-progress';
 import { CarryoverBreakdown } from './components/carryover-breakdown';
+import { CloseDecisionCard } from './components/close-decision-card';
 import { PeriodHistory } from './components/period-history';
 import { useBudget, useBudgets } from './hooks/use-budgets';
 
@@ -93,6 +94,13 @@ export function BudgetDetailPage() {
         <p role="status" className="text-muted-foreground">
           {t('nextStart', { date: formatters.date(current.end), day: budget.nextStartDay })}
         </p>
+      )}
+      {budget.pendingClose !== undefined && (
+        <CloseDecisionCard
+          key={budget.pendingClose.periodId}
+          budget={budget}
+          pendingClose={budget.pendingClose}
+        />
       )}
       {current === undefined ? (
         <p className="text-muted-foreground">{t('noPeriod')}</p>

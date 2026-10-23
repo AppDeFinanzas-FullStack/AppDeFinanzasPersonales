@@ -3347,7 +3347,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-07`: cambiar el día de inicio muestra la fecha de fin.
     - `RF-M11-01`: "Deudas y préstamos" no se ofrece como alcance.
 
-- [ ] **`TASK-207`: Web: decisión de cierre en el presupuesto y en la bandeja**
+- [x] **`TASK-207`: Web: decisión de cierre en el presupuesto y en la bandeja**
   - **Dependencias:** Requiere TASK-191, TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (`CloseDecisionCard`, en la bandeja); RF-M11-08, RF-M11-09, EC-M11-03, EC-M11-09, RF-M15-03
   - **Archivos en Alcance:**
