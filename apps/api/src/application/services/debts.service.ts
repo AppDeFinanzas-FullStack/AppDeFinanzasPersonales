@@ -2,8 +2,10 @@ import type {
   CreateDebtInput,
   DebtDto,
   DebtsSummaryDto,
+  DeleteDebtInput,
   EarmarkWithdrawals,
   PaymentInput,
+  UpdateDebtInput,
 } from '@finanzas/contracts';
 import {
   accrue,
@@ -23,6 +25,7 @@ import { AppError } from '../errors.js';
 import type {
   AccountRow,
   CategoryKind,
+  DebtPatch,
   DebtPaymentRow,
   DebtRow,
   LedgerTransactionView,
@@ -63,6 +66,18 @@ export interface DebtsService {
     debtId: string,
     earmarkWithdrawals?: EarmarkWithdrawals,
   ): Promise<DebtDto>;
+  /**
+   * Edits the debt (RF-M13-10): person, note and due date while it is open, and the principal while
+   * it stays at or above the capital already paid; only person and note once it is closed.
+   */
+  update(ctx: DebtsContext, debtId: string, input: UpdateDebtInput): Promise<DebtDto>;
+  /** Closes the debt as forgiven with its pending balance, without movements (RF-M13-12). */
+  forgive(ctx: DebtsContext, debtId: string): Promise<DebtDto>;
+  /**
+   * Deletes the debt with its payments (RF-M13-11). When it has movements, `input.movements` says
+   * whether they are deleted too or kept as normal movements.
+   */
+  remove(ctx: DebtsContext, debtId: string, input: DeleteDebtInput): Promise<void>;
 }
 
 export interface DebtsServiceDeps {
@@ -202,6 +217,21 @@ function toDto(snapshot: DebtSnapshot, today: LocalDate): DebtDto {
   }
   if (debt.forgivenAmount !== null) dto.forgivenAmount = toMoneyString(debt.forgivenAmount);
   return dto;
+}
+
+/** The movements among the ids that are not deleted, in the order of the ids. */
+async function liveMovements(
+  repos: Repositories,
+  ids: (string | null)[],
+): Promise<LedgerTransactionView[]> {
+  const movements: LedgerTransactionView[] = [];
+  for (const id of ids) {
+    const movement = id === null ? null : await repos.ledger.get(id);
+    if (movement !== null) {
+      movements.push(movement);
+    }
+  }
+  return movements;
 }
 
 async function snapshotOf(repos: Repositories, debt: DebtRow): Promise<DebtSnapshot> {
@@ -488,22 +518,15 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
   }
 
   /**
-   * Deletes the linked transactions of a payment, whose entries leave their accounts: removing an
-   * income can leave the cash below zero (plan §4.13.3).
+   * Deletes the movements, whose entries leave their accounts: removing an income can leave the
+   * cash below zero (plan §4.13.3, RF-M13-11).
    */
-  async function removePaymentMovements(
+  async function removeMovements(
     repos: Repositories,
     ctx: DebtsContext,
-    payment: DebtPaymentRow,
+    movements: LedgerTransactionView[],
     earmarkWithdrawals: EarmarkWithdrawals,
   ): Promise<void> {
-    const movements: LedgerTransactionView[] = [];
-    for (const id of [payment.capitalTransactionId, payment.interestTransactionId]) {
-      const movement = id === null ? null : await repos.ledger.get(id);
-      if (movement !== null) {
-        movements.push(movement);
-      }
-    }
     if (movements.length === 0) {
       return;
     }
@@ -787,7 +810,12 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
           const today = todayFor(ctx.timezone, ctx.now);
           const interestUnpaid = interestToday(debt, today);
 
-          await removePaymentMovements(repos, ctx, payment, earmarkWithdrawals);
+          await removeMovements(
+            repos,
+            ctx,
+            await liveMovements(repos, [payment.capitalTransactionId, payment.interestTransactionId]),
+            earmarkWithdrawals,
+          );
           await repos.debtPayments.delete(payment.id);
           await repos.debts.update(debt.id, {
             capitalOutstanding: debt.capitalOutstanding.plus(payment.capitalPart),
@@ -804,6 +832,118 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
         { userLock: ctx.userId },
       );
       return toDto(snapshot, todayFor(ctx.timezone, ctx.now));
+    },
+
+    async update(ctx, debtId, input) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const debt = await repos.debts.lockForUpdate(debtId);
+          if (debt === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const principal = input.principal === undefined ? null : new Decimal(input.principal);
+          const dueDateChanges = input.dueDate !== undefined && input.dueDate !== debt.dueDate;
+          const principalChanges = principal !== null && !principal.equals(debt.principal);
+          if (debt.status !== 'active' && (dueDateChanges || principalChanges)) {
+            throw new AppError('FIELD_LOCKED');
+          }
+
+          const patch: DebtPatch = {};
+          if (input.person !== undefined) patch.person = input.person.trim();
+          if (input.note !== undefined) patch.note = input.note === '' ? null : input.note;
+          if (dueDateChanges) patch.dueDate = input.dueDate ?? null;
+          if (principal !== null && principalChanges) {
+            const paidCapital = debt.principal.minus(debt.capitalOutstanding);
+            if (principal.lessThan(paidCapital)) {
+              throw new AppError('PRINCIPAL_BELOW_PAID');
+            }
+            // The interest is carried to today first, so what accrued is never recalculated
+            // (ADR-14); from now on it runs on the new capital.
+            const today = todayFor(ctx.timezone, ctx.now);
+            const interestUnpaid = interestToday(debt, today);
+            const capitalOutstanding = principal.minus(paidCapital);
+            patch.principal = principal;
+            patch.capitalOutstanding = capitalOutstanding;
+            patch.interestUnpaid = interestUnpaid;
+            patch.accruedThrough = today;
+            if (capitalOutstanding.isZero() && round2(interestUnpaid).lessThanOrEqualTo(0)) {
+              patch.status = 'paid';
+            }
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await repos.debts.update(debt.id, patch);
+          }
+          const updated = await repos.debts.get(debt.id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return snapshotOf(repos, updated);
+        },
+        { userLock: ctx.userId },
+      );
+      return toDto(snapshot, todayFor(ctx.timezone, ctx.now));
+    },
+
+    async forgive(ctx, debtId) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const debt = await repos.debts.lockForUpdate(debtId);
+          if (debt === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (debt.status !== 'active') {
+            throw new AppError('DEBT_CLOSED');
+          }
+          // The pending balance is the capital plus the interest carried to today (RF-M13-12).
+          const today = todayFor(ctx.timezone, ctx.now);
+          const interestUnpaid = interestToday(debt, today);
+          await repos.debts.update(debt.id, {
+            status: 'forgiven',
+            forgivenAmount: debt.capitalOutstanding.plus(round2(interestUnpaid)),
+            interestUnpaid,
+            accruedThrough: today,
+          });
+          const updated = await repos.debts.get(debt.id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return snapshotOf(repos, updated);
+        },
+        { userLock: ctx.userId },
+      );
+      return toDto(snapshot, todayFor(ctx.timezone, ctx.now));
+    },
+
+    async remove(ctx, debtId, input) {
+      await uow.run(
+        async (repos) => {
+          const debt = await repos.debts.lockForUpdate(debtId);
+          if (debt === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const payments = await repos.debtPayments.list(debt.id);
+          const movements = await liveMovements(repos, [
+            debt.initialTransactionId,
+            ...payments.flatMap((payment) => [
+              payment.capitalTransactionId,
+              payment.interestTransactionId,
+            ]),
+          ]);
+          if (movements.length > 0) {
+            if (input.movements === undefined) {
+              throw new AppError('MOVEMENTS_CHOICE_REQUIRED', { count: movements.length });
+            }
+            if (input.movements === 'delete') {
+              await removeMovements(repos, ctx, movements, []);
+            } else {
+              await repos.ledger.detachOrigin(movements.map((movement) => movement.id));
+            }
+          }
+          await repos.debts.delete(debt.id);
+        },
+        { userLock: ctx.userId },
+      );
     },
   };
 }

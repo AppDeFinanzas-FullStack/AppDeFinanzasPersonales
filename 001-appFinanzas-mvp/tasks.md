@@ -3425,7 +3425,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-04`: lo ya acumulado no se recalcula.
     - `EC-M13-05`: la operación siempre actúa sobre el último pago; con una deuda condonada, `DEBT_FORGIVEN`.
 
-- [ ] **`TASK-214`: Editar, condonar y eliminar deudas**
+- [x] **`TASK-214`: Editar, condonar y eliminar deudas**
   - **Dependencias:** Requiere TASK-213
   - **Trazabilidad SDD:** plan §4.13.2 (`PATCH`, `forgive`, `DELETE`); RF-M13-10, RF-M13-11, RF-M13-12
   - **Archivos en Alcance:**

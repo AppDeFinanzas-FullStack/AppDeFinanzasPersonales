@@ -701,6 +701,12 @@ export interface LedgerRepository {
    * (ADR-07). Returns the ids that changed.
    */
   restore(ids: string[]): Promise<string[]>;
+  /**
+   * Turns the user's movements among the ids that are not deleted into normal movements
+   * (`origin = manual`, without `origin_id`), keeping their category and entries (RF-M13-11).
+   * Returns the ids that changed.
+   */
+  detachOrigin(ids: string[]): Promise<string[]>;
 }
 
 // ---------- Categorías (M5) ----------

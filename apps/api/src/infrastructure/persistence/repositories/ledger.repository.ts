@@ -474,5 +474,17 @@ export function createLedgerRepository(tx: TransactionClient, userId: string): L
         RETURNING id::text AS id`;
       return rows.map((row) => row.id);
     },
+
+    async detachOrigin(ids: string[]): Promise<string[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE ledger_transaction
+           SET origin = 'manual'::transaction_origin, origin_id = NULL
+         WHERE user_id = ${userId}::uuid AND id = ANY(${ids}::uuid[]) AND deleted_at IS NULL
+        RETURNING id::text AS id`;
+      return rows.map((row) => row.id);
+    },
   };
 }
