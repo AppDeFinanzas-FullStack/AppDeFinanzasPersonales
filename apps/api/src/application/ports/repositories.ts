@@ -908,6 +908,8 @@ export interface RecurringOccurrenceRepository {
    * rule already has one on that date or the user has no such rule (RF-M14-12).
    */
   insertIfAbsent(ruleId: string, date: LocalDate): Promise<RecurringOccurrenceRow | null>;
+  /** The user's occurrence in any status; `null` when it does not exist or is another user's. */
+  get(id: string): Promise<RecurringOccurrenceRow | null>;
   /** The user's pending occurrences, by date. */
   pending(): Promise<RecurringOccurrenceRow[]>;
   /**

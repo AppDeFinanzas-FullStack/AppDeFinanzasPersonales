@@ -33,6 +33,10 @@ import {
 } from '../application/services/shortcuts.service.js';
 import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
+  createRecurringService,
+  type RecurringService,
+} from '../application/services/recurring.service.js';
+import {
   createAccountsService,
   type AccountsService,
 } from '../application/services/accounts.service.js';
@@ -176,6 +180,8 @@ export interface Container {
   readonly accountsService: AccountsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
+  /** The rules and occurrences of `/api/recurring` (plan §4.14.2). */
+  readonly recurringService: RecurringService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -782,6 +788,13 @@ export const buildContainer = (env: Env): Container => {
     currenciesService,
     accountsService,
     goalsService: createGoalsService({ uow, rates: ratesService }),
+    recurringService: createRecurringService({
+      uow,
+      generator: recurringGenerator,
+      rates: ratesService,
+      ledgerHooks,
+      clock: systemClock,
+    }),
     shortcutsService,
     categoriesService: createCategoriesService({
       uow,
@@ -862,6 +875,11 @@ export const createApp = (container: Container): Express => {
       session,
     },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
+    recurring: {
+      recurringService: container.recurringService,
+      clock: container.clock,
+      session,
+    },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },

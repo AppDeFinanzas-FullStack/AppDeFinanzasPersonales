@@ -377,13 +377,26 @@ interface ConfirmedMovement {
   change: LedgerChange;
 }
 
-/** The user's pending occurrence; `null` when it is decided or is not the user's. */
-async function pendingOccurrence(
+/**
+ * Takes the user's pending occurrence to the new status, only once (RNF-11). Another user's
+ * occurrence behaves as an inexistent one (RNF-14); a decided one answers `ALREADY_DECIDED`.
+ */
+async function decideOccurrence(
   repos: Repositories,
   occurrenceId: string,
-): Promise<RecurringOccurrenceRow | null> {
-  const pending = await repos.recurringOccurrences.pending();
-  return pending.find((occurrence) => occurrence.id === occurrenceId) ?? null;
+  newStatus: 'registered' | 'skipped',
+): Promise<RecurringOccurrenceRow> {
+  const occurrence = await repos.recurringOccurrences.get(occurrenceId);
+  if (occurrence === null) {
+    throw new AppError('NOT_FOUND');
+  }
+  if (
+    occurrence.status !== 'pending' ||
+    !(await repos.recurringOccurrences.decideIf(occurrence.id, 'pending', newStatus))
+  ) {
+    throw new AppError('ALREADY_DECIDED');
+  }
+  return occurrence;
 }
 
 export function createRecurringService({
@@ -640,14 +653,8 @@ export function createRecurringService({
     async confirm(ctx, occurrenceId, input) {
       return uow.run(
         async (repos) => {
-          const occurrence = await pendingOccurrence(repos, occurrenceId);
           // Only a pending occurrence is decided, and only once (RNF-11).
-          if (
-            occurrence === null ||
-            !(await repos.recurringOccurrences.decideIf(occurrence.id, 'pending', 'registered'))
-          ) {
-            throw new AppError('ALREADY_DECIDED');
-          }
+          const occurrence = await decideOccurrence(repos, occurrenceId, 'registered');
           const rule = await repos.recurringRules.get(occurrence.ruleId);
           if (rule === null) {
             throw new AppError('NOT_FOUND');
@@ -709,10 +716,8 @@ export function createRecurringService({
     async skip(ctx, occurrenceId) {
       await uow.run(
         async (repos) => {
-          if (!(await repos.recurringOccurrences.decideIf(occurrenceId, 'pending', 'skipped'))) {
-            throw new AppError('ALREADY_DECIDED');
-          }
-          await repos.notifications.resolveDecision(ctx.userId, 'occurrence', occurrenceId);
+          const occurrence = await decideOccurrence(repos, occurrenceId, 'skipped');
+          await repos.notifications.resolveDecision(ctx.userId, 'occurrence', occurrence.id);
         },
         { userLock: ctx.userId },
       );

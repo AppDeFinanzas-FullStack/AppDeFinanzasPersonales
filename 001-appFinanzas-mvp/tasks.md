@@ -3710,7 +3710,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Archivar una categoría con presupuesto y recurrente" (parte de recurrentes, `RF-M5-07`): "Netflix" queda pausado con un aviso para elegir otra categoría.
     - `RF-M4-13`: eliminar una cuenta sin movimientos que usa una regla da `ACCOUNT_IN_USE {recurring}` y no borra nada.
 
-- [ ] **`TASK-233`: Rutas HTTP de recurrentes**
+- [x] **`TASK-233`: Rutas HTTP de recurrentes**
   - **Dependencias:** Requiere TASK-229, TASK-230, TASK-231, TASK-232
   - **Trazabilidad SDD:** plan §4.14.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**

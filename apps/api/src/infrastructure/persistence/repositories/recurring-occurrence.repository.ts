@@ -36,6 +36,13 @@ export function createRecurringOccurrenceRepository(
       return rows[0] ?? null;
     },
 
+    async get(id: string): Promise<RecurringOccurrenceRow | null> {
+      const rows = await tx.$queryRaw<RecurringOccurrenceRow[]>`
+        SELECT ${COLUMNS} FROM recurring_occurrence
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid`;
+      return rows[0] ?? null;
+    },
+
     async pending(): Promise<RecurringOccurrenceRow[]> {
       return tx.$queryRaw<RecurringOccurrenceRow[]>`
         SELECT ${COLUMNS} FROM recurring_occurrence
