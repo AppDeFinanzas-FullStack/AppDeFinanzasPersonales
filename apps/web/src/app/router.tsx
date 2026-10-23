@@ -59,6 +59,7 @@ const fx = () => import('@/features/fx/routes');
 const profile = () => import('@/features/profile/routes');
 const settings = () => import('@/features/settings/routes');
 const goals = () => import('@/features/goals/routes');
+const recurring = () => import('@/features/recurring/routes');
 
 /** Public routes of M1 (plan §4.1.4). */
 const authRoutes: RouteObject[] = [
@@ -111,6 +112,11 @@ const goalsRoutes: RouteObject[] = [
   { path: 'metas/:id', ...screen(goals, 'GoalDetailPage') },
 ];
 
+/** Private route of the recurring rules (plan §4.14.4). */
+const recurringRoutes: RouteObject[] = [
+  { path: 'recurrentes', ...screen(recurring, 'RecurringPage') },
+];
+
 /** Private routes of the exchange rate (plan §4.3.4). */
 const fxRoutes: RouteObject[] = [{ path: 'tipo-de-cambio', ...screen(fx, 'ExchangeRatePage') }];
 
@@ -160,6 +166,7 @@ export const router = createBrowserRouter([
                   ...categoriesRoutes,
                   ...fxRoutes,
                   ...goalsRoutes,
+                  ...recurringRoutes,
                   ...profileRoutes,
                   ...settingsRoutes,
                 ],

@@ -3731,7 +3731,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con una regla o una ocurrencia de A.
     - `RF-M2-03`: con `RELEASE=1.1`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-234`: Web: pantalla de Recurrentes**
+- [x] **`TASK-234`: Web: pantalla de Recurrentes**
   - **Dependencias:** Requiere TASK-192, TASK-233
   - **Trazabilidad SDD:** plan §4.14.4 (`/recurrentes`); RF-M14-08, RF-M14-13, RF-M14-14
   - **Archivos en Alcance:**

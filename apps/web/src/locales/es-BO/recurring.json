@@ -1,0 +1,52 @@
+{
+  "title": "Recurrentes",
+  "loadError": "No se pudieron cargar los recurrentes. Inténtalo de nuevo.",
+  "amountToDefine": "monto por definir",
+  "rules": {
+    "title": "Reglas",
+    "empty": "Aún no tienes reglas recurrentes.",
+    "next": "Próxima: {{date}}",
+    "noNext": "Sin próximas fechas",
+    "following": "Siguientes: {{dates}}",
+    "installment": "Cuota {{current}} de {{total}}",
+    "mode": {
+      "auto": "Automático",
+      "confirm": "Con confirmación"
+    },
+    "status": {
+      "active": "Activa",
+      "paused": "Pausada",
+      "finished": "Terminada"
+    }
+  },
+  "pending": {
+    "title": "Pendientes de confirmar",
+    "empty": "No tienes pendientes por confirmar.",
+    "confirm": "Confirmar",
+    "skip": "Omitir"
+  },
+  "upcoming": {
+    "title": "Próximos vencimientos",
+    "empty": "No hay vencimientos en los próximos 30 días."
+  },
+  "confirm": {
+    "title": "Confirmar {{name}}",
+    "description": "Revisa los datos antes de registrar el movimiento. Puedes cambiar el monto, la fecha y el tipo de cambio.",
+    "amount": "Monto",
+    "amountError": "Ingresa un monto mayor a cero, por ejemplo 85,50.",
+    "date": "Fecha",
+    "dateError": "Elige una fecha que no sea futura.",
+    "rate": "Tipo de cambio (opcional)",
+    "rateError": "Ingresa un tipo de cambio válido, por ejemplo 6,96, o déjalo vacío.",
+    "account": "Cuenta",
+    "accountArchived": "La cuenta de esta regla está archivada. Elige otra.",
+    "accountError": "Elige una cuenta.",
+    "category": "Categoría",
+    "categoryArchived": "La categoría de esta regla está archivada. Elige otra.",
+    "categoryError": "Elige una categoría.",
+    "choose": "Elige una opción",
+    "submit": "Confirmar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
+  }
+}
