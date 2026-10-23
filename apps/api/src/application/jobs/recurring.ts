@@ -1,12 +1,19 @@
 import { BOLIVIA_TIME_ZONE } from '@finanzas/domain';
+import { uuidv7 } from 'uuidv7';
 
 import type { Clock } from '../ports/clock.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import type { RecurringGenerator, UserTimezones } from '../shared/recurring-generator.js';
 
-/** The users that have an active recurring rule, read across users by the job (plan §4.14.3). */
+/** The users the recurring jobs walk, read across users (plan §4.14.3). */
 export interface RecurringUsers extends UserTimezones {
+  /** The users with an active recurring rule, for `recurring.generate`. */
   withActiveRules(): Promise<string[]>;
+  /**
+   * The users with a pending occurrence whose `pending_since` is before that instant, whatever the
+   * status of its rule, for `recurring.expirePending` (RF-M14-07).
+   */
+  withExpiredPending(before: Date): Promise<string[]>;
 }
 
 export interface RecurringJobsDeps {
@@ -21,6 +28,35 @@ export interface RecurringJobs {
   generate(): Promise<void>;
   /** `recurring.generate` for one user only, under its lock (ADR-01, RNF-13). */
   generateForUser(userId: string): Promise<void>;
+  /** `recurring.expirePending` for every user with an expired pending (plan §4.14.3, RF-M14-07). */
+  expirePending(): Promise<void>;
+  /** `recurring.expirePending` for one user only, under its lock (ADR-01, RNF-13). */
+  expirePendingForUser(userId: string): Promise<void>;
+}
+
+/** How long a pending occurrence waits for a decision before it is omitted (RF-M14-07). */
+const PENDING_LIFETIME_MS = 30 * 86_400_000;
+
+/** Where the notification of an omitted occurrence leads (plan §4.14.4). */
+const PENDING_ROUTE = '/recurrentes';
+
+/** Runs the job for each user; one user's failure does not stop the others (RNF-13). */
+async function forEachUser(
+  userIds: string[],
+  run: (userId: string) => Promise<void>,
+): Promise<void> {
+  let failure: Error | null = null;
+  for (const userId of userIds) {
+    try {
+      await run(userId);
+    } catch (error) {
+      // The next tick retries the user that failed (RNF-13).
+      failure = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  if (failure !== null) {
+    throw failure;
+  }
 }
 
 export function createRecurringJobs({
@@ -46,22 +82,50 @@ export function createRecurringJobs({
     );
   }
 
+  /** The 30 days count from `pending_since`, also for occurrences recovered after an outage (RNF-13). */
+  const expiredBefore = (): Date => new Date(clock.now().getTime() - PENDING_LIFETIME_MS);
+
+  async function expirePendingForUser(userId: string): Promise<void> {
+    const before = expiredBefore();
+    await uow.run(
+      async (repos) => {
+        const notify = await repos.notificationPreferences.isEnabled(userId, 'recurring_pending');
+        for (const occurrence of await repos.recurringOccurrences.expiredPending(before)) {
+          // Only a pending occurrence is omitted, and only once (RNF-11).
+          if (!(await repos.recurringOccurrences.decideIf(occurrence.id, 'pending', 'omitted'))) {
+            continue;
+          }
+          await repos.notifications.resolveDecision(userId, 'occurrence', occurrence.id);
+          if (!notify) continue;
+          const rule = await repos.recurringRules.get(occurrence.ruleId);
+          await repos.notifications.insertIfAbsent({
+            id: uuidv7(),
+            userId,
+            type: 'recurring_pending',
+            eventKey: `recurring_omitted:${occurrence.id}`,
+            params: {
+              ruleId: occurrence.ruleId,
+              ruleName: rule?.name ?? null,
+              date: occurrence.scheduledDate,
+            },
+            targetRoute: PENDING_ROUTE,
+          });
+        }
+      },
+      { userLock: userId },
+    );
+  }
+
   return {
     generateForUser,
+    expirePendingForUser,
 
     async generate() {
-      let failure: Error | null = null;
-      for (const userId of await users.withActiveRules()) {
-        try {
-          await generateForUser(userId);
-        } catch (error) {
-          // One user's failure does not stop the others; the next tick retries it (RNF-13).
-          failure = error instanceof Error ? error : new Error(String(error));
-        }
-      }
-      if (failure !== null) {
-        throw failure;
-      }
+      await forEachUser(await users.withActiveRules(), generateForUser);
+    },
+
+    async expirePending() {
+      await forEachUser(await users.withExpiredPending(expiredBefore()), expirePendingForUser);
     },
   };
 }

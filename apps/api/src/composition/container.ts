@@ -449,13 +449,21 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
   };
 };
 
-/** The users with an active recurring rule and their timezone, for `recurring.generate` (RNF-20). */
+/** The users the recurring jobs walk and their timezone (plan §4.14.3, RNF-20). */
 const createRecurringUsers = (prisma: PrismaClient): RecurringUsers => ({
   async withActiveRules() {
     const rows = await prisma.$queryRaw<{ userId: string }[]>`
       SELECT DISTINCT user_id::text AS "userId"
         FROM recurring_rule
        WHERE status = 'active'
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async withExpiredPending(before) {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_occurrence
+       WHERE status = 'pending' AND pending_since < ${before}::timestamptz
        ORDER BY "userId"`;
     return rows.map((row) => row.userId);
   },
@@ -706,6 +714,9 @@ export const buildContainer = (env: Env): Container => {
   });
   jobs.registerJob('recurring.generate', () => recurringJobs.generate(), {
     forUser: (userId) => recurringJobs.generateForUser(userId),
+  });
+  jobs.registerJob('recurring.expirePending', () => recurringJobs.expirePending(), {
+    forUser: (userId) => recurringJobs.expirePendingForUser(userId),
   });
   const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
   const transactionsService = createTransactionsService({

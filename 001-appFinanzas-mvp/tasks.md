@@ -3656,7 +3656,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-11`: dos confirmaciones simultáneas registran un solo movimiento.
     - `RF-M14-06`: al confirmar una transferencia entre monedas, se puede ajustar la tasa.
 
-- [ ] **`TASK-229`: Job `recurring.expirePending`**
+- [x] **`TASK-229`: Job `recurring.expirePending`**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.expirePending`); RF-M14-07, RNF-13
   - **Archivos en Alcance:**
