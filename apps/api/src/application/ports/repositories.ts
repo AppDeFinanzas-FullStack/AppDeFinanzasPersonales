@@ -1022,6 +1022,13 @@ export interface BudgetRepository {
    * budget of the category and that of its parent (RF-M11-02).
    */
   listAffected(categoryIds: string[]): Promise<BudgetRow[]>;
+  /**
+   * Moves the active or paused budgets of the categories to `finalizing`: they last until the end of
+   * their period in course (RF-M5-07, EC-M11-04).
+   */
+  finalizeForCategories(categoryIds: string[]): Promise<void>;
+  /** Moves every budget of the category `fromId`, in any status, to the category `toId` (RF-M5-08). */
+  moveToCategory(fromId: string, toId: string): Promise<void>;
   /** `true` when an active or paused budget uses the currency (EC-M3-05). */
   usesCurrency(code: string): Promise<boolean>;
   /**
@@ -1144,6 +1151,11 @@ export interface BudgetPeriodRepository {
    * `false` when it was no longer pending (RNF-11).
    */
   decide(id: string, decision: PeriodDecision): Promise<boolean>;
+  /**
+   * `true` when a budget of the category, in any status, has a closed period that waits for its
+   * decision (RF-M5-08).
+   */
+  hasPendingCloseInCategory(categoryId: string): Promise<boolean>;
   /** The `closed_pending` periods whose decision deadline is before `now`, oldest first. */
   listOverdue(now: Instant): Promise<BudgetPeriodRow[]>;
   /**

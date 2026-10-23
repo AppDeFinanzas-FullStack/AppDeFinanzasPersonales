@@ -3273,7 +3273,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Decisión por defecto": con un reloj 7 días después, el período queda `defaulted` y el período en curso no tiene arrastre de ese cierre.
     - `RNF-12`: un usuario que decide en el mismo instante que el job deja una sola decisión.
 
-- [ ] **`TASK-203`: Presupuestos al archivar y fusionar categorías**
+- [x] **`TASK-203`: Presupuestos al archivar y fusionar categorías**
   - **Dependencias:** Requiere TASK-114, TASK-201
   - **Trazabilidad SDD:** plan §4.5.2 (archivar, fusionar), plan §4.11.3 (finalizing); RF-M5-07, RF-M5-08, EC-M11-04, EC-M5-03
   - **Archivos en Alcance:**

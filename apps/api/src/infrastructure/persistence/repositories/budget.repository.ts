@@ -192,6 +192,24 @@ export function createBudgetRepository(tx: TransactionClient, userId: string): B
       return records.map(toRow);
     },
 
+    async finalizeForCategories(categoryIds: string[]): Promise<void> {
+      if (categoryIds.length === 0) {
+        return;
+      }
+      await tx.$executeRaw`
+        UPDATE budget
+           SET status = 'finalizing', updated_at = now()
+         WHERE user_id = ${userId}::uuid AND category_id = ANY(${categoryIds}::uuid[])
+           AND status IN ('active', 'paused')`;
+    },
+
+    async moveToCategory(fromId: string, toId: string): Promise<void> {
+      await tx.$executeRaw`
+        UPDATE budget
+           SET category_id = ${toId}::uuid, updated_at = now()
+         WHERE user_id = ${userId}::uuid AND category_id = ${fromId}::uuid`;
+    },
+
     async usesCurrency(code: string): Promise<boolean> {
       const rows = await tx.$queryRaw<{ used: boolean }[]>`
         SELECT EXISTS (

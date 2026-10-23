@@ -195,6 +195,18 @@ export function createBudgetPeriodRepository(
       return updated.length > 0;
     },
 
+    async hasPendingCloseInCategory(categoryId: string): Promise<boolean> {
+      const rows = await tx.$queryRaw<{ pending: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1
+            FROM budget_period p
+            JOIN budget b ON b.user_id = p.user_id AND b.id = p.budget_id
+           WHERE p.user_id = ${userId}::uuid AND b.category_id = ${categoryId}::uuid
+             AND p.status = 'closed_pending'
+        ) AS pending`;
+      return rows[0]?.pending === true;
+    },
+
     async listOverdue(now: Date): Promise<BudgetPeriodRow[]> {
       const records = await tx.$queryRaw<PeriodRecord[]>`
         SELECT ${COLUMNS}
