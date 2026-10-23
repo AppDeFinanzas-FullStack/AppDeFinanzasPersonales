@@ -7,6 +7,7 @@ import type {
   ResumeInput,
   RuleDto,
   UpcomingDto,
+  UpdateRuleInput,
 } from '@finanzas/contracts';
 import {
   amountInFrom,
@@ -30,6 +31,7 @@ import type {
   AccountRow,
   LedgerEntryInput,
   RecurringOccurrenceRow,
+  RecurringRulePatch,
   RecurringRuleRow,
   Repositories,
 } from '../ports/repositories.js';
@@ -79,6 +81,16 @@ export interface RecurringService {
    * end passed, the rule is Finalizada (RF-M14-09, EC-M14-05, EC-M14-06).
    */
   resume(ctx: RecurringContext, ruleId: string, input: ResumeInput): Promise<void>;
+  /**
+   * Edits a rule; only the dates still to come change, never the pending occurrences nor the
+   * movements already created. Extending the end of a Finalizada rule makes it Activa (RF-M14-10).
+   */
+  update(ctx: RecurringContext, ruleId: string, input: UpdateRuleInput): Promise<RuleDto>;
+  /**
+   * Deletes a rule: its pending occurrences go in cascade with their notices resolved, and its
+   * movements keep their `recurring_label` (RF-M14-11, EC-M14-04).
+   */
+  remove(ctx: RecurringContext, ruleId: string): Promise<void>;
 }
 
 export interface RecurringServiceDeps {
@@ -184,8 +196,11 @@ function remainingOf(rule: RecurringRuleRow): number {
     : Number.POSITIVE_INFINITY;
 }
 
+/** The fields of a rule that point to accounts and categories. */
+type RuleTargets = Pick<CreateRuleInput, 'kind' | 'accountId' | 'destAccountId' | 'categoryId'>;
+
 /** The account, category and destination of the rule must be the user's and active. */
-async function validateTargets(repos: Repositories, input: CreateRuleInput): Promise<void> {
+async function validateTargets(repos: Repositories, input: RuleTargets): Promise<void> {
   await requireActiveAccount(repos, input.accountId, 'accountId');
   if (input.kind === 'transfer') {
     if (input.destAccountId === undefined) {
@@ -210,6 +225,30 @@ async function validateTargets(repos: Repositories, input: CreateRuleInput): Pro
   if (category.status !== 'active') {
     throw new AppError('CATEGORY_ARCHIVED');
   }
+}
+
+/** The targets of the rule once the edit is applied; absent fields keep their stored value. */
+function editedTargets(rule: RecurringRuleRow, input: UpdateRuleInput): RuleTargets {
+  const kind = input.kind ?? rule.kind;
+  const targets: RuleTargets = { kind, accountId: input.accountId ?? rule.accountId };
+  if (kind === 'transfer') {
+    const destAccountId = input.destAccountId ?? rule.destAccountId;
+    if (destAccountId !== null) targets.destAccountId = destAccountId;
+  } else {
+    const categoryId = input.categoryId ?? rule.categoryId;
+    if (categoryId !== null) targets.categoryId = categoryId;
+  }
+  return targets;
+}
+
+/** Whether the edit changes where the rule moves money. */
+function changesTargets(input: UpdateRuleInput): boolean {
+  return (
+    input.kind !== undefined ||
+    input.accountId !== undefined ||
+    input.destAccountId !== undefined ||
+    input.categoryId !== undefined
+  );
 }
 
 /** The currency of each account of the user, active or archived. */
@@ -758,6 +797,82 @@ export function createRecurringService({
             status: finished ? 'finished' : 'active',
             lastGeneratedDate,
           });
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async update(ctx, ruleId, input) {
+      const today = todayFor(ctx.timezone, ctx.now);
+      return uow.run(
+        async (repos) => {
+          const rule = await repos.recurringRules.lockForUpdate(ruleId);
+          if (rule === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const patch: RecurringRulePatch = {};
+          if (input.name !== undefined) patch.name = input.name.trim();
+          if (input.amount !== undefined) patch.amount = new Decimal(input.amount);
+          if (input.note !== undefined) patch.note = input.note;
+          if (input.frequency !== undefined) patch.frequency = input.frequency;
+          if (input.end !== undefined) patch.end = input.end;
+          if (input.mode !== undefined) patch.mode = input.mode;
+          if (input.startDate !== undefined && input.startDate !== rule.startDate) {
+            // Only the dates still to come change, so a new start is today or later (RF-M14-10).
+            if (input.startDate < today) {
+              throw new AppError('START_DATE_IN_PAST');
+            }
+            patch.startDate = input.startDate;
+          }
+          if ((patch.mode ?? rule.mode) === 'auto' && (patch.amount ?? rule.amount) === null) {
+            throw new AppError('AMOUNT_REQUIRED_FOR_AUTO');
+          }
+          if (changesTargets(input)) {
+            const targets = editedTargets(rule, input);
+            await validateTargets(repos, targets);
+            patch.kind = targets.kind;
+            patch.accountId = targets.accountId;
+            patch.destAccountId = targets.destAccountId ?? null;
+            patch.categoryId = targets.categoryId ?? null;
+          }
+
+          // Extending the end of a Finalizada rule makes it Activa again (TASK-231).
+          const edited: RecurringRuleRow = { ...rule, ...patch };
+          if (
+            rule.status === 'finished' &&
+            !isFinished(recurrenceOf(edited), edited.generatedCount, today)
+          ) {
+            patch.status = 'active';
+          }
+          await repos.recurringRules.update(rule.id, patch);
+
+          const updated = await repos.recurringRules.get(rule.id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          const byAccount = await currencies(repos);
+          return toRuleDto(updated, currencyOf(byAccount, updated.accountId), today);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async remove(ctx, ruleId) {
+      await uow.run(
+        async (repos) => {
+          const rule = await repos.recurringRules.lockForUpdate(ruleId);
+          if (rule === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          // Its pending occurrences go in cascade; their notices are resolved first (EC-M14-04).
+          const pending = await repos.recurringOccurrences.pending();
+          for (const occurrence of pending) {
+            if (occurrence.ruleId === rule.id) {
+              await repos.notifications.resolveDecision(ctx.userId, 'occurrence', occurrence.id);
+            }
+          }
+          // Its movements keep `recurring_label` with `recurring_rule_id = NULL` (plan §3.8).
+          await repos.recurringRules.remove(rule.id);
         },
         { userLock: ctx.userId },
       );

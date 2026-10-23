@@ -3681,7 +3681,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M14-06`: si el fin pasó durante la pausa, queda Finalizada y solo ofrece las fechas hasta el fin.
     - `RF-M14-09`: una saltada que bloquearía el efectivo queda pendiente.
 
-- [ ] **`TASK-231`: Editar y eliminar reglas**
+- [x] **`TASK-231`: Editar y eliminar reglas**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.2 (`PATCH`, `DELETE`), plan §3.8 (regla eliminada); RF-M14-10, RF-M14-11, EC-M14-04
   - **Archivos en Alcance:**
