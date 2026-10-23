@@ -312,6 +312,8 @@ export interface Repositories {
   notificationPreferences: NotificationPreferenceRepository;
   goals: GoalRepository;
   goalAllocations: GoalAllocationRepository;
+  budgets: BudgetRepository;
+  budgetPeriods: BudgetPeriodRepository;
 }
 
 // ---------- Bandeja de avisos (M15) ----------
@@ -943,4 +945,233 @@ export interface GoalAllocationRepository {
   history(goalId: string): Promise<GoalHistoryItem[]>;
   /** Deletes all the events of the goal. */
   deleteByGoal(goalId: string): Promise<void>;
+}
+
+// ---------- Presupuestos (M11) ----------
+
+export type BudgetScope = 'category' | 'general';
+export type BudgetDefaultAction = 'discard' | 'carry';
+export type BudgetStatus = 'active' | 'paused' | 'finalizing' | 'finalized';
+export type BudgetPeriodStatus = 'open' | 'closed_pending' | 'decided' | 'defaulted';
+
+/** A budget as stored (plan §3.6). */
+export interface BudgetRow {
+  id: string;
+  scope: BudgetScope;
+  /** `null` in the general budget. */
+  categoryId: string | null;
+  amount: Decimal;
+  currencyCode: string;
+  startDay: number;
+  /** The start day that applies from the next period on (RF-M11-06). */
+  nextStartDay: number | null;
+  defaultAction: BudgetDefaultAction;
+  thresholds: number[];
+  status: BudgetStatus;
+  frozenCarryover: Decimal | null;
+}
+
+export type NewBudget = Pick<
+  BudgetRow,
+  | 'id'
+  | 'scope'
+  | 'categoryId'
+  | 'amount'
+  | 'currencyCode'
+  | 'startDay'
+  | 'defaultAction'
+  | 'thresholds'
+>;
+
+/** The fields of a budget that change; absent fields stay as they are. */
+export type BudgetPatch = Partial<
+  Pick<
+    BudgetRow,
+    | 'amount'
+    | 'defaultAction'
+    | 'thresholds'
+    | 'startDay'
+    | 'nextStartDay'
+    | 'status'
+    | 'frozenCarryover'
+  >
+>;
+
+/** Budgets of the user bound to the transaction (RN-09). */
+export interface BudgetRepository {
+  insert(budget: NewBudget): Promise<void>;
+  get(id: string): Promise<BudgetRow | null>;
+  update(id: string, patch: BudgetPatch): Promise<void>;
+  /** Deletes the budget with its periods, late adjustments and threshold notices. */
+  delete(id: string): Promise<void>;
+  /** How many budgets the user has, in any status. */
+  count(): Promise<number>;
+  /** The budgets of the user, in any status, oldest first. */
+  list(): Promise<BudgetRow[]>;
+  /**
+   * The id of the active, paused or finalizing budget of that category, or of the general one when
+   * `categoryId` is `null` (RF-M11-01); `null` when there is none.
+   */
+  findLive(categoryId: string | null): Promise<string | null>;
+  /** The system key of the category of the user, `null` for one of the user or a missing one. */
+  categorySystemKey(categoryId: string): Promise<SystemCategoryKey | null>;
+  /** The closed period of the budget that waits for a decision, with its deadline (RF-M11-08). */
+  pendingClose(budgetId: string): Promise<PendingClosePeriod | null>;
+  /**
+   * The budgets, in any status, whose scope includes any of the categories: the general one, the
+   * budget of the category and that of its parent (RF-M11-02).
+   */
+  listAffected(categoryIds: string[]): Promise<BudgetRow[]>;
+  /**
+   * Moves the active or paused budgets of the categories to `finalizing`: they last until the end of
+   * their period in course (RF-M5-07, EC-M11-04).
+   */
+  finalizeForCategories(categoryIds: string[]): Promise<void>;
+  /** Moves every budget of the category `fromId`, in any status, to the category `toId` (RF-M5-08). */
+  moveToCategory(fromId: string, toId: string): Promise<void>;
+  /** `true` when an active or paused budget uses the currency (EC-M3-05). */
+  usesCurrency(code: string): Promise<boolean>;
+  /**
+   * The users, of every user and not only the bound one, with an `open` period whose end is
+   * before their today at `now`, in the timezone of each user (`budgets.close` tick, RNF-20).
+   */
+  ownersWithEndedPeriods(now: Instant): Promise<string[]>;
+  /**
+   * The users, of every user and not only the bound one, with a `closed_pending` period whose
+   * decision deadline is before `now` (`budgets.defaultDecision` tick).
+   */
+  ownersWithOverdueDecisions(now: Instant): Promise<string[]>;
+}
+
+/** A closed period that waits for its decision, with the deadline to make it. */
+export interface PendingClosePeriod {
+  id: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  amount: Decimal;
+  carryoverIn: Decimal;
+  deadline: Instant | null;
+}
+
+/** A period of a budget as stored (plan §3.6). */
+export interface BudgetPeriodRow {
+  id: string;
+  budgetId: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  /** The amount of the budget in force in the period. */
+  amount: Decimal;
+  carryoverIn: Decimal;
+  status: BudgetPeriodStatus;
+}
+
+export type NewBudgetPeriod = Pick<
+  BudgetPeriodRow,
+  'id' | 'budgetId' | 'startDate' | 'endDate' | 'amount' | 'carryoverIn'
+>;
+
+/** The fields of a period that change; absent fields stay as they are. */
+export type BudgetPeriodPatch = Partial<Pick<BudgetPeriodRow, 'endDate' | 'amount' | 'carryoverIn'>>;
+
+export interface NewLateAdjustment {
+  id: string;
+  /** The period in course. */
+  periodId: string;
+  /** The closed period the late movement belongs to. */
+  sourcePeriodId: string;
+  /** Signed amount, in the currency of the budget. */
+  amount: Decimal;
+}
+
+export interface LateAdjustmentRow {
+  id: string;
+  sourcePeriodId: string;
+  amount: Decimal;
+  /** Set by "Reiniciar arrastre". */
+  voidedAt: Instant | null;
+}
+
+/** A closed period with what was frozen when its decision was made (RF-M11-11). */
+export interface ClosedBudgetPeriod {
+  id: string;
+  /** `YYYY-MM-DD`. */
+  startDate: LocalDate;
+  /** `YYYY-MM-DD`. */
+  endDate: LocalDate;
+  /** The `DecisionInput` that was applied, as stored in the `decision` jsonb. */
+  decision: unknown;
+  spentAtDecision: Decimal | null;
+  /** Σ of the late adjustments already made for this period, voided ones included. */
+  adjusted: Decimal;
+}
+
+/** What a decision freezes on its closed period (plan §4.11.3). */
+export interface PeriodDecision {
+  spentAtDecision: Decimal;
+  /** Surplus (positive) or deficit (negative): available − spent. */
+  resultAtDecision: Decimal;
+  /** The `DecisionInput` that was applied, kept in the `decision` jsonb. */
+  decision: unknown;
+}
+
+/** Periods, late adjustments and threshold notices of the user bound to the transaction (RN-09). */
+export interface BudgetPeriodRepository {
+  insert(period: NewBudgetPeriod): Promise<void>;
+  get(id: string): Promise<BudgetPeriodRow | null>;
+  /** The periods of the budget, newest first, at most `limit`. */
+  listByBudget(budgetId: string, limit: number): Promise<BudgetPeriodRow[]>;
+  update(id: string, patch: BudgetPeriodPatch): Promise<void>;
+  /** Deletes the period with its late adjustments and threshold notices. */
+  delete(id: string): Promise<void>;
+  insertLateAdjustment(adjustment: NewLateAdjustment): Promise<void>;
+  /** The late adjustments of the period, oldest first, voided ones included. */
+  lateAdjustments(periodId: string): Promise<LateAdjustmentRow[]>;
+  /** Voids the live late adjustments of the period ("Reiniciar arrastre"). */
+  voidLateAdjustments(periodId: string): Promise<void>;
+  /** Saves the notice of the threshold; `false` when the period already had it (RN-10). */
+  recordThresholdHit(periodId: string, threshold: number): Promise<boolean>;
+  /** The `open` period of the budget, the one in course. */
+  current(budgetId: string): Promise<BudgetPeriodRow | null>;
+  /**
+   * The `open` periods whose end is before the today of the user at `now`, in their timezone
+   * (RNF-20), oldest first.
+   */
+  listEnded(now: Instant): Promise<BudgetPeriodRow[]>;
+  /**
+   * Moves the period from `open` to `closed_pending` with its decision deadline; `false` when it
+   * was no longer open (RNF-13).
+   */
+  close(id: string, deadline: Instant): Promise<boolean>;
+  /**
+   * Moves the period from `closed_pending` to `decided` with what was frozen at the decision;
+   * `false` when it was no longer pending (RNF-11).
+   */
+  decide(id: string, decision: PeriodDecision): Promise<boolean>;
+  /**
+   * `true` when a budget of the category, in any status, has a closed period that waits for its
+   * decision (RF-M5-08).
+   */
+  hasPendingCloseInCategory(categoryId: string): Promise<boolean>;
+  /** The `closed_pending` periods whose decision deadline is before `now`, oldest first. */
+  listOverdue(now: Instant): Promise<BudgetPeriodRow[]>;
+  /**
+   * Moves the period from `closed_pending` to `defaulted` with what was frozen when the default
+   * action applied; `false` when it was no longer pending (RNF-12).
+   */
+  applyDefault(id: string, decision: PeriodDecision): Promise<boolean>;
+  /** The decided or defaulted periods of the budget that contain any of the dates (RF-M11-11). */
+  closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]>;
+  /**
+   * Σ of the expenses of the scope of the budget within the period (a category with its
+   * subcategories; the general one, every expense), without what RN-02 leaves out, converted to the
+   * currency of the budget with the rates each movement stored (RF-M11-02, RF-M11-03).
+   */
+  spent(
+    budget: Pick<BudgetRow, 'scope' | 'categoryId' | 'currencyCode'>,
+    period: Pick<BudgetPeriodRow, 'startDate' | 'endDate'>,
+  ): Promise<Decimal>;
 }
