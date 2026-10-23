@@ -1,0 +1,63 @@
+{
+  "title": "Deudas y préstamos",
+  "empty": "Aún no tienes deudas ni préstamos registrados.",
+  "loadError": "No se pudieron cargar las deudas. Inténtalo de nuevo.",
+  "back": "Volver a deudas",
+  "summary": {
+    "label": "Resumen de deudas",
+    "iOwe": "Debes",
+    "owedToMe": "Te deben"
+  },
+  "view": {
+    "label": "Ver la lista",
+    "debt": "Por deuda",
+    "person": "Por persona"
+  },
+  "direction": {
+    "i_owe": "Le debes",
+    "owed_to_me": "Te debe"
+  },
+  "status": {
+    "active": "Activa",
+    "overdue": "Vencida",
+    "paid": "Pagada",
+    "forgiven": "Condonada"
+  },
+  "net": {
+    "owesYou": "Te debe en total",
+    "youOwe": "Le debes en total",
+    "settled": "Están a mano"
+  },
+  "dueDate": "vence el {{date}}",
+  "header": {
+    "pending": "Saldo pendiente",
+    "capital": "Capital pendiente",
+    "interest": "Interés acumulado",
+    "forgiven": "Monto condonado"
+  },
+  "payments": {
+    "title": "Pagos",
+    "empty": "Aún no hay pagos.",
+    "split": "Capital {{capital}} · Interés {{interest}}",
+    "deleteLast": "Eliminar último pago"
+  },
+  "actions": {
+    "forgive": "Condonar saldo",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
+  },
+  "forgive": {
+    "title": "Condonar saldo",
+    "description": "La deuda con {{person}} se cierra y el saldo pendiente se perdona. No se crea ningún movimiento.",
+    "submit": "Condonar"
+  },
+  "delete": {
+    "title": "Eliminar deuda",
+    "description": "Esta deuda tiene movimientos asociados. Elige qué hacer con ellos.",
+    "withMovements_one": "Eliminar también el movimiento asociado",
+    "withMovements_other": "Eliminar también los {{count}} movimientos asociados",
+    "keepMovements": "Conservarlos como movimientos normales",
+    "submit": "Eliminar"
+  }
+}

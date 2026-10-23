@@ -3472,7 +3472,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con una deuda de A.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-217`: Web: lista y detalle de deudas**
+- [x] **`TASK-217`: Web: lista y detalle de deudas**
   - **Dependencias:** Requiere TASK-179, TASK-216
   - **Trazabilidad SDD:** plan §4.13.4 (`/deudas`, `/deudas/:id`); RF-M13-06, RF-M13-11, RF-M13-12, RF-M13-13, EC-M13-05
   - **Archivos en Alcance:**
