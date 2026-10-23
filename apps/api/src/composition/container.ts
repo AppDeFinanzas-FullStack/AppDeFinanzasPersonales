@@ -8,6 +8,7 @@ import { uuidv7 } from 'uuidv7';
 import { AppError } from '../application/errors.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
+import { createRecurringJobs, type RecurringUsers } from '../application/jobs/recurring.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import { createExportService, type ExportService } from '../application/services/export.service.js';
@@ -75,6 +76,11 @@ import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
+import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
+import {
+  createRecurringGenerator,
+  type RecurringGenerator,
+} from '../application/shared/recurring-generator.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -156,6 +162,8 @@ export interface Container {
   readonly jobs: Jobs;
   /** Reactions to ledger changes; each module registers its handler here (plan §4.0). */
   readonly ledgerHooks: LedgerHooks;
+  /** The occurrences of the recurring rules, generated in the caller's transaction (plan §4.14.3). */
+  readonly recurringGenerator: RecurringGenerator;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
@@ -441,6 +449,23 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
   };
 };
 
+/** The users with an active recurring rule and their timezone, for `recurring.generate` (RNF-20). */
+const createRecurringUsers = (prisma: PrismaClient): RecurringUsers => ({
+  async withActiveRules() {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_rule
+       WHERE status = 'active'
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async timezoneOf(userId) {
+    const rows = await prisma.$queryRaw<{ timezone: string }[]>`
+      SELECT timezone FROM auth_user WHERE id = ${userId}::uuid`;
+    return rows[0]?.timezone ?? null;
+  },
+});
+
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
   async findActivity(sessionId: string): Promise<SessionActivity | null> {
@@ -665,6 +690,23 @@ export const buildContainer = (env: Env): Container => {
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
+  const recurringUsers = createRecurringUsers(prisma);
+  const recurringGenerator = createRecurringGenerator({
+    rates: ratesService,
+    ledgerHooks,
+    notifications: createNotificationEmitter({ release: env.RELEASE }),
+    timezones: recurringUsers,
+    clock: systemClock,
+  });
+  const recurringJobs = createRecurringJobs({
+    uow,
+    generator: recurringGenerator,
+    users: recurringUsers,
+    clock: systemClock,
+  });
+  jobs.registerJob('recurring.generate', () => recurringJobs.generate(), {
+    forUser: (userId) => recurringJobs.generateForUser(userId),
+  });
   const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
   const transactionsService = createTransactionsService({
     uow,
@@ -712,6 +754,7 @@ export const buildContainer = (env: Env): Container => {
     ids: uuidv7Ids,
     jobs,
     ledgerHooks,
+    recurringGenerator,
     auth,
     authService,
     meService,

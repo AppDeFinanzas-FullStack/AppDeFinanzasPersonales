@@ -3612,7 +3612,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `decideIf` solo cambia una ocurrencia que está en el estado esperado.
     - `RN-09`: no se ven las reglas de otro usuario.
 
-- [ ] **`TASK-226`: Generación de ocurrencias y job `recurring.generate`**
+- [x] **`TASK-226`: Generación de ocurrencias y job `recurring.generate`**
   - **Dependencias:** Requiere TASK-064, TASK-122, TASK-176, TASK-183, TASK-224, TASK-225
   - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.generate`); RF-M14-04, RF-M14-05, RF-M14-06, RF-M14-12, RF-M6-10, EC-M4-03, EC-M12-05, EC-M14-03, RNF-13, RNF-20
   - **Archivos en Alcance:**
