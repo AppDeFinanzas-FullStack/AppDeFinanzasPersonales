@@ -1,4 +1,9 @@
-import type { CreateDebtInput, DebtDto, DebtsSummaryDto } from '@finanzas/contracts';
+import type {
+  CreateDebtInput,
+  DebtDto,
+  DebtsSummaryDto,
+  PaymentInput,
+} from '@finanzas/contracts';
 import {
   accrue,
   amountInFrom,
@@ -41,6 +46,12 @@ export interface DebtsService {
   create(ctx: DebtsContext, input: CreateDebtInput): Promise<{ created: boolean; debt: DebtDto }>;
   /** The user's debts with the interest carried to today without writing, and the summary. */
   list(ctx: DebtsContext, view: DebtsView): Promise<DebtsListResult>;
+  /** Registers a payment on the debt, idempotent by `input.id` (ADR-11, plan §4.13.3). */
+  pay(
+    ctx: DebtsContext,
+    debtId: string,
+    input: PaymentInput,
+  ): Promise<{ created: boolean; debt: DebtDto }>;
 }
 
 export interface DebtsServiceDeps {
@@ -88,6 +99,31 @@ async function debtsCategoryId(repos: Repositories, kind: CategoryKind): Promise
     throw new AppError('INTERNAL_ERROR');
   }
   return root.id;
+}
+
+/** The system category "Intereses" of that kind: the system child of "Deudas y préstamos". */
+async function interestCategoryId(repos: Repositories, kind: CategoryKind): Promise<string> {
+  const root = (await repos.categories.tree(kind, 'active')).find((node) => node.isSystem);
+  const child = root?.children.find((node) => node.isSystem);
+  if (child === undefined) {
+    throw new AppError('INTERNAL_ERROR');
+  }
+  return child.id;
+}
+
+function splitInvalid(reason: string): AppError {
+  return new AppError('SPLIT_INVALID', { reason });
+}
+
+/** `true` when the stored payment is the same one the client sends again (ADR-11). */
+function samePayment(row: DebtPaymentRow, input: PaymentInput): boolean {
+  return (
+    row.amount.equals(new Decimal(input.amount)) &&
+    row.interestPart.equals(new Decimal(input.interestPart)) &&
+    row.capitalPart.equals(new Decimal(input.capitalPart)) &&
+    row.date === input.date &&
+    row.accountId === (input.account?.accountId ?? null)
+  );
 }
 
 /** `true` when the stored debt is the same one the client sends again (ADR-11). */
@@ -161,6 +197,52 @@ async function snapshotOf(repos: Repositories, debt: DebtRow): Promise<DebtSnaps
   return { debt, payments: await repos.debtPayments.list(debt.id) };
 }
 
+/** What the linked transactions of a payment moved in its account (RF-M13-09). */
+interface PaymentMovements {
+  declaredRate: Decimal | null;
+  accountAmount: Decimal;
+  capitalTransactionId: string | null;
+  interestTransactionId: string | null;
+}
+
+/**
+ * Checks a payment against the debt with its interest carried to today (RF-M13-05, RF-M13-06,
+ * RF-M13-07, EC-M13-01).
+ */
+function assertPayment(
+  ctx: DebtsContext,
+  debt: DebtRow,
+  interestUnpaid: Decimal,
+  input: PaymentInput,
+): void {
+  if (input.date < debt.startDate) {
+    throw splitInvalid('date_before_start');
+  }
+  if (isFutureFor(input.date, ctx.timezone, ctx.now)) {
+    throw new AppError('FUTURE_DATE');
+  }
+  const interestAccrued = round2(interestUnpaid);
+  const pending = debt.capitalOutstanding.plus(interestAccrued);
+  const amount = new Decimal(input.amount);
+  const interestPart = new Decimal(input.interestPart);
+  const capitalPart = new Decimal(input.capitalPart);
+  if (amount.greaterThan(pending)) {
+    throw new AppError('PAYMENT_EXCEEDS_BALANCE', { pending: toMoneyString(pending) });
+  }
+  if (interestPart.lessThan(0) || capitalPart.lessThan(0)) {
+    throw splitInvalid('negative_part');
+  }
+  if (interestPart.greaterThan(interestAccrued)) {
+    throw splitInvalid('interest_exceeds_accrued');
+  }
+  if (capitalPart.greaterThan(debt.capitalOutstanding)) {
+    throw splitInvalid('capital_exceeds_outstanding');
+  }
+  if (!interestPart.plus(capitalPart).equals(amount)) {
+    throw splitInvalid('parts_mismatch');
+  }
+}
+
 /** The delta of an entry, or none when it is dated before the initial balance (RN-12). */
 function deltaFor(account: AccountRow, date: LocalDate, amount: Decimal): BalanceDelta[] {
   return date < account.initialBalanceDate ? [] : [{ accountId: account.id, amount }];
@@ -191,6 +273,31 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
   }
 
   /**
+   * The rate between the debt's currency and the account's: the declared one, or the one prefilled
+   * as in RF-M3-07 (RF-M13-09). `null` when both currencies are the same.
+   */
+  async function declaredRateFor(
+    repos: Repositories,
+    ctx: DebtsContext,
+    debtCurrency: string,
+    accountCurrency: string,
+    date: LocalDate,
+    declared: string | undefined,
+  ): Promise<Decimal | null> {
+    if (accountCurrency === debtCurrency) {
+      return null;
+    }
+    const rate =
+      declared === undefined
+        ? await rates.transferRate(repos, ctx, debtCurrency, accountCurrency, date)
+        : new Decimal(declared);
+    if (rate === null) {
+      throw new AppError('RATE_REQUIRED');
+    }
+    return rate;
+  }
+
+  /**
    * The initial movement (RF-M13-08, RF-M13-09): an income if "Debo", an expense if "Me deben", in
    * the system category, with the amount converted to the account's currency by the declared rate.
    */
@@ -205,24 +312,16 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
       await requireActiveCurrency(repos, account.currencyCode);
     }
     const principal = new Decimal(input.principal);
-    let declaredRate: Decimal | null = null;
-    let amount = principal;
-    if (account.currencyCode !== input.currencyCode) {
-      declaredRate =
-        movement.declaredRate === undefined
-          ? await rates.transferRate(
-              repos,
-              ctx,
-              input.currencyCode,
-              account.currencyCode,
-              input.startDate,
-            )
-          : new Decimal(movement.declaredRate);
-      if (declaredRate === null) {
-        throw new AppError('RATE_REQUIRED');
-      }
-      amount = amountInFrom(principal, declaredRate, input.currencyCode);
-    }
+    const declaredRate = await declaredRateFor(
+      repos,
+      ctx,
+      input.currencyCode,
+      account.currencyCode,
+      input.startDate,
+      movement.declaredRate,
+    );
+    const amount =
+      declaredRate === null ? principal : amountInFrom(principal, declaredRate, input.currencyCode);
     const { rateCurBob, rateUsdBob } = await movementRates(
       repos,
       ctx,
@@ -266,6 +365,115 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
       categoryIds: [categoryId],
       accountIds: [account.id],
     });
+  }
+
+  /**
+   * The linked transactions of a payment (RF-M13-08, RF-M13-09): capital in "Deudas y préstamos"
+   * and interest in "Intereses", expenses if "Debo" and incomes if "Me deben". The whole amount is
+   * converted once and the capital takes what the interest leaves, so no rounding residue remains.
+   * A part of zero creates no transaction.
+   */
+  async function createPaymentMovements(
+    repos: Repositories,
+    ctx: DebtsContext,
+    debt: DebtRow,
+    input: PaymentInput,
+    link: NonNullable<PaymentInput['account']>,
+  ): Promise<PaymentMovements> {
+    const account = await activeAccount(repos, link.accountId);
+    if (account.currencyCode !== debt.currencyCode) {
+      await requireActiveCurrency(repos, account.currencyCode);
+    }
+    const declaredRate = await declaredRateFor(
+      repos,
+      ctx,
+      debt.currencyCode,
+      account.currencyCode,
+      input.date,
+      link.declaredRate,
+    );
+    const toAccount = (value: Decimal): Decimal =>
+      declaredRate === null ? value : amountInFrom(value, declaredRate, debt.currencyCode);
+    const accountAmount = toAccount(new Decimal(input.amount));
+    const interestAmount = toAccount(new Decimal(input.interestPart));
+    const capitalAmount = accountAmount.minus(interestAmount);
+    const { rateCurBob, rateUsdBob } = await movementRates(
+      repos,
+      ctx,
+      debt.currencyCode,
+      account.currencyCode,
+      input.date,
+      declaredRate,
+    );
+
+    const kind: CategoryKind = debt.direction === 'i_owe' ? 'expense' : 'income';
+    const sign = (value: Decimal): Decimal => (kind === 'income' ? value : value.negated());
+    const parts = [
+      {
+        id: link.capitalTransactionId,
+        amount: capitalAmount,
+        categoryId: await debtsCategoryId(repos, kind),
+      },
+      {
+        id: link.interestTransactionId,
+        amount: interestAmount,
+        categoryId: await interestCategoryId(repos, kind),
+      },
+    ].filter((part) => !part.amount.isZero());
+
+    await BalanceGuard.apply(
+      repos,
+      ctx.userId,
+      parts.flatMap((part) => deltaFor(account, input.date, sign(part.amount))),
+      {
+        mode: 'interactive',
+        earmarkWithdrawals: (input.earmarkWithdrawals ?? []).map((withdrawal) => ({
+          goalId: withdrawal.goalId,
+          accountId: withdrawal.accountId,
+          amount: new Decimal(withdrawal.amount),
+        })),
+      },
+    );
+
+    for (const part of parts) {
+      const inserted = await repos.ledger.insertTransaction(
+        {
+          id: part.id,
+          kind,
+          date: input.date,
+          note: null,
+          categoryId: part.categoryId,
+          origin: 'debt_payment',
+          originId: input.id,
+          parentTransactionId: null,
+          recurringRuleId: null,
+          recurringLabel: null,
+          rateCurBob,
+          rateUsdBob,
+          // Only a transfer stores `declared_rate`; here it lives in the stored rates (plan §4.6.1).
+          declaredRate: null,
+        },
+        [{ id: uuidv7(), accountId: account.id, amount: sign(part.amount) }],
+      );
+      if (!inserted) {
+        throw new AppError('IDEMPOTENCY_CONFLICT');
+      }
+    }
+    if (parts.length > 0) {
+      await ledgerHooks.afterChange(repos, ctx.userId, {
+        dates: [input.date],
+        categoryIds: parts.map((part) => part.categoryId),
+        accountIds: [account.id],
+      });
+    }
+    const createdIds = new Set(parts.map((part) => part.id));
+    const createdOrNull = (id: string): string | null => (createdIds.has(id) ? id : null);
+    return {
+      declaredRate,
+      accountAmount,
+      capitalTransactionId: createdOrNull(link.capitalTransactionId),
+      interestTransactionId: createdOrNull(link.interestTransactionId),
+    };
   }
 
   /** Converts an amount to the base currency with the current reference (RF-M13-13). */
@@ -422,6 +630,75 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
         view,
       );
       return { debts, summary };
+    },
+
+    async pay(ctx, debtId, input) {
+      const { created, snapshot } = await uow.run(
+        async (repos) => {
+          const debt = await repos.debts.lockForUpdate(debtId);
+          if (debt === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          const existing = (await repos.debtPayments.list(debt.id)).find(
+            (payment) => payment.id === input.id,
+          );
+          if (existing !== undefined) {
+            if (!samePayment(existing, input)) {
+              throw new AppError('IDEMPOTENCY_CONFLICT');
+            }
+            return { created: false, snapshot: await snapshotOf(repos, debt) };
+          }
+          if (debt.status !== 'active') {
+            throw new AppError('DEBT_CLOSED');
+          }
+
+          // The interest is carried to today first, so what accrued is never recalculated (ADR-14).
+          const today = todayFor(ctx.timezone, ctx.now);
+          const interestUnpaid = interestToday(debt, today);
+          assertPayment(ctx, debt, interestUnpaid, input);
+
+          const movements =
+            input.account === undefined
+              ? null
+              : await createPaymentMovements(repos, ctx, debt, input, input.account);
+
+          const interestPart = new Decimal(input.interestPart);
+          const capitalPart = new Decimal(input.capitalPart);
+          const capitalOutstanding = debt.capitalOutstanding.minus(capitalPart);
+          const remaining = interestUnpaid.minus(interestPart);
+          // Below half a cent is what the rounded interest already covered: it is never negative.
+          const interestLeft = round2(remaining).lessThanOrEqualTo(0) ? new Decimal(0) : remaining;
+          const paid = capitalOutstanding.isZero() && interestLeft.isZero();
+
+          await repos.debtPayments.insert({
+            id: input.id,
+            debtId: debt.id,
+            amount: new Decimal(input.amount),
+            interestPart,
+            capitalPart,
+            date: input.date,
+            accountId: input.account?.accountId ?? null,
+            declaredRate: movements?.declaredRate ?? null,
+            accountAmount: movements?.accountAmount ?? null,
+            capitalTransactionId: movements?.capitalTransactionId ?? null,
+            interestTransactionId: movements?.interestTransactionId ?? null,
+            note: input.note ?? null,
+          });
+          await repos.debts.update(debt.id, {
+            capitalOutstanding,
+            interestUnpaid: interestLeft,
+            accruedThrough: today,
+            ...(paid ? { status: 'paid' as const } : {}),
+          });
+          const updated = await repos.debts.get(debt.id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return { created: true, snapshot: await snapshotOf(repos, updated) };
+        },
+        { userLock: ctx.userId },
+      );
+      return { created, debt: toDto(snapshot, todayFor(ctx.timezone, ctx.now)) };
     },
   };
 }

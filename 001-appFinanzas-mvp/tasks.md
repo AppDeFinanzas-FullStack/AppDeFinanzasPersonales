@@ -3397,7 +3397,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M13-06`: la misma persona en "Debo" y "Me deben" muestra el neto.
     - `RNF-28`: la deuda 201 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-212`: Registrar pagos de deudas**
+- [x] **`TASK-212`: Registrar pagos de deudas**
   - **Dependencias:** Requiere TASK-211
   - **Trazabilidad SDD:** plan §4.13.2 (`payments`), plan §4.13.3 (llevar el interés a hoy, pago); RF-M13-04, RF-M13-05, RF-M13-06, RF-M13-07, RF-M13-08, RF-M13-09, EC-M13-01, EC-M13-03, EC-M13-04, RNF-11
   - **Archivos en Alcance:**
