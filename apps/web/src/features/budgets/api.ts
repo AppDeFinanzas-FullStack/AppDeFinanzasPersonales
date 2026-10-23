@@ -1,4 +1,4 @@
-import { BudgetDto } from '@finanzas/contracts';
+import { BudgetDto, type CreateBudgetInput, type UpdateBudgetInput } from '@finanzas/contracts';
 import { z } from 'zod';
 
 import type { Endpoint } from '@/lib/api-client';
@@ -51,4 +51,18 @@ export const deleteBudgetEndpoint = (id: string): Endpoint<undefined, void> => (
   path: path(id),
   input: z.undefined(),
   output: z.void(),
+});
+
+export const createBudgetEndpoint: Endpoint<CreateBudgetInput, BudgetDto> = {
+  method: 'POST',
+  path: '/api/budgets',
+  input: z.custom<CreateBudgetInput>(),
+  output: BudgetDto,
+};
+
+export const updateBudgetEndpoint = (id: string): Endpoint<UpdateBudgetInput, BudgetDto> => ({
+  method: 'PATCH',
+  path: path(id),
+  input: z.custom<UpdateBudgetInput>(),
+  output: BudgetDto,
 });

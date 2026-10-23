@@ -26,16 +26,17 @@ import { messageForError } from '@/lib/i18n-errors';
 
 import { useBudgetAction, useDeleteBudget, useResetCarryover } from '../hooks/use-budgets';
 
-import { signedMoney } from './carryover-breakdown';
+import { BudgetForm } from './budget-form';
 import { useBudgetName } from './budget-progress';
+import { signedMoney } from './carryover-breakdown';
 
-type Confirm = 'reset' | 'delete' | null;
+type Confirm = 'edit' | 'reset' | 'delete' | null;
 
 const errorText = (error: unknown) =>
   messageForError(error instanceof ApiError ? error : { code: '' });
 
 /**
- * Pausar, Reanudar, Reiniciar arrastre (confirming the amount, RF-M11-12) and Eliminar, in a
+ * Editar, Pausar, Reanudar, Reiniciar arrastre (confirming the amount, RF-M11-12) and Eliminar, in a
  * secondary menu; only Eliminar uses the destructive button (design, M11).
  */
 export function BudgetActions({ budget }: { budget: BudgetDto }) {
@@ -73,6 +74,14 @@ export function BudgetActions({ budget }: { budget: BudgetDto }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            className="min-h-11 text-base"
+            onSelect={() => {
+              setConfirm('edit');
+            }}
+          >
+            {t('actions.edit')}
+          </DropdownMenuItem>
           {budget.status === 'active' && (
             <DropdownMenuItem
               className="min-h-11 text-base"
@@ -118,6 +127,8 @@ export function BudgetActions({ budget }: { budget: BudgetDto }) {
           {errorText(action.error)}
         </p>
       )}
+
+      <BudgetForm open={confirm === 'edit'} onOpenChange={onOpenChange} budget={budget} />
 
       <Dialog open={confirm === 'reset'} onOpenChange={onOpenChange}>
         <DialogContent>

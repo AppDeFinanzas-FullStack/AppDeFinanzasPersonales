@@ -1,3 +1,4 @@
+import type { CreateBudgetInput, UpdateBudgetInput } from '@finanzas/contracts';
 import {
   available,
   BOLIVIA_TIME_ZONE,
@@ -14,8 +15,10 @@ import { call } from '@/lib/api-client';
 import {
   budgetActionEndpoint,
   budgetEndpoint,
+  createBudgetEndpoint,
   deleteBudgetEndpoint,
   listBudgetsEndpoint,
+  updateBudgetEndpoint,
   type BudgetDetail,
 } from '../api';
 
@@ -37,6 +40,41 @@ export function useBudget(id: string) {
     queryKey: budgetKey(id),
     queryFn: ({ signal }) => call(budgetEndpoint(id), undefined, { signal }),
     retry: false,
+  });
+}
+
+/** Reads a budget through the cache, to edit the existing one (EC-M11-06). */
+export function useFetchBudget(): (id: string) => Promise<BudgetDetail> {
+  const queryClient = useQueryClient();
+  return (id) =>
+    queryClient.fetchQuery({
+      queryKey: budgetKey(id),
+      queryFn: ({ signal }) => call(budgetEndpoint(id), undefined, { signal }),
+    });
+}
+
+/** Creates a budget with the `id` of the client (ADR-11). */
+export function useCreateBudget() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateBudgetInput) => call(createBudgetEndpoint, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: BUDGETS_KEY });
+    },
+  });
+}
+
+/** Edits a budget; the currency never travels (RF-M11-07). */
+export function useUpdateBudget(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateBudgetInput) => call(updateBudgetEndpoint(id), input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: budgetKey(id) }),
+        queryClient.invalidateQueries({ queryKey: BUDGETS_KEY }),
+      ]);
+    },
   });
 }
 

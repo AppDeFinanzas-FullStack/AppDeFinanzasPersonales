@@ -3329,7 +3329,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-12`: la confirmación de reiniciar muestra el monto.
     - `RF-M11-05`: se ve el desglose del arrastre.
 
-- [ ] **`TASK-206`: Web: formulario de presupuesto**
+- [x] **`TASK-206`: Web: formulario de presupuesto**
   - **Dependencias:** Requiere TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (formulario); RF-M11-01, RF-M11-07, RF-M9-06, EC-M11-06
   - **Archivos en Alcance:**
