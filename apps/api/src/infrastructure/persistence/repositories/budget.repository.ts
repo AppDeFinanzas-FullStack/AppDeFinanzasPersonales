@@ -211,5 +211,13 @@ export function createBudgetRepository(tx: TransactionClient, userId: string): B
            AND p.end_date < (${now}::timestamptz AT TIME ZONE u.timezone)::date`;
       return rows.map((row) => row.userId);
     },
+
+    async ownersWithOverdueDecisions(now: Date): Promise<string[]> {
+      const rows = await tx.$queryRaw<{ userId: string }[]>`
+        SELECT DISTINCT user_id::text AS "userId"
+          FROM budget_period
+         WHERE status = 'closed_pending' AND decision_deadline < ${now}::timestamptz`;
+      return rows.map((row) => row.userId);
+    },
   };
 }

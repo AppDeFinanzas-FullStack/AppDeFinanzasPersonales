@@ -1029,6 +1029,11 @@ export interface BudgetRepository {
    * before their today at `now`, in the timezone of each user (`budgets.close` tick, RNF-20).
    */
   ownersWithEndedPeriods(now: Instant): Promise<string[]>;
+  /**
+   * The users, of every user and not only the bound one, with a `closed_pending` period whose
+   * decision deadline is before `now` (`budgets.defaultDecision` tick).
+   */
+  ownersWithOverdueDecisions(now: Instant): Promise<string[]>;
 }
 
 /** A closed period that waits for its decision, with the deadline to make it. */
@@ -1139,6 +1144,13 @@ export interface BudgetPeriodRepository {
    * `false` when it was no longer pending (RNF-11).
    */
   decide(id: string, decision: PeriodDecision): Promise<boolean>;
+  /** The `closed_pending` periods whose decision deadline is before `now`, oldest first. */
+  listOverdue(now: Instant): Promise<BudgetPeriodRow[]>;
+  /**
+   * Moves the period from `closed_pending` to `defaulted` with what was frozen when the default
+   * action applied; `false` when it was no longer pending (RNF-12).
+   */
+  applyDefault(id: string, decision: PeriodDecision): Promise<boolean>;
   /** The decided or defaulted periods of the budget that contain any of the dates (RF-M11-11). */
   closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]>;
   /**

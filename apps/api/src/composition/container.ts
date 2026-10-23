@@ -661,6 +661,7 @@ export const buildContainer = (env: Env): Container => {
   jobs.registerJob('budgets.close', () => budgetsJobs.close(), {
     forUser: (userId) => budgetsJobs.closeForUser(userId),
   });
+  jobs.registerJob('budgets.defaultDecision', () => budgetsJobs.defaultDecision());
   jobs.registerJob(
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),

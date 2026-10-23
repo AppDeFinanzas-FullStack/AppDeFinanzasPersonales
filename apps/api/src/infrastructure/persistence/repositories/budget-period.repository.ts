@@ -195,6 +195,28 @@ export function createBudgetPeriodRepository(
       return updated.length > 0;
     },
 
+    async listOverdue(now: Date): Promise<BudgetPeriodRow[]> {
+      const records = await tx.$queryRaw<PeriodRecord[]>`
+        SELECT ${COLUMNS}
+          FROM budget_period p
+         WHERE p.user_id = ${userId}::uuid AND p.status = 'closed_pending'
+           AND p.decision_deadline < ${now}::timestamptz
+         ORDER BY p.start_date, p.id`;
+      return records.map(toRow);
+    },
+
+    async applyDefault(id: string, decision: PeriodDecision): Promise<boolean> {
+      const updated = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE budget_period
+           SET status = 'defaulted', decided_at = now(),
+               spent_at_decision = ${decision.spentAtDecision.toFixed(2)}::numeric,
+               result_at_decision = ${decision.resultAtDecision.toFixed(2)}::numeric,
+               decision = ${JSON.stringify(decision.decision)}::jsonb
+         WHERE user_id = ${userId}::uuid AND id = ${id}::uuid AND status = 'closed_pending'
+        RETURNING id::text AS id`;
+      return updated.length > 0;
+    },
+
     async closedContaining(budgetId: string, dates: LocalDate[]): Promise<ClosedBudgetPeriod[]> {
       if (dates.length === 0) {
         return [];

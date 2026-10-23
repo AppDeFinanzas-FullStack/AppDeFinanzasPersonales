@@ -3258,7 +3258,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-09`: arrastrar en un presupuesto finalizado se rechaza.
     - `RNF-11`: una doble decisión aplica una sola.
 
-- [ ] **`TASK-202`: Job `budgets.defaultDecision`**
+- [x] **`TASK-202`: Job `budgets.defaultDecision`**
   - **Dependencias:** Requiere TASK-201
   - **Trazabilidad SDD:** plan §4.11.3 (closed_pending → defaulted); RF-M11-10, RNF-12, RNF-13
   - **Archivos en Alcance:**

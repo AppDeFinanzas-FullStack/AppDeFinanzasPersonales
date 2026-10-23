@@ -1,3 +1,4 @@
+import type { DecisionInput } from '@finanzas/contracts';
 import { nextPeriod, thresholdsCrossed, toMoneyString } from '@finanzas/domain';
 import { Decimal } from 'decimal.js';
 
@@ -10,11 +11,12 @@ import type { NotificationEmitter } from '../shared/notification-emitter.js';
 const DAY_MS = 24 * 60 * 60_000;
 /** The decision of a closed period waits 7 days from the moment it is generated (RF-M11-10). */
 const DECISION_WINDOW_MS = 7 * DAY_MS;
+const ALL_PERIODS = 10_000;
 
 export interface BudgetsJobsDeps {
   uow: UnitOfWork;
   clock: Clock;
-  notifications: Pick<NotificationEmitter, 'emit'>;
+  notifications: Pick<NotificationEmitter, 'emit' | 'resolveDecision'>;
   ids: IdGenerator;
 }
 
@@ -23,6 +25,8 @@ export interface BudgetsJobs {
   close(): Promise<void>;
   /** The per-user scope of `budgets.close`, for the catch-up of the user (ADR-01). */
   closeForUser(userId: string): Promise<void>;
+  /** The `budgets.defaultDecision` handler of the tick: applies the default action when the deadline passed. */
+  defaultDecision(): Promise<void>;
 }
 
 /**
@@ -131,7 +135,90 @@ export function createBudgetsJobs({ uow, clock, notifications, ids }: BudgetsJob
     );
   }
 
+  /** Carries the amount to the period after the closed one, as the manual decision does. */
+  async function carryOver(
+    repos: Repositories,
+    budget: BudgetRow,
+    period: BudgetPeriodRow,
+    carry: Decimal,
+  ): Promise<void> {
+    const later = (await repos.budgetPeriods.listByBudget(budget.id, ALL_PERIODS)).filter(
+      (candidate) => candidate.startDate > period.endDate,
+    );
+    const next = later[later.length - 1];
+    if (next !== undefined) {
+      await repos.budgetPeriods.update(next.id, { carryoverIn: carry });
+    } else if (budget.status === 'paused') {
+      await repos.budgets.update(budget.id, { frozenCarryover: carry });
+    }
+  }
+
+  async function defaultPeriod(
+    repos: Repositories,
+    userId: string,
+    period: BudgetPeriodRow,
+  ): Promise<void> {
+    const budget = await repos.budgets.get(period.budgetId);
+    if (budget === null) {
+      return;
+    }
+    const spent = await repos.budgetPeriods.spent(budget, period);
+    let available = period.amount.plus(period.carryoverIn);
+    for (const adjustment of await repos.budgetPeriods.lateAdjustments(period.id)) {
+      if (adjustment.voidedAt === null) {
+        available = available.plus(adjustment.amount);
+      }
+    }
+    const result = available.minus(spent);
+    // Discarding a surplus or absorbing a deficit carries nothing (RF-M11-10), and an ended
+    // budget does not offer to carry.
+    const carries =
+      budget.defaultAction === 'carry' &&
+      budget.status !== 'finalizing' &&
+      budget.status !== 'finalized';
+    // Stored in the shape of the manual decision so late movements treat both alike (RF-M11-11).
+    const decision: DecisionInput = result.isNegative()
+      ? { result: 'deficit', mode: carries ? 'carry' : 'absorb' }
+      : {
+          result: 'surplus',
+          carry: carries ? result.toFixed(2) : '0.00',
+          discard: carries ? '0.00' : result.toFixed(2),
+        };
+    const applied = await repos.budgetPeriods.applyDefault(period.id, {
+      spentAtDecision: spent,
+      resultAtDecision: result,
+      decision,
+    });
+    if (!applied) {
+      return;
+    }
+    if (carries) {
+      await carryOver(repos, budget, period, result);
+    }
+    await notifications.resolveDecision(repos, userId, 'budget_period', period.id);
+  }
+
+  async function defaultForUser(userId: string): Promise<void> {
+    await uow.run(
+      async (repos) => {
+        for (const period of await repos.budgetPeriods.listOverdue(clock.now())) {
+          await defaultPeriod(repos, userId, period);
+        }
+      },
+      { userLock: userId },
+    );
+  }
+
   return {
+    async defaultDecision() {
+      const owners = await uow.run(
+        (repos) => repos.budgets.ownersWithOverdueDecisions(clock.now()),
+        { readOnly: true },
+      );
+      for (const userId of owners) {
+        await defaultForUser(userId);
+      }
+    },
     async close() {
       const owners = await uow.run((repos) => repos.budgets.ownersWithEndedPeriods(clock.now()), {
         readOnly: true,
