@@ -3300,6 +3300,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/budgets.test.ts`
     - `apps/api/test/http/budgets.isolation.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** Monta los endpoints de plan §4.11.2 detrás de `releaseGate('m11')`.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
