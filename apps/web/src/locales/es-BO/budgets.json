@@ -1,0 +1,58 @@
+{
+  "title": "Presupuestos",
+  "empty": "Aún no tienes presupuestos. Crea uno para controlar cuánto gastas cada período.",
+  "loadError": "No se pudieron cargar los presupuestos. Inténtalo de nuevo.",
+  "back": "Volver a presupuestos",
+  "general": "Presupuesto general",
+  "period": "Período del {{start}} al {{end}}",
+  "noPeriod": "Sin período en curso.",
+  "status": {
+    "active": "Activo",
+    "paused": "Pausado",
+    "finalizing": "Finalizando",
+    "finalized": "Finalizado"
+  },
+  "decideClose": "Decidir cierre",
+  "progress": {
+    "label": "Avance de {{name}}",
+    "spentOf": "{{pct}} % · {{spent}} de {{available}}",
+    "todayShouldBe": "Hoy deberías llevar {{amount}}",
+    "available": "Disponible"
+  },
+  "pace": {
+    "daily_one": "Puedes gastar {{amount}} por día durante {{count}} día",
+    "daily_other": "Puedes gastar {{amount}} por día durante {{count}} días",
+    "over": "Vas {{amount}} por encima del ritmo",
+    "exceeded": "Superado por {{amount}}"
+  },
+  "breakdown": {
+    "title": "Monto ± arrastre = disponible",
+    "amount": "Monto del período",
+    "carryover": "Arrastre",
+    "available": "Disponible"
+  },
+  "history": {
+    "title": "Últimos períodos",
+    "empty": "Aún no hay períodos anteriores.",
+    "amount": "Monto {{amount}}",
+    "carryover": "arrastre {{amount}}",
+    "status": {
+      "open": "En curso",
+      "closed_pending": "Decidir cierre",
+      "decided": "Decidido",
+      "defaulted": "Decidido automáticamente"
+    }
+  },
+  "actions": {
+    "menu": "Acciones del presupuesto",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "resetCarryover": "Reiniciar arrastre",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "resetTitle": "¿Reiniciar el arrastre?",
+    "resetDescription": "El arrastre de {{amount}} pasará a 0 y el disponible quedará en el monto del período.",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Se borrarán el presupuesto y su historial. Tus movimientos no cambian."
+  }
+}

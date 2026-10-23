@@ -3307,7 +3307,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con un presupuesto o un período de A, también al decidir.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-205`: Web: lista y detalle de presupuestos**
+- [x] **`TASK-205`: Web: lista y detalle de presupuestos**
   - **Dependencias:** Requiere TASK-179, TASK-204
   - **Trazabilidad SDD:** plan §4.11.4 (`/presupuestos`, `/presupuestos/:id`); RF-M11-05, RF-M11-12, RF-M11-14, EC-M11-01, spec §2.11.1 (seguir el período)
   - **Archivos en Alcance:**
