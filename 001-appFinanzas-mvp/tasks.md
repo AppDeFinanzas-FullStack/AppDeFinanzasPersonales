@@ -3643,7 +3643,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-14`: una regla sin monto se muestra como "monto por definir".
     - `RNF-28`: la regla 101 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-228`: Confirmar y omitir pendientes**
+- [x] **`TASK-228`: Confirmar y omitir pendientes**
   - **Dependencias:** Requiere TASK-227
   - **Trazabilidad SDD:** plan §4.14.2 (`confirm`, `skip`); RF-M14-06, RF-M14-08, EC-M15-01, RNF-11
   - **Archivos en Alcance:**
