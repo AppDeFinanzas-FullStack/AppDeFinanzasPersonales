@@ -47,7 +47,8 @@ las tareas que cada persona cierra en ellas; la 23 la comparten Alejandro (backe
 | TASK-138..TASK-140 | @SebastianCatunta | 12   | Web: transferencias, segundo nivel de Registrar y fichas de atajos |
 | TASK-141..TASK-142 | @matiasmm1011     | 12   | Web: errores, estados vacíos y después de guardar en Registrar     |
 | TASK-193..TASK-207 | @SebastianCatunta | 20   | Presupuestos: períodos, umbrales, cierre, _jobs_, rutas y su web   |
-| TASK-208..TASK-218 | @alejandrorozich  | 21   | Deudas y préstamos: interés, pagos, vencimientos, rutas y su web   |
+| TASK-208..TASK-217 | @alejandrorozich  | 21   | Deudas y préstamos: interés, pagos, vencimientos, rutas y su web   |
+| TASK-218           | @matiasmm1011     | 21   | Web: formularios de deuda y de pago                                |
 | TASK-219..TASK-222 | @matiasmm1011     | 22   | Bloques del Inicio de V1.1, exportadores y regresión               |
 | TASK-223..TASK-233 | @alejandrorozich  | 23   | Recurrentes (backend): reglas, ocurrencias, _jobs_ y rutas         |
 | TASK-234..TASK-236 | @SebastianCatunta | 23   | Recurrentes (web): pantalla, formulario y pendientes en la bandeja |
