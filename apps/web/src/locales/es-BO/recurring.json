@@ -61,6 +61,7 @@
     },
     "name": "Nombre",
     "nameError": "Escribe un nombre de hasta 40 caracteres.",
+    "draftIssues": "Recuperamos tu borrador, pero algunos datos ya no existen. Revisa los campos.",
     "amount": "Monto",
     "amountHint": "Opcional si la regla pide confirmación.",
     "amountRequired": "Ingresa el monto: es obligatorio en modo automático.",

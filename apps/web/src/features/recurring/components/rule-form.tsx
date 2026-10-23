@@ -1,14 +1,15 @@
-import type {
-  CategoryNode,
-  CreateRuleInput,
-  RuleEnd,
-  RuleFrequency,
+import {
   RuleKind,
   RuleMode,
+  type CategoryNode,
+  type CreateRuleInput,
+  type RuleEnd,
+  type RuleFrequency,
 } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, parseAmountInput, todayFor } from '@finanzas/domain';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { uuidv7 } from 'uuidv7';
 import { z } from 'zod';
@@ -35,15 +36,41 @@ import { useAccounts } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCategories } from '@/features/categories/hooks/use-categories';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
+import { useDraft } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
 
 import { RECURRING_KEY } from '../hooks/use-recurring';
 
 const SELECT_CLASS = 'flex h-11 w-full rounded-md border border-input bg-background px-3 text-base';
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const NAME_MAX = 40;
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 type FrequencyType = (typeof FREQUENCIES)[number];
+const END_TYPES = ['none', 'until', 'count'] as const;
 type EndType = RuleEnd['type'];
+
+const RuleFormValues = z.object({
+  kind: RuleKind,
+  name: z.string(),
+  amount: z.string(),
+  accountId: z.string(),
+  destAccountId: z.string(),
+  categoryId: z.string(),
+  note: z.string(),
+  frequency: z.enum(FREQUENCIES),
+  weekday: z.number(),
+  month: z.number(),
+  day: z.string(),
+  start: z.string(),
+  endType: z.enum(END_TYPES),
+  endDate: z.string(),
+  endCount: z.string(),
+  mode: RuleMode,
+});
+type RuleFormValues = z.infer<typeof RuleFormValues>;
+
+const DraftSchema = RuleFormValues.partial();
+
 type Field =
   | 'name'
   | 'amount'
@@ -89,22 +116,52 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
   const [ruleId] = useState(() => uuidv7());
   const initial = parts(today);
 
-  const [kind, setKind] = useState<RuleKind>('expense');
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const [destAccountId, setDestAccountId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [note, setNote] = useState('');
-  const [frequency, setFrequency] = useState<FrequencyType>('monthly');
-  const [weekday, setWeekday] = useState(initial.weekday);
-  const [month, setMonth] = useState(initial.month);
-  const [day, setDay] = useState(String(initial.day));
-  const [start, setStart] = useState(today);
-  const [endType, setEndType] = useState<EndType>('none');
-  const [endDate, setEndDate] = useState('');
-  const [endCount, setEndCount] = useState('');
-  const [mode, setMode] = useState<RuleMode>('confirm');
+  const form = useForm<RuleFormValues>({
+    defaultValues: {
+      kind: 'expense',
+      name: '',
+      amount: '',
+      accountId: '',
+      destAccountId: '',
+      categoryId: '',
+      note: '',
+      frequency: 'monthly',
+      weekday: initial.weekday,
+      month: initial.month,
+      day: String(initial.day),
+      start: today,
+      endType: 'none',
+      endDate: '',
+      endCount: '',
+      mode: 'confirm',
+    },
+  });
+  const draft = useDraft('recurring-rule', form, {
+    userId: me.data?.id ?? '',
+    schema: DraftSchema,
+  });
+  const values = useWatch({ control: form.control }) as RuleFormValues;
+  const {
+    kind,
+    name,
+    amount,
+    accountId,
+    destAccountId,
+    categoryId,
+    note,
+    frequency,
+    weekday,
+    month,
+    day,
+    start,
+    endType,
+    endDate,
+    endCount,
+    mode,
+  } = values;
+  const set = <K extends keyof RuleFormValues>(field: K, value: RuleFormValues[K]) => {
+    form.setValue(field, value as never, { shouldDirty: true });
+  };
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
 
   const accounts = useAccounts('active');
@@ -116,14 +173,23 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
   const activeCategories = flatten(categories.data ?? []).filter(
     (category) => category.status === 'active',
   );
-  const effectiveAccount = accountId || activeAccounts[0]?.id || '';
-  const effectiveCategory = categoryId || activeCategories[0]?.id || '';
+  // A restored draft may point to an account or category that is no longer active.
+  const effectiveAccount = activeAccounts.some((account) => account.id === accountId)
+    ? accountId
+    : (activeAccounts[0]?.id ?? '');
+  const effectiveCategory = activeCategories.some((category) => category.id === categoryId)
+    ? categoryId
+    : (activeCategories[0]?.id ?? '');
+  const effectiveDest = activeAccounts.some((account) => account.id === destAccountId)
+    ? destAccountId
+    : '';
   const ready =
     accounts.data !== undefined && (kind === 'transfer' || categories.data !== undefined);
 
   const create = useMutation({
     mutationFn: (input: CreateRuleInput) => call(createRuleEndpoint, input),
     onSuccess: async () => {
+      draft.clear();
       await queryClient.invalidateQueries({ queryKey: RECURRING_KEY });
       onClose();
     },
@@ -132,7 +198,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
   const submit = () => {
     const next: Partial<Record<Field, string>> = {};
     const trimmedName = name.trim();
-    if (trimmedName.length < 1 || trimmedName.length > 40) next.name = t('form.nameError');
+    if (trimmedName.length < 1 || trimmedName.length > NAME_MAX) next.name = t('form.nameError');
 
     let parsedAmount: string | undefined;
     if (amount.trim() === '') {
@@ -145,7 +211,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
 
     if (effectiveAccount === '') next.account = t('form.accountError');
     if (kind === 'transfer') {
-      if (destAccountId === '' || destAccountId === effectiveAccount) {
+      if (effectiveDest === '' || effectiveDest === effectiveAccount) {
         next.destAccount = t('form.destAccountError');
       }
     } else if (effectiveCategory === '') {
@@ -193,7 +259,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
       mode,
     };
     if (parsedAmount !== undefined) input.amount = parsedAmount;
-    if (kind === 'transfer') input.destAccountId = destAccountId;
+    if (kind === 'transfer') input.destAccountId = effectiveDest;
     else input.categoryId = effectiveCategory;
     if (note.trim() !== '') input.note = note.trim();
     create.mutate(input);
@@ -216,6 +282,11 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
           <DialogTitle>{t('form.title')}</DialogTitle>
           <DialogDescription>{t('form.description')}</DialogDescription>
         </DialogHeader>
+        {draft.restoredWithIssues && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t('form.draftIssues')}
+          </p>
+        )}
         <form
           noValidate
           className="flex flex-col gap-4"
@@ -231,8 +302,8 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               className={SELECT_CLASS}
               value={kind}
               onChange={(event) => {
-                setKind(event.target.value as RuleKind);
-                setCategoryId('');
+                set('kind', event.target.value as RuleKind);
+                set('categoryId', '');
               }}
             >
               {(['expense', 'income', 'transfer'] as const).map((value) => (
@@ -247,11 +318,11 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
             <Input
               id="rule-name"
               className="h-11"
-              maxLength={60}
+              maxLength={NAME_MAX}
               value={name}
               aria-invalid={errors.name !== undefined}
               onChange={(event) => {
-                setName(event.target.value);
+                set('name', event.target.value);
               }}
             />
             {error('name')}
@@ -266,7 +337,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               value={amount}
               aria-invalid={errors.amount !== undefined}
               onChange={(event) => {
-                setAmount(event.target.value);
+                set('amount', event.target.value);
               }}
             />
             {mode === 'confirm' && (
@@ -281,7 +352,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               className={SELECT_CLASS}
               value={effectiveAccount}
               onChange={(event) => {
-                setAccountId(event.target.value);
+                set('accountId', event.target.value);
               }}
             >
               {activeAccounts.map((account) => (
@@ -298,9 +369,9 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               <select
                 id="rule-dest-account"
                 className={SELECT_CLASS}
-                value={destAccountId}
+                value={effectiveDest}
                 onChange={(event) => {
-                  setDestAccountId(event.target.value);
+                  set('destAccountId', event.target.value);
                 }}
               >
                 <option value="">{t('form.choose')}</option>
@@ -322,7 +393,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 className={SELECT_CLASS}
                 value={effectiveCategory}
                 onChange={(event) => {
-                  setCategoryId(event.target.value);
+                  set('categoryId', event.target.value);
                 }}
               >
                 {activeCategories.map((category) => (
@@ -342,7 +413,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               value={note}
               aria-invalid={errors.note !== undefined}
               onChange={(event) => {
-                setNote(event.target.value);
+                set('note', event.target.value);
               }}
             />
             {error('note')}
@@ -352,7 +423,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
             <Select
               value={frequency}
               onValueChange={(value) => {
-                setFrequency(value as FrequencyType);
+                set('frequency', value as FrequencyType);
               }}
             >
               <SelectTrigger id="rule-frequency" className="h-11 text-base">
@@ -375,7 +446,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 className={SELECT_CLASS}
                 value={weekday}
                 onChange={(event) => {
-                  setWeekday(Number(event.target.value));
+                  set('weekday', Number(event.target.value));
                 }}
               >
                 {(t('form.weekdays', { returnObjects: true }) as string[]).map((label, index) => (
@@ -394,7 +465,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 className={SELECT_CLASS}
                 value={month}
                 onChange={(event) => {
-                  setMonth(Number(event.target.value));
+                  set('month', Number(event.target.value));
                 }}
               >
                 {(t('form.months', { returnObjects: true }) as string[]).map((label, index) => (
@@ -415,7 +486,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 value={day}
                 aria-invalid={errors.day !== undefined}
                 onChange={(event) => {
-                  setDay(event.target.value);
+                  set('day', event.target.value);
                 }}
               />
               {error('day')}
@@ -431,7 +502,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               value={start}
               aria-invalid={errors.start !== undefined}
               onChange={(event) => {
-                setStart(event.target.value);
+                set('start', event.target.value);
               }}
             />
             {error('start')}
@@ -443,10 +514,10 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
               className={SELECT_CLASS}
               value={endType}
               onChange={(event) => {
-                setEndType(event.target.value as EndType);
+                set('endType', event.target.value as EndType);
               }}
             >
-              {(['none', 'until', 'count'] as const).map((value) => (
+              {END_TYPES.map((value) => (
                 <option key={value} value={value}>
                   {t(`form.ends.${value}`)}
                 </option>
@@ -464,7 +535,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 value={endDate}
                 aria-invalid={errors.endDate !== undefined}
                 onChange={(event) => {
-                  setEndDate(event.target.value);
+                  set('endDate', event.target.value);
                 }}
               />
               {error('endDate')}
@@ -480,7 +551,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                 value={endCount}
                 aria-invalid={errors.endCount !== undefined}
                 onChange={(event) => {
-                  setEndCount(event.target.value);
+                  set('endCount', event.target.value);
                 }}
               />
               {error('endCount')}
@@ -496,7 +567,7 @@ export function RuleForm({ onClose }: { onClose: () => void }) {
                   value={value}
                   checked={mode === value}
                   onChange={() => {
-                    setMode(value);
+                    set('mode', value);
                   }}
                 />
                 {t(`rules.mode.${value}`)}

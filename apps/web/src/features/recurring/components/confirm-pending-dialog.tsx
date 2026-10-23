@@ -4,7 +4,7 @@ import type {
   OccurrenceDto,
   RuleDto,
 } from '@finanzas/contracts';
-import { parseAmountInput } from '@finanzas/domain';
+import { BOLIVIA_TIME_ZONE, parseAmountInput, todayFor } from '@finanzas/domain';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { uuidv7 } from 'uuidv7';
@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAccounts } from '@/features/accounts/hooks/use-accounts';
+import { useMe } from '@/features/auth/hooks/use-me';
 import { useCategories } from '@/features/categories/hooks/use-categories';
 import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
@@ -28,8 +29,7 @@ import { messageForError } from '@/lib/i18n-errors';
 import { useConfirmOccurrence } from '../hooks/use-recurring';
 
 const LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const SELECT_CLASS =
-  'flex h-11 w-full rounded-md border border-input bg-background px-3 text-base';
+const SELECT_CLASS = 'flex h-11 w-full rounded-md border border-input bg-background px-3 text-base';
 
 type Field = 'amount' | 'date' | 'rate' | 'account' | 'category';
 
@@ -45,7 +45,8 @@ function positiveDecimal(raw: string): string | null {
 
 /**
  * Confirms a pending occurrence (RF-M14-08): the amount, the date and the rate can be adjusted, a
- * rule without amount asks for it, and an archived account or category must be replaced.
+ * rule without amount asks for it, the date cannot be in the future in the user's time zone, and an
+ * archived account or category must be replaced.
  */
 export function ConfirmPendingDialog({
   occurrence,
@@ -57,6 +58,8 @@ export function ConfirmPendingDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation('recurring');
+  const me = useMe();
+  const [today] = useState(() => todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date()));
   const kind = rule?.kind ?? 'expense';
   const categoryKind = kind === 'income' ? 'income' : 'expense';
   const accounts = useAccounts('active');
@@ -89,7 +92,7 @@ export function ConfirmPendingDialog({
     const parsedAmount = positiveDecimal(amount);
     if (parsedAmount === null) next.amount = t('confirm.amountError');
     else input.amount = parsedAmount;
-    if (!LOCAL_DATE.test(date)) next.date = t('confirm.dateError');
+    if (!LOCAL_DATE.test(date) || date > today) next.date = t('confirm.dateError');
     if (rate.trim() !== '') {
       const parsedRate = positiveDecimal(rate);
       if (parsedRate === null) next.rate = t('confirm.rateError');
@@ -151,6 +154,7 @@ export function ConfirmPendingDialog({
             <Input
               id="confirm-date"
               type="date"
+              max={today}
               className="h-11 tabular-nums"
               value={date}
               aria-invalid={errors.date !== undefined}
