@@ -26,7 +26,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 | **14** | M9 Ajustes y personalización | V1.0 | TASK-149 a TASK-154 |
 | **15** | M10 Onboarding | V1.0 | TASK-155 a TASK-162 |
 | **16** | Exportación de datos (M1) | V1.0 | TASK-163 a TASK-165 |
-| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 |
+| **17** | Cierre de V1.0: rendimiento, accesibilidad, aislamiento y despliegue | V1.0 | TASK-166 a TASK-174 y TASK-248 |
 | **18** | M15 Bandeja de avisos | V1.1 | TASK-175 a TASK-179 |
 | **19** | M12 Metas de ahorro | V1.1 | TASK-180 a TASK-192 |
 | **20** | M11 Presupuestos | V1.1 | TASK-193 a TASK-207 |
@@ -2452,7 +2452,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 15 — M10 Onboarding (V1.0)
 
-- [ ] **`TASK-155`: Contratos de M10**
+- [x] **`TASK-155`: Contratos de M10**
   - **Dependencias:** Requiere TASK-096, TASK-109
   - **Trazabilidad SDD:** plan §4.10.1; RF-M10-04
   - **Archivos en Alcance:**
@@ -2463,11 +2463,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M10-04`: `Step2Input` acepta el saldo con las reglas de `AmountAbs`; `Step1Input` solo acepta BOB o USD.
 
-- [ ] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
+- [x] **`TASK-156`: `OnboardingService`: estado, paso 1 y saltos**
   - **Dependencias:** Requiere TASK-085, TASK-155
   - **Trazabilidad SDD:** plan §4.10.2 (`GET`, `step1`, `skip`, `skip-all`), plan §4.10.3; RF-M10-01, RF-M10-02, RF-M10-03, RF-M10-06
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/onboarding.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/user-settings.repository.ts`
     - `apps/api/test/integration/onboarding-step1.test.ts`
   - **Especificación de Implementación:** `get` devuelve el paso, las cuentas sugeridas ("Efectivo (Bs)" ✓, "Banco (Bs)" ✓, "Dólares en efectivo ($)" sin marcar), el árbol de categorías y la tasa en uso o `null`. `step1` y `skip` hacen `UPDATE … WHERE onboarding_step = N AND onboarding_completed_at IS NULL` (si no, `STEP_MISMATCH {currentStep}`). `skipAll` termina el Onboarding. Si ya terminó, todo responde `ONBOARDING_DONE`.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2476,7 +2478,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M10-03`: saltar el paso 2 no crea cuentas.
     - `RF-M10-06`: saltar el paso 3 conserva todas las precargadas.
 
-- [ ] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
+- [x] **`TASK-157`: `OnboardingService`: paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-101, TASK-156
   - **Trazabilidad SDD:** plan §4.10.2 (`step2`); RF-M10-04, EC-M10-01, EC-M10-02, RF-M4-01, RF-M4-02
   - **Archivos en Alcance:**
@@ -2489,7 +2491,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos cuentas con el mismo nombre dan `NAME_TAKEN`.
     - Reenviar el paso con los mismos ids no duplica las cuentas.
 
-- [ ] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
+- [x] **`TASK-158`: `OnboardingService`: paso 3 (categorías) y fin**
   - **Dependencias:** Requiere TASK-111, TASK-157
   - **Trazabilidad SDD:** plan §4.10.2 (`step3`), plan §4.5.3 (seed); RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**
@@ -2501,7 +2503,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-03`: se pueden quitar todas las de gasto.
     - Al terminar, el Onboarding queda completado.
 
-- [ ] **`TASK-159`: Rutas HTTP del Onboarding**
+- [x] **`TASK-159`: Rutas HTTP del Onboarding**
   - **Dependencias:** Requiere TASK-158
   - **Trazabilidad SDD:** plan §4.10.2 (tabla de endpoints); RNF-14
   - **Archivos en Alcance:**
@@ -2516,7 +2518,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Cada endpoint responde con sus estados y errores, incluido `ONBOARDING_DONE`.
     - `RNF-14`: el Onboarding de un usuario no afecta a otro.
 
-- [ ] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
+- [x] **`TASK-160`: Web: Onboarding, indicador de pasos y paso 1**
   - **Dependencias:** Requiere TASK-147, TASK-159
   - **Trazabilidad SDD:** plan §4.10.4 (`/bienvenida`); RF-M10-01, RF-M10-02, spec §2.10.1
   - **Archivos en Alcance:**
@@ -2532,7 +2534,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Saltar todo": la base es BOB, no hay cuentas, están todas las categorías y el Inicio invita a crear la primera cuenta.
     - Sin tasa, se ve el mensaje "Aún no pudimos obtener el dólar".
 
-- [ ] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
+- [x] **`TASK-161`: Web: Onboarding, paso 2 (cuentas)**
   - **Dependencias:** Requiere TASK-160
   - **Trazabilidad SDD:** plan §4.10.4 (`AccountsStep`, borradores); RF-M10-04, EC-M10-01, EC-M10-02
   - **Archivos en Alcance:**
@@ -2546,7 +2548,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M10-02`: dos nombres iguales muestran el error de duplicado.
     - `RF-M10-04`: las cuentas creadas tienen el saldo indicado con fecha de hoy.
 
-- [ ] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
+- [x] **`TASK-162`: Web: Onboarding, paso 3 (categorías) y retomar**
   - **Dependencias:** Requiere TASK-161
   - **Trazabilidad SDD:** plan §4.10.4 (`CategoriesStep`); RF-M10-01, RF-M10-05, EC-M10-03
   - **Archivos en Alcance:**
@@ -2605,7 +2607,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 17 — Cierre de V1.0: rendimiento, accesibilidad y despliegue
 
-- [ ] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
+- [x] **`TASK-166`: Seed de E2E y rendimiento (`seed:e2e`)**
   - **Dependencias:** Requiere TASK-053, TASK-121
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e`: `seed:e2e`), plan §5.1 (rendimiento); RNF-03
   - **Archivos en Alcance:**
@@ -2618,7 +2620,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el usuario de rendimiento tiene exactamente 5.000 transacciones.
     - Correrlo dos veces no duplica nada.
 
-- [ ] **`TASK-167`: Pruebas de rendimiento del API**
+- [x] **`TASK-167`: Pruebas de rendimiento del API**
   - **Dependencias:** Requiere TASK-146, TASK-166
   - **Trazabilidad SDD:** plan §5.3 (RNF-02, RNF-03), plan §4.8.2 (objetivo p95); RNF-02, RNF-03
   - **Archivos en Alcance:**
@@ -2628,31 +2630,70 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-02`: el p95 del endpoint de guardar es menor que 300 ms.
     - `RNF-03`: el p95 del Inicio es menor que 1,2 s y ninguna consulta hace *seq scan* sobre `ledger_transaction` ni `ledger_entry`.
 
-- [ ] **`TASK-168`: Pruebas de rendimiento E2E**
-  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166
+- [x] **`TASK-248`: Web: división de código por ruta y presupuesto de bundle**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-162, TASK-165
+  - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
+  - **Archivos en Alcance:**
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/accounts/routes.tsx`
+    - `apps/web/src/features/auth/routes.tsx`
+    - `apps/web/src/features/categories/routes.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/fx/routes.tsx`
+    - `apps/web/src/features/onboarding/routes.tsx`
+    - `apps/web/src/features/profile/routes.tsx`
+    - `apps/web/src/features/register/routes.tsx`
+    - `apps/web/src/features/settings/routes.tsx`
+    - `apps/web/src/features/transactions/routes.tsx`
+    - `apps/web/vite.config.ts`
+    - `apps/web/src/features/categories/components/icon-gallery.tsx`
+    - `apps/web/src/features/register/api.ts`
+    - `apps/web/src/features/register/components/date-chips.tsx`
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/features/transactions/detail-data.ts`
+    - `apps/web/test/bundle-budget.test.ts`
+  - **Especificación de Implementación:** Hoy la web compila un solo archivo de JavaScript (2,1 MB, unos 617 KB en gzip), así que cualquier pantalla descarga todo. Pasa la pantalla de cada ruta a carga diferida con la propiedad `lazy` del router, de modo que el JavaScript de cada pantalla (y su espacio de nombres de i18n) se descargue solo al entrar en ella. Las librerías pesadas de una sola pantalla (gráficos del Inicio, arrastrar y soltar de Categorías) deben quedar fuera del paquete de entrada y de `/registrar`. Ajusta `vite.config.ts` solo si hace falta para separar bloques estables (por ejemplo, las librerías compartidas). No cambia la apariencia ni el comportamiento de ninguna pantalla. Tres cambios más sacan peso del camino de `/registrar`: (1) `iconFor` deja de importar el objeto `icons` de `lucide-react` (1.700 íconos, unos 165 KB en gzip) y usa solo los íconos del catálogo `IconKey`; (2) el esquema `TransactionDetailData` pasa a `transactions/detail-data.ts`, un archivo de datos sin componentes, para que `register/api.ts` y las guardas de la app no arrastren la pantalla de detalle al paquete de entrada (`transaction-detail.tsx` lo vuelve a exportar para no tocar a quienes ya lo importan); (3) el calendario del selector de fecha de Registrar (`react-day-picker` y `date-fns`) se carga de forma diferida al abrir el selector.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-01`: la prueba compila la web y comprueba que el JavaScript que descarga `/registrar` (paquete de entrada más los bloques que esa ruta importa) pesa 300 KB gzip o menos.
+    - `RNF-03`: los gráficos del Inicio y el arrastrar y soltar de Categorías no están en el paquete de entrada ni en los bloques de `/registrar`.
+    - Las pruebas de la web y los E2E existentes siguen pasando.
+
+- [x] **`TASK-168`: Pruebas de rendimiento E2E**
+  - **Dependencias:** Requiere TASK-142, TASK-148, TASK-166, TASK-248
   - **Trazabilidad SDD:** plan §5.3 (RNF-01, RNF-03), plan §4.7.4 (rendimiento); RNF-01, RNF-03
   - **Archivos en Alcance:**
     - `e2e/perf.spec.ts`
     - `e2e/support/network-profiles.ts`
-  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`.
+    - `apps/web/src/app/guards.tsx`
+    - `apps/web/src/app/router.tsx`
+    - `apps/web/src/features/dashboard/routes.tsx`
+    - `apps/web/src/features/dashboard/hooks/use-dashboard.ts`
+    - `apps/web/src/features/dashboard/components/dashboard-blocks.tsx`
+    - `apps/web/src/features/dashboard/components/pace-chart.tsx`
+    - `apps/web/index.html`
+  - **Especificación de Implementación:** Con Chromium, red 4G simulada y CPU ×4: cronometra el flujo de Registrar desde abrir la app hasta guardar, mide la carga del Inicio con 5.000 movimientos y suma el JavaScript (gzip) que descarga la ruta `/registrar`. La primera medición del Inicio tardó de 7 a 10 s, y `GET /api/dashboard` solo 0,4 s: el tiempo se va en la cascada de descargas y peticiones (sesión, bloque de la ruta, gráfico y datos, uno detrás de otro). Reduce esa cascada sin cambiar lo que muestra el Inicio: pide los datos del mes actual en cuanto la sesión confirma el Onboarding terminado (igual que Registrar con su contexto, plan §4.7.4), precarga el bloque de la ruta, y carga el gráfico de ritmo de forma diferida para que las tarjetas aparezcan sin esperar a `recharts`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-01`: el flujo completo tarda menos de 10 s.
     - `RNF-03`: el Inicio carga en menos de 2 s.
-    - El JavaScript de `/registrar` pesa 150 KB gzip o menos.
+    - El JavaScript de `/registrar` pesa 300 KB gzip o menos.
 
-- [ ] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
+- [x] **`TASK-169`: Accesibilidad, teclado y compatibilidad de V1.0**
   - **Dependencias:** Requiere TASK-154, TASK-162, TASK-165
   - **Trazabilidad SDD:** plan §5.3 (RNF-05, RNF-06), plan §5.4 (definición de terminado, punto 5); RNF-05, RNF-06, RF-M7-12
   - **Archivos en Alcance:**
     - `e2e/a11y-v1-0.spec.ts`
     - `e2e/keyboard-v1-0.spec.ts`
-  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar).
+    - `apps/web/src/index.css`
+    - `apps/web/src/components/ui/tabs.tsx`
+    - `apps/web/src/features/fx/components/rate-history-chart.tsx`
+    - `apps/web/src/features/transactions/components/transaction-row.tsx`
+  - **Especificación de Implementación:** Recorre todas las pantallas de V1.0 en tema claro y oscuro con axe, en los 6 proyectos de navegador y tamaño. Hace los flujos de Registrar y Movimientos solo con el teclado y verifica las alternativas a los gestos (casillas en el lote, Subir y Bajar). La primera corrida de axe encontró 11 violaciones reales que esta tarea corrige: los tokens `--destructive`, `--destructive-foreground` y `--muted-foreground` no llegaban a 4,5:1 (los valores nuevos están en `docs/design-direction.md`); los gatillos del selector de rango de Tipo de cambio apuntan con `aria-controls` a un contenido que no existe; y la fila seleccionada de Movimientos y la pestaña de ingresos de Categorías heredan el contraste bajo de `--muted-foreground`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-06`: ninguna violación seria o crítica de axe en ninguna pantalla de V1.0.
     - `RF-M7-12`: se registra un gasto solo con el teclado.
     - `RNF-05`: las pruebas pasan en Chromium, WebKit y Firefox a 360 px y a 1280 px.
 
-- [ ] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
+- [x] **`TASK-170`: Barrido de aislamiento y de secretos en logs (V1.0)**
   - **Dependencias:** Requiere TASK-164
   - **Trazabilidad SDD:** plan §5.1 (aislamiento), plan §5.3 (RNF-14, RNF-17), plan §3.9 (logs); RNF-14, RNF-17
   - **Archivos en Alcance:**
@@ -2710,7 +2751,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - Anotar la URL pública del servicio (`API_URL`). Si no coincide con el rewrite de `vercel.json`, corregirlo en un commit `fix`.
        - Copiar el Deploy Hook (Settings → Deploy Hook), crear una API key (Account Settings → API Keys) y anotar el ID del servicio (`srv-…`).
 
-- [ ] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
+- [x] **`TASK-172`: Workflow de QA efímero `qa-e2e.yml`**
   - **Dependencias:** Requiere TASK-010, TASK-166, TASK-169
   - **Trazabilidad SDD:** plan §1.5 (`qa-e2e.yml`), ADR-20; constitución §7
   - **Archivos en Alcance:**
@@ -2757,7 +2798,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
        - abrir en el navegador `$API_URL/api/health/ready`, `$WEB_URL/` y `$WEB_URL/api/health/ready`;
        - pasar las URLs reales al README en un commit `docs(readme)`.
 
-- [ ] **`TASK-174`: Workflow manual `fx-backfill.yml`**
+- [x] **`TASK-174`: Workflow manual `fx-backfill.yml`**
   - **Dependencias:** Requiere TASK-091, TASK-173
   - **Trazabilidad SDD:** plan §1.5 (`fx-backfill.yml`), ADR-06
   - **Archivos en Alcance:**
@@ -2855,7 +2896,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 19 — M12 Metas de ahorro (V1.1)
 
-- [ ] **`TASK-180`: Contratos de M12**
+- [x] **`TASK-180`: Contratos de M12**
   - **Dependencias:** Requiere TASK-024, TASK-077
   - **Trazabilidad SDD:** plan §4.12.1; RF-M12-01
   - **Archivos en Alcance:**
@@ -2866,7 +2907,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M12-01`: el nombre va de 1 a 40 caracteres y el objetivo es mayor que 0; la moneda es editable y `dedicatedAccountId` no se acepta en `UpdateGoalInput`.
 
-- [ ] **`TASK-181`: Dominio `goals`: progreso, estado, sugerido y propuesta de retiro**
+- [x] **`TASK-181`: Dominio `goals`: progreso, estado, sugerido y propuesta de retiro**
   - **Dependencias:** Requiere TASK-080
   - **Trazabilidad SDD:** plan §4.12.1 (`packages/domain/goals`), ADR-13; RF-M12-02, RF-M12-05, RF-M12-06, EC-M12-03, EC-M12-04
   - **Archivos en Alcance:**
@@ -2881,13 +2922,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-06`: (objetivo − progreso) ÷ meses restantes, incluido el actual; con la fecha en este mes, la variante "Faltan X este mes".
     - `RF-M12-05`: la propuesta toma primero de la meta sin fecha.
 
-- [ ] **`TASK-182`: Repositorios de metas y apartados**
+- [x] **`TASK-182`: Repositorios de metas y apartados**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6, plan §4.12.2 (historial); RF-M12-04, RF-M12-07, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/goal.factory.ts`
     - `apps/api/test/integration/goal-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de metas. Eventos de apartado: `insert`, `earmarkedByAccount(accountId)` (por meta), `earmarkedByGoal(goalId)` y `history(goalId)`, que une los eventos con los asientos de la cuenta dedicada, cada uno con su origen.
@@ -2896,7 +2938,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-07`: el historial incluye los asientos de la dedicada con el origen "cuenta dedicada" y los ajustes con el origen "ajuste".
     - `RN-09`: no se ven las metas de otro usuario.
 
-- [ ] **`TASK-183`: `BalanceGuard`: protección de apartados**
+- [x] **`TASK-183`: `BalanceGuard`: protección de apartados**
   - **Dependencias:** Requiere TASK-100, TASK-181, TASK-182
   - **Trazabilidad SDD:** plan §4.0 (`BalanceGuard`, paso 4), plan §4.12.3 (protección de apartados); RF-M12-05, EC-M12-07, RNF-10
   - **Archivos en Alcance:**
@@ -2910,7 +2952,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-10`: dos gastos concurrentes evalúan los apartados con el saldo vigente.
     - Una cuenta dedicada no pide confirmación.
 
-- [ ] **`TASK-184`: Protección de apartados en movimientos, deshacer y ajustes**
+- [x] **`TASK-184`: Protección de apartados en movimientos, deshacer y ajustes**
   - **Dependencias:** Requiere TASK-103, TASK-125, TASK-183
   - **Trazabilidad SDD:** plan §4.6.2 (errores `EARMARK_CONFIRMATION_REQUIRED`), plan §4.12.3; RF-M12-05, RF-M6-08, RF-M6-13, EC-M12-07
   - **Archivos en Alcance:**
@@ -2928,12 +2970,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M6-13`: el lote omite el movimiento que tocaría un apartado.
     - `EC-M12-07`: el ajuste negativo pide confirmación y, al confirmar, registra el retiro.
 
-- [ ] **`TASK-185`: `GoalsService`: crear, editar, listar, detalle e historial**
+- [x] **`TASK-185`: `GoalsService`: crear, editar, listar, detalle e historial**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-180, TASK-183
   - **Trazabilidad SDD:** plan §4.12.2 (`GET`, `POST`, `PATCH`); RF-M12-01, RF-M12-02, RF-M12-06, RF-M12-07, RF-M4-05, RNF-28
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/goals.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
     - `apps/api/test/integration/goals-crud.test.ts`
   - **Especificación de Implementación:** `create` es idempotente, con un tope de 50; si dedica una cuenta, valida lo mismo que `/dedicate`. `update` exige una fecha objetivo ≥ hoy (`TARGET_DATE_IN_PAST`). `list` y `get` calculan el progreso, el estado y el sugerido al leer, y el detalle trae el progreso por cuenta y el historial. Registra en `CurrencyUsage` el uso por metas no archivadas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2942,11 +2987,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-05`: un ajuste en la dedicada aparece en el historial con el origen "ajuste" y cambia el progreso.
     - `EC-M3-05`: desactivar la moneda de una meta da `CURRENCY_IN_USE` con "goals".
 
-- [ ] **`TASK-186`: Apartar, liberar y dedicar una cuenta**
+- [x] **`TASK-186`: Apartar, liberar y dedicar una cuenta**
   - **Dependencias:** Requiere TASK-185
   - **Trazabilidad SDD:** plan §4.12.2 (`earmarks`, `release`, `dedicate`); RF-M12-03, RF-M12-04, EC-M12-01, EC-M12-06, EC-M12-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
     - `apps/api/test/integration/goals-earmarks.test.ts`
   - **Especificación de Implementación:** Apartar, con la cuenta bajo `FOR UPDATE`: el monto debe ser ≤ el saldo libre (si no, `EARMARK_EXCEEDS_FREE {free}`); una tarjeta da `ACCOUNT_NOT_DEDICABLE`. Liberar: el monto debe ser ≤ lo apartado en esa cuenta (si no, `RELEASE_EXCEEDS_EARMARK`). Dedicar: la cuenta no es tarjeta, no está dedicada a otra meta ni tiene apartados de otras metas.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2956,11 +3003,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-03`: dedicar una cuenta ya dedicada da `ACCOUNT_ALREADY_DEDICATED`.
     - Dos apartados simultáneos no superan el saldo libre.
 
-- [ ] **`TASK-187`: Usar y cerrar, archivar, restaurar, eliminar y celebración**
+- [x] **`TASK-187`: Usar y cerrar, archivar, restaurar, eliminar y celebración**
   - **Dependencias:** Requiere TASK-186
   - **Trazabilidad SDD:** plan §4.12.2 (`use-and-close`, `archive`, `restore`, `DELETE`, `celebrated`), plan §4.12.3; RF-M12-09, spec §2.12.2
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/goals.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/goal-allocation.repository.ts`
     - `apps/api/test/integration/goals-lifecycle.test.ts`
   - **Especificación de Implementación:** "Usar y cerrar" inserta eventos `use_and_close` que dejan cada apartado en 0, quita la cuenta dedicada y archiva la meta. Archivar o eliminar solo procede con la meta vacía (si no, `GOAL_NOT_EMPTY`). Restaurar no recupera los apartados. `celebrated` marca `celebrated_at` una sola vez.
   - **Criterios de Verificación (Tests & DoD):**
@@ -2969,7 +3019,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Eliminar una meta vacía borra su historia.
     - `firstAchievement` es verdadero solo hasta marcar `celebrated`.
 
-- [ ] **`TASK-188`: Cuentas con apartados y cuentas dedicadas**
+- [x] **`TASK-188`: Cuentas con apartados y cuentas dedicadas**
   - **Dependencias:** Requiere TASK-135, TASK-186
   - **Trazabilidad SDD:** plan §4.4.2 (archivar, cambio de tipo, eliminar), plan §4.12.3 (total neto); RF-M4-07, RF-M4-10, RF-M7-11, RF-M12-08, EC-M12-02
   - **Archivos en Alcance:**
@@ -2984,7 +3034,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M7-11`: la ficha de Registrar recibe el saldo libre.
     - `RF-M4-07`: pasar a tarjeta una cuenta dedicada da `TYPE_CHANGE_INVALID`.
 
-- [ ] **`TASK-189`: Rutas HTTP de metas**
+- [x] **`TASK-189`: Rutas HTTP de metas**
   - **Dependencias:** Requiere TASK-187, TASK-188
   - **Trazabilidad SDD:** plan §4.12.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
@@ -3001,7 +3051,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 en cada endpoint con una meta de A, también al apartar en una cuenta de A.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-190`: Web: lista y detalle de metas**
+- [x] **`TASK-190`: Web: lista y detalle de metas**
   - **Dependencias:** Requiere TASK-179, TASK-189
   - **Trazabilidad SDD:** plan §4.12.4 (`/metas`, `/metas/:id`); RF-M12-02, RF-M12-06, RF-M12-07, spec §2.12.2 (celebración)
   - **Archivos en Alcance:**
@@ -3023,7 +3073,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-06`: se ve el aporte mensual sugerido.
     - La celebración aparece una sola vez.
 
-- [ ] **`TASK-191`: Web: crear meta, apartar, liberar, dedicar y usar y cerrar**
+- [x] **`TASK-191`: Web: crear meta, apartar, liberar, dedicar y usar y cerrar**
   - **Dependencias:** Requiere TASK-190
   - **Trazabilidad SDD:** plan §4.12.4 (diálogos); RF-M12-01, RF-M12-03, RF-M12-09, EC-M12-01, EC-M12-08
   - **Archivos en Alcance:**
@@ -3041,7 +3091,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M12-01`: apartar más que el saldo libre muestra el saldo libre.
     - `EC-M12-08`: el diálogo de dedicar no lista tarjetas.
 
-- [ ] **`TASK-192`: Web: confirmación de apartados y avisos de cuenta dedicada**
+- [x] **`TASK-192`: Web: confirmación de apartados y avisos de cuenta dedicada**
   - **Dependencias:** Requiere TASK-142, TASK-184, TASK-191
   - **Trazabilidad SDD:** plan §4.7.3 (errores), plan §4.12.4 (`EarmarkConfirmDialog` compartido); RF-M12-05, RF-M7-14, EC-M7-03, RF-M4-10
   - **Archivos en Alcance:**
@@ -3054,6 +3104,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/accounts/components/account-header.tsx`
     - `apps/web/src/features/accounts/components/net-worth-summary.tsx`
     - `apps/web/src/locales/es-BO/goals.json`
+    - `apps/web/src/features/transactions/components/transaction-detail.tsx`
+    - `apps/web/src/app/layout/undo-toast.tsx`
     - `e2e/m12-earmark-confirm.spec.ts`
   - **Especificación de Implementación:** `EarmarkConfirmDialog` muestra "Este gasto usa X apartados" y las metas afectadas, con la propuesta editable; al confirmar, reenvía con el mismo `id` y `earmarkWithdrawals`; al cancelar, no cambia nada. Lo usan Registrar, la edición, la eliminación, deshacer y el ajuste. `AccountChip` muestra "Esto resta a tu meta X" en las dedicadas. El detalle de la cuenta y el desglose muestran Saldo · Apartado para metas · Libre.
   - **Criterios de Verificación (Tests & DoD):**

@@ -2,7 +2,7 @@ import type { AccountDto } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, monthRange, todayFor } from '@finanzas/domain';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams, useSearchParams, type RouteObject } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Separator } from '@/components/ui/separator';
@@ -11,6 +11,7 @@ import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import accounts from '@/locales/es-BO/accounts.json';
+import transactions from '@/locales/es-BO/transactions.json';
 
 import { AccountActions } from './components/account-actions';
 import { AccountForm } from './components/account-form';
@@ -23,6 +24,8 @@ import { useAccounts, useCurrencySymbol, useReorderAccounts } from './hooks/use-
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'accounts', accounts, true, true);
+// The movements of an account reuse the texts of the `transactions` namespace.
+i18n.addResourceBundle(LANGUAGE, 'transactions', transactions, true, true);
 
 /** While a new order is being saved, the list already shows it. */
 function inOrder(items: readonly AccountDto[], ids: readonly string[] | undefined): AccountDto[] {
@@ -254,11 +257,3 @@ export function AccountsPage() {
   const [params] = useSearchParams();
   return params.get('archivadas') === '1' ? <ArchivedAccounts /> : <ActiveAccounts />;
 }
-
-/** Private routes of the accounts (plan §4.4.4). */
-export const accountsRoutes: RouteObject[] = [
-  { path: 'cuentas', element: <AccountsPage /> },
-  { path: 'cuentas/nueva', element: <NewAccountPage /> },
-  { path: 'cuentas/:id', element: <AccountDetailPage /> },
-  { path: 'cuentas/:id/editar', element: <EditAccountPage /> },
-];

@@ -23,12 +23,13 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { QuickAccountForm } from '@/features/accounts/components/quick-account-form';
+import { EarmarkConfirmDialog } from '@/features/goals/components/earmark-confirm-dialog';
 import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { useFormatters, useSettings } from '@/features/settings/hooks/use-settings';
 import { ApiError } from '@/lib/api-client';
-import { UNDO_MS } from '@/features/transactions/hooks/use-delete-transaction';
+import { rememberUndoAccount, UNDO_MS } from '@/features/transactions/hooks/use-delete-transaction';
 import { useDraft } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
 import { uiStore } from '@/lib/ui-store';
@@ -95,6 +96,16 @@ const RegisterDraft = z
 /** An expense or an income as Registrar sends it. */
 type SimpleInput = Extract<CreateTransactionInput, { kind: 'expense' | 'income' }>;
 
+/** The operation waiting for the user to choose which earmarks to take (EC-M7-03). */
+interface PendingEarmark {
+  input: CreateTransactionInput;
+  accountId: string;
+  shortfall: string;
+  proposal: { goalId: string; amount: string }[];
+}
+
+const EarmarkProposal = z.array(z.object({ goalId: z.string(), amount: z.string() }));
+
 /** The kinds of this form (plan §4.7.4). */
 const KINDS: readonly RegisterKind[] = ['expense', 'income', 'transfer'];
 
@@ -131,6 +142,7 @@ export function RegisterForm() {
   const [askRate, setAskRate] = useState<SimpleInput | null>(null);
   /** EC-M6-08: the API asked for the category of the fee. */
   const [feeAskCategory, setFeeAskCategory] = useState(false);
+  const [pendingEarmark, setPendingEarmark] = useState<PendingEarmark | null>(null);
   const [shortcut, setShortcut] = useState<ShortcutDraft | null>(null);
   const queryClient = useQueryClient();
   const formatters = useFormatters();
@@ -372,12 +384,21 @@ export function RegisterForm() {
     create.mutate(input, {
       onSuccess: (saved: CreatedTransaction) => {
         setAskRate(null);
+        setPendingEarmark(null);
         // The answer carries today's last movements, so the context needs no other request, and
         // the undo lives in the app shell, where it outlasts a change of tab (RF-M7-07).
         queryClient.setQueryData<RegisterContext>(REGISTER_CONTEXT_KEY, (old) =>
           old === undefined ? old : { ...old, todayRecent: saved.todayRecent },
         );
         if (saved.undoToken !== null) {
+          // Undoing a transfer takes its money back from the destination (RF-M12-05).
+          const sourceId = input.kind === 'transfer' ? input.toAccountId : input.accountId;
+          const source = data?.accounts.find((item) => item.id === sourceId);
+          if (source !== undefined)
+            rememberUndoAccount(saved.undoToken, {
+              id: source.id,
+              currencyCode: source.currencyCode,
+            });
           uiStore.showUndo({
             token: saved.undoToken,
             label: savedText(input),
@@ -418,6 +439,21 @@ export function RegisterForm() {
           return;
         }
         setAskRate(null);
+        // RF-M12-05: ask which goals to take from and resend with the same id.
+        if (error instanceof ApiError && error.code === 'EARMARK_CONFIRMATION_REQUIRED') {
+          const shortfall = error.data?.['shortfall'];
+          const proposal = EarmarkProposal.safeParse(error.data?.['proposal']);
+          if (typeof shortfall === 'string' && proposal.success) {
+            setPendingEarmark({
+              input,
+              accountId: input.kind === 'transfer' ? input.fromAccountId : input.accountId,
+              shortfall,
+              proposal: proposal.data,
+            });
+            return;
+          }
+        }
+        setPendingEarmark(null);
         // The form keeps what the user wrote (EC-M7-02).
         setFormError(errorText(error));
       },
@@ -656,6 +692,22 @@ export function RegisterForm() {
           }}
         />
       )}
+      <EarmarkConfirmDialog
+        open={pendingEarmark !== null}
+        shortfall={pendingEarmark?.shortfall ?? '0.00'}
+        accountId={pendingEarmark?.accountId ?? ''}
+        proposal={pendingEarmark?.proposal ?? []}
+        symbol={symbolOf(
+          data?.accounts.find((item) => item.id === pendingEarmark?.accountId)?.currencyCode ?? '',
+        )}
+        pending={create.isPending}
+        onConfirm={(earmarkWithdrawals) => {
+          if (pendingEarmark !== null) send({ ...pendingEarmark.input, earmarkWithdrawals });
+        }}
+        onCancel={() => {
+          setPendingEarmark(null);
+        }}
+      />
       <AskRateDialog
         key={askRate?.id ?? 'none'}
         open={askRate !== null}

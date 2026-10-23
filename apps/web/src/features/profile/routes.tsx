@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, type RouteObject } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Button } from '@/components/ui/button';
@@ -107,9 +107,3 @@ export function DeleteAccountPage() {
   if (!me.data) return null;
   return <DeleteAccount userId={me.data.id} />;
 }
-
-/** Private routes of the profile (plan §4.1.4). */
-export const profileRoutes: RouteObject[] = [
-  { path: 'perfil', element: <ProfilePage /> },
-  { path: 'perfil/eliminar', element: <DeleteAccountPage /> },
-];

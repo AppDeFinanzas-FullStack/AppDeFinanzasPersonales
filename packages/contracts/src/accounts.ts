@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { IconKey, PaletteKey } from './catalogs.js';
 import { CurrencyCode, LocalDate, Money, Note } from './common.js';
+import { EarmarkWithdrawals } from './transactions.js';
 
 const MAX_ABS_BALANCE = '999999999.99';
 
@@ -59,6 +60,7 @@ export const AdjustInput = z.object({
   transactionId: z.string().uuid(),
   realBalance: z.union([Money, CardBalance]),
   note: Note.optional(),
+  earmarkWithdrawals: EarmarkWithdrawals.optional(),
 });
 export type AdjustInput = z.infer<typeof AdjustInput>;
 

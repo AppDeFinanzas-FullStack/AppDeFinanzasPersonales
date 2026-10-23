@@ -10,10 +10,7 @@ import { createMaintenance } from '../application/jobs/maintenance.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
-import {
-  createExportService,
-  type ExportService,
-} from '../application/services/export.service.js';
+import { createExportService, type ExportService } from '../application/services/export.service.js';
 import {
   createMeService,
   type MeService,
@@ -33,6 +30,7 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
   type AccountsService,
@@ -46,6 +44,10 @@ import {
   createDashboardViewService,
   type DashboardViewService,
 } from '../application/services/dashboard.service.js';
+import {
+  createOnboardingService,
+  type OnboardingService,
+} from '../application/services/onboarding.service.js';
 import {
   createSettingsService,
   type SettingsService,
@@ -117,6 +119,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
+import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
 import { createDebtRepository } from '../infrastructure/persistence/repositories/debt.repository.js';
 import { createDebtPaymentRepository } from '../infrastructure/persistence/repositories/debt-payment.repository.js';
@@ -162,6 +166,8 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The goals of `/api/goals` (plan §4.12.2). */
+  readonly goalsService: GoalsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -170,6 +176,8 @@ export interface Container {
   readonly registerService: RegisterService;
   /** The blocks of `GET /api/dashboard` (plan §4.8.2). */
   readonly dashboardService: DashboardViewService;
+  /** The steps of `/api/onboarding` (plan §4.10.2). */
+  readonly onboardingService: OnboardingService;
   /** The inbox of `/api/notifications` (plan §4.15.2). */
   readonly notificationsService: NotificationsService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
@@ -227,6 +235,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   notificationPreferences: createNotificationPreferenceRepository(tx),
   debts: createDebtRepository(tx, userId ?? NO_USER),
   debtPayments: createDebtPaymentRepository(tx, userId ?? NO_USER),
+  goals: createGoalRepository(tx, userId ?? NO_USER),
+  goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -394,7 +404,7 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
 });
 
 /** The user's category tree of a kind and status. */
-const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
+const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
   tree(userId, kind, status) {
     return uow.run((repos) => repos.categories.tree(kind, status), {
       userLock: userId,
@@ -711,12 +721,14 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    goalsService: createGoalsService({ uow, rates: ratesService }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     registerService,
     dashboardService,
+    onboardingService: createOnboardingService({ uow, rates: ratesService }),
     notificationsService: createNotificationsService({
       store: createNotificationsStore(prisma),
     }),
@@ -786,9 +798,15 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    goals: { goalsService: container.goalsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
+    onboarding: {
+      onboardingService: container.onboardingService,
+      clock: container.clock,
+      session,
+    },
     readiness: container.readiness,
   });
 };

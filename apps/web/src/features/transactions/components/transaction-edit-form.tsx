@@ -1,6 +1,7 @@
 import { Note, Rate, UpdateTransactionInput } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, parseAmountInput, todayFor } from '@finanzas/domain';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Decimal } from 'decimal.js';
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -10,8 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FieldSelect } from '@/features/accounts/components/account-form';
-import { useAccounts } from '@/features/accounts/hooks/use-accounts';
+import { useAccounts, useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
+import { EarmarkConfirmDialog } from '@/features/goals/components/earmark-confirm-dialog';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { useDraft } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
@@ -64,7 +66,67 @@ const EditDraft = z
 /** The rate the user may edit by hand, and the field it travels in (RF-M3-10, plan §4.6.2). */
 type RateField = 'rateUsdBob' | 'rateCurBob' | 'declaredRate';
 
+const EarmarkProposal = z.array(z.object({ goalId: z.string(), amount: z.string() }));
+
+/** The edit waiting for the user to choose which earmarks to take (RF-M12-05). */
+interface PendingEarmark {
+  input: UpdateTransactionInput;
+  accountId: string;
+  shortfall: string;
+  proposal: { goalId: string; amount: string }[];
+}
+
 const unsigned = (amount: string): string => (amount.startsWith('-') ? amount.slice(1) : amount);
+
+interface EditedEntry {
+  accountId: string;
+  amount: string;
+  currencyCode: string;
+}
+
+/**
+ * The account an edit leaves short, which holds the earmarks to take (RF-M12-05). It compares what
+ * each account had with what it gets after the edit and returns the first one that loses money, in
+ * the order the API checks them, skipping those whose earmarks were already confirmed.
+ */
+const shortAccountOf = (
+  input: UpdateTransactionInput,
+  out: EditedEntry | undefined,
+  arrival: EditedEntry | undefined,
+  main: EditedEntry | undefined,
+): string | undefined => {
+  const deltas = new Map<string, Decimal>();
+  const add = (accountId: string, amount: Decimal) => {
+    deltas.set(accountId, (deltas.get(accountId) ?? new Decimal(0)).plus(amount));
+  };
+  const newAmount = input.amountInNewCurrency ?? input.amount;
+  if (out !== undefined && arrival !== undefined) {
+    const oldOut = new Decimal(unsigned(out.amount));
+    const oldIn = new Decimal(arrival.amount);
+    const nextOut = newAmount === undefined ? oldOut : new Decimal(newAmount);
+    // Between two currencies the arrival keeps the proportion it had to the outgoing amount.
+    const nextIn =
+      out.currencyCode === arrival.currencyCode
+        ? nextOut
+        : oldOut.isZero()
+          ? oldIn
+          : oldIn.times(nextOut).dividedBy(oldOut);
+    add(out.accountId, oldOut);
+    add(arrival.accountId, oldIn.negated());
+    add(input.fromAccountId ?? out.accountId, nextOut.negated());
+    add(input.toAccountId ?? arrival.accountId, nextIn);
+  } else if (main !== undefined) {
+    const old = new Decimal(main.amount);
+    const next = newAmount === undefined ? old.abs() : new Decimal(newAmount);
+    add(main.accountId, old.negated());
+    add(input.accountId ?? main.accountId, old.isNegative() ? next.negated() : next);
+  }
+  const confirmed = new Set((input.earmarkWithdrawals ?? []).map((item) => item.accountId));
+  return [...deltas]
+    .filter(([accountId, delta]) => delta.isNegative() && !confirmed.has(accountId))
+    .map(([accountId]) => accountId)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))[0];
+};
 
 /** What the user typed as an amount, as decimal text; `null` when it is not one (RF-M7-02). */
 function amountText(raw: string): string | null {
@@ -90,6 +152,8 @@ export function TransactionEditForm({ transaction, onDone, onCancel }: Transacti
   const active = useAccounts('active');
   const archived = useAccounts('archived');
   const [formError, setFormError] = useState<string | null>(null);
+  const [pendingEarmark, setPendingEarmark] = useState<PendingEarmark | null>(null);
+  const symbolOf = useCurrencySymbol();
   const today = todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date());
 
   const transfer = transaction.kind === 'transfer';
@@ -163,20 +227,45 @@ export function TransactionEditForm({ transaction, onDone, onCancel }: Transacti
   const currencyChanged = newCurrency !== null && newCurrency !== currency;
   const prefilled =
     currencyChanged &&
-    convertWithStoredRates(storedAmount, transaction.rateCurBob, transaction.rateUsdBob, newCurrency) !==
-      null;
+    convertWithStoredRates(
+      storedAmount,
+      transaction.rateCurBob,
+      transaction.rateUsdBob,
+      newCurrency,
+    ) !== null;
 
   const save = useMutation({
     mutationFn: (input: UpdateTransactionInput) =>
       call(updateTransactionEndpoint(transaction.id), input),
     onSuccess: async () => {
+      setPendingEarmark(null);
       draft.clear();
       await Promise.all(
         AFFECTED_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       );
       onDone();
     },
-    onError: (error) => {
+    onError: (error, input) => {
+      // RF-M12-05: ask which goals to take from and resend with the same edit.
+      if (error instanceof ApiError && error.code === 'EARMARK_CONFIRMATION_REQUIRED') {
+        const shortfall = error.data?.['shortfall'];
+        const proposal = EarmarkProposal.safeParse(error.data?.['proposal']);
+        if (typeof shortfall === 'string' && proposal.success) {
+          setPendingEarmark({
+            input,
+            accountId:
+              shortAccountOf(input, out, arrival, main) ??
+              (transfer
+                ? (input.fromAccountId ?? out?.accountId)
+                : (input.accountId ?? main?.accountId)) ??
+              '',
+            shortfall,
+            proposal: proposal.data,
+          });
+          return;
+        }
+      }
+      setPendingEarmark(null);
       // EC-M6-02: deleted in another context; nothing was saved.
       setFormError(
         isGone(error)
@@ -288,160 +377,184 @@ export function TransactionEditForm({ transaction, onDone, onCancel }: Transacti
   ) : null;
 
   return (
-    <form
-      noValidate
-      className="flex flex-col gap-6"
-      onSubmit={(event) => {
-        void onSubmit(event);
-      }}
-    >
-      {draft.restoredWithIssues && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('edit.draftIssues')}
-        </p>
-      )}
+    <>
+      <form
+        noValidate
+        className="flex flex-col gap-6"
+        onSubmit={(event) => {
+          void onSubmit(event);
+        }}
+      >
+        {draft.restoredWithIssues && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t('edit.draftIssues')}
+          </p>
+        )}
 
-      {!currencyChanged && (
+        {!currencyChanged && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-amount">{t('edit.amount')}</Label>
+            <Input
+              id="edit-amount"
+              inputMode="decimal"
+              autoComplete="off"
+              className="h-11 tabular-nums"
+              disabled={locked}
+              aria-invalid={errors.amount !== undefined}
+              {...register('amount')}
+            />
+            {lockedHelp}
+            {fieldError('amount')}
+          </div>
+        )}
+
+        {transfer ? (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-from">{t('edit.from')}</Label>
+              <FieldSelect id="edit-from" disabled={locked} {...register('fromAccountId')}>
+                {optionsFor(out?.currencyCode ?? null, out?.accountId)
+                  .filter((account) => account.id !== toAccountId)
+                  .map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {labelOf(account)}
+                    </option>
+                  ))}
+              </FieldSelect>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="edit-to">{t('edit.to')}</Label>
+              <FieldSelect id="edit-to" disabled={locked} {...register('toAccountId')}>
+                {optionsFor(arrival?.currencyCode ?? null, arrival?.accountId)
+                  .filter((account) => account.id !== fromAccountId)
+                  .map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {labelOf(account)}
+                    </option>
+                  ))}
+              </FieldSelect>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-account">{t('edit.account')}</Label>
+            <FieldSelect
+              id="edit-account"
+              disabled={locked}
+              {...register('accountId', {
+                onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
+                  onAccountChange(event.target.value);
+                },
+              })}
+            >
+              {optionsFor(null, main?.accountId).map((account) => (
+                <option key={account.id} value={account.id}>
+                  {labelOf(account)}
+                </option>
+              ))}
+            </FieldSelect>
+          </div>
+        )}
+
+        {currencyChanged && newCurrency !== null && (
+          <CurrencyChangeConfirm
+            id="edit-amount-in-new-currency"
+            code={newCurrency}
+            prefilled={prefilled}
+            field={register('amountInNewCurrency')}
+            error={errors.amountInNewCurrency?.message}
+          />
+        )}
+
         <div className="flex flex-col gap-2">
-          <Label htmlFor="edit-amount">{t('edit.amount')}</Label>
+          <Label htmlFor="edit-date">{t('edit.date')}</Label>
           <Input
-            id="edit-amount"
+            id="edit-date"
+            type="date"
+            className="h-11"
+            max={today}
+            disabled={locked}
+            aria-invalid={errors.date !== undefined}
+            {...register('date')}
+          />
+          {fieldError('date')}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="edit-note">{t('edit.note')}</Label>
+          <Input
+            id="edit-note"
+            autoComplete="off"
+            maxLength={140}
+            className="h-11"
+            aria-invalid={errors.note !== undefined}
+            {...register('note')}
+          />
+          {fieldError('note')}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="edit-rate">{rateLabel}</Label>
+          <Input
+            id="edit-rate"
             inputMode="decimal"
             autoComplete="off"
             className="h-11 tabular-nums"
-            disabled={locked}
-            aria-invalid={errors.amount !== undefined}
-            {...register('amount')}
+            aria-describedby="edit-rate-help"
+            aria-invalid={errors.rate !== undefined}
+            {...register('rate')}
           />
-          {lockedHelp}
-          {fieldError('amount')}
+          <p id="edit-rate-help" className="text-sm text-muted-foreground">
+            {t('edit.rateHelp')}
+          </p>
+          {fieldError('rate')}
         </div>
-      )}
 
-      {transfer ? (
-        <>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-from">{t('edit.from')}</Label>
-            <FieldSelect id="edit-from" disabled={locked} {...register('fromAccountId')}>
-              {optionsFor(out?.currencyCode ?? null, out?.accountId)
-                .filter((account) => account.id !== toAccountId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {labelOf(account)}
-                  </option>
-                ))}
-            </FieldSelect>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-to">{t('edit.to')}</Label>
-            <FieldSelect id="edit-to" disabled={locked} {...register('toAccountId')}>
-              {optionsFor(arrival?.currencyCode ?? null, arrival?.accountId)
-                .filter((account) => account.id !== fromAccountId)
-                .map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {labelOf(account)}
-                  </option>
-                ))}
-            </FieldSelect>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="edit-account">{t('edit.account')}</Label>
-          <FieldSelect
-            id="edit-account"
-            disabled={locked}
-            {...register('accountId', {
-              onChange: (event: React.ChangeEvent<HTMLSelectElement>) => {
-                onAccountChange(event.target.value);
-              },
-            })}
+        {formError !== null && (
+          <p role="alert" className="text-sm text-destructive">
+            {formError}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" className="h-11" disabled={save.isPending}>
+            {save.isPending ? t('edit.saving') : t('edit.save')}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11"
+            onClick={() => {
+              draft.clear();
+              onCancel();
+            }}
           >
-            {optionsFor(null, main?.accountId).map((account) => (
-              <option key={account.id} value={account.id}>
-                {labelOf(account)}
-              </option>
-            ))}
-          </FieldSelect>
+            {t('edit.cancel')}
+          </Button>
         </div>
-      )}
-
-      {currencyChanged && newCurrency !== null && (
-        <CurrencyChangeConfirm
-          id="edit-amount-in-new-currency"
-          code={newCurrency}
-          prefilled={prefilled}
-          field={register('amountInNewCurrency')}
-          error={errors.amountInNewCurrency?.message}
-        />
-      )}
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="edit-date">{t('edit.date')}</Label>
-        <Input
-          id="edit-date"
-          type="date"
-          className="h-11"
-          max={today}
-          disabled={locked}
-          aria-invalid={errors.date !== undefined}
-          {...register('date')}
-        />
-        {fieldError('date')}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="edit-note">{t('edit.note')}</Label>
-        <Input
-          id="edit-note"
-          autoComplete="off"
-          maxLength={140}
-          className="h-11"
-          aria-invalid={errors.note !== undefined}
-          {...register('note')}
-        />
-        {fieldError('note')}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="edit-rate">{rateLabel}</Label>
-        <Input
-          id="edit-rate"
-          inputMode="decimal"
-          autoComplete="off"
-          className="h-11 tabular-nums"
-          aria-describedby="edit-rate-help"
-          aria-invalid={errors.rate !== undefined}
-          {...register('rate')}
-        />
-        <p id="edit-rate-help" className="text-sm text-muted-foreground">
-          {t('edit.rateHelp')}
-        </p>
-        {fieldError('rate')}
-      </div>
-
-      {formError !== null && (
-        <p role="alert" className="text-sm text-destructive">
-          {formError}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" className="h-11" disabled={save.isPending}>
-          {save.isPending ? t('edit.saving') : t('edit.save')}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11"
-          onClick={() => {
-            draft.clear();
-            onCancel();
-          }}
-        >
-          {t('edit.cancel')}
-        </Button>
-      </div>
-    </form>
+      </form>
+      <EarmarkConfirmDialog
+        open={pendingEarmark !== null}
+        shortfall={pendingEarmark?.shortfall ?? '0.00'}
+        accountId={pendingEarmark?.accountId ?? ''}
+        proposal={pendingEarmark?.proposal ?? []}
+        symbol={symbolOf(accountOf(pendingEarmark?.accountId ?? '')?.currencyCode ?? currency)}
+        pending={save.isPending}
+        onConfirm={(earmarkWithdrawals) => {
+          // Earlier confirmations stay, in case the edit leaves more than one account short.
+          if (pendingEarmark !== null)
+            save.mutate({
+              ...pendingEarmark.input,
+              earmarkWithdrawals: [
+                ...(pendingEarmark.input.earmarkWithdrawals ?? []),
+                ...earmarkWithdrawals,
+              ],
+            });
+        }}
+        onCancel={() => {
+          setPendingEarmark(null);
+        }}
+      />
+    </>
   );
 }

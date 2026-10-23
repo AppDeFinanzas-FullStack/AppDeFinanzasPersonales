@@ -21,6 +21,7 @@ export function NetWorthSummary({
   other: string;
 }) {
   const { t } = useTranslation('accounts');
+  const { t: tGoals } = useTranslation('goals');
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
   const money = (amount: string | null, code: string) =>
@@ -48,6 +49,14 @@ export function NetWorthSummary({
             </dd>
           </div>
         ))}
+        {summary.breakdown.earmarked !== null && (
+          <div className="flex items-baseline justify-between gap-4 px-4 py-3">
+            <dt>{tGoals('summary.earmarked')}</dt>
+            <dd className="text-right font-medium tabular-nums">
+              {money(summary.breakdown.earmarked, base)}
+            </dd>
+          </div>
+        )}
       </dl>
     </section>
   );

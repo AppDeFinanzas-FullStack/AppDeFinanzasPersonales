@@ -56,6 +56,7 @@ adelantarlas.
 | TASK-166..TASK-170 | @matiasmm1011     | 17   | Seed E2E, rendimiento, accesibilidad y barrido de aislamiento de V1.0    |
 | TASK-172           | @matiasmm1011     | 17   | Workflow de QA efímero `qa-e2e.yml`                                      |
 | TASK-174           | @matiasmm1011     | 17   | Workflow manual `fx-backfill.yml`                                        |
+| TASK-248           | @matiasmm1011     | 17   | División de código por ruta y presupuesto de bundle de la web            |
 | TASK-175..TASK-179 | @alejandrorozich  | 18   | Bandeja de avisos: contratos, avisos por evento, retención y campana     |
 | TASK-180..TASK-192 | @SebastianCatunta | 19   | Metas de ahorro: dominio, apartados, servicio, rutas y su web            |
 | TASK-193..TASK-207 | @SebastianCatunta | 20   | Presupuestos: períodos, umbrales, cierre, _jobs_, rutas y su web         |

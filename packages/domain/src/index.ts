@@ -64,3 +64,13 @@ export type {
   PaymentSplit,
   PaymentValidation,
 } from './debts.js';
+export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
+export type {
+  EarmarkSource,
+  EarmarkTake,
+  GoalMoney,
+  GoalRates,
+  GoalStatus,
+  GoalStatusInput,
+  SuggestedMonthly,
+} from './goals.js';
