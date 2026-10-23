@@ -2,6 +2,7 @@ import type {
   CreateDebtInput,
   DebtDto,
   DebtsSummaryDto,
+  EarmarkWithdrawals,
   PaymentInput,
 } from '@finanzas/contracts';
 import {
@@ -24,6 +25,7 @@ import type {
   CategoryKind,
   DebtPaymentRow,
   DebtRow,
+  LedgerTransactionView,
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
@@ -52,6 +54,15 @@ export interface DebtsService {
     debtId: string,
     input: PaymentInput,
   ): Promise<{ created: boolean; debt: DebtDto }>;
+  /**
+   * Removes the debt's last payment, the one with the greatest `created_at`, with its linked
+   * transactions (plan §4.13.3, RF-M13-04).
+   */
+  deleteLastPayment(
+    ctx: DebtsContext,
+    debtId: string,
+    earmarkWithdrawals?: EarmarkWithdrawals,
+  ): Promise<DebtDto>;
 }
 
 export interface DebtsServiceDeps {
@@ -476,6 +487,61 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
     };
   }
 
+  /**
+   * Deletes the linked transactions of a payment, whose entries leave their accounts: removing an
+   * income can leave the cash below zero (plan §4.13.3).
+   */
+  async function removePaymentMovements(
+    repos: Repositories,
+    ctx: DebtsContext,
+    payment: DebtPaymentRow,
+    earmarkWithdrawals: EarmarkWithdrawals,
+  ): Promise<void> {
+    const movements: LedgerTransactionView[] = [];
+    for (const id of [payment.capitalTransactionId, payment.interestTransactionId]) {
+      const movement = id === null ? null : await repos.ledger.get(id);
+      if (movement !== null) {
+        movements.push(movement);
+      }
+    }
+    if (movements.length === 0) {
+      return;
+    }
+
+    const accounts = new Map<string, AccountRow>();
+    const deltas: BalanceDelta[] = [];
+    for (const movement of movements) {
+      for (const entry of movement.entries) {
+        const account = accounts.get(entry.accountId) ?? (await repos.accounts.get(entry.accountId));
+        if (account === null) {
+          throw new AppError('INTERNAL_ERROR');
+        }
+        accounts.set(account.id, account);
+        deltas.push(...deltaFor(account, movement.date, entry.amount.negated()));
+      }
+    }
+    await BalanceGuard.apply(repos, ctx.userId, deltas, {
+      mode: 'interactive',
+      earmarkWithdrawals: earmarkWithdrawals.map((withdrawal) => ({
+        goalId: withdrawal.goalId,
+        accountId: withdrawal.accountId,
+        amount: new Decimal(withdrawal.amount),
+      })),
+    });
+    await repos.ledger.softDelete(movements.map((movement) => movement.id));
+    await ledgerHooks.afterChange(repos, ctx.userId, {
+      dates: [...new Set(movements.map((movement) => movement.date))],
+      categoryIds: [
+        ...new Set(
+          movements.flatMap((movement) =>
+            movement.categoryId === null ? [] : [movement.categoryId],
+          ),
+        ),
+      ],
+      accountIds: [...accounts.keys()],
+    });
+  }
+
   /** Converts an amount to the base currency with the current reference (RF-M13-13). */
   async function toBase(
     ctx: DebtsContext,
@@ -699,6 +765,45 @@ export function createDebtsService({ uow, rates, ledgerHooks }: DebtsServiceDeps
         { userLock: ctx.userId },
       );
       return { created, debt: toDto(snapshot, todayFor(ctx.timezone, ctx.now)) };
+    },
+
+    async deleteLastPayment(ctx, debtId, earmarkWithdrawals = []) {
+      const snapshot = await uow.run(
+        async (repos) => {
+          const debt = await repos.debts.lockForUpdate(debtId);
+          if (debt === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (debt.status === 'forgiven') {
+            throw new AppError('DEBT_FORGIVEN');
+          }
+          const payment = await repos.debtPayments.last(debt.id);
+          if (payment === null) {
+            throw new AppError('NOT_FOUND');
+          }
+
+          // The interest is carried to today first, so what accrued is never recalculated (ADR-14);
+          // from now on it runs on the restored capital (RF-M13-04, EC-M13-07).
+          const today = todayFor(ctx.timezone, ctx.now);
+          const interestUnpaid = interestToday(debt, today);
+
+          await removePaymentMovements(repos, ctx, payment, earmarkWithdrawals);
+          await repos.debtPayments.delete(payment.id);
+          await repos.debts.update(debt.id, {
+            capitalOutstanding: debt.capitalOutstanding.plus(payment.capitalPart),
+            interestUnpaid: interestUnpaid.plus(payment.interestPart),
+            accruedThrough: today,
+            ...(debt.status === 'paid' ? { status: 'active' as const } : {}),
+          });
+          const updated = await repos.debts.get(debt.id);
+          if (updated === null) {
+            throw new AppError('INTERNAL_ERROR');
+          }
+          return snapshotOf(repos, updated);
+        },
+        { userLock: ctx.userId },
+      );
+      return toDto(snapshot, todayFor(ctx.timezone, ctx.now));
     },
   };
 }

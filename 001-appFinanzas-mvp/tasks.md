@@ -3413,7 +3413,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-07`: una fecha anterior al inicio da `SPLIT_INVALID`.
     - `RNF-11`: dos pagos con el mismo id registran uno.
 
-- [ ] **`TASK-213`: Eliminar el último pago**
+- [x] **`TASK-213`: Eliminar el último pago**
   - **Dependencias:** Requiere TASK-212
   - **Trazabilidad SDD:** plan §4.13.2 (`DELETE payments/last`), plan §4.13.3 (eliminar el último pago); RF-M13-04, EC-M13-05, EC-M13-07
   - **Archivos en Alcance:**
