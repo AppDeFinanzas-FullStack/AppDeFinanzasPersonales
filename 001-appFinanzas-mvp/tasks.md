@@ -3440,7 +3440,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-11`: `keep` deja los movimientos con `origin = manual`.
     - `RF-M13-10`: bajar el monto por debajo de lo pagado da `PRINCIPAL_BELOW_PAID`.
 
-- [ ] **`TASK-215`: Job `notifications.scheduled`: vencimientos de deudas**
+- [x] **`TASK-215`: Job `notifications.scheduled`: vencimientos de deudas**
   - **Dependencias:** Requiere TASK-064, TASK-176, TASK-211
   - **Trazabilidad SDD:** plan §4.13.3 (avisos de vencimiento), plan §4.15.3 (generación programada); RF-M13-14, RF-M15-09, RNF-12, RNF-20
   - **Archivos en Alcance:**

@@ -7,6 +7,11 @@ import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../application/errors.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
+import {
+  createScheduledNotifications,
+  type ScheduledUser,
+  type ScheduledUsers,
+} from '../application/jobs/notifications.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
@@ -441,6 +446,19 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
   };
 };
 
+/** The users the `notifications.scheduled` job walks, with the timezone of their profile. */
+const createScheduledUsers = (prisma: PrismaClient): ScheduledUsers => ({
+  all: () =>
+    prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user WHERE email_verified ORDER BY id`,
+  async find(userId) {
+    const rows = await prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user
+       WHERE id = ${userId}::uuid AND email_verified`;
+    return rows[0] ?? null;
+  },
+});
+
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
   async findActivity(sessionId: string): Promise<SessionActivity | null> {
@@ -648,6 +666,15 @@ export const buildContainer = (env: Env): Container => {
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
   );
+  const scheduledNotifications = createScheduledNotifications({
+    uow,
+    clock: systemClock,
+    release: env.RELEASE,
+    users: createScheduledUsers(prisma),
+  });
+  jobs.registerJob('notifications.scheduled', () => scheduledNotifications.run(), {
+    forUser: (userId) => scheduledNotifications.forUser(userId),
+  });
   jobs.registerJob(
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
