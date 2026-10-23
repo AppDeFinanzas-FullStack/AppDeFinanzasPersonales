@@ -35,6 +35,7 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createDebtsService, type DebtsService } from '../application/services/debts.service.js';
 import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
@@ -173,6 +174,8 @@ export interface Container {
   readonly accountsService: AccountsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
+  /** The debts of `/api/debts` (plan §4.13.2). */
+  readonly debtsService: DebtsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -749,6 +752,7 @@ export const buildContainer = (env: Env): Container => {
     currenciesService,
     accountsService,
     goalsService: createGoalsService({ uow, rates: ratesService }),
+    debtsService: createDebtsService({ uow, rates: ratesService, ledgerHooks }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
@@ -826,6 +830,7 @@ export const createApp = (container: Container): Express => {
       session,
     },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
+    debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },

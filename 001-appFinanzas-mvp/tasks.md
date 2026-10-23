@@ -3454,7 +3454,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-12`: correr el job dos veces deja un solo aviso.
     - `RF-M15-09`: a las 07:59 locales no se genera nada.
 
-- [ ] **`TASK-216`: Rutas HTTP de deudas**
+- [x] **`TASK-216`: Rutas HTTP de deudas**
   - **Dependencias:** Requiere TASK-214, TASK-215
   - **Trazabilidad SDD:** plan §4.13.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
