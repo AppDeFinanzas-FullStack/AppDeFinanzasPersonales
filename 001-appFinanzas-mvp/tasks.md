@@ -3333,6 +3333,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (formulario); RF-M11-01, RF-M11-07, RF-M9-06, EC-M11-06
   - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/components/budget-list.tsx`
+    - `apps/web/src/features/budgets/components/budget-actions.tsx`
     - `apps/web/src/features/budgets/api.ts`
     - `apps/web/src/features/budgets/hooks/use-budgets.ts`
     - `apps/web/src/features/budgets/components/budget-form.tsx`
