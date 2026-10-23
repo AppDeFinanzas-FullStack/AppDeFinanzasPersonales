@@ -4,6 +4,7 @@ import type {
   EarmarkWithdrawals,
   OccurrenceDto,
   RecurringOverviewDto,
+  ResumeInput,
   RuleDto,
   UpcomingDto,
 } from '@finanzas/contracts';
@@ -15,6 +16,7 @@ import {
   isFinished,
   isFutureFor,
   nextDates,
+  skippedDates,
   todayFor,
   toMoneyString,
   type RecurrenceRule,
@@ -67,6 +69,16 @@ export interface RecurringService {
   ): Promise<{ transactionId: string }>;
   /** Skips a pending occurrence without a movement and resolves its notice (plan §4.14.2). */
   skip(ctx: RecurringContext, occurrenceId: string): Promise<void>;
+  /** Pauses an active rule; while paused it generates nothing (plan §4.14.2). */
+  pause(ctx: RecurringContext, ruleId: string): Promise<void>;
+  /** The dates skipped while the rule was paused, in order, respecting N and the end (RF-M14-09). */
+  skipped(ctx: RecurringContext, ruleId: string): Promise<LocalDate[]>;
+  /**
+   * Resumes a paused rule registering the chosen skipped dates in order, with their date and the
+   * rate of that date; the ones that would block M4 or M12 stay pending. On reaching N or when the
+   * end passed, the rule is Finalizada (RF-M14-09, EC-M14-05, EC-M14-06).
+   */
+  resume(ctx: RecurringContext, ruleId: string, input: ResumeInput): Promise<void>;
 }
 
 export interface RecurringServiceDeps {
@@ -86,6 +98,10 @@ const MS_PER_DAY = 86_400_000;
 
 function nextDay(date: LocalDate): LocalDate {
   return new Date(Date.parse(`${date}T00:00:00Z`) + MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+function previousDay(date: LocalDate): LocalDate {
+  return new Date(Date.parse(`${date}T00:00:00Z`) - MS_PER_DAY).toISOString().slice(0, 10);
 }
 
 function recurrenceOf(rule: RecurringRuleRow): RecurrenceRule {
@@ -145,6 +161,27 @@ async function requireActiveAccount(
     throw new AppError('ACCOUNT_ARCHIVED');
   }
   return account;
+}
+
+/**
+ * The dates skipped while the rule was paused: after the local date of the pause, before today
+ * and up to its end date (EC-M14-06), never one already generated.
+ */
+function pausedDates(rule: RecurringRuleRow, timezone: string, today: LocalDate): LocalDate[] {
+  if (rule.status !== 'paused' || rule.pausedAt === null) {
+    return [];
+  }
+  const last = rule.lastGeneratedDate;
+  return skippedDates(recurrenceOf(rule), todayFor(timezone, rule.pausedAt), today).filter(
+    (date) => last === null || date > last,
+  );
+}
+
+/** How many more occurrences the rule may generate before reaching N (RF-M14-09). */
+function remainingOf(rule: RecurringRuleRow): number {
+  return rule.end.type === 'count'
+    ? Math.max(rule.end.count - rule.generatedCount, 0)
+    : Number.POSITIVE_INFINITY;
 }
 
 /** The account, category and destination of the rule must be the user's and active. */
@@ -637,6 +674,90 @@ export function createRecurringService({
             throw new AppError('ALREADY_DECIDED');
           }
           await repos.notifications.resolveDecision(ctx.userId, 'occurrence', occurrenceId);
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async pause(ctx, ruleId) {
+      await uow.run(
+        async (repos) => {
+          const rule = await repos.recurringRules.lockForUpdate(ruleId);
+          if (rule === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (rule.status !== 'active') {
+            throw new AppError('INVALID_STATE');
+          }
+          await repos.recurringRules.update(rule.id, { status: 'paused', pausedAt: ctx.now });
+        },
+        { userLock: ctx.userId },
+      );
+    },
+
+    async skipped(ctx, ruleId) {
+      const today = todayFor(ctx.timezone, ctx.now);
+      return uow.run(
+        async (repos) => {
+          const rule = await repos.recurringRules.get(ruleId);
+          if (rule === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          // The skipped dates count only when registered, so N caps what is offered (EC-M14-05).
+          return pausedDates(rule, ctx.timezone, today).slice(0, remainingOf(rule));
+        },
+        { userLock: ctx.userId, readOnly: true },
+      );
+    },
+
+    async resume(ctx, ruleId, input) {
+      const today = todayFor(ctx.timezone, ctx.now);
+      await uow.run(
+        async (repos) => {
+          const rule = await repos.recurringRules.lockForUpdate(ruleId);
+          if (rule === null) {
+            throw new AppError('NOT_FOUND');
+          }
+          if (rule.status !== 'paused') {
+            throw new AppError('INVALID_STATE');
+          }
+          const offered = new Set(pausedDates(rule, ctx.timezone, today));
+          if (input.registerDates.some((date) => !offered.has(date))) {
+            throw new AppError('DATE_NOT_SKIPPED');
+          }
+
+          await repos.recurringRules.update(rule.id, { status: 'active', pausedAt: null });
+          // In order, each date is generated alone with its own date and rate; a blocked one
+          // stays pending (RF-M14-09). Generation stops on reaching N (EC-M14-05).
+          let current: RecurringRuleRow = { ...rule, status: 'active', pausedAt: null };
+          for (const date of [...new Set(input.registerDates)].sort()) {
+            if (remainingOf(current) === 0) {
+              break;
+            }
+            await generator.generateDue(
+              repos,
+              ctx.userId,
+              { ...current, lastGeneratedDate: previousDay(date) },
+              date,
+            );
+            const updated = await repos.recurringRules.get(rule.id);
+            if (updated === null) {
+              throw new AppError('INTERNAL_ERROR');
+            }
+            current = updated;
+          }
+
+          // The dates up to yesterday are behind; the generator continues from today.
+          const yesterday = previousDay(today);
+          const lastGeneratedDate =
+            rule.lastGeneratedDate !== null && rule.lastGeneratedDate > yesterday
+              ? rule.lastGeneratedDate
+              : yesterday;
+          const finished = isFinished(recurrenceOf(current), current.generatedCount, today);
+          await repos.recurringRules.update(rule.id, {
+            status: finished ? 'finished' : 'active',
+            lastGeneratedDate,
+          });
         },
         { userLock: ctx.userId },
       );

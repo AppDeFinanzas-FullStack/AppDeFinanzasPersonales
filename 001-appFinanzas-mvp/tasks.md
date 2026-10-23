@@ -3668,7 +3668,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Pendiente vence" (`RF-M14-07`): con un reloj 30 días después, el pendiente pasa a Omitido y se genera un aviso.
     - `RNF-13`: los pendientes recuperados tras una caída cuentan los 30 días desde `pending_since`.
 
-- [ ] **`TASK-230`: Pausar, ver las saltadas y reanudar reglas**
+- [x] **`TASK-230`: Pausar, ver las saltadas y reanudar reglas**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.2 (`pause`, `skipped`, `resume`); RF-M14-09, EC-M14-05, EC-M14-06
   - **Archivos en Alcance:**
