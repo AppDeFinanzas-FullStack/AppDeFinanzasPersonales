@@ -3351,6 +3351,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Dependencias:** Requiere TASK-191, TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (`CloseDecisionCard`, en la bandeja); RF-M11-08, RF-M11-09, EC-M11-03, EC-M11-09, RF-M15-03
   - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/routes.tsx`
     - `apps/web/src/features/budgets/api.ts`
     - `apps/web/src/features/budgets/hooks/use-budgets.ts`
     - `apps/web/src/features/budgets/components/close-decision-card.tsx`
