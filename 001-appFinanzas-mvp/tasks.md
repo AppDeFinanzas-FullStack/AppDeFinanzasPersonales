@@ -3628,7 +3628,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-04` / `RNF-20`: un cambio de zona horaria o de horario de verano no repite ni pierde fechas.
     - `RF-M6-10`: el movimiento lleva el nombre de la regla en `recurring_label`.
 
-- [ ] **`TASK-227`: `RecurringService`: crear y vista general**
+- [x] **`TASK-227`: `RecurringService`: crear y vista general**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-223, TASK-226
   - **Trazabilidad SDD:** plan §4.14.2 (`GET`, `POST /api/recurring`); RF-M14-03, RF-M14-13, RF-M14-14, EC-M14-07, RNF-28
   - **Archivos en Alcance:**

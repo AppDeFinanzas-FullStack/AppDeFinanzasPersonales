@@ -48,3 +48,22 @@ CurrencyUsage.register('goals', async (tx, _userId, code) => {
 CurrencyUsage.register('accounts', async (tx, _userId, code) =>
   (await tx.accounts.list('active')).some((account) => account.currencyCode === code),
 );
+
+// Recurring rules (M14): a rule that is not deleted uses the currency of its accounts, even when
+// they are archived (plan §4.3.3).
+CurrencyUsage.register('recurring', async (tx, _userId, code) => {
+  // Units of work wired before the recurring rules existed have no rule repository.
+  const rules: Repositories['recurringRules'] | undefined = tx.recurringRules;
+  if (!rules) {
+    return false;
+  }
+  for (const rule of await rules.list()) {
+    for (const accountId of [rule.accountId, rule.destAccountId]) {
+      if (accountId === null) continue;
+      if ((await tx.accounts.get(accountId))?.currencyCode === code) {
+        return true;
+      }
+    }
+  }
+  return false;
+});
