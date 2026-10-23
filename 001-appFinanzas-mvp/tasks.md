@@ -3661,8 +3661,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.expirePending`); RF-M14-07, RNF-13
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/recurring.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/recurring-expire-job.test.ts`
-  - **Especificación de Implementación:** Un pendiente con `pending_since` de hace más de 30 días pasa a `omitted`, con el aviso `recurring_omitted:{occurrenceId}` (tipo `recurring_pending`) y el aviso original resuelto. Las ocurrencias siguientes se siguen generando aunque haya pendientes.
+  - **Especificación de Implementación:** Un pendiente con `pending_since` de hace más de 30 días pasa a `omitted`, con el aviso `recurring_omitted:{occurrenceId}` (tipo `recurring_pending`) y el aviso original resuelto. Las ocurrencias siguientes se siguen generando aunque haya pendientes. El job recorre a los usuarios con pendientes vencidos (también los de reglas pausadas o terminadas), no solo a los que tienen reglas activas, y `container.ts` lo registra en `jobs.registerJob` con su `forUser`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Pendiente vence" (`RF-M14-07`): con un reloj 30 días después, el pendiente pasa a Omitido y se genera un aviso.
     - `RNF-13`: los pendientes recuperados tras una caída cuentan los 30 días desde `pending_since`.
