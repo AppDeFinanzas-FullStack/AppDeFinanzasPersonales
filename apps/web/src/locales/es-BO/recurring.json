@@ -48,5 +48,87 @@
     "submit": "Confirmar",
     "cancel": "Cancelar",
     "close": "Cerrar"
+  },
+  "newRule": "Nueva regla",
+  "form": {
+    "title": "Nueva regla recurrente",
+    "description": "Define cada cuánto se repite el movimiento y cómo se registra.",
+    "kind": "Tipo",
+    "kinds": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia"
+    },
+    "name": "Nombre",
+    "nameError": "Escribe un nombre de hasta 40 caracteres.",
+    "amount": "Monto",
+    "amountHint": "Opcional si la regla pide confirmación.",
+    "amountRequired": "Ingresa el monto: es obligatorio en modo automático.",
+    "amountError": "Ingresa un monto mayor a cero, por ejemplo 85,50.",
+    "account": "Cuenta",
+    "destAccount": "Cuenta destino",
+    "accountError": "Elige una cuenta.",
+    "destAccountError": "Elige una cuenta destino distinta de la de origen.",
+    "category": "Categoría",
+    "categoryError": "Elige una categoría.",
+    "note": "Nota",
+    "noteError": "La nota admite hasta 200 caracteres.",
+    "frequency": "Frecuencia",
+    "frequencies": {
+      "daily": "Diaria",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "weekday": "Día de la semana",
+    "weekdays": ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+    "day": "Día del mes",
+    "dayError": "Ingresa un día entre 1 y 31.",
+    "month": "Mes",
+    "months": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre"
+    ],
+    "start": "Inicio",
+    "startError": "Elige hoy o una fecha futura.",
+    "end": "Final",
+    "ends": {
+      "none": "Sin fin",
+      "until": "Hasta una fecha",
+      "count": "Tras N veces"
+    },
+    "endDate": "Fecha final",
+    "endDateError": "Elige una fecha igual o posterior al inicio.",
+    "endCount": "Número de veces",
+    "endCountError": "Ingresa un número entero entre 1 y 999.",
+    "mode": "Modo",
+    "submit": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "choose": "Elige una opción"
+  },
+  "actions": {
+    "title": "Administrar reglas",
+    "pause": "Pausar",
+    "resume": "Reanudar"
+  },
+  "resume": {
+    "title": "Reanudar {{name}}",
+    "description": "Estas ocurrencias se saltaron mientras la regla estaba pausada. Marca las que quieres registrar.",
+    "question": "¿Registrar las {{count}} ocurrencias saltadas?",
+    "none": "No hay ocurrencias saltadas. La regla seguirá desde la próxima fecha.",
+    "submit": "Reanudar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
   }
 }
