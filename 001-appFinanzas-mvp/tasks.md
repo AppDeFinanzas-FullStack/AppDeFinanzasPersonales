@@ -3382,7 +3382,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `last` devuelve el pago creado más recientemente.
     - `RN-09`: no se ven las deudas de otro usuario.
 
-- [ ] **`TASK-211`: `DebtsService`: crear, listar y resumen**
+- [x] **`TASK-211`: `DebtsService`: crear, listar y resumen**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-122, TASK-183, TASK-208, TASK-209, TASK-210
   - **Trazabilidad SDD:** plan §4.13.2 (`GET`, `POST`), plan §4.13.3; RF-M13-01, RF-M13-02, RF-M13-08, RF-M13-09, RF-M13-13, EC-M13-06, EC-M13-08, RNF-28
   - **Archivos en Alcance:**
