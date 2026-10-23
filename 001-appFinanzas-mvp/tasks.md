@@ -3699,12 +3699,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/services/categories.service.ts`
+    - `packages/contracts/src/errors.ts`
+    - `apps/web/src/locales/es-BO/errors.json`
     - `apps/api/test/integration/recurring-cascades.test.ts`
-  - **Especificación de Implementación:** Archivar o eliminar una cuenta, o archivar una categoría, pausa sus reglas activas y emite un aviso (tipo `recurring_pending`, clave `rule:{id}:paused:{fecha}`) para elegir otra cuenta o categoría.
+    - `packages/contracts/test/errors.test.ts`
+  - **Especificación de Implementación:** Archivar una cuenta o una categoría pausa sus reglas activas y emite un aviso (tipo `recurring_pending`, clave `rule:{id}:paused:{fecha}`) para elegir otra cuenta o categoría. Eliminar una cuenta que usa una regla recurrente se rechaza con `ACCOUNT_IN_USE 409 {recurring}` (código nuevo del catálogo, con su texto en `errors.json`), como `CATEGORY_IN_USE`.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M14-02`: archivar la cuenta de una regla la deja pausada, con un aviso.
     - Escenario "Archivar una categoría con presupuesto y recurrente" (parte de recurrentes, `RF-M5-07`): "Netflix" queda pausado con un aviso para elegir otra categoría.
-    - `RF-M4-13`: eliminar una cuenta sin movimientos pausa sus reglas con un aviso.
+    - `RF-M4-13`: eliminar una cuenta sin movimientos que usa una regla da `ACCOUNT_IN_USE {recurring}` y no borra nada.
 
 - [ ] **`TASK-233`: Rutas HTTP de recurrentes**
   - **Dependencias:** Requiere TASK-229, TASK-230, TASK-231, TASK-232
