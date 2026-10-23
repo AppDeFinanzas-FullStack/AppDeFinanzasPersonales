@@ -31,6 +31,10 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import {
+  createBudgetsService,
+  type BudgetsService,
+} from '../application/services/budgets.service.js';
 import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
@@ -169,6 +173,8 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The budgets of `/api/budgets` (plan §4.11.2). */
+  readonly budgetsService: BudgetsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
   readonly shortcutsService: ShortcutsService;
@@ -741,6 +747,12 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    budgetsService: createBudgetsService({
+      uow,
+      rates: ratesService,
+      notifications: notificationEmitter,
+      ids: uuidv7Ids,
+    }),
     goalsService: createGoalsService({ uow, rates: ratesService }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
@@ -818,6 +830,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    budgets: { budgetsService: container.budgetsService, clock: container.clock, session },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },

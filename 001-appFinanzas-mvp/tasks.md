@@ -3289,7 +3289,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-08`: con los dos presupuestos se conserva el de B; con un cierre pendiente en A, `MERGE_PENDING_CLOSE`.
     - `EC-M5-03`: después de mover una subcategoría, los períodos cerrados del padre no cambian.
 
-- [ ] **`TASK-204`: Rutas HTTP de presupuestos**
+- [x] **`TASK-204`: Rutas HTTP de presupuestos**
   - **Dependencias:** Requiere TASK-198, TASK-202, TASK-203
   - **Trazabilidad SDD:** plan §4.11.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
