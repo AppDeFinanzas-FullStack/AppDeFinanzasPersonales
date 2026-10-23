@@ -3717,6 +3717,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/recurring.routes.ts`
     - `apps/api/src/presentation/controllers/recurring.controller.ts`
     - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/recurring-occurrence.repository.ts`
     - `apps/api/src/presentation/presenters/recurring.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
