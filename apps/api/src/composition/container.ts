@@ -699,10 +699,11 @@ export const buildContainer = (env: Env): Container => {
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
   const recurringUsers = createRecurringUsers(prisma);
+  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
   const recurringGenerator = createRecurringGenerator({
     rates: ratesService,
     ledgerHooks,
-    notifications: createNotificationEmitter({ release: env.RELEASE }),
+    notifications: notificationEmitter,
     timezones: recurringUsers,
     clock: systemClock,
   });
@@ -718,7 +719,12 @@ export const buildContainer = (env: Env): Container => {
   jobs.registerJob('recurring.expirePending', () => recurringJobs.expirePending(), {
     forUser: (userId) => recurringJobs.expirePendingForUser(userId),
   });
-  const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
+  const accountsService = createAccountsService({
+    uow,
+    rates: ratesService,
+    ledgerHooks,
+    recurring: { notifications: notificationEmitter },
+  });
   const transactionsService = createTransactionsService({
     uow,
     rates: ratesService,
@@ -777,7 +783,10 @@ export const buildContainer = (env: Env): Container => {
     accountsService,
     goalsService: createGoalsService({ uow, rates: ratesService }),
     shortcutsService,
-    categoriesService: createCategoriesService({ uow }),
+    categoriesService: createCategoriesService({
+      uow,
+      recurring: { notifications: notificationEmitter, timezones: recurringUsers, clock: systemClock },
+    }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     registerService,

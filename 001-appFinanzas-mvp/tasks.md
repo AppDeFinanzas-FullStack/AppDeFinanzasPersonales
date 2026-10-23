@@ -3693,7 +3693,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-11` / `EC-M14-04`: al eliminar una regla con un pendiente, el pendiente desaparece y el movimiento conserva "De recurrente: X".
     - Extender el fin de una regla finalizada la reactiva.
 
-- [ ] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
+- [x] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
   - **Dependencias:** Requiere TASK-104, TASK-112, TASK-227
   - **Trazabilidad SDD:** plan §4.4.2 (archivar: pausar reglas con aviso), plan §4.5.2 (archivar), plan §4.14.3 (activa ⇄ pausada), plan §4.15.1 (`recurring_pending`); EC-M14-02, RF-M4-13, RF-M5-07, RF-M15-02
   - **Archivos en Alcance:**

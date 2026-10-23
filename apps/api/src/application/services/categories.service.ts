@@ -7,8 +7,10 @@ import type {
   RestoreCategoryInput,
   UpdateCategoryInput,
 } from '@finanzas/contracts';
+import { BOLIVIA_TIME_ZONE } from '@finanzas/domain';
 
 import { AppError } from '../errors.js';
+import type { Clock } from '../ports/clock.js';
 import type {
   CategoryKind,
   CategoryPatch,
@@ -16,6 +18,9 @@ import type {
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import type { NotificationEmitter } from '../shared/notification-emitter.js';
+import type { UserTimezones } from '../shared/recurring-generator.js';
+import { pauseRulesWithNotice } from './accounts.service.js';
 
 /** Maximum categories per user (RNF-28). */
 const CATEGORY_LIMIT = 300;
@@ -33,7 +38,10 @@ export interface CategoriesService {
   reorder(userId: string, input: ReorderCategoriesInput): Promise<void>;
   /** What archiving the category affects (RF-M5-07). */
   archiveImpact(userId: string, id: string): Promise<ArchiveImpactDto>;
-  /** Archives the category and its subcategories; the history stays (RF-M5-06). */
+  /**
+   * Archives the category and its subcategories; the history stays (RF-M5-06). Their active rules
+   * are paused with a notice to choose another category (RF-M5-07).
+   */
   archive(userId: string, id: string): Promise<void>;
   /** Restores the category and the chosen subcategories, optionally renaming it (EC-M5-04). */
   restore(userId: string, id: string, input: RestoreCategoryInput): Promise<void>;
@@ -46,6 +54,15 @@ export interface CategoriesService {
   mergePreview(userId: string, input: MergeInput): Promise<MergePreviewDto>;
   /** Moves the movements, rules and shortcuts of A to B and deletes A (RF-M5-08, RF-M5-09). */
   merge(userId: string, input: MergeInput): Promise<void>;
+}
+
+export interface CategoriesServiceDeps {
+  uow: UnitOfWork;
+  /**
+   * The recurring rules (M14): archiving pauses them with a notice dated in the zone of the user.
+   * Without it the service does not touch rules.
+   */
+  recurring?: { notifications: NotificationEmitter; timezones: UserTimezones; clock: Clock };
 }
 
 /** Checks a merge of A into B: same kind, A without children, B active, neither a system one. */
@@ -117,7 +134,10 @@ async function assertNameFree(
   }
 }
 
-export function createCategoriesService({ uow }: { uow: UnitOfWork }): CategoriesService {
+export function createCategoriesService({
+  uow,
+  recurring,
+}: CategoriesServiceDeps): CategoriesService {
   return {
     async create(userId, input) {
       return uow.run(
@@ -258,6 +278,13 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
     },
 
     async archive(userId, id) {
+      // "Today" of the pause is the date in the zone of the user's profile (RN-07).
+      const today =
+        recurring === undefined
+          ? null
+          : recurring.clock.todayFor(
+              (await recurring.timezones.timezoneOf(userId)) ?? BOLIVIA_TIME_ZONE,
+            );
       await uow.run(
         async (repos) => {
           const current = await repos.categories.get(id);
@@ -273,6 +300,17 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
             ids.push(id);
           }
           await repos.categories.setStatus(ids, 'archived');
+          if (recurring !== undefined && today !== null) {
+            const archived = new Set(ids);
+            await pauseRulesWithNotice(repos, recurring.notifications, {
+              userId,
+              uses: (rule) =>
+                rule.status === 'active' && rule.categoryId !== null && archived.has(rule.categoryId),
+              reason: 'category_archived',
+              now: recurring.clock.now(),
+              today,
+            });
+          }
         },
         { userLock: userId },
       );
