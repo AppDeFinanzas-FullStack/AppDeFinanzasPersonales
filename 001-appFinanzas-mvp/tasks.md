@@ -3430,6 +3430,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.13.2 (`PATCH`, `forgive`, `DELETE`); RF-M13-10, RF-M13-11, RF-M13-12
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
     - `apps/api/test/integration/debts-lifecycle.test.ts`
   - **Especificación de Implementación:** En una deuda activa se editan la persona, la nota y la fecha límite (extenderla la saca de vencida), y el monto original si queda ≥ al capital pagado (`PRINCIPAL_BELOW_PAID`). En una pagada o condonada, solo la persona y la nota (`FIELD_LOCKED`). Condonar fija `forgiven_amount` con el saldo pendiente, sin movimientos. Eliminar, si hay movimientos, exige `movements`: `delete` los borra con `BalanceGuard` y `keep` los convierte en movimientos normales.
   - **Criterios de Verificación (Tests & DoD):**
