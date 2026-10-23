@@ -3699,6 +3699,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/composition/container.ts`
     - `packages/contracts/src/errors.ts`
     - `apps/web/src/locales/es-BO/errors.json`
     - `apps/api/test/integration/recurring-cascades.test.ts`
