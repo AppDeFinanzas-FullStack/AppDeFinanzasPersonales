@@ -5,7 +5,7 @@ import type {
   RuleDto,
 } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, parseAmountInput, todayFor } from '@finanzas/domain';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { uuidv7 } from 'uuidv7';
 
@@ -59,7 +59,8 @@ export function ConfirmPendingDialog({
 }) {
   const { t } = useTranslation('recurring');
   const me = useMe();
-  const [today] = useState(() => todayFor(me.data?.timezone ?? BOLIVIA_TIME_ZONE, new Date()));
+  const timezone = me.data?.timezone ?? BOLIVIA_TIME_ZONE;
+  const today = useMemo(() => todayFor(timezone, new Date()), [timezone]);
   const kind = rule?.kind ?? 'expense';
   const categoryKind = kind === 'income' ? 'income' : 'expense';
   const accounts = useAccounts('active');
