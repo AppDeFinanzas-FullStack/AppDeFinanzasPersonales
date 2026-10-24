@@ -3116,7 +3116,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 20 — M11 Presupuestos (V1.1)
 
-- [ ] **`TASK-193`: Contratos de M11**
+- [x] **`TASK-193`: Contratos de M11**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.11.1; RF-M11-04, RF-M11-07, RF-M11-08, RF-M11-13
   - **Archivos en Alcance:**
@@ -3130,7 +3130,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-07`: `UpdateBudgetInput` rechaza `currencyCode`.
     - `RF-M11-08`: `DecisionInput` exige `carry` y `discard` en un sobrante, y `mode` en un exceso.
 
-- [ ] **`TASK-194`: Dominio `budget`: períodos**
+- [x] **`TASK-194`: Dominio `budget`: períodos**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.11.1 (`periodFor`); RF-M11-04, RF-M11-07, EC-M11-07
   - **Archivos en Alcance:**
@@ -3142,7 +3142,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-04`: con el día de inicio 15, el 03/11 cae en el período 15/10–14/11.
     - `EC-M11-07` / `RF-M11-07`: al cambiar de 1 a 15 durante octubre, el período va del 01/10 al 14/11 y el siguiente empieza el 15/11.
 
-- [ ] **`TASK-195`: Dominio `budget`: disponible, reparto, umbrales y ritmo**
+- [x] **`TASK-195`: Dominio `budget`: disponible, reparto, umbrales y ritmo**
   - **Dependencias:** Requiere TASK-026, TASK-194
   - **Trazabilidad SDD:** plan §4.11.1 (`available`, `result`, `validateSplit`, `thresholdsCrossed`, `paceText`); RF-M11-05, RF-M11-08, RF-M11-13, RF-M11-14, EC-M11-01
   - **Archivos en Alcance:**
@@ -3155,12 +3155,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-13`: si un período empieza en el 120 % con umbrales 80 y 100, solo se avisa el 100.
     - `RF-M11-14`: un presupuesto superado sigue sumando el gasto.
 
-- [ ] **`TASK-196`: Repositorios de presupuestos y gasto del período**
+- [x] **`TASK-196`: Repositorios de presupuestos y gasto del período**
   - **Dependencias:** Requiere TASK-119
   - **Trazabilidad SDD:** plan §3.6, plan §4.11.2 (gasto del período); RF-M11-02, RF-M11-03, RN-02, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/test/factories/budget.factory.ts`
     - `apps/api/test/integration/budget-repositories.test.ts`
@@ -3170,12 +3171,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-02`: un gasto de una subcategoría cuenta en su presupuesto, en el del padre y en el general.
     - `RN-02`: el general no suma las transferencias ni "Deudas y préstamos" (salvo "Intereses").
 
-- [ ] **`TASK-197`: `BudgetsService`: crear, listar y detalle**
+- [x] **`TASK-197`: `BudgetsService`: crear, listar y detalle**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-176, TASK-193, TASK-195, TASK-196
   - **Trazabilidad SDD:** plan §4.11.2 (`GET`, `POST`); RF-M11-01, RF-M11-02, RF-M11-13, RF-M9-06, EC-M11-06, RNF-28
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/src/application/shared/currency-usage.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `packages/domain/src/index.ts`
     - `apps/api/test/integration/budgets-create.test.ts`
   - **Especificación de Implementación:** `create` es idempotente, con un tope de 100. La categoría debe ser de gasto y activa; no se puede "Deudas y préstamos", pero sí "Intereses" (`CATEGORY_NOT_BUDGETABLE`). Crea el período en curso y evalúa los umbrales (solo el más alto). `list` y `get` traen el período en curso, el ritmo, el desglose del arrastre, el cierre pendiente, `childrenExceedParent` y, en el detalle, los 12 últimos períodos. Registra en `CurrencyUsage` el uso por presupuestos activos o pausados.
   - **Criterios de Verificación (Tests & DoD):**
@@ -3185,11 +3189,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-02`: si los hijos suman más que el padre, `childrenExceedParent` es verdadero.
     - `RF-M9-06`: cada presupuesto guarda sus propios umbrales y acción.
 
-- [ ] **`TASK-198`: Editar, pausar, reanudar, reiniciar el arrastre y eliminar presupuestos**
+- [x] **`TASK-198`: Editar, pausar, reanudar, reiniciar el arrastre y eliminar presupuestos**
   - **Dependencias:** Requiere TASK-197
   - **Trazabilidad SDD:** plan §4.11.2 (`PATCH`, `pause`, `resume`, `reset-carryover`, `DELETE`), plan §4.11.3; RF-M11-06, RF-M11-07, RF-M11-12, EC-M11-08
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/budgets.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/test/integration/budgets-lifecycle.test.ts`
   - **Especificación de Implementación:** El monto, la acción y los umbrales se aplican al período en curso. `startDay` se guarda en `next_start_day` y la respuesta trae la fecha de fin del período alargado. Pausar guarda el arrastre en `frozen_carryover` y elimina el período en curso si no tiene decisión. Reanudar crea el período que contiene hoy con ese arrastre. Reiniciar el arrastre pone `carryover_in = 0` y anula los ajustes tardíos. Eliminar borra el presupuesto en cascada y resuelve sus avisos de decisión.
   - **Criterios de Verificación (Tests & DoD):**
@@ -3199,10 +3206,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-12`: reiniciar deja el arrastre en 0.
     - Pausar o reanudar en un estado inválido da `INVALID_STATE`.
 
-- [ ] **`TASK-199`: `LedgerHooks` de presupuestos: umbrales y movimientos tardíos**
+- [x] **`TASK-199`: `LedgerHooks` de presupuestos: umbrales y movimientos tardíos**
   - **Dependencias:** Requiere TASK-197
   - **Trazabilidad SDD:** plan §4.11.3 (movimientos tardíos, umbrales); RF-M11-11, RF-M11-13, EC-M11-05, RNF-12
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/shared/budget-ledger-hook.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/budget-ledger-hook.test.ts`
@@ -3212,10 +3222,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-05`: eliminar un gasto de un período decidido con arrastre sube el arrastre del período en curso por ese monto; con "descartar", no cambia nada.
     - `RF-M11-11`: un tardío con la decisión pendiente cambia el resultado mostrado sin crear ajustes.
 
-- [ ] **`TASK-200`: Job `budgets.close`**
+- [x] **`TASK-200`: Job `budgets.close`**
   - **Dependencias:** Requiere TASK-064, TASK-199
   - **Trazabilidad SDD:** plan §4.11.3 (open → closed_pending); RF-M11-10, RF-M11-13, EC-M11-09, RNF-13, RNF-20
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/jobs/budgets.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/budgets-close-job.test.ts`
@@ -3226,10 +3239,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-09`: un presupuesto `finalizing` pasa a `finalized` sin período siguiente.
     - `RNF-20`: el cierre usa la medianoche de la zona del usuario.
 
-- [ ] **`TASK-201`: Decidir el cierre de un período**
+- [x] **`TASK-201`: Decidir el cierre de un período**
   - **Dependencias:** Requiere TASK-186, TASK-200
   - **Trazabilidad SDD:** plan §4.11.2 (`decision`), plan §4.11.3 (closed_pending → decided); RF-M11-08, RF-M11-09, EC-M11-02, EC-M11-03, EC-M11-09, RNF-11
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/test/integration/budgets-decision.test.ts`
   - **Especificación de Implementación:** `UPDATE budget_period … WHERE status = 'closed_pending' RETURNING` (si no, `DECISION_ALREADY_MADE`). Guarda `spent_at_decision` y `result_at_decision`. Sobrante: el arrastre reemplaza el `carryover_in` del período siguiente; "Enviar a meta" crea un apartado (`origin = budget`) con la cuenta bajo `FOR UPDATE` y el monto convertido con la referencia vigente, o una transferencia real si la meta tiene cuenta dedicada (`origin = goal_transfer`); el resto se descarta. Exceso: arrastrar (negativo) o absorber. Resuelve el aviso.
@@ -3242,10 +3258,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M11-09`: arrastrar en un presupuesto finalizado se rechaza.
     - `RNF-11`: una doble decisión aplica una sola.
 
-- [ ] **`TASK-202`: Job `budgets.defaultDecision`**
+- [x] **`TASK-202`: Job `budgets.defaultDecision`**
   - **Dependencias:** Requiere TASK-201
   - **Trazabilidad SDD:** plan §4.11.3 (closed_pending → defaulted); RF-M11-10, RNF-12, RNF-13
   - **Archivos en Alcance:**
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/jobs/budgets.ts`
     - `apps/api/test/integration/budgets-default-job.test.ts`
   - **Especificación de Implementación:** Si `decision_deadline` < `now()`, aplica la `default_action` (ante un exceso, descartar equivale a absorber; un período finalizado no arrastra), pasa a `defaulted` y resuelve el aviso.
@@ -3253,10 +3273,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Decisión por defecto": con un reloj 7 días después, el período queda `defaulted` y el período en curso no tiene arrastre de ese cierre.
     - `RNF-12`: un usuario que decide en el mismo instante que el job deja una sola decisión.
 
-- [ ] **`TASK-203`: Presupuestos al archivar y fusionar categorías**
+- [x] **`TASK-203`: Presupuestos al archivar y fusionar categorías**
   - **Dependencias:** Requiere TASK-114, TASK-201
   - **Trazabilidad SDD:** plan §4.5.2 (archivar, fusionar), plan §4.11.3 (finalizing); RF-M5-07, RF-M5-08, EC-M11-04, EC-M5-03
   - **Archivos en Alcance:**
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget.repository.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/budget-period.repository.ts`
     - `apps/api/src/application/services/categories.service.ts`
     - `apps/api/test/integration/categories-budgets.test.ts`
   - **Especificación de Implementación:** Archivar una categoría pasa su presupuesto a `finalizing`; la decisión pendiente sigue disponible hasta su plazo. Fusionar: si A tiene un cierre pendiente, da `MERGE_PENDING_CLOSE`; el presupuesto de A pasa a B si B no tenía; si los dos tenían, se conserva el de B y se elimina el de A, con un aviso en la respuesta.
@@ -3266,7 +3289,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M5-08`: con los dos presupuestos se conserva el de B; con un cierre pendiente en A, `MERGE_PENDING_CLOSE`.
     - `EC-M5-03`: después de mover una subcategoría, los períodos cerrados del padre no cambian.
 
-- [ ] **`TASK-204`: Rutas HTTP de presupuestos**
+- [x] **`TASK-204`: Rutas HTTP de presupuestos**
   - **Dependencias:** Requiere TASK-198, TASK-202, TASK-203
   - **Trazabilidad SDD:** plan §4.11.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
@@ -3277,13 +3300,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/budgets.test.ts`
     - `apps/api/test/http/budgets.isolation.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** Monta los endpoints de plan §4.11.2 detrás de `releaseGate('m11')`.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 con un presupuesto o un período de A, también al decidir.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-205`: Web: lista y detalle de presupuestos**
+- [x] **`TASK-205`: Web: lista y detalle de presupuestos**
   - **Dependencias:** Requiere TASK-179, TASK-204
   - **Trazabilidad SDD:** plan §4.11.4 (`/presupuestos`, `/presupuestos/:id`); RF-M11-05, RF-M11-12, RF-M11-14, EC-M11-01, spec §2.11.1 (seguir el período)
   - **Archivos en Alcance:**
@@ -3305,10 +3329,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-12`: la confirmación de reiniciar muestra el monto.
     - `RF-M11-05`: se ve el desglose del arrastre.
 
-- [ ] **`TASK-206`: Web: formulario de presupuesto**
+- [x] **`TASK-206`: Web: formulario de presupuesto**
   - **Dependencias:** Requiere TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (formulario); RF-M11-01, RF-M11-07, RF-M9-06, EC-M11-06
   - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/components/budget-list.tsx`
+    - `apps/web/src/features/budgets/components/budget-actions.tsx`
+    - `apps/web/src/features/budgets/api.ts`
+    - `apps/web/src/features/budgets/hooks/use-budgets.ts`
     - `apps/web/src/features/budgets/components/budget-form.tsx`
     - `apps/web/src/features/budgets/routes.tsx`
     - `apps/web/src/locales/es-BO/budgets.json`
@@ -3319,10 +3347,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M11-07`: cambiar el día de inicio muestra la fecha de fin.
     - `RF-M11-01`: "Deudas y préstamos" no se ofrece como alcance.
 
-- [ ] **`TASK-207`: Web: decisión de cierre en el presupuesto y en la bandeja**
+- [x] **`TASK-207`: Web: decisión de cierre en el presupuesto y en la bandeja**
   - **Dependencias:** Requiere TASK-191, TASK-205
   - **Trazabilidad SDD:** plan §4.11.4 (`CloseDecisionCard`, en la bandeja); RF-M11-08, RF-M11-09, EC-M11-03, EC-M11-09, RF-M15-03
   - **Archivos en Alcance:**
+    - `apps/web/src/features/budgets/routes.tsx`
+    - `apps/web/src/features/budgets/api.ts`
+    - `apps/web/src/features/budgets/hooks/use-budgets.ts`
     - `apps/web/src/features/budgets/components/close-decision-card.tsx`
     - `apps/web/src/features/budgets/components/surplus-split-form.tsx`
     - `apps/web/src/features/budgets/components/deficit-choice.tsx`

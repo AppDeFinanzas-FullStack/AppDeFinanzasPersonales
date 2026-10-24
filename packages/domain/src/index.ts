@@ -64,6 +64,17 @@ export type {
   PaymentSplit,
   PaymentValidation,
 } from './debts.js';
+export {
+  available,
+  nextPeriod,
+  pace,
+  periodFor,
+  periodLabel,
+  result,
+  thresholdsCrossed,
+  todayShouldBe,
+} from './budget.js';
+export type { BudgetPace, BudgetPeriod } from './budget.js';
 export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
 export type {
   EarmarkSource,

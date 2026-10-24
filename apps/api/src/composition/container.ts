@@ -6,6 +6,7 @@ import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../application/errors.js';
+import { createBudgetsJobs } from '../application/jobs/budgets.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
 import {
   createScheduledNotifications,
@@ -36,6 +37,10 @@ import {
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
 import { createDebtsService, type DebtsService } from '../application/services/debts.service.js';
+import {
+  createBudgetsService,
+  type BudgetsService,
+} from '../application/services/budgets.service.js';
 import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
 import {
   createAccountsService,
@@ -80,7 +85,9 @@ import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { createBudgetLedgerHook } from '../application/shared/budget-ledger-hook.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
+import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -125,6 +132,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createBudgetPeriodRepository } from '../infrastructure/persistence/repositories/budget-period.repository.js';
+import { createBudgetRepository } from '../infrastructure/persistence/repositories/budget.repository.js';
 import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
 import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
@@ -172,6 +181,8 @@ export interface Container {
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The budgets of `/api/budgets` (plan §4.11.2). */
+  readonly budgetsService: BudgetsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
   /** The debts of `/api/debts` (plan §4.13.2). */
@@ -245,6 +256,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   debtPayments: createDebtPaymentRepository(tx, userId ?? NO_USER),
   goals: createGoalRepository(tx, userId ?? NO_USER),
   goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
+  budgets: createBudgetRepository(tx, userId ?? NO_USER),
+  budgetPeriods: createBudgetPeriodRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -678,6 +691,17 @@ export const buildContainer = (env: Env): Container => {
   jobs.registerJob('notifications.scheduled', () => scheduledNotifications.run(), {
     forUser: (userId) => scheduledNotifications.forUser(userId),
   });
+  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
+  const budgetsJobs = createBudgetsJobs({
+    uow,
+    clock: systemClock,
+    notifications: notificationEmitter,
+    ids: uuidv7Ids,
+  });
+  jobs.registerJob('budgets.close', () => budgetsJobs.close(), {
+    forUser: (userId) => budgetsJobs.closeForUser(userId),
+  });
+  jobs.registerJob('budgets.defaultDecision', () => budgetsJobs.defaultDecision());
   jobs.registerJob(
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
@@ -695,6 +719,12 @@ export const buildContainer = (env: Env): Container => {
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
+  ledgerHooks.register(
+    createBudgetLedgerHook({
+      notifications: notificationEmitter,
+      ids: uuidv7Ids,
+    }),
+  );
   const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
   const transactionsService = createTransactionsService({
     uow,
@@ -751,6 +781,12 @@ export const buildContainer = (env: Env): Container => {
     fxSettingsService,
     currenciesService,
     accountsService,
+    budgetsService: createBudgetsService({
+      uow,
+      rates: ratesService,
+      notifications: notificationEmitter,
+      ids: uuidv7Ids,
+    }),
     goalsService: createGoalsService({ uow, rates: ratesService }),
     debtsService: createDebtsService({ uow, rates: ratesService, ledgerHooks }),
     shortcutsService,
@@ -829,6 +865,7 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    budgets: { budgetsService: container.budgetsService, clock: container.clock, session },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
     debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },

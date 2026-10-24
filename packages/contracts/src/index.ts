@@ -15,3 +15,4 @@ export * from './onboarding.js';
 export * from './notifications.js';
 export * from './debts.js';
 export * from './goals.js';
+export * from './budgets.js';

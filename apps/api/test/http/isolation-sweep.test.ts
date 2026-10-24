@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { buildContainer, createApp, type Container } from '../../src/composition/container.js';
 import { parseEnv } from '../../src/infrastructure/config/env.js';
+import { createBudget, createBudgetPeriod, deleteBudgetsOf } from '../factories/budget.factory.js';
 import { deleteGoalsOf } from '../factories/goal.factory.js';
 import { disconnectTestPrisma, testPrisma } from '../integration/setup/db.js';
 
@@ -69,6 +70,9 @@ interface Ids {
   shortcut: string;
   goal: string;
   debt: string;
+  budget: string;
+  /** A `closed_pending` period of `budget`. */
+  budgetPeriod: string;
   notification: string;
   undoToken: string;
   currency: string;
@@ -521,6 +525,56 @@ const COVERAGE: Record<string, Coverage> = {
     body: {},
   })),
 
+  'GET /api/budgets': 'session',
+  'POST /api/budgets': {
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: '/api/budgets',
+        body: {
+          id: uuidv7(),
+          scope: 'category',
+          categoryId: a.category,
+          amount: '500.00',
+          currencyCode: 'BOB',
+        },
+      }),
+    ],
+  },
+  'GET /api/budgets/:id': onlyForeign((a) => ({
+    method: 'GET',
+    path: `/api/budgets/${a.budget}`,
+  })),
+  'PATCH /api/budgets/:id': onlyForeign((a) => ({
+    method: 'PATCH',
+    path: `/api/budgets/${a.budget}`,
+    body: { amount: '1.00' },
+  })),
+  'DELETE /api/budgets/:id': onlyForeign((a) => ({
+    method: 'DELETE',
+    path: `/api/budgets/${a.budget}`,
+  })),
+  'POST /api/budgets/:id/pause': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/budgets/${a.budget}/pause`,
+    body: {},
+  })),
+  'POST /api/budgets/:id/resume': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/budgets/${a.budget}/resume`,
+    body: {},
+  })),
+  'POST /api/budgets/:id/reset-carryover': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/budgets/${a.budget}/reset-carryover`,
+    body: {},
+  })),
+  'POST /api/budgets/:id/periods/:periodId/decision': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/budgets/${a.budget}/periods/${a.budgetPeriod}/decision`,
+    body: { result: 'surplus', carry: '0.00', discard: '500.00' },
+  })),
+
   'GET /api/debts': 'session',
   'POST /api/debts': {
     refs: [
@@ -629,6 +683,7 @@ const MOUNTS = [
   '/api/notifications',
   '/api/goals',
   '/api/debts',
+  '/api/budgets',
   '/internal/jobs',
   '/internal/test',
 ];
@@ -858,6 +913,33 @@ async function notificationOf(owner: Account): Promise<string> {
   return id;
 }
 
+/** A budget of A on its category: last month `closed_pending` and this month open. */
+async function budgetOf(owner: Account, categoryId: string) {
+  const rows = await testPrisma().$queryRaw<
+    { prevStart: string; prevEnd: string; curStart: string; curEnd: string }[]
+  >`
+    SELECT to_char(date_trunc('month', d) - interval '1 month', 'YYYY-MM-DD') AS "prevStart",
+           to_char(date_trunc('month', d) - interval '1 day', 'YYYY-MM-DD') AS "prevEnd",
+           to_char(date_trunc('month', d), 'YYYY-MM-DD') AS "curStart",
+           to_char(date_trunc('month', d) + interval '1 month' - interval '1 day', 'YYYY-MM-DD')
+             AS "curEnd"
+      FROM (SELECT (now() AT TIME ZONE timezone)::date AS d
+              FROM auth_user WHERE id = ${owner.userId}::uuid) t`;
+  const months = rows[0];
+  if (months === undefined) throw new Error('the user has no timezone');
+  const budget = await createBudget(owner.userId, { categoryId, amount: '500.00' });
+  const period = await createBudgetPeriod(owner.userId, budget, {
+    startDate: months.prevStart,
+    endDate: months.prevEnd,
+    status: 'closed_pending',
+  });
+  await createBudgetPeriod(owner.userId, budget, {
+    startDate: months.curStart,
+    endDate: months.curEnd,
+  });
+  return { budget: budget.id, budgetPeriod: period.id };
+}
+
 /** The answer without what changes on every request. */
 const shape = (res: { status: number; body: unknown }) => {
   const body = res.body;
@@ -874,6 +956,8 @@ const ownTexts = (): string[] => [
   theirs.shortcut,
   theirs.goal,
   theirs.debt,
+  theirs.budget,
+  theirs.budgetPeriod,
   theirs.notification,
   marker,
 ];
@@ -920,6 +1004,7 @@ beforeAll(async () => {
 
   theirs = {
     ...mine,
+    ...(await budgetOf(a, mine.category)),
     notification: await notificationOf(a),
     undoToken,
     currency: CUSTOM_CODE,
@@ -938,6 +1023,8 @@ beforeAll(async () => {
     shortcut: uuidv7(),
     goal: uuidv7(),
     debt: uuidv7(),
+    budget: uuidv7(),
+    budgetPeriod: uuidv7(),
     notification: uuidv7(),
     undoToken: uuidv7(),
     currency: UNKNOWN_CODE,
@@ -950,6 +1037,7 @@ afterAll(async () => {
   else process.env['RELEASE'] = originalRelease;
   await testPrisma()
     .$executeRaw`DELETE FROM debt WHERE user_id = ANY(${[a.userId, b.userId]}::uuid[])`;
+  await deleteBudgetsOf([a.userId, b.userId]);
   await deleteGoalsOf([a.userId, b.userId]);
   if (emails.length > 0) {
     await testPrisma().$executeRaw`DELETE FROM auth_user WHERE email = ANY(${emails}::text[])`;
@@ -1082,6 +1170,7 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
     { method: 'GET', path: '/api/goals' },
     { method: 'GET', path: '/api/debts' },
     { method: 'GET', path: '/api/debts', query: { view: 'person' } },
+    { method: 'GET', path: '/api/budgets' },
     { method: 'GET', path: '/api/currencies' },
     { method: 'GET', path: '/api/dashboard', query: { month } },
     { method: 'GET', path: '/api/register/context' },
@@ -1138,6 +1227,10 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
     expect(debts.text).toContain(theirs.debt);
     expect(debts.text).toContain(`Persona A ${marker}`);
     expect(debts.text).not.toContain('Cambiada por otro');
+    const budget = await send({ method: 'GET', path: `/api/budgets/${theirs.budget}` }, a.cookie);
+    expect(budget.status).toBe(200);
+    expect(budget.text).toContain(theirs.budgetPeriod);
+    expect(budget.text).toContain('"500.00"');
 
     const notifications = await send({ method: 'GET', path: '/api/notifications' }, a.cookie);
     expect(notifications.text).toContain(theirs.notification);
@@ -1154,9 +1247,11 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
         (SELECT count(*) FROM category WHERE id = ${theirs.category}::uuid AND user_id = ${a.userId}::uuid AND name = ${`Cat A ${marker}`}) +
         (SELECT count(*) FROM shortcut WHERE id = ${theirs.shortcut}::uuid AND user_id = ${a.userId}::uuid) +
         (SELECT count(*) FROM goal WHERE id = ${theirs.goal}::uuid AND user_id = ${a.userId}::uuid AND archived_at IS NULL AND name = ${`Meta A ${marker}`}) +
+        (SELECT count(*) FROM budget WHERE id = ${theirs.budget}::uuid AND user_id = ${a.userId}::uuid AND status = 'active' AND amount = 500.00) +
+        (SELECT count(*) FROM budget_period WHERE id = ${theirs.budgetPeriod}::uuid AND user_id = ${a.userId}::uuid AND status = 'closed_pending') +
         (SELECT count(*) FROM debt WHERE id = ${theirs.debt}::uuid AND user_id = ${a.userId}::uuid AND status = 'active' AND person = ${`Persona A ${marker}`}) +
         (SELECT count(*) FROM notification WHERE id = ${theirs.notification}::uuid AND user_id = ${a.userId}::uuid AND read_at IS NULL)
       )::int AS n`;
-    expect(rows[0]?.n).toBe(6);
+    expect(rows[0]?.n).toBe(8);
   });
 });

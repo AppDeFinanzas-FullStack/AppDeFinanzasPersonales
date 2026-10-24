@@ -1,0 +1,110 @@
+{
+  "title": "Presupuestos",
+  "empty": "Aún no tienes presupuestos. Crea uno para controlar cuánto gastas cada período.",
+  "loadError": "No se pudieron cargar los presupuestos. Inténtalo de nuevo.",
+  "back": "Volver a presupuestos",
+  "general": "Presupuesto general",
+  "period": "Período del {{start}} al {{end}}",
+  "noPeriod": "Sin período en curso.",
+  "status": {
+    "active": "Activo",
+    "paused": "Pausado",
+    "finalizing": "Finalizando",
+    "finalized": "Finalizado"
+  },
+  "decideClose": "Decidir cierre",
+  "progress": {
+    "label": "Avance de {{name}}",
+    "spentOf": "{{pct}} % · {{spent}} de {{available}}",
+    "todayShouldBe": "Hoy deberías llevar {{amount}}",
+    "available": "Disponible"
+  },
+  "pace": {
+    "daily_one": "Puedes gastar {{amount}} por día durante {{count}} día",
+    "daily_other": "Puedes gastar {{amount}} por día durante {{count}} días",
+    "over": "Vas {{amount}} por encima del ritmo",
+    "exceeded": "Superado por {{amount}}"
+  },
+  "breakdown": {
+    "title": "Monto ± arrastre = disponible",
+    "amount": "Monto del período",
+    "carryover": "Arrastre",
+    "available": "Disponible"
+  },
+  "history": {
+    "title": "Últimos períodos",
+    "empty": "Aún no hay períodos anteriores.",
+    "amount": "Monto {{amount}}",
+    "carryover": "arrastre {{amount}}",
+    "status": {
+      "open": "En curso",
+      "closed_pending": "Decidir cierre",
+      "decided": "Decidido",
+      "defaulted": "Decidido automáticamente"
+    }
+  },
+  "actions": {
+    "menu": "Acciones del presupuesto",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "resetCarryover": "Reiniciar arrastre",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "resetTitle": "¿Reiniciar el arrastre?",
+    "resetDescription": "El arrastre de {{amount}} pasará a 0 y el disponible quedará en el monto del período.",
+    "deleteTitle": "¿Eliminar {{name}}?",
+    "deleteDescription": "Se borrarán el presupuesto y su historial. Tus movimientos no cambian.",
+    "edit": "Editar"
+  },
+  "new": "Nuevo presupuesto",
+  "nextStart": "El período en curso termina el {{date}}; el siguiente empieza el día {{day}}.",
+  "form": {
+    "title": "Nuevo presupuesto",
+    "editTitle": "Editar presupuesto",
+    "description": "Define cuánto quieres gastar en cada período y cuándo avisarte.",
+    "close": "Cerrar",
+    "scope": "Alcance",
+    "amount": "Monto por período",
+    "currency": "Moneda",
+    "currencyFixed": "La moneda no se puede cambiar después de crear el presupuesto.",
+    "startDay": "Día de inicio del período",
+    "stretchedEnd": "El cambio rige desde el próximo período: el período en curso se alarga hasta el {{date}}.",
+    "defaultAction": "Acción por defecto al cerrar con sobrante",
+    "actions": {
+      "discard": "Descartar el sobrante",
+      "carry": "Arrastrar al siguiente período"
+    },
+    "thresholds": "Umbrales de aviso (%)",
+    "threshold": "Umbral {{n}} (%)",
+    "thresholdsHint": "Hasta 3 porcentajes distintos entre 1 y 150. Deja vacío el que no uses.",
+    "editExisting": "Editar el presupuesto existente",
+    "submit": "Guardar",
+    "saving": "Guardando…",
+    "errors": {
+      "scope": "Elige una categoría activa o el presupuesto general.",
+      "amount": "Escribe un monto mayor a 0, por ejemplo 500,00.",
+      "thresholds": "Usa hasta 3 números enteros distintos entre 1 y 150."
+    }
+  },
+  "close": {
+    "surplusTitle": "{{name}} cerró {{label}}: sobraron {{amount}}",
+    "deficitTitle": "{{name}} cerró {{label}}: te pasaste por {{amount}}",
+    "carry": "Arrastrar",
+    "toGoal": "Enviar a meta",
+    "discard": "Descartar",
+    "goal": "Meta",
+    "chooseGoal": "Elige una meta",
+    "account": "Cuenta",
+    "chooseAccount": "Elige una cuenta",
+    "transfer": "Transferir a la cuenta de la meta ({{name}}) en lugar de apartar",
+    "remaining": "Falta repartir {{amount}}.",
+    "over": "Repartiste {{amount}} de más. Baja algún monto.",
+    "exact": "La suma cuadra con el sobrante.",
+    "invalid": "Escribe montos de 0 o más, por ejemplo 50,00.",
+    "goalMissing": "Elige la meta y la cuenta para enviar a meta.",
+    "submit": "Confirmar decisión",
+    "absorb": "Absorber",
+    "deficitHint": "Arrastrar descuenta el exceso del próximo período; absorber lo deja en este.",
+    "deficitHintFinal": "El presupuesto terminó: el exceso se absorbe en este período."
+  }
+}

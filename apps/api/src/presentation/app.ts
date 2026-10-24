@@ -14,6 +14,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
+import { budgetsRouter, type BudgetsRoutesDeps } from './routes/budgets.routes.js';
 import { categoriesRouter, type CategoriesRoutesDeps } from './routes/categories.routes.js';
 import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
 import {
@@ -67,6 +68,8 @@ export interface AppDeps {
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
+  /** The routes `/api/budgets` (plan §4.11.2). */
+  budgets?: BudgetsRoutesDeps;
   /** The routes `/api/goals` (plan §4.12.2). */
   goals?: GoalsRoutesDeps;
   /** The routes `/api/debts` (plan §4.13.2). */
@@ -151,6 +154,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));
+  }
+  if (deps.budgets !== undefined) {
+    app.use('/api/budgets', budgetsRouter(deps.budgets));
   }
   if (deps.goals !== undefined) {
     app.use('/api/goals', goalsRouter(deps.goals));

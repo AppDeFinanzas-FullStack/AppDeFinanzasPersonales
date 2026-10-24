@@ -44,6 +44,16 @@ CurrencyUsage.register('goals', async (tx, _userId, code) => {
   return (await goals.list()).some((goal) => goal.currencyCode === code);
 });
 
+// Budgets (M11): an active or paused budget uses its currency (EC-M3-05).
+CurrencyUsage.register('budgets', async (tx, _userId, code) => {
+  // Units of work wired before the budgets existed have no budget repository.
+  const budgets: Repositories['budgets'] | undefined = tx.budgets;
+  if (!budgets) {
+    return false;
+  }
+  return budgets.usesCurrency(code);
+});
+
 // Debts (M13): an active or overdue debt uses its currency; overdue is stored as active.
 CurrencyUsage.register('debts', async (tx, _userId, code) => {
   // Units of work wired before the debts existed have no debt repository.
