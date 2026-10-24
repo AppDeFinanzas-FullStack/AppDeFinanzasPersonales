@@ -3731,7 +3731,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: el usuario B recibe 404 con una regla o una ocurrencia de A.
     - `RF-M2-03`: con `RELEASE=1.1`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-234`: Web: pantalla de Recurrentes**
+- [x] **`TASK-234`: Web: pantalla de Recurrentes**
   - **Dependencias:** Requiere TASK-192, TASK-233
   - **Trazabilidad SDD:** plan §4.14.4 (`/recurrentes`); RF-M14-08, RF-M14-13, RF-M14-14
   - **Archivos en Alcance:**
@@ -3751,7 +3751,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-08`: confirmar con otra fecha registra el movimiento en esa fecha.
     - `RF-M14-14`: una regla sin monto muestra "monto por definir" y pide el monto al confirmar.
 
-- [ ] **`TASK-235`: Web: formulario de regla y diálogo de reanudar**
+- [x] **`TASK-235`: Web: formulario de regla y diálogo de reanudar**
   - **Dependencias:** Requiere TASK-234
   - **Trazabilidad SDD:** plan §4.14.4 (diálogos); RF-M14-01, RF-M14-03, RF-M14-09, RF-M14-14
   - **Archivos en Alcance:**
