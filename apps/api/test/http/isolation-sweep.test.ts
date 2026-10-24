@@ -69,6 +69,7 @@ interface Ids {
   transaction: string;
   shortcut: string;
   goal: string;
+  debt: string;
   budget: string;
   /** A `closed_pending` period of `budget`. */
   budgetPeriod: string;
@@ -76,7 +77,7 @@ interface Ids {
   undoToken: string;
   currency: string;
   /** Resources of the user who sends the request. */
-  own: { account: string; category: string; transaction: string; goal: string };
+  own: { account: string; category: string; transaction: string; goal: string; debt: string };
 }
 
 type Build = (ids: Ids) => Spec;
@@ -574,6 +575,76 @@ const COVERAGE: Record<string, Coverage> = {
     body: { result: 'surplus', carry: '0.00', discard: '500.00' },
   })),
 
+  'GET /api/debts': 'session',
+  'POST /api/debts': {
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: '/api/debts',
+        body: {
+          id: uuidv7(),
+          direction: 'i_owe',
+          person: 'Persona nueva',
+          principal: '10.00',
+          currencyCode: 'BOB',
+          startDate: dayOffset(5),
+          initialMovement: { transactionId: uuidv7(), accountId: a.account },
+        },
+      }),
+    ],
+  },
+  'PATCH /api/debts/:id': onlyForeign((a) => ({
+    method: 'PATCH',
+    path: `/api/debts/${a.debt}`,
+    body: { person: 'Cambiada por otro' },
+  })),
+  'DELETE /api/debts/:id': onlyForeign((a) => ({
+    method: 'DELETE',
+    path: `/api/debts/${a.debt}`,
+  })),
+  'POST /api/debts/:id/payments': {
+    foreign: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/debts/${a.debt}/payments`,
+        body: {
+          id: uuidv7(),
+          amount: '10.00',
+          interestPart: '0.00',
+          capitalPart: '10.00',
+          date: dayOffset(1),
+        },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/debts/${a.own.debt}/payments`,
+        body: {
+          id: uuidv7(),
+          amount: '10.00',
+          interestPart: '0.00',
+          capitalPart: '10.00',
+          date: dayOffset(1),
+          account: {
+            accountId: a.account,
+            capitalTransactionId: uuidv7(),
+            interestTransactionId: uuidv7(),
+          },
+        },
+      }),
+    ],
+  },
+  'DELETE /api/debts/:id/payments/last': onlyForeign((a) => ({
+    method: 'DELETE',
+    path: `/api/debts/${a.debt}/payments/last`,
+  })),
+  'POST /api/debts/:id/forgive': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/debts/${a.debt}/forgive`,
+    body: {},
+  })),
+
   'POST /api/notifications/:id/read': onlyForeign((a) => ({
     method: 'POST',
     path: `/api/notifications/${a.notification}/read`,
@@ -611,6 +682,7 @@ const MOUNTS = [
   '/api/onboarding',
   '/api/notifications',
   '/api/goals',
+  '/api/debts',
   '/api/budgets',
   '/internal/jobs',
   '/internal/test',
@@ -727,6 +799,7 @@ async function seedUser(owner: Account, label: 'A' | 'B') {
   const transaction = uuidv7();
   const shortcut = uuidv7();
   const goal = uuidv7();
+  const debt = uuidv7();
   await seed(
     {
       method: 'POST',
@@ -803,7 +876,22 @@ async function seedUser(owner: Account, label: 'A' | 'B') {
     },
     owner.cookie,
   );
-  return { account, category, transaction, shortcut, goal };
+  await seed(
+    {
+      method: 'POST',
+      path: '/api/debts',
+      body: {
+        id: debt,
+        direction: 'i_owe',
+        person: `Persona ${label} ${marker}`,
+        principal: '500.00',
+        currencyCode: 'BOB',
+        startDate: dayOffset(30),
+      },
+    },
+    owner.cookie,
+  );
+  return { account, category, transaction, shortcut, goal, debt };
 }
 
 async function notificationOf(owner: Account): Promise<string> {
@@ -867,6 +955,7 @@ const ownTexts = (): string[] => [
   theirs.transaction,
   theirs.shortcut,
   theirs.goal,
+  theirs.debt,
   theirs.budget,
   theirs.budgetPeriod,
   theirs.notification,
@@ -924,6 +1013,7 @@ beforeAll(async () => {
       category: own.category,
       transaction: own.transaction,
       goal: own.goal,
+      debt: own.debt,
     },
   };
   unknown = {
@@ -932,6 +1022,7 @@ beforeAll(async () => {
     transaction: uuidv7(),
     shortcut: uuidv7(),
     goal: uuidv7(),
+    debt: uuidv7(),
     budget: uuidv7(),
     budgetPeriod: uuidv7(),
     notification: uuidv7(),
@@ -944,6 +1035,8 @@ beforeAll(async () => {
 afterAll(async () => {
   if (originalRelease === undefined) delete process.env['RELEASE'];
   else process.env['RELEASE'] = originalRelease;
+  await testPrisma()
+    .$executeRaw`DELETE FROM debt WHERE user_id = ANY(${[a.userId, b.userId]}::uuid[])`;
   await deleteBudgetsOf([a.userId, b.userId]);
   await deleteGoalsOf([a.userId, b.userId]);
   if (emails.length > 0) {
@@ -1075,6 +1168,8 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
     { method: 'GET', path: '/api/shortcuts' },
     { method: 'GET', path: '/api/notifications' },
     { method: 'GET', path: '/api/goals' },
+    { method: 'GET', path: '/api/debts' },
+    { method: 'GET', path: '/api/debts', query: { view: 'person' } },
     { method: 'GET', path: '/api/budgets' },
     { method: 'GET', path: '/api/currencies' },
     { method: 'GET', path: '/api/dashboard', query: { month } },
@@ -1095,7 +1190,7 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
 });
 
 describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
-  it('RNF-14 A sigue viendo su cuenta, su categoría, su movimiento, su atajo, su aviso y su moneda sin cambios', async () => {
+  it('RNF-14 A sigue viendo su cuenta, su categoría, su movimiento, su atajo, su meta, su deuda, su aviso y su moneda sin cambios', async () => {
     const accounts = await send({ method: 'GET', path: '/api/accounts' }, a.cookie);
     expect(accounts.status).toBe(200);
     expect(accounts.text).toContain(theirs.account);
@@ -1127,6 +1222,11 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
     expect(goal.text).toContain(`Meta A ${marker}`);
     expect(goal.text).not.toContain('Cambiada por otro');
 
+    const debts = await send({ method: 'GET', path: '/api/debts' }, a.cookie);
+    expect(debts.status).toBe(200);
+    expect(debts.text).toContain(theirs.debt);
+    expect(debts.text).toContain(`Persona A ${marker}`);
+    expect(debts.text).not.toContain('Cambiada por otro');
     const budget = await send({ method: 'GET', path: `/api/budgets/${theirs.budget}` }, a.cookie);
     expect(budget.status).toBe(200);
     expect(budget.text).toContain(theirs.budgetPeriod);
@@ -1149,8 +1249,9 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
         (SELECT count(*) FROM goal WHERE id = ${theirs.goal}::uuid AND user_id = ${a.userId}::uuid AND archived_at IS NULL AND name = ${`Meta A ${marker}`}) +
         (SELECT count(*) FROM budget WHERE id = ${theirs.budget}::uuid AND user_id = ${a.userId}::uuid AND status = 'active' AND amount = 500.00) +
         (SELECT count(*) FROM budget_period WHERE id = ${theirs.budgetPeriod}::uuid AND user_id = ${a.userId}::uuid AND status = 'closed_pending') +
+        (SELECT count(*) FROM debt WHERE id = ${theirs.debt}::uuid AND user_id = ${a.userId}::uuid AND status = 'active' AND person = ${`Persona A ${marker}`}) +
         (SELECT count(*) FROM notification WHERE id = ${theirs.notification}::uuid AND user_id = ${a.userId}::uuid AND read_at IS NULL)
       )::int AS n`;
-    expect(rows[0]?.n).toBe(7);
+    expect(rows[0]?.n).toBe(8);
   });
 });

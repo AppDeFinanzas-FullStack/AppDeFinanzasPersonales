@@ -55,6 +55,15 @@ export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
 export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
 export type { ComparisonWindow } from './dashboard.js';
+export { accrue, dailyRate, deriveStatus, proposeSplit, validatePayment } from './debts.js';
+export type {
+  DebtState,
+  DebtStatus,
+  InterestPeriod,
+  PaymentCheck,
+  PaymentSplit,
+  PaymentValidation,
+} from './debts.js';
 export {
   available,
   nextPeriod,

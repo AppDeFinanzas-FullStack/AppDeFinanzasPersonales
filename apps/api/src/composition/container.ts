@@ -8,6 +8,11 @@ import { uuidv7 } from 'uuidv7';
 import { AppError } from '../application/errors.js';
 import { createBudgetsJobs } from '../application/jobs/budgets.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
+import {
+  createScheduledNotifications,
+  type ScheduledUser,
+  type ScheduledUsers,
+} from '../application/jobs/notifications.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
@@ -31,6 +36,7 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createDebtsService, type DebtsService } from '../application/services/debts.service.js';
 import {
   createBudgetsService,
   type BudgetsService,
@@ -131,6 +137,8 @@ import { createBudgetRepository } from '../infrastructure/persistence/repositori
 import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
 import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
+import { createDebtRepository } from '../infrastructure/persistence/repositories/debt.repository.js';
+import { createDebtPaymentRepository } from '../infrastructure/persistence/repositories/debt-payment.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
@@ -177,6 +185,8 @@ export interface Container {
   readonly budgetsService: BudgetsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
+  /** The debts of `/api/debts` (plan §4.13.2). */
+  readonly debtsService: DebtsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
@@ -242,6 +252,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   exports: createExportRepository(tx, userId ?? NO_USER),
   notifications: createNotificationRepository(tx),
   notificationPreferences: createNotificationPreferenceRepository(tx),
+  debts: createDebtRepository(tx, userId ?? NO_USER),
+  debtPayments: createDebtPaymentRepository(tx, userId ?? NO_USER),
   goals: createGoalRepository(tx, userId ?? NO_USER),
   goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
   budgets: createBudgetRepository(tx, userId ?? NO_USER),
@@ -450,6 +462,19 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
   };
 };
 
+/** The users the `notifications.scheduled` job walks, with the timezone of their profile. */
+const createScheduledUsers = (prisma: PrismaClient): ScheduledUsers => ({
+  all: () =>
+    prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user WHERE email_verified ORDER BY id`,
+  async find(userId) {
+    const rows = await prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user
+       WHERE id = ${userId}::uuid AND email_verified`;
+    return rows[0] ?? null;
+  },
+});
+
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
   async findActivity(sessionId: string): Promise<SessionActivity | null> {
@@ -657,6 +682,15 @@ export const buildContainer = (env: Env): Container => {
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
   );
+  const scheduledNotifications = createScheduledNotifications({
+    uow,
+    clock: systemClock,
+    release: env.RELEASE,
+    users: createScheduledUsers(prisma),
+  });
+  jobs.registerJob('notifications.scheduled', () => scheduledNotifications.run(), {
+    forUser: (userId) => scheduledNotifications.forUser(userId),
+  });
   const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
   const budgetsJobs = createBudgetsJobs({
     uow,
@@ -754,6 +788,7 @@ export const buildContainer = (env: Env): Container => {
       ids: uuidv7Ids,
     }),
     goalsService: createGoalsService({ uow, rates: ratesService }),
+    debtsService: createDebtsService({ uow, rates: ratesService, ledgerHooks }),
     shortcutsService,
     categoriesService: createCategoriesService({ uow }),
     categoryTree: createCategoryTreeReader(uow),
@@ -832,6 +867,7 @@ export const createApp = (container: Container): Express => {
     },
     budgets: { budgetsService: container.budgetsService, clock: container.clock, session },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
+    debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },

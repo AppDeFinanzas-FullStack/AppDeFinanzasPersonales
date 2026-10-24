@@ -3369,7 +3369,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 21 — M13 Deudas y préstamos (V1.1)
 
-- [ ] **`TASK-208`: Contratos de M13**
+- [x] **`TASK-208`: Contratos de M13**
   - **Dependencias:** Requiere TASK-077
   - **Trazabilidad SDD:** plan §4.13.1; RF-M13-01, RF-M13-03, RF-M13-10
   - **Archivos en Alcance:**
@@ -3382,7 +3382,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-03`: `UpdateDebtInput` rechaza la tasa y el período.
     - `RF-M13-10`: `UpdateDebtInput` no acepta la dirección ni la moneda.
 
-- [ ] **`TASK-209`: Dominio `debts`: interés, desglose y validación de pagos**
+- [x] **`TASK-209`: Dominio `debts`: interés, desglose y validación de pagos**
   - **Dependencias:** Requiere TASK-026, TASK-027
   - **Trazabilidad SDD:** plan §4.13.1 (`packages/domain/debts`), ADR-14; RF-M13-02, RF-M13-05, RF-M13-06, EC-M13-01, EC-M13-02, RNF-18
   - **Archivos en Alcance:**
@@ -3397,13 +3397,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M13-01` / `RF-M13-06`: un pago mayor que el saldo pendiente es inválido.
     - `RNF-18`: 365 acumulaciones diarias no acumulan error de redondeo.
 
-- [ ] **`TASK-210`: Repositorios de deudas y pagos**
+- [x] **`TASK-210`: Repositorios de deudas y pagos**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6, plan §4.13.2 (vista por persona); RF-M13-13, EC-M13-06, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/debt.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/debt-payment.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/debt.factory.ts`
     - `apps/api/test/integration/debt-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de deudas con `lockForUpdate`, `person_key = lower(unaccent(person))`, la lista de personas para el autocompletado y los pagos, con `last(debtId)` según el mayor `created_at`.
@@ -3412,7 +3413,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `last` devuelve el pago creado más recientemente.
     - `RN-09`: no se ven las deudas de otro usuario.
 
-- [ ] **`TASK-211`: `DebtsService`: crear, listar y resumen**
+- [x] **`TASK-211`: `DebtsService`: crear, listar y resumen**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-122, TASK-183, TASK-208, TASK-209, TASK-210
   - **Trazabilidad SDD:** plan §4.13.2 (`GET`, `POST`), plan §4.13.3; RF-M13-01, RF-M13-02, RF-M13-08, RF-M13-09, RF-M13-13, EC-M13-06, EC-M13-08, RNF-28
   - **Archivos en Alcance:**
@@ -3427,7 +3428,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M13-06`: la misma persona en "Debo" y "Me deben" muestra el neto.
     - `RNF-28`: la deuda 201 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-212`: Registrar pagos de deudas**
+- [x] **`TASK-212`: Registrar pagos de deudas**
   - **Dependencias:** Requiere TASK-211
   - **Trazabilidad SDD:** plan §4.13.2 (`payments`), plan §4.13.3 (llevar el interés a hoy, pago); RF-M13-04, RF-M13-05, RF-M13-06, RF-M13-07, RF-M13-08, RF-M13-09, EC-M13-01, EC-M13-03, EC-M13-04, RNF-11
   - **Archivos en Alcance:**
@@ -3443,7 +3444,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-07`: una fecha anterior al inicio da `SPLIT_INVALID`.
     - `RNF-11`: dos pagos con el mismo id registran uno.
 
-- [ ] **`TASK-213`: Eliminar el último pago**
+- [x] **`TASK-213`: Eliminar el último pago**
   - **Dependencias:** Requiere TASK-212
   - **Trazabilidad SDD:** plan §4.13.2 (`DELETE payments/last`), plan §4.13.3 (eliminar el último pago); RF-M13-04, EC-M13-05, EC-M13-07
   - **Archivos en Alcance:**
@@ -3455,11 +3456,13 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-04`: lo ya acumulado no se recalcula.
     - `EC-M13-05`: la operación siempre actúa sobre el último pago; con una deuda condonada, `DEBT_FORGIVEN`.
 
-- [ ] **`TASK-214`: Editar, condonar y eliminar deudas**
+- [x] **`TASK-214`: Editar, condonar y eliminar deudas**
   - **Dependencias:** Requiere TASK-213
   - **Trazabilidad SDD:** plan §4.13.2 (`PATCH`, `forgive`, `DELETE`); RF-M13-10, RF-M13-11, RF-M13-12
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/debts.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/ledger.repository.ts`
     - `apps/api/test/integration/debts-lifecycle.test.ts`
   - **Especificación de Implementación:** En una deuda activa se editan la persona, la nota y la fecha límite (extenderla la saca de vencida), y el monto original si queda ≥ al capital pagado (`PRINCIPAL_BELOW_PAID`). En una pagada o condonada, solo la persona y la nota (`FIELD_LOCKED`). Condonar fija `forgiven_amount` con el saldo pendiente, sin movimientos. Eliminar, si hay movimientos, exige `movements`: `delete` los borra con `BalanceGuard` y `keep` los convierte en movimientos normales.
   - **Criterios de Verificación (Tests & DoD):**
@@ -3468,7 +3471,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-11`: `keep` deja los movimientos con `origin = manual`.
     - `RF-M13-10`: bajar el monto por debajo de lo pagado da `PRINCIPAL_BELOW_PAID`.
 
-- [ ] **`TASK-215`: Job `notifications.scheduled`: vencimientos de deudas**
+- [x] **`TASK-215`: Job `notifications.scheduled`: vencimientos de deudas**
   - **Dependencias:** Requiere TASK-064, TASK-176, TASK-211
   - **Trazabilidad SDD:** plan §4.13.3 (avisos de vencimiento), plan §4.15.3 (generación programada); RF-M13-14, RF-M15-09, RNF-12, RNF-20
   - **Archivos en Alcance:**
@@ -3482,7 +3485,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-12`: correr el job dos veces deja un solo aviso.
     - `RF-M15-09`: a las 07:59 locales no se genera nada.
 
-- [ ] **`TASK-216`: Rutas HTTP de deudas**
+- [x] **`TASK-216`: Rutas HTTP de deudas**
   - **Dependencias:** Requiere TASK-214, TASK-215
   - **Trazabilidad SDD:** plan §4.13.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
@@ -3493,13 +3496,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/debts.test.ts`
     - `apps/api/test/http/debts.isolation.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** Monta los endpoints de plan §4.13.2 detrás de `releaseGate('m13')`.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 con una deuda de A.
     - `RF-M2-03`: con `RELEASE=1.0`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-217`: Web: lista y detalle de deudas**
+- [x] **`TASK-217`: Web: lista y detalle de deudas**
   - **Dependencias:** Requiere TASK-179, TASK-216
   - **Trazabilidad SDD:** plan §4.13.4 (`/deudas`, `/deudas/:id`); RF-M13-06, RF-M13-11, RF-M13-12, RF-M13-13, EC-M13-05
   - **Archivos en Alcance:**
@@ -3522,7 +3526,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-11`: eliminar una deuda con movimientos ofrece las dos opciones con N.
     - `RF-M13-13`: la vista por persona muestra el neto.
 
-- [ ] **`TASK-218`: Web: formularios de deuda y de pago**
+- [x] **`TASK-218`: Web: formularios de deuda y de pago**
   - **Dependencias:** Requiere TASK-192, TASK-217
   - **Trazabilidad SDD:** plan §4.13.4 (formularios), plan §4.6.4 (vinculados); RF-M13-01, RF-M13-05, RF-M13-09, RF-M6-09, EC-M13-04
   - **Archivos en Alcance:**
