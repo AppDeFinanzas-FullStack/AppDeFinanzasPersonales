@@ -3495,7 +3495,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M13-11`: eliminar una deuda con movimientos ofrece las dos opciones con N.
     - `RF-M13-13`: la vista por persona muestra el neto.
 
-- [ ] **`TASK-218`: Web: formularios de deuda y de pago**
+- [x] **`TASK-218`: Web: formularios de deuda y de pago**
   - **Dependencias:** Requiere TASK-192, TASK-217
   - **Trazabilidad SDD:** plan §4.13.4 (formularios), plan §4.6.4 (vinculados); RF-M13-01, RF-M13-05, RF-M13-09, RF-M6-09, EC-M13-04
   - **Archivos en Alcance:**

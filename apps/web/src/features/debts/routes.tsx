@@ -19,23 +19,29 @@ import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import debts from '@/locales/es-BO/debts.json';
+import goals from '@/locales/es-BO/goals.json';
 
 import type { DebtsView } from './api';
+import { DebtForm } from './components/debt-form';
 import { DebtHeader } from './components/debt-header';
 import { DebtList, PersonList } from './components/debt-list';
 import { DebtsSummary } from './components/debts-summary';
 import { DeleteDebtDialog } from './components/delete-debt-dialog';
+import { PaymentForm } from './components/payment-form';
 import { PaymentsList } from './components/payments-list';
 import { ViewToggle } from './components/view-toggle';
 import { useDebt, useDebts, useDeleteDebt, useForgiveDebt } from './hooks/use-debts';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'debts', debts, true, true);
+// The confirmation of the earmarks of a payment (EC-M13-04) reads the texts of the goals.
+i18n.addResourceBundle(LANGUAGE, 'goals', goals, true, true);
 
 /** `/deudas` (plan §4.13.4). */
 export function DebtsPage() {
   const { t } = useTranslation('debts');
   const [view, setView] = useState<DebtsView>('debt');
+  const [formOpen, setFormOpen] = useState(false);
   const query = useDebts(view);
   const rates = useCurrentRate();
   const base = rates.data?.base ?? 'BOB';
@@ -52,7 +58,18 @@ export function DebtsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-2xl font-semibold">{t('title')}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold">{t('title')}</h2>
+        <Button
+          className="h-11"
+          onClick={() => {
+            setFormOpen(true);
+          }}
+        >
+          {t('actions.newDebt')}
+        </Button>
+      </div>
+      <DebtForm open={formOpen} onOpenChange={setFormOpen} />
       <DebtsSummary summary={summary} base={base} />
       <ViewToggle value={view} onChange={setView} />
       {items.length === 0 ? (
@@ -134,7 +151,7 @@ export function DebtDetailPage() {
   const navigate = useNavigate();
   const query = useDebt(id);
   const remove = useDeleteDebt(id);
-  const [dialog, setDialog] = useState<'forgive' | 'delete' | null>(null);
+  const [dialog, setDialog] = useState<'forgive' | 'delete' | 'payment' | null>(null);
   const [movements, setMovements] = useState(0);
 
   if (query.isError && query.data === undefined) {
@@ -173,6 +190,16 @@ export function DebtDetailPage() {
       <div className="flex flex-wrap gap-2">
         {open && (
           <Button
+            className="h-11"
+            onClick={() => {
+              setDialog('payment');
+            }}
+          >
+            {t('actions.registerPayment')}
+          </Button>
+        )}
+        {open && (
+          <Button
             variant="outline"
             className="h-11"
             onClick={() => {
@@ -198,6 +225,13 @@ export function DebtDetailPage() {
       )}
       <Separator />
       <PaymentsList debt={debt} />
+      <PaymentForm
+        debt={debt}
+        open={dialog === 'payment'}
+        onOpenChange={(next) => {
+          if (!next) setDialog(null);
+        }}
+      />
       <ForgiveDialog
         debt={debt}
         open={dialog === 'forgive'}
