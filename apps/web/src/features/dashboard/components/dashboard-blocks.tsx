@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '@/features/settings/hooks/use-settings';
 
 import { BalancesBlock } from './balances-block';
+import { BudgetBlock } from './budget-block';
 import { CategoryBars } from './category-bars';
 import { RecentBlock } from './recent-block';
 
@@ -103,6 +104,8 @@ export function DashboardBlocks({ data, month, baseCode, otherCode, symbol }: Pr
 
   // A hidden block comes without data, so a block with no data is not drawn.
   const render: Record<string, () => ReactNode> = {
+    budget: () =>
+      data.budgets !== undefined && <BudgetBlock data={data.budgets} month={month} symbol={symbol} />,
     byCategory: () =>
       data.byCategory !== undefined && (
         <CategoryBars data={data.byCategory} month={month} symbol={symbol} />

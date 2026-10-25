@@ -1,4 +1,10 @@
-import type { AccountDto, DashboardDto } from '@finanzas/contracts';
+import {
+  isReleased,
+  type AccountDto,
+  type BudgetBarDto,
+  type DashboardDto,
+  type Release,
+} from '@finanzas/contracts';
 import {
   addMonths,
   comparisonWindow,
@@ -87,6 +93,7 @@ type Blocks = Pick<DashboardDto, 'byCategory' | 'pace'>;
 
 /** The dashboard answer: the blocks hidden by the user or not released are absent. */
 export interface DashboardView extends DashboardCards {
+  budgets?: BudgetBarDto[];
   byCategory?: Blocks['byCategory'];
   pace?: Blocks['pace'];
   balances?: {
@@ -111,6 +118,16 @@ export interface DashboardViewServiceDeps {
 }
 
 const TOP_CATEGORIES = 5;
+const PERIODS_LOOKBACK = 36;
+const RELEASES: readonly string[] = ['1.0', '1.1', '1.2'];
+
+/** The release the server runs, read on every request like the release gate does (ADR-18). */
+function budgetsReleased(): boolean {
+  const current = process.env['RELEASE'];
+  return (
+    current !== undefined && RELEASES.includes(current) && isReleased('M11', current as Release)
+  );
+}
 const TOP_ACCOUNTS = 5;
 const RECENT_MOVEMENTS = 5;
 
@@ -175,6 +192,50 @@ function cumulativeOf(
   return points;
 }
 
+/**
+ * One bar per active budget with its period in course in the current month; in a past month, one per
+ * period that ended inside it (RF-M8-08). A general budget has no category, so its bar carries its
+ * own id and an empty name.
+ */
+async function budgetBarsOf(
+  uow: UnitOfWork,
+  userId: string,
+  month: YearMonth,
+  currentMonth: YearMonth,
+): Promise<BudgetBarDto[]> {
+  const { from, to } = monthRange(month);
+  const isPast = month < currentMonth;
+  return uow.run(
+    async (repos) => {
+      const bars: BudgetBarDto[] = [];
+      for (const budget of await repos.budgets.list()) {
+        if (!isPast && budget.status !== 'active') continue;
+        const periods = isPast
+          ? (await repos.budgetPeriods.listByBudget(budget.id, PERIODS_LOOKBACK))
+              .filter((p) => p.status !== 'open' && p.endDate >= from && p.endDate <= to)
+              .reverse()
+          : [await repos.budgetPeriods.current(budget.id)];
+        const category =
+          budget.categoryId === null ? null : await repos.categories.get(budget.categoryId);
+        for (const period of periods) {
+          if (period === null || period.startDate > to || period.endDate < from) continue;
+          const spent = await repos.budgetPeriods.spent(budget, period);
+          const limit = period.amount.plus(period.carryoverIn);
+          bars.push({
+            categoryId: budget.categoryId ?? budget.id,
+            name: category?.name ?? '',
+            spent: toMoneyString(spent),
+            limit: toMoneyString(limit),
+            pct: percentOf(spent, limit),
+          });
+        }
+      }
+      return bars;
+    },
+    { userLock: userId, readOnly: true },
+  );
+}
+
 export function createDashboardViewService(deps: DashboardViewServiceDeps): DashboardViewService {
   return {
     async view(ctx, month) {
@@ -194,6 +255,10 @@ export function createDashboardViewService(deps: DashboardViewServiceDeps): Dash
         { userLock: ctx.userId, readOnly: true },
       );
       const view: DashboardView = { range, cards };
+
+      if (!hidden.has('budget') && budgetsReleased()) {
+        view.budgets = await budgetBarsOf(deps.uow, ctx.userId, month, today.slice(0, 7));
+      }
 
       const showCategories = !hidden.has('byCategory');
       const showPace = !hidden.has('pace');

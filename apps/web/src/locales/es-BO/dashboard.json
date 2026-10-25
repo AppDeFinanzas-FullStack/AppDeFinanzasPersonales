@@ -8,6 +8,13 @@
   },
   "register": "Registrar",
   "cardLinks": "Ver movimientos del mes",
+  "budget": {
+    "title": "Presupuesto del mes",
+    "empty": "No tienes presupuestos activos este mes.",
+    "general": "Presupuesto general",
+    "spentOf": "{{spent}} de {{limit}}",
+    "seeAll": "Ver presupuestos"
+  },
   "byCategory": {
     "title": "Gasto por categoría",
     "empty": "Aún no tienes gastos este mes.",

@@ -3543,7 +3543,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 22 — Cierre de V1.1: Inicio, exportación y regresión
 
-- [ ] **`TASK-219`: Inicio: bloque "Presupuesto del mes"**
+- [x] **`TASK-219`: Inicio: bloque "Presupuesto del mes"**
   - **Dependencias:** Requiere TASK-148, TASK-204
   - **Trazabilidad SDD:** plan §4.8.1 (`budgets`), plan §4.8.4 (`BudgetBlock`); RF-M8-08, RF-M8-10
   - **Archivos en Alcance:**
