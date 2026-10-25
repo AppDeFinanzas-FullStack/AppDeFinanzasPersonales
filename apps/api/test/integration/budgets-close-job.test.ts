@@ -2,6 +2,7 @@ import { uuidv7 } from 'uuidv7';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import type { Clock } from '../../src/application/ports/clock.js';
+import type { BudgetRepository } from '../../src/application/ports/repositories.js';
 import type { UnitOfWork } from '../../src/application/ports/unit-of-work.js';
 import {
   createNotificationEmitter,
@@ -67,12 +68,29 @@ type CreateBudgetsJobs = (deps: {
   ids: { next: () => string };
 }) => BudgetsJobsUnderTest;
 
-const { createBudgetsJobs } = (await import('../../src/application/jobs/budgets.js')) as unknown as {
-  createBudgetsJobs: CreateBudgetsJobs;
-};
+const { createBudgetsJobs } =
+  (await import('../../src/application/jobs/budgets.js')) as unknown as {
+    createBudgetsJobs: CreateBudgetsJobs;
+  };
 
 const NIL_USER = '00000000-0000-0000-0000-000000000000';
 const prisma = testPrisma();
+const usedUserIds: string[] = [];
+
+/**
+ * The test database is shared with the other suites, and `close()` at 2090 would catch up every
+ * budget they left behind (hundreds of periods each, growing run after run). `close()` still finds
+ * its owners through the repository, but only among the users of this file.
+ */
+function ownUsersOnly(repo: BudgetRepository): BudgetRepository {
+  return {
+    ...repo,
+    async ownersWithEndedPeriods(now) {
+      const owners = await repo.ownersWithEndedPeriods(now);
+      return owners.filter((owner) => usedUserIds.includes(owner));
+    },
+  };
+}
 
 const uow: UnitOfWork = createUnitOfWork(prisma, (tx, userId) => ({
   marketRates: createMarketRateRepository(tx),
@@ -87,7 +105,7 @@ const uow: UnitOfWork = createUnitOfWork(prisma, (tx, userId) => ({
   notificationPreferences: createNotificationPreferenceRepository(tx),
   goals: createGoalRepository(tx, userId ?? NIL_USER),
   goalAllocations: createGoalAllocationRepository(tx, userId ?? NIL_USER),
-  budgets: createBudgetRepository(tx, userId ?? NIL_USER),
+  budgets: ownUsersOnly(createBudgetRepository(tx, userId ?? NIL_USER)),
   budgetPeriods: createBudgetPeriodRepository(tx, userId ?? NIL_USER),
 }));
 
@@ -97,7 +115,6 @@ const ids = { next: () => uuidv7() };
 const DAY_MS = 24 * 60 * 60_000;
 const LA_PAZ = 'America/La_Paz';
 const MAY = { startDate: '2090-05-01', endDate: '2090-05-31' };
-const usedUserIds: string[] = [];
 
 afterAll(async () => {
   await deleteBudgetsOf(usedUserIds);
