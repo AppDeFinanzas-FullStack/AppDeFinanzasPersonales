@@ -13,6 +13,7 @@ import {
   comparisonWindow,
   daysBetween,
   monthRange,
+  nextDates,
   parseMoney,
   pctChange,
   savingsRate,
@@ -24,7 +25,7 @@ import {
 
 import { Decimal } from 'decimal.js';
 
-import type { PeriodTotals } from '../ports/repositories.js';
+import type { PeriodTotals, RecurringRuleRow } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import type { AccountsService } from './accounts.service.js';
 import type { DescribedTransaction, TransactionsService } from './transactions.service.js';
@@ -260,9 +261,36 @@ function upcomingDates(day: number, today: string): string[] {
   });
 }
 
+const MS_PER_DAY = 86_400_000;
+
+function nextDay(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + MS_PER_DAY).toISOString().slice(0, 10);
+}
+
 /**
- * The due dates of the next days (RF-M8-09): active debts with a balance in both directions and the
- * cut and payment days of the active cards (RF-M4-08), by date.
+ * The next due date of an active expense or transfer rule inside the window: never before today nor
+ * on an already generated date, respecting its end by date or by count (RF-M14-13).
+ */
+function recurringDueDate(rule: RecurringRuleRow, today: string): string | null {
+  if (rule.status !== 'active' || rule.kind === 'income') return null;
+  if (rule.end.type === 'count' && rule.generatedCount >= rule.end.count) return null;
+  const afterLast =
+    rule.lastGeneratedDate === null ? rule.startDate : nextDay(rule.lastGeneratedDate);
+  const from = afterLast > today ? afterLast : today;
+  const [date] = nextDates(
+    { frequency: rule.frequency, startDate: rule.startDate, end: rule.end },
+    from,
+    1,
+  );
+  if (date === undefined) return null;
+  const days = daysBetween(today, date);
+  return days >= 0 && days <= UPCOMING_DAYS ? date : null;
+}
+
+/**
+ * The due dates of the next days (RF-M8-09): active debts with a balance in both directions, the
+ * cut and payment days of the active cards (RF-M4-08) and, since the V1.2, the next date of the
+ * expense and transfer recurring rules, by date.
  */
 async function upcomingOf(
   uow: UnitOfWork,
@@ -270,10 +298,14 @@ async function upcomingOf(
   today: string,
   accounts: AccountDto[],
 ): Promise<UpcomingItemDto[]> {
-  const debts = await uow.run(async (repos) => repos.debts.list(), {
-    userLock: userId,
-    readOnly: true,
-  });
+  const withRecurring = released('M14');
+  const { debts, rules } = await uow.run(
+    async (repos) => ({
+      debts: await repos.debts.list(),
+      rules: withRecurring ? await repos.recurringRules.list() : [],
+    }),
+    { userLock: userId, readOnly: true },
+  );
   const items: UpcomingItemDto[] = [];
   for (const debt of debts) {
     if (debt.status !== 'active' || debt.dueDate === null) continue;
@@ -302,6 +334,17 @@ async function upcomingOf(
         items.push({ id: account.id, kind, name: account.name, amount: owed, dueDate });
       }
     }
+  }
+  for (const rule of rules) {
+    const dueDate = recurringDueDate(rule, today);
+    if (dueDate === null) continue;
+    items.push({
+      id: rule.id,
+      kind: `recurring_${rule.kind}`,
+      name: rule.name,
+      amount: toMoneyString(rule.amount ?? new Decimal(0)),
+      dueDate,
+    });
   }
   return items.sort(
     (a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name),

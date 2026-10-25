@@ -3801,7 +3801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-14`: en modo automático, el monto es obligatorio.
     - `RF-M14-03`: el calendario de inicio no permite fechas pasadas.
 
-- [ ] **`TASK-236`: Web y API: pendientes en la bandeja y recurrentes en el Inicio**
+- [x] **`TASK-236`: Web y API: pendientes en la bandeja y recurrentes en el Inicio**
   - **Dependencias:** Requiere TASK-220, TASK-234
   - **Trazabilidad SDD:** plan §4.15.4 (botones de decisión inline), plan §4.8.1 (`upcoming`); RF-M8-09, RF-M15-03, EC-M15-01
   - **Archivos en Alcance:**
