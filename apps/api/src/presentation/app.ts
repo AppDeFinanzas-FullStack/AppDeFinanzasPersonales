@@ -14,6 +14,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
+import { budgetsRouter, type BudgetsRoutesDeps } from './routes/budgets.routes.js';
 import { categoriesRouter, type CategoriesRoutesDeps } from './routes/categories.routes.js';
 import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
 import {
@@ -23,6 +24,7 @@ import {
   type RatesRoutesDeps,
 } from './routes/fx.routes.js';
 import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.routes.js';
+import { debtsRouter, type DebtsRoutesDeps } from './routes/debts.routes.js';
 import { goalsRouter, type GoalsRoutesDeps } from './routes/goals.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
@@ -67,10 +69,14 @@ export interface AppDeps {
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
+  /** The routes `/api/budgets` (plan §4.11.2). */
+  budgets?: BudgetsRoutesDeps;
   /** The routes `/api/goals` (plan §4.12.2). */
   goals?: GoalsRoutesDeps;
   /** The routes `/api/recurring` (plan §4.14.2). */
   recurring?: RecurringRoutesDeps;
+  /** The routes `/api/debts` (plan §4.13.2). */
+  debts?: DebtsRoutesDeps;
   /** The routes `/api/onboarding` (plan §4.10.2). */
   onboarding?: OnboardingRoutesDeps;
   /** The routes `/api/notifications` (plan §4.15.2). */
@@ -152,11 +158,17 @@ export const createApp = (deps: AppDeps): Express => {
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));
   }
+  if (deps.budgets !== undefined) {
+    app.use('/api/budgets', budgetsRouter(deps.budgets));
+  }
   if (deps.goals !== undefined) {
     app.use('/api/goals', goalsRouter(deps.goals));
   }
   if (deps.recurring !== undefined) {
     app.use('/api/recurring', recurringRouter(deps.recurring));
+  }
+  if (deps.debts !== undefined) {
+    app.use('/api/debts', debtsRouter(deps.debts));
   }
   if (deps.onboarding !== undefined) {
     app.use('/api/onboarding', onboardingRouter(deps.onboarding));

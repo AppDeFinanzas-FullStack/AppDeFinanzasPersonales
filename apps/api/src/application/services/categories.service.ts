@@ -52,8 +52,37 @@ export interface CategoriesService {
   remove(userId: string, id: string): Promise<void>;
   /** What merging A into B would move (RF-M5-08). */
   mergePreview(userId: string, input: MergeInput): Promise<MergePreviewDto>;
-  /** Moves the movements, rules and shortcuts of A to B and deletes A (RF-M5-08, RF-M5-09). */
-  merge(userId: string, input: MergeInput): Promise<void>;
+  /**
+   * Moves the movements, rules, shortcuts and budget of A to B and deletes A (RF-M5-08, RF-M5-09);
+   * `budgetEffect` is the warning of what happened to the budget of A.
+   */
+  merge(userId: string, input: MergeInput): Promise<{ budgetEffect: BudgetEffect }>;
+}
+
+type BudgetEffect = MergePreviewDto['budgetEffect'];
+
+/**
+ * The budget repositories of the transaction, `null` in a unit of work wired without the budgets
+ * module (M11, V1.1), where no category can have a budget.
+ */
+function budgetReposOf(
+  repos: Repositories,
+): Pick<Repositories, 'budgets' | 'budgetPeriods'> | null {
+  const { budgets, budgetPeriods } = repos as Partial<Repositories>;
+  return budgets === undefined || budgetPeriods === undefined ? null : { budgets, budgetPeriods };
+}
+
+/** What a merge of A into B does to their budgets (RF-M5-08). */
+async function budgetEffectOf(
+  budgetRepos: Pick<Repositories, 'budgets'> | null,
+  { fromId, toId }: MergeInput,
+): Promise<{ effect: BudgetEffect; fromBudgetId: string | null }> {
+  const fromBudgetId = budgetRepos === null ? null : await budgetRepos.budgets.findLive(fromId);
+  if (budgetRepos === null || fromBudgetId === null) {
+    return { effect: 'none', fromBudgetId: null };
+  }
+  const toBudgetId = await budgetRepos.budgets.findLive(toId);
+  return { effect: toBudgetId === null ? 'moved' : 'kept_target', fromBudgetId };
 }
 
 export interface CategoriesServiceDeps {
@@ -311,6 +340,8 @@ export function createCategoriesService({
               today,
             });
           }
+          // The budget lasts until the end of its period; a pending decision stays (EC-M11-04).
+          await budgetReposOf(repos)?.budgets.finalizeForCategories(ids);
         },
         { userLock: userId },
       );
@@ -385,19 +416,35 @@ export function createCategoriesService({
       return uow.run(
         async (repos) => {
           await requireMergeable(repos, input);
-          // Budgets are resolved with the merge from TASK-203 on.
-          return { movements: await repos.categories.countMovements(input.fromId), budgetEffect: 'none' };
+          const { effect } = await budgetEffectOf(budgetReposOf(repos), input);
+          return {
+            movements: await repos.categories.countMovements(input.fromId),
+            budgetEffect: effect,
+          };
         },
         { userLock: userId },
       );
     },
 
     async merge(userId, input) {
-      await uow.run(
+      return uow.run(
         async (repos) => {
           await requireMergeable(repos, input);
+          const budgetRepos = budgetReposOf(repos);
+          if (await budgetRepos?.budgetPeriods.hasPendingCloseInCategory(input.fromId)) {
+            throw new AppError('MERGE_PENDING_CLOSE');
+          }
+          const { effect, fromBudgetId } = await budgetEffectOf(budgetRepos, input);
+          if (budgetRepos !== null) {
+            // Both had a budget: B keeps its own and the one of A goes, with its periods.
+            if (effect === 'kept_target' && fromBudgetId !== null) {
+              await budgetRepos.budgets.delete(fromBudgetId);
+            }
+            await budgetRepos.budgets.moveToCategory(input.fromId, input.toId);
+          }
           await repos.categories.moveUsage(input.fromId, input.toId);
           await repos.categories.remove([input.fromId]);
+          return { budgetEffect: effect };
         },
         { userLock: userId },
       );

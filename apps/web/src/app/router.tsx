@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 
-import { RequireOnboardingDone, RequireSession, warmUpSession } from './guards';
+import { ReleaseGate, RequireOnboardingDone, RequireSession, warmUpSession } from './guards';
 import { AppShell } from './layout/app-shell';
 import { MoreMenu } from './layout/more-menu';
 import { queryClient } from './providers/query-client';
@@ -60,6 +60,8 @@ const profile = () => import('@/features/profile/routes');
 const settings = () => import('@/features/settings/routes');
 const goals = () => import('@/features/goals/routes');
 const recurring = () => import('@/features/recurring/routes');
+const debts = () => import('@/features/debts/routes');
+const budgets = () => import('@/features/budgets/routes');
 
 /** Public routes of M1 (plan §4.1.4). */
 const authRoutes: RouteObject[] = [
@@ -106,6 +108,17 @@ const categoriesRoutes: RouteObject[] = [
   { path: 'categorias/:id/editar', ...screen(categories, 'CategoryFormPage') },
 ];
 
+/** Private routes of the budgets (plan §4.11.4), only from the release that includes M11. */
+const budgetsRoutes: RouteObject[] = [
+  {
+    element: <ReleaseGate module="M11" notFound={<NotFoundPage />} />,
+    children: [
+      { path: 'presupuestos', ...screen(budgets, 'BudgetsPage') },
+      { path: 'presupuestos/:id', ...screen(budgets, 'BudgetDetailPage') },
+    ],
+  },
+];
+
 /** Private routes of the goals (plan §4.12.4). */
 const goalsRoutes: RouteObject[] = [
   { path: 'metas', ...screen(goals, 'GoalsPage') },
@@ -115,6 +128,12 @@ const goalsRoutes: RouteObject[] = [
 /** Private route of the recurring rules (plan §4.14.4). */
 const recurringRoutes: RouteObject[] = [
   { path: 'recurrentes', ...screen(recurring, 'RecurringPage') },
+];
+
+/** Private routes of the debts and loans (plan §4.13.4). */
+const debtsRoutes: RouteObject[] = [
+  { path: 'deudas', ...screen(debts, 'DebtsPage') },
+  { path: 'deudas/:id', ...screen(debts, 'DebtDetailPage') },
 ];
 
 /** Private routes of the exchange rate (plan §4.3.4). */
@@ -165,8 +184,10 @@ export const router = createBrowserRouter([
                   { path: 'mas', element: <MoreMenu /> },
                   ...categoriesRoutes,
                   ...fxRoutes,
+                  ...budgetsRoutes,
                   ...goalsRoutes,
                   ...recurringRoutes,
+                  ...debtsRoutes,
                   ...profileRoutes,
                   ...settingsRoutes,
                 ],

@@ -1,7 +1,17 @@
-import type { AccountDto, DashboardDto } from '@finanzas/contracts';
+import {
+  isReleased,
+  type AccountDto,
+  type BudgetBarDto,
+  type DashboardDto,
+  type ModuleKey,
+  type Release,
+  type UpcomingItemDto,
+} from '@finanzas/contracts';
 import {
   addMonths,
+  clampDay,
   comparisonWindow,
+  daysBetween,
   monthRange,
   parseMoney,
   pctChange,
@@ -87,6 +97,8 @@ type Blocks = Pick<DashboardDto, 'byCategory' | 'pace'>;
 
 /** The dashboard answer: the blocks hidden by the user or not released are absent. */
 export interface DashboardView extends DashboardCards {
+  budgets?: BudgetBarDto[];
+  upcoming?: UpcomingItemDto[];
   byCategory?: Blocks['byCategory'];
   pace?: Blocks['pace'];
   balances?: {
@@ -111,6 +123,18 @@ export interface DashboardViewServiceDeps {
 }
 
 const TOP_CATEGORIES = 5;
+const PERIODS_LOOKBACK = 36;
+const RELEASES: readonly string[] = ['1.0', '1.1', '1.2'];
+
+/** The release the server runs, read on every request like the release gate does (ADR-18). */
+function released(module: ModuleKey): boolean {
+  const current = process.env['RELEASE'];
+  return (
+    current !== undefined && RELEASES.includes(current) && isReleased(module, current as Release)
+  );
+}
+/** Days ahead of today that "Próximos pagos y deudas" covers (RF-M8-09). */
+const UPCOMING_DAYS = 7;
 const TOP_ACCOUNTS = 5;
 const RECENT_MOVEMENTS = 5;
 
@@ -175,6 +199,115 @@ function cumulativeOf(
   return points;
 }
 
+/**
+ * One bar per active budget with its period in course in the current month; in a past month, one per
+ * period that ended inside it (RF-M8-08). A general budget has no category, so its bar carries its
+ * own id and an empty name.
+ */
+async function budgetBarsOf(
+  uow: UnitOfWork,
+  userId: string,
+  month: YearMonth,
+  currentMonth: YearMonth,
+): Promise<BudgetBarDto[]> {
+  const { from, to } = monthRange(month);
+  const isPast = month < currentMonth;
+  return uow.run(
+    async (repos) => {
+      const bars: BudgetBarDto[] = [];
+      for (const budget of await repos.budgets.list()) {
+        if (!isPast && budget.status !== 'active') continue;
+        const periods = isPast
+          ? (await repos.budgetPeriods.listByBudget(budget.id, PERIODS_LOOKBACK))
+              .filter((p) => p.status !== 'open' && p.endDate >= from && p.endDate <= to)
+              .reverse()
+          : [await repos.budgetPeriods.current(budget.id)];
+        const category =
+          budget.categoryId === null ? null : await repos.categories.get(budget.categoryId);
+        for (const period of periods) {
+          if (period === null || period.startDate > to || period.endDate < from) continue;
+          const spent = await repos.budgetPeriods.spent(budget, period);
+          const limit = period.amount.plus(period.carryoverIn);
+          bars.push({
+            categoryId: budget.categoryId ?? budget.id,
+            name: category?.name ?? '',
+            spent: toMoneyString(spent),
+            limit: toMoneyString(limit),
+            pct: percentOf(spent, limit),
+          });
+        }
+      }
+      return bars;
+    },
+    { userLock: userId, readOnly: true },
+  );
+}
+
+/** The date of that day in the month `YYYY-MM`; a missing day falls on the last one (RF-M4-08). */
+function dayOfMonth(month: YearMonth, day: number): string {
+  const year = Number(month.slice(0, 4));
+  const number = Number(month.slice(5, 7));
+  return `${month}-${String(clampDay(year, number, day)).padStart(2, '0')}`;
+}
+
+/** The dates of a monthly day that fall from today to `UPCOMING_DAYS` days ahead. */
+function upcomingDates(day: number, today: string): string[] {
+  const month = today.slice(0, 7);
+  const next = addMonths(`${month}-01`, 1).slice(0, 7);
+  return [dayOfMonth(month, day), dayOfMonth(next, day)].filter((date) => {
+    const days = daysBetween(today, date);
+    return days >= 0 && days <= UPCOMING_DAYS;
+  });
+}
+
+/**
+ * The due dates of the next days (RF-M8-09): active debts with a balance in both directions and the
+ * cut and payment days of the active cards (RF-M4-08), by date.
+ */
+async function upcomingOf(
+  uow: UnitOfWork,
+  userId: string,
+  today: string,
+  accounts: AccountDto[],
+): Promise<UpcomingItemDto[]> {
+  const debts = await uow.run(async (repos) => repos.debts.list(), {
+    userLock: userId,
+    readOnly: true,
+  });
+  const items: UpcomingItemDto[] = [];
+  for (const debt of debts) {
+    if (debt.status !== 'active' || debt.dueDate === null) continue;
+    const balance = debt.capitalOutstanding.plus(debt.interestUnpaid);
+    const days = daysBetween(today, debt.dueDate);
+    if (balance.lte(0) || days < 0 || days > UPCOMING_DAYS) continue;
+    items.push({
+      id: debt.id,
+      kind: debt.direction === 'i_owe' ? 'debt_i_owe' : 'debt_owed_to_me',
+      name: debt.person,
+      amount: toMoneyString(balance),
+      dueDate: debt.dueDate,
+    });
+  }
+  for (const account of accounts) {
+    if (account.type !== 'credit_card' || account.card === undefined) continue;
+    const balance = new Decimal(account.balance);
+    const owed = toMoneyString(balance.isNegative() ? balance.negated() : new Decimal(0));
+    const days = [
+      { kind: 'card_cut', day: account.card.cutDay },
+      { kind: 'card_payment', day: account.card.payDay },
+    ];
+    for (const { kind, day } of days) {
+      if (day === null) continue;
+      for (const dueDate of upcomingDates(day, today)) {
+        items.push({ id: account.id, kind, name: account.name, amount: owed, dueDate });
+      }
+    }
+  }
+  return items.sort(
+    (a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name),
+  );
+}
+
 export function createDashboardViewService(deps: DashboardViewServiceDeps): DashboardViewService {
   return {
     async view(ctx, month) {
@@ -194,6 +327,19 @@ export function createDashboardViewService(deps: DashboardViewServiceDeps): Dash
         { userLock: ctx.userId, readOnly: true },
       );
       const view: DashboardView = { range, cards };
+
+      const currentMonth = today.slice(0, 7);
+      if (!hidden.has('budget') && released('M11')) {
+        view.budgets = await budgetBarsOf(deps.uow, ctx.userId, month, currentMonth);
+      }
+
+      const showUpcoming = !hidden.has('upcoming') && released('M13') && month >= currentMonth;
+      const showBalances = !hidden.has('balances');
+      const accounts =
+        showUpcoming || showBalances ? await deps.accounts.list(ctx, 'active') : [];
+      if (showUpcoming) {
+        view.upcoming = await upcomingOf(deps.uow, ctx.userId, today, accounts);
+      }
 
       const showCategories = !hidden.has('byCategory');
       const showPace = !hidden.has('pace');
@@ -216,11 +362,8 @@ export function createDashboardViewService(deps: DashboardViewServiceDeps): Dash
         }
       }
 
-      if (!hidden.has('balances')) {
-        const [accounts, summary] = await Promise.all([
-          deps.accounts.list(ctx, 'active'),
-          deps.accounts.summary(ctx),
-        ]);
+      if (showBalances) {
+        const summary = await deps.accounts.summary(ctx);
         view.balances = {
           netWorth: { base: summary.netWorth.base ?? '0.00', other: summary.netWorth.other },
           top: accounts.slice(0, TOP_ACCOUNTS),

@@ -57,6 +57,26 @@ export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './
 export type { ComparisonWindow } from './dashboard.js';
 export { installment, isFinished, nextDates, skippedDates } from './recurrence.js';
 export type { Installment, RecurrenceEnd, RecurrenceFrequency, RecurrenceRule } from './recurrence.js';
+export { accrue, dailyRate, deriveStatus, proposeSplit, validatePayment } from './debts.js';
+export type {
+  DebtState,
+  DebtStatus,
+  InterestPeriod,
+  PaymentCheck,
+  PaymentSplit,
+  PaymentValidation,
+} from './debts.js';
+export {
+  available,
+  nextPeriod,
+  pace,
+  periodFor,
+  periodLabel,
+  result,
+  thresholdsCrossed,
+  todayShouldBe,
+} from './budget.js';
+export type { BudgetPace, BudgetPeriod } from './budget.js';
 export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
 export type {
   EarmarkSource,
