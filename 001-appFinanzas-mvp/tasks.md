@@ -3576,7 +3576,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-08`: una tarjeta con pago el día 31 en un mes de 30 días aparece el 30.
     - En un mes pasado, el bloque no aparece.
 
-- [ ] **`TASK-221`: Exportadores de V1.1**
+- [x] **`TASK-221`: Exportadores de V1.1**
   - **Dependencias:** Requiere TASK-164, TASK-187, TASK-202, TASK-214, TASK-177
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
   - **Archivos en Alcance:**
