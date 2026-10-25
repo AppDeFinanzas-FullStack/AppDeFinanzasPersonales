@@ -3588,7 +3588,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-14`: con `RELEASE=1.1`, el ZIP incluye esos CSV, con las metas archivadas.
     - `RNF-16`: cada CSV tiene todas las filas del usuario.
 
-- [ ] **`TASK-222`: Regresión de V1.1: accesibilidad y entregas**
+- [x] **`TASK-222`: Regresión de V1.1: accesibilidad y entregas**
   - **Dependencias:** Requiere TASK-207, TASK-218, TASK-220, TASK-221
   - **Trazabilidad SDD:** plan §5.4 (definición de terminado), plan §5.3 (RNF-05, RNF-06, RNF-14); RNF-05, RNF-06, RNF-14, RF-M2-03
   - **Archivos en Alcance:**
