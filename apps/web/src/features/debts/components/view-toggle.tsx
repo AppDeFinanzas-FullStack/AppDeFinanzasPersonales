@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 import type { DebtsView } from '../api';
 
-/** The list by debt or by person (RF-M13-13). */
+const VIEWS: readonly DebtsView[] = ['debt', 'person'];
+
+/**
+ * The list by debt or by person (RF-M13-13). Toggle buttons, not tabs: the toggle reorders one list
+ * and has no panels of its own for `aria-controls` to point at (RNF-06).
+ */
 export function ViewToggle({
   value,
   onChange,
@@ -14,20 +17,24 @@ export function ViewToggle({
 }) {
   const { t } = useTranslation('debts');
   return (
-    <Tabs
-      value={value}
-      onValueChange={(next) => {
-        onChange(next === 'person' ? 'person' : 'debt');
-      }}
+    <div
+      role="group"
+      aria-label={t('view.label')}
+      className="inline-grid h-11 auto-cols-fr grid-flow-col gap-1 rounded-md bg-muted p-1"
     >
-      <TabsList aria-label={t('view.label')} className="h-11">
-        <TabsTrigger value="debt" className="h-9">
-          {t('view.debt')}
-        </TabsTrigger>
-        <TabsTrigger value="person" className="h-9">
-          {t('view.person')}
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+      {VIEWS.map((view) => (
+        <button
+          key={view}
+          type="button"
+          aria-pressed={value === view}
+          className="h-9 rounded-[calc(var(--radius)-2px)] px-3 text-sm font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => {
+            onChange(view);
+          }}
+        >
+          {t(`view.${view}`)}
+        </button>
+      ))}
+    </div>
   );
 }

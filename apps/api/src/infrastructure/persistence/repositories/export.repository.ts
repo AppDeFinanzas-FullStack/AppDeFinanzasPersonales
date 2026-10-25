@@ -1,6 +1,7 @@
 import { Prisma } from '@finanzas/db';
 
-import type { ExportRepository, ExportTable } from '../../../application/ports/repositories.js';
+import type { ExportTable } from '../../../application/ports/repositories.js';
+import type { ReleaseExportRepository } from '../../../application/services/export.service.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
 /** An instant column in ISO 8601 UTC; `column` is always a constant of this file. */
@@ -8,10 +9,13 @@ const instant = (column: string): Prisma.Sql =>
   Prisma.raw(`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`);
 
 /**
- * Prisma implementation over the V1.0 tables, always filtered by the user of the transaction
+ * Prisma implementation over the V1.0 and V1.1 tables, always filtered by the user of the transaction
  * (RN-09). Every column is read as text, so decimals keep their exact value (ADR-03).
  */
-export function createExportRepository(tx: TransactionClient, userId: string): ExportRepository {
+export function createExportRepository(
+  tx: TransactionClient,
+  userId: string,
+): ReleaseExportRepository {
   /** Runs the query, whose aliases are the column names, and keeps the rows in that order. */
   const table = async (columns: string[], query: Prisma.Sql): Promise<ExportTable> => {
     const records = await tx.$queryRaw<Record<string, string | null>[]>(query);
@@ -229,6 +233,210 @@ export function createExportRepository(tx: TransactionClient, userId: string): E
             FROM shortcut s
            WHERE s.user_id = ${userId}::uuid
            ORDER BY s.sort_order, s.id`,
+      );
+    },
+
+    budgets() {
+      return table(
+        [
+          'id',
+          'scope',
+          'category_id',
+          'amount',
+          'currency_code',
+          'start_day',
+          'next_start_day',
+          'default_action',
+          'thresholds',
+          'status',
+          'frozen_carryover',
+          'created_at',
+          'updated_at',
+        ],
+        Prisma.sql`
+          SELECT b.id::text AS id, b.scope::text AS scope, b.category_id::text AS category_id,
+                 b.amount::text AS amount, b.currency_code, b.start_day::text AS start_day,
+                 b.next_start_day::text AS next_start_day,
+                 b.default_action::text AS default_action, b.thresholds::text AS thresholds,
+                 b.status::text AS status, b.frozen_carryover::text AS frozen_carryover,
+                 ${instant('b.created_at')} AS created_at,
+                 ${instant('b.updated_at')} AS updated_at
+            FROM budget b
+           WHERE b.user_id = ${userId}::uuid
+           ORDER BY b.created_at, b.id`,
+      );
+    },
+
+    budgetPeriods() {
+      return table(
+        [
+          'id',
+          'budget_id',
+          'start_date',
+          'end_date',
+          'amount',
+          'carryover_in',
+          'status',
+          'spent_at_decision',
+          'result_at_decision',
+          'decision',
+          'decision_deadline',
+          'decided_at',
+        ],
+        Prisma.sql`
+          SELECT p.id::text AS id, p.budget_id::text AS budget_id,
+                 p.start_date::text AS start_date, p.end_date::text AS end_date,
+                 p.amount::text AS amount, p.carryover_in::text AS carryover_in,
+                 p.status::text AS status, p.spent_at_decision::text AS spent_at_decision,
+                 p.result_at_decision::text AS result_at_decision, p.decision::text AS decision,
+                 ${instant('p.decision_deadline')} AS decision_deadline,
+                 ${instant('p.decided_at')} AS decided_at
+            FROM budget_period p
+           WHERE p.user_id = ${userId}::uuid
+           ORDER BY p.budget_id, p.start_date, p.id`,
+      );
+    },
+
+    goals() {
+      return table(
+        [
+          'id',
+          'name',
+          'target',
+          'currency_code',
+          'target_date',
+          'icon',
+          'color',
+          'dedicated_account_id',
+          'celebrated_at',
+          'archived_at',
+          'created_at',
+          'updated_at',
+        ],
+        Prisma.sql`
+          SELECT g.id::text AS id, g.name, g.target::text AS target, g.currency_code,
+                 g.target_date::text AS target_date, g.icon, g.color,
+                 g.dedicated_account_id::text AS dedicated_account_id,
+                 ${instant('g.celebrated_at')} AS celebrated_at,
+                 ${instant('g.archived_at')} AS archived_at,
+                 ${instant('g.created_at')} AS created_at,
+                 ${instant('g.updated_at')} AS updated_at
+            FROM goal g
+           WHERE g.user_id = ${userId}::uuid
+           ORDER BY g.created_at, g.id`,
+      );
+    },
+
+    goalAllocations() {
+      return table(
+        ['id', 'goal_id', 'account_id', 'amount', 'origin', 'related_transaction_id', 'created_at'],
+        Prisma.sql`
+          SELECT e.id::text AS id, e.goal_id::text AS goal_id, e.account_id::text AS account_id,
+                 e.amount::text AS amount, e.origin::text AS origin,
+                 e.related_transaction_id::text AS related_transaction_id,
+                 ${instant('e.created_at')} AS created_at
+            FROM goal_allocation_event e
+           WHERE e.user_id = ${userId}::uuid
+           ORDER BY e.goal_id, e.created_at, e.id`,
+      );
+    },
+
+    debts() {
+      return table(
+        [
+          'id',
+          'direction',
+          'person',
+          'principal',
+          'currency_code',
+          'start_date',
+          'due_date',
+          'note',
+          'interest_rate',
+          'interest_period',
+          'status',
+          'forgiven_amount',
+          'initial_transaction_id',
+          'capital_outstanding',
+          'interest_unpaid',
+          'accrued_through',
+          'created_at',
+          'updated_at',
+        ],
+        Prisma.sql`
+          SELECT d.id::text AS id, d.direction::text AS direction, d.person,
+                 d.principal::text AS principal, d.currency_code,
+                 d.start_date::text AS start_date, d.due_date::text AS due_date, d.note,
+                 d.interest_rate::text AS interest_rate,
+                 d.interest_period::text AS interest_period, d.status::text AS status,
+                 d.forgiven_amount::text AS forgiven_amount,
+                 d.initial_transaction_id::text AS initial_transaction_id,
+                 d.capital_outstanding::text AS capital_outstanding,
+                 d.interest_unpaid::text AS interest_unpaid,
+                 d.accrued_through::text AS accrued_through,
+                 ${instant('d.created_at')} AS created_at,
+                 ${instant('d.updated_at')} AS updated_at
+            FROM debt d
+           WHERE d.user_id = ${userId}::uuid
+           ORDER BY d.created_at, d.id`,
+      );
+    },
+
+    debtPayments() {
+      return table(
+        [
+          'id',
+          'debt_id',
+          'amount',
+          'interest_part',
+          'capital_part',
+          'date',
+          'account_id',
+          'declared_rate',
+          'account_amount',
+          'capital_transaction_id',
+          'interest_transaction_id',
+          'note',
+          'created_at',
+        ],
+        Prisma.sql`
+          SELECT p.id::text AS id, p.debt_id::text AS debt_id, p.amount::text AS amount,
+                 p.interest_part::text AS interest_part, p.capital_part::text AS capital_part,
+                 p.date::text AS date, p.account_id::text AS account_id,
+                 p.declared_rate::text AS declared_rate,
+                 p.account_amount::text AS account_amount,
+                 p.capital_transaction_id::text AS capital_transaction_id,
+                 p.interest_transaction_id::text AS interest_transaction_id, p.note,
+                 ${instant('p.created_at')} AS created_at
+            FROM debt_payment p
+           WHERE p.user_id = ${userId}::uuid
+           ORDER BY p.debt_id, p.date, p.created_at, p.id`,
+      );
+    },
+
+    notifications() {
+      return table(
+        [
+          'id',
+          'type',
+          'event_key',
+          'params',
+          'target_route',
+          'decision_kind',
+          'decision_ref',
+          'decision_status',
+          'read_at',
+          'created_at',
+        ],
+        Prisma.sql`
+          SELECT n.id::text AS id, n.type::text AS type, n.event_key, n.params::text AS params,
+                 n.target_route, n.decision_kind, n.decision_ref::text AS decision_ref,
+                 n.decision_status::text AS decision_status,
+                 ${instant('n.read_at')} AS read_at,
+                 ${instant('n.created_at')} AS created_at
+            FROM notification n
+           WHERE n.user_id = ${userId}::uuid
+           ORDER BY n.created_at, n.id`,
       );
     },
   };

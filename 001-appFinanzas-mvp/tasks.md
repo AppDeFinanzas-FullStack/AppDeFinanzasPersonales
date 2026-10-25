@@ -3543,7 +3543,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 22 — Cierre de V1.1: Inicio, exportación y regresión
 
-- [ ] **`TASK-219`: Inicio: bloque "Presupuesto del mes"**
+- [x] **`TASK-219`: Inicio: bloque "Presupuesto del mes"**
   - **Dependencias:** Requiere TASK-148, TASK-204
   - **Trazabilidad SDD:** plan §4.8.1 (`budgets`), plan §4.8.4 (`BudgetBlock`); RF-M8-08, RF-M8-10
   - **Archivos en Alcance:**
@@ -3559,7 +3559,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-08`: en el mes actual se ve un presupuesto activo; en un mes pasado, el período que cerró en él.
     - Con `RELEASE=1.0`, el bloque no viene en la respuesta.
 
-- [ ] **`TASK-220`: Inicio: bloque "Próximos pagos y deudas"**
+- [x] **`TASK-220`: Inicio: bloque "Próximos pagos y deudas"**
   - **Dependencias:** Requiere TASK-219, TASK-216
   - **Trazabilidad SDD:** plan §4.8.1 (`upcoming`); RF-M8-09, RF-M4-08
   - **Archivos en Alcance:**
@@ -3576,7 +3576,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M4-08`: una tarjeta con pago el día 31 en un mes de 30 días aparece el 30.
     - En un mes pasado, el bloque no aparece.
 
-- [ ] **`TASK-221`: Exportadores de V1.1**
+- [x] **`TASK-221`: Exportadores de V1.1**
   - **Dependencias:** Requiere TASK-164, TASK-187, TASK-202, TASK-214, TASK-177
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
   - **Archivos en Alcance:**
@@ -3588,7 +3588,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-14`: con `RELEASE=1.1`, el ZIP incluye esos CSV, con las metas archivadas.
     - `RNF-16`: cada CSV tiene todas las filas del usuario.
 
-- [ ] **`TASK-222`: Regresión de V1.1: accesibilidad y entregas**
+- [x] **`TASK-222`: Regresión de V1.1: accesibilidad y entregas**
   - **Dependencias:** Requiere TASK-207, TASK-218, TASK-220, TASK-221
   - **Trazabilidad SDD:** plan §5.4 (definición de terminado), plan §5.3 (RNF-05, RNF-06, RNF-14); RNF-05, RNF-06, RNF-14, RF-M2-03
   - **Archivos en Alcance:**

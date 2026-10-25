@@ -8,6 +8,13 @@
   },
   "register": "Registrar",
   "cardLinks": "Ver movimientos del mes",
+  "budget": {
+    "title": "Presupuesto del mes",
+    "empty": "No tienes presupuestos activos este mes.",
+    "general": "Presupuesto general",
+    "spentOf": "{{spent}} de {{limit}}",
+    "seeAll": "Ver presupuestos"
+  },
   "byCategory": {
     "title": "Gasto por categoría",
     "empty": "Aún no tienes gastos este mes.",
@@ -18,6 +25,16 @@
     "empty": "Aún no hay gastos para comparar.",
     "current": "Este mes",
     "previous": "Mes anterior"
+  },
+  "upcoming": {
+    "title": "Próximos pagos y deudas",
+    "empty": "No tienes vencimientos en los próximos 7 días.",
+    "kind": {
+      "debt_i_owe": "Debes pagar",
+      "debt_owed_to_me": "Te deben pagar",
+      "card_cut": "Corte de tarjeta",
+      "card_payment": "Pago de tarjeta"
+    }
   },
   "balances": {
     "title": "Saldos por cuenta",

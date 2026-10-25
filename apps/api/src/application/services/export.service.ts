@@ -2,6 +2,7 @@ import type { Readable } from 'node:stream';
 
 import { isReleased, type ModuleKey, type Release } from '@finanzas/contracts';
 
+import { AppError } from '../errors.js';
 import type { ExportRepository, ExportTable } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 
@@ -13,6 +14,37 @@ export interface ExportFile {
 
 /** Packs the files into a ZIP archive that is streamed as they are produced. */
 export type ExportArchiver = (files: AsyncIterable<ExportFile>) => Readable;
+
+/**
+ * The tables of the V1.1 modules that the export repository also reads, always filtered by the
+ * user of the transaction (RN-09): budgets (M11), goals (M12), debts (M13) and notifications (M15).
+ */
+export interface ReleaseExportRepository extends ExportRepository {
+  budgets(): Promise<ExportTable>;
+  budgetPeriods(): Promise<ExportTable>;
+  /** Archived goals included (RF-M1-14). */
+  goals(): Promise<ExportTable>;
+  /** Earmarks (positive amounts) and withdrawals (negative amounts) of every goal. */
+  goalAllocations(): Promise<ExportTable>;
+  debts(): Promise<ExportTable>;
+  debtPayments(): Promise<ExportTable>;
+  notifications(): Promise<ExportTable>;
+}
+
+const isReleaseExportRepository = (repo: ExportRepository): repo is ReleaseExportRepository =>
+  'budgets' in repo &&
+  'budgetPeriods' in repo &&
+  'goals' in repo &&
+  'goalAllocations' in repo &&
+  'debts' in repo &&
+  'debtPayments' in repo &&
+  'notifications' in repo;
+
+/** The repository with the V1.1 tables; a wiring without them is an internal fault. */
+function releaseTables(repo: ExportRepository): ReleaseExportRepository {
+  if (!isReleaseExportRepository(repo)) throw new AppError('INTERNAL_ERROR');
+  return repo;
+}
 
 /** The exporter of one type of data, owned by the module that releases it (ADR-18). */
 interface Exporter {
@@ -36,6 +68,25 @@ const EXPORTERS: readonly Exporter[] = [
   { file: 'transactions.csv', module: 'M6', read: (repo) => repo.transactions() },
   { file: 'entries.csv', module: 'M6', read: (repo) => repo.entries() },
   { file: 'shortcuts.csv', module: 'M7', read: (repo) => repo.shortcuts() },
+  { file: 'budgets.csv', module: 'M11', read: (repo) => releaseTables(repo).budgets() },
+  {
+    file: 'budget_periods.csv',
+    module: 'M11',
+    read: (repo) => releaseTables(repo).budgetPeriods(),
+  },
+  { file: 'goals.csv', module: 'M12', read: (repo) => releaseTables(repo).goals() },
+  {
+    file: 'goal_allocations.csv',
+    module: 'M12',
+    read: (repo) => releaseTables(repo).goalAllocations(),
+  },
+  { file: 'debts.csv', module: 'M13', read: (repo) => releaseTables(repo).debts() },
+  { file: 'debt_payments.csv', module: 'M13', read: (repo) => releaseTables(repo).debtPayments() },
+  {
+    file: 'notifications.csv',
+    module: 'M15',
+    read: (repo) => releaseTables(repo).notifications(),
+  },
 ];
 
 export interface ExportService {
