@@ -34,6 +34,7 @@ import {
   type NotificationsRoutesDeps,
 } from './routes/notifications.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
+import { recurringRouter, type RecurringRoutesDeps } from './routes/recurring.routes.js';
 import { registerRouter, type RegisterRoutesDeps } from './routes/register.routes.js';
 import { shortcutsRouter, type ShortcutsRoutesDeps } from './routes/shortcuts.routes.js';
 import { transactionsRouter, type TransactionsRoutesDeps } from './routes/transactions.routes.js';
@@ -72,6 +73,8 @@ export interface AppDeps {
   budgets?: BudgetsRoutesDeps;
   /** The routes `/api/goals` (plan §4.12.2). */
   goals?: GoalsRoutesDeps;
+  /** The routes `/api/recurring` (plan §4.14.2). */
+  recurring?: RecurringRoutesDeps;
   /** The routes `/api/debts` (plan §4.13.2). */
   debts?: DebtsRoutesDeps;
   /** The routes `/api/onboarding` (plan §4.10.2). */
@@ -160,6 +163,9 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.goals !== undefined) {
     app.use('/api/goals', goalsRouter(deps.goals));
+  }
+  if (deps.recurring !== undefined) {
+    app.use('/api/recurring', recurringRouter(deps.recurring));
   }
   if (deps.debts !== undefined) {
     app.use('/api/debts', debtsRouter(deps.debts));

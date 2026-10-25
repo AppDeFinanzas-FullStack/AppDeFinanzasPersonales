@@ -5,6 +5,7 @@
   "ACCOUNT_HAS_EARMARKS": "Esta cuenta tiene dinero apartado para metas.",
   "ACCOUNT_HAS_MOVEMENTS": "Esta cuenta tiene movimientos.",
   "ACCOUNT_HAS_OTHER_EARMARKS": "Esta cuenta tiene dinero apartado para otras metas.",
+  "ACCOUNT_IN_USE": "Esta cuenta se usa en recurrentes. Puedes archivarla en su lugar.",
   "ACCOUNT_NOT_DEDICABLE": "Esta cuenta no se puede dedicar a una meta.",
   "ALREADY_DECIDED": "Esto ya se decidió.",
   "AMOUNT_OUT_OF_RANGE": "El monto está fuera del rango permitido.",

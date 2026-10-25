@@ -14,6 +14,7 @@ import {
   type ScheduledUsers,
 } from '../application/jobs/notifications.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
+import { createRecurringJobs, type RecurringUsers } from '../application/jobs/recurring.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
 import { createExportService, type ExportService } from '../application/services/export.service.js';
@@ -42,6 +43,10 @@ import {
   type BudgetsService,
 } from '../application/services/budgets.service.js';
 import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
+import {
+  createRecurringService,
+  type RecurringService,
+} from '../application/services/recurring.service.js';
 import {
   createAccountsService,
   type AccountsService,
@@ -88,6 +93,10 @@ import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { createBudgetLedgerHook } from '../application/shared/budget-ledger-hook.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
 import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
+import {
+  createRecurringGenerator,
+  type RecurringGenerator,
+} from '../application/shared/recurring-generator.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -132,6 +141,8 @@ import {
 import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
 import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
 import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createRecurringOccurrenceRepository } from '../infrastructure/persistence/repositories/recurring-occurrence.repository.js';
+import { createRecurringRuleRepository } from '../infrastructure/persistence/repositories/recurring-rule.repository.js';
 import { createBudgetPeriodRepository } from '../infrastructure/persistence/repositories/budget-period.repository.js';
 import { createBudgetRepository } from '../infrastructure/persistence/repositories/budget.repository.js';
 import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
@@ -171,6 +182,8 @@ export interface Container {
   readonly jobs: Jobs;
   /** Reactions to ledger changes; each module registers its handler here (plan §4.0). */
   readonly ledgerHooks: LedgerHooks;
+  /** The occurrences of the recurring rules, generated in the caller's transaction (plan §4.14.3). */
+  readonly recurringGenerator: RecurringGenerator;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
@@ -185,6 +198,8 @@ export interface Container {
   readonly budgetsService: BudgetsService;
   /** The goals of `/api/goals` (plan §4.12.2). */
   readonly goalsService: GoalsService;
+  /** The rules and occurrences of `/api/recurring` (plan §4.14.2). */
+  readonly recurringService: RecurringService;
   /** The debts of `/api/debts` (plan §4.13.2). */
   readonly debtsService: DebtsService;
   readonly shortcutsService: ShortcutsService;
@@ -252,6 +267,8 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   exports: createExportRepository(tx, userId ?? NO_USER),
   notifications: createNotificationRepository(tx),
   notificationPreferences: createNotificationPreferenceRepository(tx),
+  recurringRules: createRecurringRuleRepository(tx, userId ?? NO_USER),
+  recurringOccurrences: createRecurringOccurrenceRepository(tx, userId ?? NO_USER),
   debts: createDebtRepository(tx, userId ?? NO_USER),
   debtPayments: createDebtPaymentRepository(tx, userId ?? NO_USER),
   goals: createGoalRepository(tx, userId ?? NO_USER),
@@ -461,6 +478,31 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
       });
   };
 };
+
+/** The users the recurring jobs walk and their timezone (plan §4.14.3, RNF-20). */
+const createRecurringUsers = (prisma: PrismaClient): RecurringUsers => ({
+  async withActiveRules() {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_rule
+       WHERE status = 'active'
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async withExpiredPending(before) {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_occurrence
+       WHERE status = 'pending' AND pending_since < ${before}::timestamptz
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async timezoneOf(userId) {
+    const rows = await prisma.$queryRaw<{ timezone: string }[]>`
+      SELECT timezone FROM auth_user WHERE id = ${userId}::uuid`;
+    return rows[0]?.timezone ?? null;
+  },
+});
 
 /** The users the `notifications.scheduled` job walks, with the timezone of their profile. */
 const createScheduledUsers = (prisma: PrismaClient): ScheduledUsers => ({
@@ -725,7 +767,32 @@ export const buildContainer = (env: Env): Container => {
       ids: uuidv7Ids,
     }),
   );
-  const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
+  const recurringUsers = createRecurringUsers(prisma);
+  const recurringGenerator = createRecurringGenerator({
+    rates: ratesService,
+    ledgerHooks,
+    notifications: notificationEmitter,
+    timezones: recurringUsers,
+    clock: systemClock,
+  });
+  const recurringJobs = createRecurringJobs({
+    uow,
+    generator: recurringGenerator,
+    users: recurringUsers,
+    clock: systemClock,
+  });
+  jobs.registerJob('recurring.generate', () => recurringJobs.generate(), {
+    forUser: (userId) => recurringJobs.generateForUser(userId),
+  });
+  jobs.registerJob('recurring.expirePending', () => recurringJobs.expirePending(), {
+    forUser: (userId) => recurringJobs.expirePendingForUser(userId),
+  });
+  const accountsService = createAccountsService({
+    uow,
+    rates: ratesService,
+    ledgerHooks,
+    recurring: { notifications: notificationEmitter },
+  });
   const transactionsService = createTransactionsService({
     uow,
     rates: ratesService,
@@ -772,6 +839,7 @@ export const buildContainer = (env: Env): Container => {
     ids: uuidv7Ids,
     jobs,
     ledgerHooks,
+    recurringGenerator,
     auth,
     authService,
     meService,
@@ -788,9 +856,19 @@ export const buildContainer = (env: Env): Container => {
       ids: uuidv7Ids,
     }),
     goalsService: createGoalsService({ uow, rates: ratesService }),
+    recurringService: createRecurringService({
+      uow,
+      generator: recurringGenerator,
+      rates: ratesService,
+      ledgerHooks,
+      clock: systemClock,
+    }),
     debtsService: createDebtsService({ uow, rates: ratesService, ledgerHooks }),
     shortcutsService,
-    categoriesService: createCategoriesService({ uow }),
+    categoriesService: createCategoriesService({
+      uow,
+      recurring: { notifications: notificationEmitter, timezones: recurringUsers, clock: systemClock },
+    }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     registerService,
@@ -867,6 +945,11 @@ export const createApp = (container: Container): Express => {
     },
     budgets: { budgetsService: container.budgetsService, clock: container.clock, session },
     goals: { goalsService: container.goalsService, clock: container.clock, session },
+    recurring: {
+      recurringService: container.recurringService,
+      clock: container.clock,
+      session,
+    },
     debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
     shortcuts: { shortcutsService: container.shortcutsService, session },

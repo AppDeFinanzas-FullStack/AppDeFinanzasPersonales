@@ -1,6 +1,7 @@
 import type { NotificationDto } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
 import { MoreHorizontal } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,13 @@ import { useMe } from '@/features/auth/hooks/use-me';
 import { CloseDecisionNotice } from '@/features/budgets/components/close-decision-card';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 import { cn } from '@/lib/utils';
+
+// Deciding a pending occurrence brings Recurrentes along; it loads only when such a notice shows,
+// so the app shell (present in /registrar) stays within its budget (RNF-01).
+const PendingDecision = lazy(async () => {
+  const { PendingDecision: component } = await import('./pending-decision');
+  return { default: component };
+});
 
 /**
  * One notification of the inbox (plan §4.15.4): its i18n text with its parameters, a tap that opens
@@ -48,6 +56,12 @@ export function NotificationItem({
     decision.status !== 'resolved' &&
     typeof budgetId === 'string'
       ? { budgetId, periodId: decision.ref }
+      : undefined;
+  const pendingId =
+    notification.type === 'recurring_pending' &&
+    decision?.kind === 'occurrence' &&
+    decision.status !== 'resolved'
+      ? decision.ref
       : undefined;
 
   return (
@@ -102,6 +116,13 @@ export function NotificationItem({
             budgetId={closeDecision.budgetId}
             periodId={closeDecision.periodId}
           />
+        </div>
+      )}
+      {pendingId !== undefined && (
+        <div className="px-2">
+          <Suspense fallback={null}>
+            <PendingDecision occurrenceId={pendingId} />
+          </Suspense>
         </div>
       )}
     </li>

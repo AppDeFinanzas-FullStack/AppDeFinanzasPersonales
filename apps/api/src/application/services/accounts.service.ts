@@ -21,18 +21,21 @@ import { Decimal } from 'decimal.js';
 import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../errors.js';
+import type { Instant, LocalDate } from '../ports/clock.js';
 import type {
   AccountPatch,
   AccountRow,
   GoalEarmark,
   LedgerTransactionDetail,
   LifecycleStatus,
+  RecurringRuleRow,
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { BalanceGuard } from '../shared/balance-guard.js';
 import type { LedgerHooks } from '../shared/ledger-hooks.js';
 import { assertLimit } from '../shared/limits.js';
+import type { NotificationEmitter } from '../shared/notification-emitter.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
 /** Request context built from the session (plan §1.4). */
@@ -73,7 +76,8 @@ export interface AccountsService {
   ): Promise<{ created: boolean; transaction: LedgerTransactionDetail | null }>;
   /**
    * Archives an active account (RF-M4-09); a balance other than 0 needs `confirmNonZero`. It stops
-   * being the default account (RF-M4-12, EC-M7-05). An archived account stays as it is.
+   * being the default account (RF-M4-12, EC-M7-05) and its active rules are paused with a notice to
+   * choose another account (EC-M14-02). An archived account stays as it is.
    */
   archive(ctx: AccountsContext, id: string, input: ArchiveInput): Promise<AccountDto>;
   /**
@@ -83,7 +87,8 @@ export interface AccountsService {
   restore(ctx: AccountsContext, id: string, input: RestoreInput): Promise<AccountDto>;
   /**
    * Deletes an account without entries, counting those of deleted movements still undoable; it
-   * stops being the default account and its shortcuts are deleted (RF-M4-13).
+   * stops being the default account and its shortcuts are deleted (RF-M4-13). An account used by a
+   * recurring rule is not deleted: `ACCOUNT_IN_USE {recurring}`.
    */
   remove(ctx: AccountsContext, id: string): Promise<void>;
 }
@@ -92,6 +97,51 @@ export interface AccountsServiceDeps {
   uow: UnitOfWork;
   rates: RatesService;
   ledgerHooks: LedgerHooks;
+  /**
+   * The recurring rules (M14): archiving pauses them with a notice and deleting is rejected while
+   * one uses the account. Without it the service does not touch rules.
+   */
+  recurring?: { notifications: NotificationEmitter };
+}
+
+/** Where the notice of a rule paused by an archive leads, to choose another account or category. */
+const RECURRING_ROUTE = '/recurrentes';
+
+/** Why an archive paused a rule, for the text of its notice. */
+export type RulePauseReason = 'account_archived' | 'category_archived';
+
+/**
+ * Pauses, inside the caller's transaction, the active rules that `uses` selects, each with a
+ * `recurring_pending` notice of key `rule:{id}:paused:{today}` (plan §4.14.3, EC-M14-02, RF-M5-07).
+ * The caller holds the user's lock.
+ */
+export async function pauseRulesWithNotice(
+  tx: Repositories,
+  notifications: NotificationEmitter,
+  pause: {
+    userId: string;
+    uses: (rule: RecurringRuleRow) => boolean;
+    reason: RulePauseReason;
+    now: Instant;
+    today: LocalDate;
+  },
+): Promise<void> {
+  for (const { id } of (await tx.recurringRules.list()).filter(pause.uses)) {
+    const rule = await tx.recurringRules.lockForUpdate(id);
+    if (rule === null || rule.status !== 'active') continue;
+    await tx.recurringRules.update(rule.id, { status: 'paused', pausedAt: pause.now });
+    await notifications.emit(tx, pause.userId, {
+      type: 'recurring_pending',
+      eventKey: `rule:${rule.id}:paused:${pause.today}`,
+      params: { ruleId: rule.id, ruleName: rule.name, reason: pause.reason },
+      targetRoute: RECURRING_ROUTE,
+    });
+  }
+}
+
+/** Whether the rule moves money of the account, as its origin or as its destination. */
+function ruleUsesAccount(rule: RecurringRuleRow, accountId: string): boolean {
+  return rule.accountId === accountId || rule.destAccountId === accountId;
 }
 
 /** Accounts read in one transaction, with their balances and the user's base currency. */
@@ -255,6 +305,7 @@ export function createAccountsService({
   uow,
   rates,
   ledgerHooks,
+  recurring,
 }: AccountsServiceDeps): AccountsService {
   /**
    * Bs per unit of each currency with the rate in force (RN-05). It runs after the snapshot's
@@ -655,6 +706,15 @@ export function createAccountsService({
             }
             await repos.accounts.archive(id);
             await repos.userSettings.clearDefaultAccount(ctx.userId, id);
+            if (recurring !== undefined) {
+              await pauseRulesWithNotice(repos, recurring.notifications, {
+                userId: ctx.userId,
+                uses: (rule) => rule.status === 'active' && ruleUsesAccount(rule, id),
+                reason: 'account_archived',
+                now: ctx.now,
+                today: todayFor(ctx.timezone, ctx.now),
+              });
+            }
           }
           return snapshotOf(repos, ctx.userId, [await readBack(repos, id)]);
         },
@@ -690,6 +750,15 @@ export function createAccountsService({
           // Entries of deleted movements still count: they may be undone (RF-M4-13).
           if (await repos.accounts.hasEntries(id)) {
             throw new AppError('ACCOUNT_HAS_MOVEMENTS');
+          }
+          if (recurring !== undefined) {
+            // `recurring_rule.account_id` is RESTRICT: the account is archived instead (RF-M4-13).
+            const rules = (await repos.recurringRules.list())
+              .filter((rule) => ruleUsesAccount(rule, id))
+              .map((rule) => ({ id: rule.id, name: rule.name }));
+            if (rules.length > 0) {
+              throw new AppError('ACCOUNT_IN_USE', { recurring: rules });
+            }
           }
           await repos.userSettings.clearDefaultAccount(ctx.userId, id);
           await repos.accounts.remove(id);

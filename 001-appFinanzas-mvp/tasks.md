@@ -3602,7 +3602,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 23 — M14 Recurrentes (V1.2)
 
-- [ ] **`TASK-223`: Contratos de M14**
+- [x] **`TASK-223`: Contratos de M14**
   - **Dependencias:** Requiere TASK-118
   - **Trazabilidad SDD:** plan §4.14.1; RF-M14-01, RF-M14-03, RF-M14-14, RF-M14-15
   - **Archivos en Alcance:**
@@ -3616,7 +3616,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-15`: el nombre va de 1 a 40 caracteres.
     - El fin por cantidad va de 1 a 999.
 
-- [ ] **`TASK-224`: Dominio `recurrence`: fechas, saltadas y fin**
+- [x] **`TASK-224`: Dominio `recurrence`: fechas, saltadas y fin**
   - **Dependencias:** Requiere TASK-027
   - **Trazabilidad SDD:** plan §4.14.1 (`packages/domain/recurrence`); RF-M14-01, RF-M14-02, RF-M14-09, RF-M14-13, EC-M14-01, EC-M14-05, EC-M14-06
   - **Archivos en Alcance:**
@@ -3631,13 +3631,14 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M14-06`: si el fin pasó durante la pausa, solo se devuelven las fechas hasta el fin.
     - `RF-M14-13`: `installment` da "Cuota 3 de 12".
 
-- [ ] **`TASK-225`: Repositorios de reglas y ocurrencias**
+- [x] **`TASK-225`: Repositorios de reglas y ocurrencias**
   - **Dependencias:** Requiere TASK-099
   - **Trazabilidad SDD:** plan §3.6 (`recurring_rule`, `recurring_occurrence`); RF-M14-12, RN-09
   - **Archivos en Alcance:**
     - `apps/api/src/application/ports/repositories.ts`
     - `apps/api/src/infrastructure/persistence/repositories/recurring-rule.repository.ts`
     - `apps/api/src/infrastructure/persistence/repositories/recurring-occurrence.repository.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/factories/recurring.factory.ts`
     - `apps/api/test/integration/recurring-repositories.test.ts`
   - **Especificación de Implementación:** CRUD de reglas con `lockForUpdate`. Ocurrencias: `insertIfAbsent(ruleId, date)` con `ON CONFLICT (rule_id, scheduled_date) DO NOTHING RETURNING`, `pending()`, `decideIf(id, expectedStatus, newStatus)` y `expiredPending(before)`.
@@ -3646,7 +3647,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `decideIf` solo cambia una ocurrencia que está en el estado esperado.
     - `RN-09`: no se ven las reglas de otro usuario.
 
-- [ ] **`TASK-226`: Generación de ocurrencias y job `recurring.generate`**
+- [x] **`TASK-226`: Generación de ocurrencias y job `recurring.generate`**
   - **Dependencias:** Requiere TASK-064, TASK-122, TASK-176, TASK-183, TASK-224, TASK-225
   - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.generate`); RF-M14-04, RF-M14-05, RF-M14-06, RF-M14-12, RF-M6-10, EC-M4-03, EC-M12-05, EC-M14-03, RNF-13, RNF-20
   - **Archivos en Alcance:**
@@ -3662,7 +3663,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-04` / `RNF-20`: un cambio de zona horaria o de horario de verano no repite ni pierde fechas.
     - `RF-M6-10`: el movimiento lleva el nombre de la regla en `recurring_label`.
 
-- [ ] **`TASK-227`: `RecurringService`: crear y vista general**
+- [x] **`TASK-227`: `RecurringService`: crear y vista general**
   - **Dependencias:** Requiere TASK-037, TASK-089, TASK-223, TASK-226
   - **Trazabilidad SDD:** plan §4.14.2 (`GET`, `POST /api/recurring`); RF-M14-03, RF-M14-13, RF-M14-14, EC-M14-07, RNF-28
   - **Archivos en Alcance:**
@@ -3677,7 +3678,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-14`: una regla sin monto se muestra como "monto por definir".
     - `RNF-28`: la regla 101 da `LIMIT_REACHED`.
 
-- [ ] **`TASK-228`: Confirmar y omitir pendientes**
+- [x] **`TASK-228`: Confirmar y omitir pendientes**
   - **Dependencias:** Requiere TASK-227
   - **Trazabilidad SDD:** plan §4.14.2 (`confirm`, `skip`); RF-M14-06, RF-M14-08, EC-M15-01, RNF-11
   - **Archivos en Alcance:**
@@ -3690,18 +3691,19 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-11`: dos confirmaciones simultáneas registran un solo movimiento.
     - `RF-M14-06`: al confirmar una transferencia entre monedas, se puede ajustar la tasa.
 
-- [ ] **`TASK-229`: Job `recurring.expirePending`**
+- [x] **`TASK-229`: Job `recurring.expirePending`**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.3 (job `recurring.expirePending`); RF-M14-07, RNF-13
   - **Archivos en Alcance:**
     - `apps/api/src/application/jobs/recurring.ts`
+    - `apps/api/src/composition/container.ts`
     - `apps/api/test/integration/recurring-expire-job.test.ts`
-  - **Especificación de Implementación:** Un pendiente con `pending_since` de hace más de 30 días pasa a `omitted`, con el aviso `recurring_omitted:{occurrenceId}` (tipo `recurring_pending`) y el aviso original resuelto. Las ocurrencias siguientes se siguen generando aunque haya pendientes.
+  - **Especificación de Implementación:** Un pendiente con `pending_since` de hace más de 30 días pasa a `omitted`, con el aviso `recurring_omitted:{occurrenceId}` (tipo `recurring_pending`) y el aviso original resuelto. Las ocurrencias siguientes se siguen generando aunque haya pendientes. El job recorre a los usuarios con pendientes vencidos (también los de reglas pausadas o terminadas), no solo a los que tienen reglas activas, y `container.ts` lo registra en `jobs.registerJob` con su `forUser`.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Pendiente vence" (`RF-M14-07`): con un reloj 30 días después, el pendiente pasa a Omitido y se genera un aviso.
     - `RNF-13`: los pendientes recuperados tras una caída cuentan los 30 días desde `pending_since`.
 
-- [ ] **`TASK-230`: Pausar, ver las saltadas y reanudar reglas**
+- [x] **`TASK-230`: Pausar, ver las saltadas y reanudar reglas**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.2 (`pause`, `skipped`, `resume`); RF-M14-09, EC-M14-05, EC-M14-06
   - **Archivos en Alcance:**
@@ -3714,7 +3716,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M14-06`: si el fin pasó durante la pausa, queda Finalizada y solo ofrece las fechas hasta el fin.
     - `RF-M14-09`: una saltada que bloquearía el efectivo queda pendiente.
 
-- [ ] **`TASK-231`: Editar y eliminar reglas**
+- [x] **`TASK-231`: Editar y eliminar reglas**
   - **Dependencias:** Requiere TASK-228
   - **Trazabilidad SDD:** plan §4.14.2 (`PATCH`, `DELETE`), plan §3.8 (regla eliminada); RF-M14-10, RF-M14-11, EC-M14-04
   - **Archivos en Alcance:**
@@ -3726,37 +3728,45 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-11` / `EC-M14-04`: al eliminar una regla con un pendiente, el pendiente desaparece y el movimiento conserva "De recurrente: X".
     - Extender el fin de una regla finalizada la reactiva.
 
-- [ ] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
+- [x] **`TASK-232`: Recurrentes al archivar o eliminar cuentas y categorías**
   - **Dependencias:** Requiere TASK-104, TASK-112, TASK-227
   - **Trazabilidad SDD:** plan §4.4.2 (archivar: pausar reglas con aviso), plan §4.5.2 (archivar), plan §4.14.3 (activa ⇄ pausada), plan §4.15.1 (`recurring_pending`); EC-M14-02, RF-M4-13, RF-M5-07, RF-M15-02
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/accounts.service.ts`
     - `apps/api/src/application/services/categories.service.ts`
+    - `apps/api/src/composition/container.ts`
+    - `packages/contracts/src/errors.ts`
+    - `apps/web/src/locales/es-BO/errors.json`
     - `apps/api/test/integration/recurring-cascades.test.ts`
-  - **Especificación de Implementación:** Archivar o eliminar una cuenta, o archivar una categoría, pausa sus reglas activas y emite un aviso (tipo `recurring_pending`, clave `rule:{id}:paused:{fecha}`) para elegir otra cuenta o categoría.
+    - `packages/contracts/test/errors.test.ts`
+  - **Especificación de Implementación:** Archivar una cuenta o una categoría pausa sus reglas activas y emite un aviso (tipo `recurring_pending`, clave `rule:{id}:paused:{fecha}`) para elegir otra cuenta o categoría. Eliminar una cuenta que usa una regla recurrente se rechaza con `ACCOUNT_IN_USE 409 {recurring}` (código nuevo del catálogo, con su texto en `errors.json`), como `CATEGORY_IN_USE`.
   - **Criterios de Verificación (Tests & DoD):**
     - `EC-M14-02`: archivar la cuenta de una regla la deja pausada, con un aviso.
     - Escenario "Archivar una categoría con presupuesto y recurrente" (parte de recurrentes, `RF-M5-07`): "Netflix" queda pausado con un aviso para elegir otra categoría.
-    - `RF-M4-13`: eliminar una cuenta sin movimientos pausa sus reglas con un aviso.
+    - `RF-M4-13`: eliminar una cuenta sin movimientos que usa una regla da `ACCOUNT_IN_USE {recurring}` y no borra nada.
 
-- [ ] **`TASK-233`: Rutas HTTP de recurrentes**
+- [x] **`TASK-233`: Rutas HTTP de recurrentes**
   - **Dependencias:** Requiere TASK-229, TASK-230, TASK-231, TASK-232
   - **Trazabilidad SDD:** plan §4.14.2 (tabla de endpoints), ADR-18; RNF-14, RF-M2-03
   - **Archivos en Alcance:**
     - `apps/api/src/presentation/routes/recurring.routes.ts`
     - `apps/api/src/presentation/controllers/recurring.controller.ts`
+    - `apps/api/src/application/services/recurring.service.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/recurring-occurrence.repository.ts`
     - `apps/api/src/presentation/presenters/recurring.presenter.ts`
     - `apps/api/src/presentation/app.ts`
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/recurring.test.ts`
     - `apps/api/test/http/recurring.isolation.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** Monta los endpoints de plan §4.14.2 detrás de `releaseGate('m14')`.
   - **Criterios de Verificación (Tests & DoD):**
     - Cada endpoint responde con sus estados y errores.
     - `RNF-14`: el usuario B recibe 404 con una regla o una ocurrencia de A.
     - `RF-M2-03`: con `RELEASE=1.1`, `RELEASE_NOT_AVAILABLE`.
 
-- [ ] **`TASK-234`: Web: pantalla de Recurrentes**
+- [x] **`TASK-234`: Web: pantalla de Recurrentes**
   - **Dependencias:** Requiere TASK-192, TASK-233
   - **Trazabilidad SDD:** plan §4.14.4 (`/recurrentes`); RF-M14-08, RF-M14-13, RF-M14-14
   - **Archivos en Alcance:**
@@ -3776,7 +3786,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-08`: confirmar con otra fecha registra el movimiento en esa fecha.
     - `RF-M14-14`: una regla sin monto muestra "monto por definir" y pide el monto al confirmar.
 
-- [ ] **`TASK-235`: Web: formulario de regla y diálogo de reanudar**
+- [x] **`TASK-235`: Web: formulario de regla y diálogo de reanudar**
   - **Dependencias:** Requiere TASK-234
   - **Trazabilidad SDD:** plan §4.14.4 (diálogos); RF-M14-01, RF-M14-03, RF-M14-09, RF-M14-14
   - **Archivos en Alcance:**
@@ -3791,7 +3801,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M14-14`: en modo automático, el monto es obligatorio.
     - `RF-M14-03`: el calendario de inicio no permite fechas pasadas.
 
-- [ ] **`TASK-236`: Web y API: pendientes en la bandeja y recurrentes en el Inicio**
+- [x] **`TASK-236`: Web y API: pendientes en la bandeja y recurrentes en el Inicio**
   - **Dependencias:** Requiere TASK-220, TASK-234
   - **Trazabilidad SDD:** plan §4.15.4 (botones de decisión inline), plan §4.8.1 (`upcoming`); RF-M8-09, RF-M15-03, EC-M15-01
   - **Archivos en Alcance:**

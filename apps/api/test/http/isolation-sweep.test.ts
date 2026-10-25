@@ -9,6 +9,12 @@ import { buildContainer, createApp, type Container } from '../../src/composition
 import { parseEnv } from '../../src/infrastructure/config/env.js';
 import { createBudget, createBudgetPeriod, deleteBudgetsOf } from '../factories/budget.factory.js';
 import { deleteGoalsOf } from '../factories/goal.factory.js';
+import {
+  createOccurrence,
+  createRule,
+  deleteRecurringOf,
+  occurrenceStatus,
+} from '../factories/recurring.factory.js';
 import { disconnectTestPrisma, testPrisma } from '../integration/setup/db.js';
 
 /**
@@ -76,8 +82,18 @@ interface Ids {
   notification: string;
   undoToken: string;
   currency: string;
+  rule: string;
+  occurrence: string;
   /** Resources of the user who sends the request. */
-  own: { account: string; category: string; transaction: string; goal: string; debt: string };
+  own: {
+    account: string;
+    category: string;
+    transaction: string;
+    goal: string;
+    rule: string;
+    occurrence: string;
+    debt: string;
+  };
 }
 
 type Build = (ids: Ids) => Spec;
@@ -525,6 +541,109 @@ const COVERAGE: Record<string, Coverage> = {
     body: {},
   })),
 
+  'GET /api/recurring': 'session',
+  'POST /api/recurring': {
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: '/api/recurring',
+        body: {
+          id: uuidv7(),
+          name: `Regla ${randomUUID().slice(0, 8)}`,
+          kind: 'expense',
+          amount: '10.00',
+          accountId: a.account,
+          categoryId: a.own.category,
+          frequency: { type: 'monthly', day: 5 },
+          startDate: '2090-06-05',
+          end: { type: 'none' },
+          mode: 'auto',
+        },
+      }),
+      (a) => ({
+        method: 'POST',
+        path: '/api/recurring',
+        body: {
+          id: uuidv7(),
+          name: `Regla ${randomUUID().slice(0, 8)}`,
+          kind: 'expense',
+          amount: '10.00',
+          accountId: a.own.account,
+          categoryId: a.category,
+          frequency: { type: 'monthly', day: 5 },
+          startDate: '2090-06-05',
+          end: { type: 'none' },
+          mode: 'auto',
+        },
+      }),
+    ],
+  },
+  'PATCH /api/recurring/:id': {
+    foreign: [
+      (a) => ({
+        method: 'PATCH',
+        path: `/api/recurring/${a.rule}`,
+        body: { name: 'Cambiada por otro' },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'PATCH',
+        path: `/api/recurring/${a.own.rule}`,
+        body: { accountId: a.account },
+      }),
+      (a) => ({
+        method: 'PATCH',
+        path: `/api/recurring/${a.own.rule}`,
+        body: { categoryId: a.category },
+      }),
+    ],
+  },
+  'DELETE /api/recurring/:id': onlyForeign((a) => ({
+    method: 'DELETE',
+    path: `/api/recurring/${a.rule}`,
+  })),
+  'POST /api/recurring/:id/pause': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/recurring/${a.rule}/pause`,
+    body: {},
+  })),
+  'GET /api/recurring/:id/skipped': onlyForeign((a) => ({
+    method: 'GET',
+    path: `/api/recurring/${a.rule}/skipped`,
+  })),
+  'POST /api/recurring/:id/resume': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/recurring/${a.rule}/resume`,
+    body: { registerDates: [] },
+  })),
+  'POST /api/recurring/occurrences/:id/confirm': {
+    foreign: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/recurring/occurrences/${a.occurrence}/confirm`,
+        body: { transactionId: uuidv7(), rateUsdBob: '6.96' },
+      }),
+    ],
+    refs: [
+      (a) => ({
+        method: 'POST',
+        path: `/api/recurring/occurrences/${a.own.occurrence}/confirm`,
+        body: { transactionId: uuidv7(), rateUsdBob: '6.96', accountId: a.account },
+      }),
+      (a) => ({
+        method: 'POST',
+        path: `/api/recurring/occurrences/${a.own.occurrence}/confirm`,
+        body: { transactionId: uuidv7(), rateUsdBob: '6.96', categoryId: a.category },
+      }),
+    ],
+  },
+  'POST /api/recurring/occurrences/:id/skip': onlyForeign((a) => ({
+    method: 'POST',
+    path: `/api/recurring/occurrences/${a.occurrence}/skip`,
+    body: {},
+  })),
+
   'GET /api/budgets': 'session',
   'POST /api/budgets': {
     refs: [
@@ -682,6 +801,7 @@ const MOUNTS = [
   '/api/onboarding',
   '/api/notifications',
   '/api/goals',
+  '/api/recurring',
   '/api/debts',
   '/api/budgets',
   '/internal/jobs',
@@ -959,6 +1079,8 @@ const ownTexts = (): string[] => [
   theirs.budget,
   theirs.budgetPeriod,
   theirs.notification,
+  theirs.rule,
+  theirs.occurrence,
   marker,
 ];
 
@@ -1002,17 +1124,28 @@ beforeAll(async () => {
   const undoToken = removal['undoToken'];
   if (typeof undoToken !== 'string') throw new Error('the deletion returned no undo token');
 
+  // A recurring rule of each user with a pending occurrence, written by SQL (plan §3.6). The one of
+  // B is two days old, so that confirming it only fails over what the request names.
+  const ruleA = await createRule(a.userId, { name: `Regla A ${marker}` });
+  const occurrenceA = await createOccurrence(a.userId, ruleA.id);
+  const ruleB = await createRule(b.userId, { name: `Regla B ${markers.B}` });
+  const occurrenceB = await createOccurrence(b.userId, ruleB.id, { scheduledDate: dayOffset(2) });
+
   theirs = {
     ...mine,
     ...(await budgetOf(a, mine.category)),
     notification: await notificationOf(a),
     undoToken,
     currency: CUSTOM_CODE,
+    rule: ruleA.id,
+    occurrence: occurrenceA.id,
     own: {
       account: own.account,
       category: own.category,
       transaction: own.transaction,
       goal: own.goal,
+      rule: ruleB.id,
+      occurrence: occurrenceB.id,
       debt: own.debt,
     },
   };
@@ -1028,6 +1161,8 @@ beforeAll(async () => {
     notification: uuidv7(),
     undoToken: uuidv7(),
     currency: UNKNOWN_CODE,
+    rule: uuidv7(),
+    occurrence: uuidv7(),
     own: theirs.own,
   };
 }, 180_000);
@@ -1035,6 +1170,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (originalRelease === undefined) delete process.env['RELEASE'];
   else process.env['RELEASE'] = originalRelease;
+  await deleteRecurringOf([a.userId, b.userId]);
   await testPrisma()
     .$executeRaw`DELETE FROM debt WHERE user_id = ANY(${[a.userId, b.userId]}::uuid[])`;
   await deleteBudgetsOf([a.userId, b.userId]);
@@ -1168,6 +1304,7 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
     { method: 'GET', path: '/api/shortcuts' },
     { method: 'GET', path: '/api/notifications' },
     { method: 'GET', path: '/api/goals' },
+    { method: 'GET', path: '/api/recurring' },
     { method: 'GET', path: '/api/debts' },
     { method: 'GET', path: '/api/debts', query: { view: 'person' } },
     { method: 'GET', path: '/api/budgets' },
@@ -1237,6 +1374,23 @@ describe('RNF-14 tras el barrido los recursos de A siguen intactos', () => {
 
     const currencies = await send({ method: 'GET', path: '/api/currencies' }, a.cookie);
     expect(currencies.text).toContain(`"code":"${CUSTOM_CODE}"`);
+  });
+
+  it('RNF-14 A sigue viendo su regla recurrente y su pendiente, sin cambios', async () => {
+    const overview = await send({ method: 'GET', path: '/api/recurring' }, a.cookie);
+    expect(overview.status).toBe(200);
+    expect(overview.text).toContain(theirs.rule);
+    expect(overview.text).toContain(`Regla A ${marker}`);
+    expect(overview.text).toContain(theirs.occurrence);
+    expect(overview.text).not.toContain('Cambiada por otro');
+
+    const rows = await testPrisma().$queryRaw<{ status: string }[]>`
+      SELECT status::text AS status FROM recurring_rule
+       WHERE id = ${theirs.rule}::uuid AND user_id = ${a.userId}::uuid
+         AND name = ${`Regla A ${marker}`}`;
+    expect(rows.map((r) => r.status)).toEqual(['active']);
+    expect(await occurrenceStatus(theirs.occurrence)).toBe('pending');
+    expect(await occurrenceStatus(theirs.own.occurrence)).toBe('pending');
   });
 
   it('RNF-14 la fila de A en la base de datos no cambió de dueño ni se borró', async () => {

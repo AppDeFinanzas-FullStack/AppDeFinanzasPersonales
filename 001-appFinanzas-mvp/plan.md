@@ -1379,7 +1379,7 @@ AccountsSummaryDto = { netWorth: { base, other }, breakdown: { liquid, savings, 
 | `POST /api/accounts/:id/adjust` | Bajo `FOR UPDATE`: delta = real − actual. Si es 0, `200 {created:false}` (EC-M4-08). Si no, `ledger_transaction(kind=adjustment, date=hoy)` + un asiento + `BalanceGuard`. | `NEGATIVE_BALANCE 422` · `EARMARK_CONFIRMATION_REQUIRED 409` |
 | `POST /api/accounts/:id/archive` | `UPDATE … WHERE status='active'`. Con saldo distinto de 0 sin confirmar, pide confirmación. Rechaza si tiene apartados o es dedicada (V1.1). Quita la cuenta por defecto y pausa sus reglas con aviso (V1.2). | `ARCHIVE_CONFIRMATION_REQUIRED 409 {balance}` · `ACCOUNT_HAS_EARMARKS 409 {goals}` · `ACCOUNT_DEDICATED 409` |
 | `POST /api/accounts/:id/restore` | `UPDATE … WHERE status='archived'`. | `NAME_TAKEN 409` · `CURRENCY_INACTIVE 422` |
-| `DELETE /api/accounts/:id` | Sin asientos (incluidos los que están dentro de la ventana de deshacer) y no dedicada. Limpieza de RF-M4-13. | `ACCOUNT_HAS_MOVEMENTS 409` · `ACCOUNT_DEDICATED 409` |
+| `DELETE /api/accounts/:id` | Sin asientos (incluidos los que están dentro de la ventana de deshacer), no dedicada y sin regla recurrente que la use (`recurring_rule.account_id` es `RESTRICT`). Limpieza de RF-M4-13. | `ACCOUNT_HAS_MOVEMENTS 409` · `ACCOUNT_DEDICATED 409` · `ACCOUNT_IN_USE 409 {recurring}` |
 | `GET /api/accounts/:id/balance-series?from&to` | Saldo inicial + suma acumulada (`SUM … OVER (ORDER BY date)`) por día del rango. | — |
 
 #### 4.4.3 Ciclo de vida y concurrencia

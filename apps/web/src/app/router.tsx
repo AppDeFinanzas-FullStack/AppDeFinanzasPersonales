@@ -59,6 +59,7 @@ const fx = () => import('@/features/fx/routes');
 const profile = () => import('@/features/profile/routes');
 const settings = () => import('@/features/settings/routes');
 const goals = () => import('@/features/goals/routes');
+const recurring = () => import('@/features/recurring/routes');
 const debts = () => import('@/features/debts/routes');
 const budgets = () => import('@/features/budgets/routes');
 
@@ -124,6 +125,11 @@ const goalsRoutes: RouteObject[] = [
   { path: 'metas/:id', ...screen(goals, 'GoalDetailPage') },
 ];
 
+/** Private route of the recurring rules (plan §4.14.4). */
+const recurringRoutes: RouteObject[] = [
+  { path: 'recurrentes', ...screen(recurring, 'RecurringPage') },
+];
+
 /** Private routes of the debts and loans (plan §4.13.4). */
 const debtsRoutes: RouteObject[] = [
   { path: 'deudas', ...screen(debts, 'DebtsPage') },
@@ -180,6 +186,7 @@ export const router = createBrowserRouter([
                   ...fxRoutes,
                   ...budgetsRoutes,
                   ...goalsRoutes,
+                  ...recurringRoutes,
                   ...debtsRoutes,
                   ...profileRoutes,
                   ...settingsRoutes,
