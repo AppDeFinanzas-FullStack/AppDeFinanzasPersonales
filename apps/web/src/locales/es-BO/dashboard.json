@@ -26,6 +26,16 @@
     "current": "Este mes",
     "previous": "Mes anterior"
   },
+  "upcoming": {
+    "title": "Próximos pagos y deudas",
+    "empty": "No tienes vencimientos en los próximos 7 días.",
+    "kind": {
+      "debt_i_owe": "Debes pagar",
+      "debt_owed_to_me": "Te deben pagar",
+      "card_cut": "Corte de tarjeta",
+      "card_payment": "Pago de tarjeta"
+    }
+  },
   "balances": {
     "title": "Saldos por cuenta",
     "asOfToday": "Saldos al día de hoy",

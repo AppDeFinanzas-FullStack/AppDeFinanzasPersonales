@@ -3559,7 +3559,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M8-08`: en el mes actual se ve un presupuesto activo; en un mes pasado, el período que cerró en él.
     - Con `RELEASE=1.0`, el bloque no viene en la respuesta.
 
-- [ ] **`TASK-220`: Inicio: bloque "Próximos pagos y deudas"**
+- [x] **`TASK-220`: Inicio: bloque "Próximos pagos y deudas"**
   - **Dependencias:** Requiere TASK-219, TASK-216
   - **Trazabilidad SDD:** plan §4.8.1 (`upcoming`); RF-M8-09, RF-M4-08
   - **Archivos en Alcance:**
