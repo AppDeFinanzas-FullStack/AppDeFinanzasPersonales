@@ -9,8 +9,8 @@ const instant = (column: string): Prisma.Sql =>
   Prisma.raw(`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`);
 
 /**
- * Prisma implementation over the V1.0 and V1.1 tables, always filtered by the user of the transaction
- * (RN-09). Every column is read as text, so decimals keep their exact value (ADR-03).
+ * Prisma implementation over the V1.0, V1.1 and V1.2 tables, always filtered by the user of the
+ * transaction (RN-09). Every column is read as text, so decimals keep their exact value (ADR-03).
  */
 export function createExportRepository(
   tx: TransactionClient,
@@ -437,6 +437,74 @@ export function createExportRepository(
             FROM notification n
            WHERE n.user_id = ${userId}::uuid
            ORDER BY n.created_at, n.id`,
+      );
+    },
+    recurringRules() {
+      return table(
+        [
+          'id',
+          'name',
+          'kind',
+          'amount',
+          'account_id',
+          'dest_account_id',
+          'category_id',
+          'note',
+          'frequency',
+          'weekday',
+          'day_of_month',
+          'month',
+          'start_date',
+          'end_type',
+          'end_date',
+          'end_count',
+          'mode',
+          'status',
+          'paused_at',
+          'generated_count',
+          'last_generated_date',
+          'created_at',
+          'updated_at',
+        ],
+        Prisma.sql`
+          SELECT r.id::text AS id, r.name, r.kind::text AS kind, r.amount::text AS amount,
+                 r.account_id::text AS account_id, r.dest_account_id::text AS dest_account_id,
+                 r.category_id::text AS category_id, r.note, r.frequency::text AS frequency,
+                 r.weekday::text AS weekday, r.day_of_month::text AS day_of_month,
+                 r.month::text AS month, r.start_date::text AS start_date,
+                 r.end_type::text AS end_type, r.end_date::text AS end_date,
+                 r.end_count::text AS end_count, r.mode::text AS mode, r.status::text AS status,
+                 ${instant('r.paused_at')} AS paused_at,
+                 r.generated_count::text AS generated_count,
+                 r.last_generated_date::text AS last_generated_date,
+                 ${instant('r.created_at')} AS created_at,
+                 ${instant('r.updated_at')} AS updated_at
+            FROM recurring_rule r
+           WHERE r.user_id = ${userId}::uuid
+           ORDER BY r.created_at, r.id`,
+      );
+    },
+
+    recurringOccurrences() {
+      return table(
+        [
+          'id',
+          'rule_id',
+          'scheduled_date',
+          'status',
+          'transaction_id',
+          'pending_since',
+          'decided_at',
+        ],
+        Prisma.sql`
+          SELECT o.id::text AS id, o.rule_id::text AS rule_id,
+                 o.scheduled_date::text AS scheduled_date, o.status::text AS status,
+                 o.transaction_id::text AS transaction_id,
+                 ${instant('o.pending_since')} AS pending_since,
+                 ${instant('o.decided_at')} AS decided_at
+            FROM recurring_occurrence o
+           WHERE o.user_id = ${userId}::uuid
+           ORDER BY o.rule_id, o.scheduled_date, o.id`,
       );
     },
   };

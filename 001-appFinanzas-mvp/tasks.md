@@ -3894,7 +3894,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Escenario "Decisión visible con el aviso desactivado" (E2E): con el tipo desactivado, el pendiente no llega a la bandeja pero sí aparece en Recurrentes.
     - `RNF-06`: los controles se manejan con el teclado y sin violaciones de axe.
 
-- [ ] **`TASK-242`: Exportadores de V1.2**
+- [x] **`TASK-242`: Exportadores de V1.2**
   - **Dependencias:** Requiere TASK-221, TASK-231
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
   - **Archivos en Alcance:**
