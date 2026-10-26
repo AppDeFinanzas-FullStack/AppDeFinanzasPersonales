@@ -3825,7 +3825,12 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/services/notifications.service.ts`
     - `apps/api/src/presentation/routes/notifications.routes.ts`
     - `apps/api/src/presentation/controllers/notifications.controller.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/notification-preference.repository.ts`
     - `apps/api/test/http/notification-preferences.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** `GET` y `PATCH /api/notification-preferences`, disponibles solo con `RELEASE` = 1.2. La hora, la anticipación y los días de la semana se aceptan solo en los tipos que los usan.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M15-07`: con `RELEASE=1.1`, la configuración da `RELEASE_NOT_AVAILABLE`.
