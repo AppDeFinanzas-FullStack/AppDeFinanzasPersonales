@@ -1,8 +1,14 @@
-import type { Release } from '@finanzas/contracts';
+import { isReleased, type Release } from '@finanzas/contracts';
 import { Decimal } from 'decimal.js';
 
+import { clampDay, nextDates } from '../../domain/index.js';
 import type { Clock, LocalDate } from '../ports/clock.js';
-import type { DebtRow, Repositories } from '../ports/repositories.js';
+import type {
+  AccountRow,
+  DebtRow,
+  RecurringRuleRow,
+  Repositories,
+} from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import {
   createNotificationEmitter,
@@ -102,11 +108,102 @@ async function emitDebtNotices(
   }
 }
 
+/** Days before its date a recurring payment is announced when the user set none (RF-M15-02). */
+const DEFAULT_LEAD_DAYS = 1;
+
+/** Days before the pay day of a card its notice arrives (RF-M15-02). */
+const CARD_PAY_LEAD_DAYS = 3;
+
+/** The date `days` calendar days after `date`, both `YYYY-MM-DD`. */
+const addDays = (date: LocalDate, days: number): LocalDate =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+
+/** `true` when that day of the month falls on the date; a missing day is the last one (RF-M4-08). */
+function isMonthDay(date: LocalDate, day: number | null): boolean {
+  if (day === null) return false;
+  const [year, month, dayOfMonth] = date.split('-').map(Number) as [number, number, number];
+  return clampDay(year, month, day) === dayOfMonth;
+}
+
+/** Recurring payments: expenses and transfers, weekly or longer, never daily (RF-M15-02). */
+const isUpcomingPayment = (rule: RecurringRuleRow): boolean =>
+  rule.status === 'active' && rule.kind !== 'income' && rule.frequency.type !== 'daily';
+
+async function leadDaysOf(repos: Repositories, userId: string): Promise<number> {
+  const preferences = await repos.notificationPreferences.list(userId);
+  const preference = preferences.find((candidate) => candidate.type === 'payment_upcoming');
+  return preference?.leadDays ?? DEFAULT_LEAD_DAYS;
+}
+
+async function emitRecurringNotices(
+  repos: Repositories,
+  emitter: NotificationEmitter,
+  userId: string,
+  today: LocalDate,
+): Promise<void> {
+  const rules = (await repos.recurringRules.list()).filter(isUpcomingPayment);
+  if (rules.length === 0) return;
+  const leadDays = await leadDaysOf(repos, userId);
+  const date = addDays(today, leadDays);
+  for (const rule of rules) {
+    if (nextDates(rule, date, 1)[0] !== date) continue;
+    const account = await repos.accounts.get(rule.accountId);
+    await emitter.emit(repos, userId, {
+      type: 'payment_upcoming',
+      eventKey: `recurring:${rule.id}:${date}`,
+      params: {
+        ruleId: rule.id,
+        name: rule.name,
+        kind: rule.kind,
+        // `null` is "monto por definir" (RF-M15-02).
+        amount: rule.amount === null ? null : rule.amount.toFixed(2),
+        currencyCode: account?.currencyCode ?? null,
+        date,
+        daysLeft: leadDays,
+      },
+      targetRoute: '/recurrentes',
+    });
+  }
+}
+
+const cardNotice = (card: AccountRow, kind: 'cut' | 'pay', date: LocalDate, daysLeft: number) => ({
+  type: 'payment_upcoming' as const,
+  eventKey: `card:${card.id}:${kind}:${date}`,
+  params: {
+    accountId: card.id,
+    name: card.name,
+    kind,
+    currencyCode: card.currencyCode,
+    date,
+    daysLeft,
+  },
+  targetRoute: `/cuentas/${card.id}`,
+});
+
+async function emitCardNotices(
+  repos: Repositories,
+  emitter: NotificationEmitter,
+  userId: string,
+  today: LocalDate,
+): Promise<void> {
+  const payDate = addDays(today, CARD_PAY_LEAD_DAYS);
+  for (const card of await repos.accounts.list('active')) {
+    if (card.type !== 'credit_card') continue;
+    if (isMonthDay(today, card.cardCutDay)) {
+      await emitter.emit(repos, userId, cardNotice(card, 'cut', today, 0));
+    }
+    if (isMonthDay(payDate, card.cardPayDay)) {
+      await emitter.emit(repos, userId, cardNotice(card, 'pay', payDate, CARD_PAY_LEAD_DAYS));
+    }
+  }
+}
+
 /**
  * The `notifications.scheduled` job (plan §4.15.3): for each user whose local time already passed
  * 08:00 (RF-M15-09), it creates today's due notices of their active debts in both directions
- * (RF-M13-14). Only today is evaluated, and each notice has a dated `event_key`, so running it
- * again creates nothing new (RNF-12).
+ * (RF-M13-14) and, from the V1.2, the upcoming payments of their recurring rules and the cut and pay
+ * days of their cards (RF-M15-02, RF-M4-08). Only today is evaluated, and each notice has a dated
+ * `event_key`, so running it again creates nothing new (RNF-12, RF-M15-10, EC-M15-02).
  */
 export function createScheduledNotifications({
   uow,
@@ -115,13 +212,21 @@ export function createScheduledNotifications({
   users,
 }: ScheduledNotificationsDeps): ScheduledNotifications {
   const emitter = createNotificationEmitter({ release });
+  // Recurring rules and card days notify from the V1.2, the release of M14 (RF-M4-08).
+  const fullReminders = isReleased('M14', release);
 
   const generate = async (user: ScheduledUser): Promise<void> => {
     if (localMinutes(clock.now(), user.timezone) < SCHEDULED_MINUTES) return;
     const today = clock.todayFor(user.timezone);
-    await uow.run((repos) => emitDebtNotices(repos, emitter, user.id, today), {
-      userLock: user.id,
-    });
+    await uow.run(
+      async (repos) => {
+        await emitDebtNotices(repos, emitter, user.id, today);
+        if (!fullReminders) return;
+        await emitRecurringNotices(repos, emitter, user.id, today);
+        await emitCardNotices(repos, emitter, user.id, today);
+      },
+      { userLock: user.id },
+    );
   };
 
   return {

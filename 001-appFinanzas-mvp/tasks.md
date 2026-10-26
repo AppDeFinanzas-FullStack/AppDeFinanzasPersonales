@@ -3836,7 +3836,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-07`: con `RELEASE=1.1`, la configuración da `RELEASE_NOT_AVAILABLE`.
     - Escenario "Decisión visible con el aviso desactivado" (`RF-M15-03`): con `recurring_pending` desactivado, un pendiente no crea ningún aviso, pero sí aparece en `/api/recurring`.
 
-- [ ] **`TASK-238`: Avisos programados de pagos próximos (recurrentes y tarjetas)**
+- [x] **`TASK-238`: Avisos programados de pagos próximos (recurrentes y tarjetas)**
   - **Dependencias:** Requiere TASK-215, TASK-237
   - **Trazabilidad SDD:** plan §4.15.1 (valores por defecto), plan §4.15.3 (generación programada); RF-M15-02, RF-M15-09, RF-M15-10, EC-M15-02, RF-M4-08
   - **Archivos en Alcance:**
