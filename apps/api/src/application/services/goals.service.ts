@@ -25,6 +25,7 @@ import type {
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import type { GoalMilestones } from '../shared/goal-milestones.js';
 import { assertLimit } from '../shared/limits.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
@@ -62,6 +63,8 @@ export interface GoalsService {
 export interface GoalsServiceDeps {
   uow: UnitOfWork;
   rates: Pick<RatesService, 'currentRateFor'>;
+  /** Evaluates the milestones after each earmark event (plan §4.12.3); absent before the V1.2. */
+  milestones?: Pick<GoalMilestones, 'evaluate'>;
 }
 
 /** What is stored for one goal at the moment of reading it. */
@@ -169,7 +172,7 @@ async function snapshotOf(
   return { goal, dedicated, earmarks, history };
 }
 
-export function createGoalsService({ uow, rates }: GoalsServiceDeps): GoalsService {
+export function createGoalsService({ uow, rates, milestones }: GoalsServiceDeps): GoalsService {
   /** Goal DTOs from the snapshots; rates are read after the transaction (RN-05). */
   const toDtos = async (ctx: GoalsContext, snapshots: GoalSnapshot[]): Promise<GoalDto[]> => {
     const codes = new Set<string>();
@@ -391,6 +394,7 @@ export function createGoalsService({ uow, rates }: GoalsServiceDeps): GoalsServi
             origin: 'manual',
             relatedTransactionId: null,
           });
+          await milestones?.evaluate(repos, ctx, goalId);
           return snapshotOf(repos, goal, false);
         },
         { userLock: ctx.userId },
@@ -425,6 +429,7 @@ export function createGoalsService({ uow, rates }: GoalsServiceDeps): GoalsServi
             origin: 'manual',
             relatedTransactionId: null,
           });
+          await milestones?.evaluate(repos, ctx, goalId);
           return snapshotOf(repos, goal, false);
         },
         { userLock: ctx.userId },

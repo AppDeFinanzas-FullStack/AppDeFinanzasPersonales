@@ -1,5 +1,6 @@
 import { isReleased, type Release } from '@finanzas/contracts';
 import { Decimal } from 'decimal.js';
+import { uuidv7 } from 'uuidv7';
 
 import { clampDay, nextDates } from '../../domain/index.js';
 import type { Clock, LocalDate } from '../ports/clock.js';
@@ -10,6 +11,8 @@ import type {
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import { createRatesService } from '../services/rates.service.js';
+import { emitMonthlyGoalNotices, type GoalRatesReader } from '../shared/goal-milestones.js';
 import {
   createNotificationEmitter,
   type NotificationEmitter,
@@ -33,6 +36,8 @@ export interface ScheduledNotificationsDeps {
   clock: Clock;
   release: Release;
   users: ScheduledUsers;
+  /** The rates of the monthly goal notice; read from the unit of work when absent. */
+  rates?: GoalRatesReader;
 }
 
 /** The batch run of the tick and its per-user scope for `catchUpUser` (ADR-01). */
@@ -237,7 +242,8 @@ async function emitLogDayNotice(
  * The `notifications.scheduled` job (plan §4.15.3): for each user whose local time already passed
  * 08:00 (RF-M15-09), it creates today's due notices of their active debts in both directions
  * (RF-M13-14) and, from the V1.2, the upcoming payments of their recurring rules and the cut and pay
- * days of their cards (RF-M15-02, RF-M4-08); also from the V1.2, the "Registrar el día" notice at
+ * days of their cards (RF-M15-02, RF-M4-08) and, on day 1, the monthly notice of the goals whose
+ * contribution fell short; also from the V1.2, the "Registrar el día" notice at
  * its own hour and weekdays (EC-M15-03). Only today is evaluated, and each notice has a dated
  * `event_key`, so running it again creates nothing new (RNF-12, RF-M15-10, EC-M15-02).
  */
@@ -246,6 +252,7 @@ export function createScheduledNotifications({
   clock,
   release,
   users,
+  rates = createRatesService({ uow }),
 }: ScheduledNotificationsDeps): ScheduledNotifications {
   const emitter = createNotificationEmitter({ release });
   // Recurring rules and card days notify from the V1.2, the release of M14 (RF-M4-08).
@@ -264,6 +271,8 @@ export function createScheduledNotifications({
           if (fullReminders) {
             await emitRecurringNotices(repos, emitter, user.id, today);
             await emitCardNotices(repos, emitter, user.id, today);
+            const ctx = { userId: user.id, timezone: user.timezone, now: clock.now(), traceId: uuidv7() };
+            await emitMonthlyGoalNotices(repos, emitter, rates, ctx, today);
           }
         }
         if (fullReminders) {

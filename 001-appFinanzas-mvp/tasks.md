@@ -3860,7 +3860,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M15-03`: el aviso se genera aunque haya movimientos ese día.
     - `RF-M15-02`: en un día no elegido no se genera.
 
-- [ ] **`TASK-240`: Avisos de avance de metas**
+- [x] **`TASK-240`: Avisos de avance de metas**
   - **Dependencias:** Requiere TASK-187, TASK-237
   - **Trazabilidad SDD:** plan §4.12.3 (hitos), plan §4.15.1; RF-M15-02, RF-M15-04, RF-M12-01, RNF-12
   - **Archivos en Alcance:**
