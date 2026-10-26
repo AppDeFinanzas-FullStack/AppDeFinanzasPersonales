@@ -3884,6 +3884,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/settings/components/preferences-list.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `apps/web/src/features/settings/components/settings-hub.tsx`
+    - `apps/web/src/features/settings/api.ts`
+    - `apps/web/src/features/settings/hooks/use-notification-preferences.ts`
+    - `apps/web/src/app/router.tsx`
     - `e2e/m15-preferences.spec.ts`
   - **Especificación de Implementación:** `PreferencesList` con un interruptor por tipo y, según el tipo, la hora, la anticipación de 0 a 7 días y los días de la semana. Se guarda al instante. Con `RELEASE` < 1.2, la sección no aparece.
   - **Criterios de Verificación (Tests & DoD):**
