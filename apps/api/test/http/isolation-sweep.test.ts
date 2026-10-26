@@ -144,6 +144,8 @@ const COVERAGE: Record<string, Coverage> = {
   'GET /api/notifications': 'session',
   'GET /api/notifications/unread-count': 'session',
   'POST /api/notifications/read-all': 'session',
+  'GET /api/notification-preferences': 'session',
+  'PATCH /api/notification-preferences': 'session',
   'GET /api/transactions/summary': 'session',
 
   // Private, the request can name a resource.
@@ -800,6 +802,7 @@ const MOUNTS = [
   '/api/transactions',
   '/api/onboarding',
   '/api/notifications',
+  '/api/notification-preferences',
   '/api/goals',
   '/api/recurring',
   '/api/debts',
@@ -1303,6 +1306,7 @@ describe('RNF-14 las listas del usuario B no traen datos de A', () => {
     { method: 'GET', path: '/api/transactions' },
     { method: 'GET', path: '/api/shortcuts' },
     { method: 'GET', path: '/api/notifications' },
+    { method: 'GET', path: '/api/notification-preferences' },
     { method: 'GET', path: '/api/goals' },
     { method: 'GET', path: '/api/recurring' },
     { method: 'GET', path: '/api/debts' },

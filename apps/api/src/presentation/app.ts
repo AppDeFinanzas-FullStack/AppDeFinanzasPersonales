@@ -30,7 +30,9 @@ import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
 import { onboardingRouter, type OnboardingRoutesDeps } from './routes/onboarding.routes.js';
 import {
+  notificationPreferencesRouter,
   notificationsRouter,
+  type NotificationPreferencesRoutesDeps,
   type NotificationsRoutesDeps,
 } from './routes/notifications.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
@@ -81,6 +83,8 @@ export interface AppDeps {
   onboarding?: OnboardingRoutesDeps;
   /** The routes `/api/notifications` (plan §4.15.2). */
   notifications?: NotificationsRoutesDeps;
+  /** The routes `/api/notification-preferences` (plan §4.15.2). */
+  notificationPreferences?: NotificationPreferencesRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -175,6 +179,12 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.notifications !== undefined) {
     app.use('/api/notifications', notificationsRouter(deps.notifications));
+  }
+  if (deps.notificationPreferences !== undefined) {
+    app.use(
+      '/api/notification-preferences',
+      notificationPreferencesRouter(deps.notificationPreferences),
+    );
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

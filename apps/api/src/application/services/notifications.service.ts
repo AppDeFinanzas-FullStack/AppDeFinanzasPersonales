@@ -1,5 +1,11 @@
 import { AppError } from '../errors.js';
-import type { NotificationDecisionKind, NotificationType } from '../ports/repositories.js';
+import type {
+  NotificationDecisionKind,
+  NotificationPreferenceChange,
+  NotificationPreferenceData,
+  NotificationType,
+} from '../ports/repositories.js';
+import type { UnitOfWork } from '../ports/unit-of-work.js';
 
 /** A notification of the inbox, as stored (plan §3.7). */
 export interface NotificationRecord {
@@ -131,6 +137,74 @@ export function createNotificationsService({
       if (!(await store.remove(userId, id))) {
         throw new AppError('NOT_FOUND');
       }
+    },
+  };
+}
+
+export interface NotificationPreferencesService {
+  /** The user's preferences, one per type (plan §4.15.2). */
+  list(userId: string): Promise<NotificationPreferenceData[]>;
+  /** Changes only the given types; the others stay as they are (RF-M15-03). */
+  update(userId: string, changes: NotificationPreferenceChange[]): Promise<void>;
+}
+
+type PreferenceSetting = 'hour' | 'leadDays' | 'weekdays';
+
+/**
+ * The settings each type uses (RF-M15-02, RF-M15-09): `log_day` goes out at its hour on its
+ * weekdays, `payment_upcoming` is the one that goes out days before, and the others take none.
+ */
+const SETTINGS_OF: Record<NotificationType, readonly PreferenceSetting[]> = {
+  payment_upcoming: ['leadDays'],
+  budget_alert: [],
+  period_close: [],
+  recurring_pending: [],
+  log_day: ['hour', 'weekdays'],
+  goal_progress: [],
+};
+
+const SETTINGS: readonly PreferenceSetting[] = ['hour', 'leadDays', 'weekdays'];
+
+function assertChanges(changes: NotificationPreferenceChange[]): void {
+  const issues: { path: string; code: string }[] = [];
+  const seen = new Set<NotificationType>();
+  changes.forEach((change, index) => {
+    if (seen.has(change.type)) {
+      issues.push({ path: `${index}.type`, code: 'duplicate_type' });
+    }
+    seen.add(change.type);
+    for (const setting of SETTINGS) {
+      if (change[setting] !== undefined && !SETTINGS_OF[change.type].includes(setting)) {
+        issues.push({ path: `${index}.${setting}`, code: 'not_used_by_type' });
+      }
+    }
+  });
+  if (issues.length > 0) {
+    throw new AppError('VALIDATION_ERROR', { issues });
+  }
+}
+
+/** `/api/notification-preferences` (plan §4.15.2), always bound to the user of the session. */
+export function createNotificationPreferencesService({
+  uow,
+}: {
+  uow: UnitOfWork;
+}): NotificationPreferencesService {
+  return {
+    list(userId) {
+      return uow.run((repos) => repos.notificationPreferences.list(userId), { readOnly: true });
+    },
+
+    async update(userId, changes) {
+      assertChanges(changes);
+      await uow.run(
+        async (repos) => {
+          for (const change of changes) {
+            await repos.notificationPreferences.update(userId, change);
+          }
+        },
+        { userLock: userId },
+      );
     },
   };
 }

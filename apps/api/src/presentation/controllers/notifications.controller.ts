@@ -1,9 +1,13 @@
-import { NotificationsQuery, Uuid } from '@finanzas/contracts';
+import { NotificationsQuery, type PreferencesInput, Uuid } from '@finanzas/contracts';
 import type { Request, RequestHandler } from 'express';
 import { z } from 'zod';
 
 import { AppError } from '../../application/errors.js';
-import type { NotificationsService } from '../../application/services/notifications.service.js';
+import type { NotificationPreferenceData } from '../../application/ports/repositories.js';
+import type {
+  NotificationPreferencesService,
+  NotificationsService,
+} from '../../application/services/notifications.service.js';
 import { NotificationsPresenter } from '../presenters/notifications.presenter.js';
 
 export interface NotificationsControllerDeps {
@@ -83,6 +87,43 @@ export function createNotificationsController({
     async remove(req, res) {
       await notificationsService.remove(userOf(req), idOf(req));
       res.status(204).end();
+    },
+  };
+}
+
+export interface NotificationPreferencesControllerDeps {
+  notificationPreferencesService: NotificationPreferencesService;
+}
+
+export interface NotificationPreferencesController {
+  list: RequestHandler;
+  update: RequestHandler;
+}
+
+/** A preference with the shape of `PreferenceInput` (plan §4.15.1): an unset setting is absent. */
+const preferenceDto = (preference: NotificationPreferenceData): PreferencesInput[number] => ({
+  type: preference.type,
+  enabled: preference.enabled,
+  ...(preference.hour === null ? {} : { hour: preference.hour }),
+  ...(preference.leadDays === null ? {} : { leadDays: preference.leadDays }),
+  ...(preference.weekdays === null ? {} : { weekdays: preference.weekdays }),
+});
+
+/** Handlers of `/api/notification-preferences` (plan §4.15.2); the user comes from the session. */
+export function createNotificationPreferencesController({
+  notificationPreferencesService,
+}: NotificationPreferencesControllerDeps): NotificationPreferencesController {
+  return {
+    async list(req, res) {
+      const preferences = await notificationPreferencesService.list(userOf(req));
+      res.status(200).json(preferences.map(preferenceDto));
+    },
+
+    async update(req, res) {
+      const userId = userOf(req);
+      await notificationPreferencesService.update(userId, req.body as PreferencesInput);
+      const preferences = await notificationPreferencesService.list(userId);
+      res.status(200).json(preferences.map(preferenceDto));
     },
   };
 }

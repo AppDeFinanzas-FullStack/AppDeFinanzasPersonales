@@ -74,7 +74,9 @@ import {
   type RegisterUsageReader,
 } from '../application/services/register.service.js';
 import {
+  createNotificationPreferencesService,
   createNotificationsService,
+  type NotificationPreferencesService,
   type NotificationRecord,
   type NotificationsService,
   type NotificationsStore,
@@ -214,6 +216,8 @@ export interface Container {
   readonly onboardingService: OnboardingService;
   /** The inbox of `/api/notifications` (plan §4.15.2). */
   readonly notificationsService: NotificationsService;
+  /** The configuration of `/api/notification-preferences` (plan §4.15.2). */
+  readonly notificationPreferencesService: NotificationPreferencesService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -877,6 +881,7 @@ export const buildContainer = (env: Env): Container => {
     notificationsService: createNotificationsService({
       store: createNotificationsStore(prisma),
     }),
+    notificationPreferencesService: createNotificationPreferencesService({ uow }),
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -952,6 +957,10 @@ export const createApp = (container: Container): Express => {
     },
     debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
+    notificationPreferences: {
+      notificationPreferencesService: container.notificationPreferencesService,
+      session,
+    },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
     onboarding: {

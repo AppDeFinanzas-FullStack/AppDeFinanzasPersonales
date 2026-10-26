@@ -3818,7 +3818,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 24 — M15 Recordatorios y avisos completos (V1.2)
 
-- [ ] **`TASK-237`: Preferencias de avisos**
+- [x] **`TASK-237`: Preferencias de avisos**
   - **Dependencias:** Requiere TASK-177, TASK-226
   - **Trazabilidad SDD:** plan §4.15.2 (`/api/notification-preferences`), plan §4.15.3; RF-M15-03, RF-M15-07
   - **Archivos en Alcance:**
