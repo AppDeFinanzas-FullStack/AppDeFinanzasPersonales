@@ -198,11 +198,47 @@ async function emitCardNotices(
   }
 }
 
+/** Local hour of the `log_day` notice when the user set none (RF-M15-02). */
+const DEFAULT_LOG_DAY_HOUR = 21;
+
+/** Every weekday, 0 = Sunday: the `log_day` days when the user set none (RF-M15-02). */
+const EVERY_WEEKDAY = [0, 1, 2, 3, 4, 5, 6];
+
+/** Weekday of the date, 0 = Sunday. */
+const weekdayOf = (date: LocalDate): number => new Date(`${date}T00:00:00Z`).getUTCDay();
+
+/**
+ * The "Registrar el día" notice: with the type active, from its hour and on its weekdays, one per
+ * local day, even if the user already registered movements that day (RF-M15-02, EC-M15-03).
+ */
+async function emitLogDayNotice(
+  repos: Repositories,
+  emitter: NotificationEmitter,
+  userId: string,
+  today: LocalDate,
+  minutes: number,
+): Promise<void> {
+  const preferences = await repos.notificationPreferences.list(userId);
+  const preference = preferences.find((candidate) => candidate.type === 'log_day');
+  if (preference === undefined || !preference.enabled) return;
+  const hour = preference.hour ?? DEFAULT_LOG_DAY_HOUR;
+  if (minutes < hour * 60) return;
+  const weekdays = preference.weekdays ?? EVERY_WEEKDAY;
+  if (!weekdays.includes(weekdayOf(today))) return;
+  await emitter.emit(repos, userId, {
+    type: 'log_day',
+    eventKey: `log_day:${today}`,
+    params: { date: today },
+    targetRoute: '/registrar',
+  });
+}
+
 /**
  * The `notifications.scheduled` job (plan §4.15.3): for each user whose local time already passed
  * 08:00 (RF-M15-09), it creates today's due notices of their active debts in both directions
  * (RF-M13-14) and, from the V1.2, the upcoming payments of their recurring rules and the cut and pay
- * days of their cards (RF-M15-02, RF-M4-08). Only today is evaluated, and each notice has a dated
+ * days of their cards (RF-M15-02, RF-M4-08); also from the V1.2, the "Registrar el día" notice at
+ * its own hour and weekdays (EC-M15-03). Only today is evaluated, and each notice has a dated
  * `event_key`, so running it again creates nothing new (RNF-12, RF-M15-10, EC-M15-02).
  */
 export function createScheduledNotifications({
@@ -216,14 +252,23 @@ export function createScheduledNotifications({
   const fullReminders = isReleased('M14', release);
 
   const generate = async (user: ScheduledUser): Promise<void> => {
-    if (localMinutes(clock.now(), user.timezone) < SCHEDULED_MINUTES) return;
+    const minutes = localMinutes(clock.now(), user.timezone);
+    const scheduledDue = minutes >= SCHEDULED_MINUTES;
+    // The `log_day` hour may come before 08:00, so with full reminders every tick is evaluated.
+    if (!scheduledDue && !fullReminders) return;
     const today = clock.todayFor(user.timezone);
     await uow.run(
       async (repos) => {
-        await emitDebtNotices(repos, emitter, user.id, today);
-        if (!fullReminders) return;
-        await emitRecurringNotices(repos, emitter, user.id, today);
-        await emitCardNotices(repos, emitter, user.id, today);
+        if (scheduledDue) {
+          await emitDebtNotices(repos, emitter, user.id, today);
+          if (fullReminders) {
+            await emitRecurringNotices(repos, emitter, user.id, today);
+            await emitCardNotices(repos, emitter, user.id, today);
+          }
+        }
+        if (fullReminders) {
+          await emitLogDayNotice(repos, emitter, user.id, today, minutes);
+        }
       },
       { userLock: user.id },
     );

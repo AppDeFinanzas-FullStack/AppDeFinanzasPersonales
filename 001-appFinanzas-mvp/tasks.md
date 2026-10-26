@@ -3849,7 +3849,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-10`: al reactivar el tipo, no se generan avisos de días pasados.
     - `RF-M4-08`: una tarjeta con corte el 31 en noviembre avisa el 30.
 
-- [ ] **`TASK-239`: Aviso "Registrar el día"**
+- [x] **`TASK-239`: Aviso "Registrar el día"**
   - **Dependencias:** Requiere TASK-237
   - **Trazabilidad SDD:** plan §4.15.3 (`log_day`); RF-M15-02, EC-M15-03
   - **Archivos en Alcance:**
