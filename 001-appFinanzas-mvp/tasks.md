@@ -3912,7 +3912,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §5.2 (criterios de aceptación → pruebas), plan §5.4 (definición de terminado, puntos 1 y 3)
   - **Archivos en Alcance:**
     - `e2e/gherkin-coverage.spec.ts`
-  - **Especificación de Implementación:** Lee los títulos de todos los escenarios Gherkin de `spec.md` y verifica que cada uno aparece en el nombre de al menos un test (E2E o del API). Además, verifica que cada RF y EC de la spec aparece en el nombre de algún test.
+    - `apps/api/test/integration/gherkin-accounts-categories.test.ts`
+    - `e2e/gherkin-accounts-categories.spec.ts`
+    - `e2e/gherkin-register.spec.ts`
+  - **Especificación de Implementación:** Lee los títulos de todos los escenarios Gherkin de `spec.md` y verifica que cada uno aparece en el nombre de al menos un test (E2E o del API). Además, verifica que cada RF y EC de la spec aparece en el nombre de algún test. Las Fases 7 a 12 se hicieron sin pruebas nuevas, así que quedaron 9 escenarios y 20 RF/EC de V1.0 sin test con su nombre; esta tarea los cubre con pruebas nuevas, sin tocar las existentes. Escenarios sin test: «Bloqueo sin conexión conserva el borrador», «La historia no se reescribe al cambiar la base», «Ajuste de saldo», «Fusionar duplicados», «Categoría del sistema protegida», «Borrador al cambiar de pestaña», «Atajo rellena sin guardar», «El borrador conserva su tipo» y «Deshacer después de guardar». RF/EC sin test: RF-M4-06, RF-M4-09, RF-M4-11, RF-M4-12, EC-M4-04, EC-M4-05, EC-M4-07, EC-M4-08, EC-M5-02, EC-M5-07, EC-M6-06, RF-M7-05, RF-M7-06 y EC-M7-01, EC-M7-02, EC-M7-04 a EC-M7-08. Cada prueba nueva lleva en su nombre el título del escenario o el ID, y verifica el comportamiento que ya existe.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-243`: los 53 escenarios Gherkin tienen su test, y la prueba lista los que falten.
     - `TASK-243`: cada RF y EC de `spec.md` aparece en el nombre de algún test.
