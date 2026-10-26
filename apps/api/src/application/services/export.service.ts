@@ -16,8 +16,9 @@ export interface ExportFile {
 export type ExportArchiver = (files: AsyncIterable<ExportFile>) => Readable;
 
 /**
- * The tables of the V1.1 modules that the export repository also reads, always filtered by the
- * user of the transaction (RN-09): budgets (M11), goals (M12), debts (M13) and notifications (M15).
+ * The tables of the V1.1 and V1.2 modules that the export repository also reads, always filtered by
+ * the user of the transaction (RN-09): budgets (M11), goals (M12), debts (M13), recurring rules
+ * (M14) and notifications (M15).
  */
 export interface ReleaseExportRepository extends ExportRepository {
   budgets(): Promise<ExportTable>;
@@ -29,6 +30,10 @@ export interface ReleaseExportRepository extends ExportRepository {
   debts(): Promise<ExportTable>;
   debtPayments(): Promise<ExportTable>;
   notifications(): Promise<ExportTable>;
+  /** Active, paused and finished rules (RF-M1-14). */
+  recurringRules(): Promise<ExportTable>;
+  /** Pending and decided occurrences of every rule. */
+  recurringOccurrences(): Promise<ExportTable>;
 }
 
 const isReleaseExportRepository = (repo: ExportRepository): repo is ReleaseExportRepository =>
@@ -38,9 +43,11 @@ const isReleaseExportRepository = (repo: ExportRepository): repo is ReleaseExpor
   'goalAllocations' in repo &&
   'debts' in repo &&
   'debtPayments' in repo &&
-  'notifications' in repo;
+  'notifications' in repo &&
+  'recurringRules' in repo &&
+  'recurringOccurrences' in repo;
 
-/** The repository with the V1.1 tables; a wiring without them is an internal fault. */
+/** The repository with the V1.1 and V1.2 tables; a wiring without them is an internal fault. */
 function releaseTables(repo: ExportRepository): ReleaseExportRepository {
   if (!isReleaseExportRepository(repo)) throw new AppError('INTERNAL_ERROR');
   return repo;
@@ -82,6 +89,16 @@ const EXPORTERS: readonly Exporter[] = [
   },
   { file: 'debts.csv', module: 'M13', read: (repo) => releaseTables(repo).debts() },
   { file: 'debt_payments.csv', module: 'M13', read: (repo) => releaseTables(repo).debtPayments() },
+  {
+    file: 'recurring_rules.csv',
+    module: 'M14',
+    read: (repo) => releaseTables(repo).recurringRules(),
+  },
+  {
+    file: 'recurring_occurrences.csv',
+    module: 'M14',
+    read: (repo) => releaseTables(repo).recurringOccurrences(),
+  },
   {
     file: 'notifications.csv',
     module: 'M15',

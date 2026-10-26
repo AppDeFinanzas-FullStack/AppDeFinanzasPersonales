@@ -16,6 +16,10 @@
     "dashboard": {
       "title": "Inicio",
       "description": "Orden y visibilidad de los bloques"
+    },
+    "reminders": {
+      "title": "Recordatorios",
+      "description": "Qué avisos recibes, con qué anticipación y a qué hora"
     }
   },
   "general": {
@@ -128,5 +132,57 @@
     "cancel": "Cancelar",
     "confirm": "Restablecer",
     "error": "No se pudieron restablecer los ajustes. Revisa tu conexión e inténtalo de nuevo."
+  },
+  "reminders": {
+    "autosave": "Los cambios se guardan solos. Desactivar un aviso no oculta lo que tienes pendiente en Recurrentes ni en tus presupuestos.",
+    "loadError": "No se pudieron cargar tus recordatorios. Revisa tu conexión y recarga la página.",
+    "saveError": "No se pudo guardar el cambio y volvió al valor anterior. Revisa tu conexión e inténtalo de nuevo.",
+    "types": {
+      "payment_upcoming": {
+        "title": "Pagos próximos",
+        "description": "Antes de un pago recurrente y de los días de corte y pago de tus tarjetas."
+      },
+      "budget_alert": {
+        "title": "Alertas de presupuesto",
+        "description": "Cuando un presupuesto llega a uno de sus umbrales."
+      },
+      "period_close": {
+        "title": "Cierre de período",
+        "description": "Cuando termina un período de presupuesto y falta decidir qué hacer con el resultado."
+      },
+      "recurring_pending": {
+        "title": "Pendientes de recurrentes",
+        "description": "Cuando un movimiento recurrente espera que lo confirmes."
+      },
+      "log_day": {
+        "title": "Registrar el día",
+        "description": "Un recordatorio para anotar tus movimientos del día."
+      },
+      "goal_progress": {
+        "title": "Avance de metas",
+        "description": "Cuando una meta alcanza un hito o el aporte del mes se queda corto."
+      }
+    },
+    "leadDays": {
+      "label": "Anticipación",
+      "sameDay": "El mismo día",
+      "option_one": "{{count}} día antes",
+      "option_other": "{{count}} días antes"
+    },
+    "hour": {
+      "label": "Hora del recordatorio"
+    },
+    "weekdays": {
+      "label": "Días de la semana",
+      "days": {
+        "0": "Domingo",
+        "1": "Lunes",
+        "2": "Martes",
+        "3": "Miércoles",
+        "4": "Jueves",
+        "5": "Viernes",
+        "6": "Sábado"
+      }
+    }
   }
 }

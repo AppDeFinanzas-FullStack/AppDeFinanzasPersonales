@@ -74,7 +74,9 @@ import {
   type RegisterUsageReader,
 } from '../application/services/register.service.js';
 import {
+  createNotificationPreferencesService,
   createNotificationsService,
+  type NotificationPreferencesService,
   type NotificationRecord,
   type NotificationsService,
   type NotificationsStore,
@@ -91,6 +93,11 @@ import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
 import { createBudgetLedgerHook } from '../application/shared/budget-ledger-hook.js';
+import {
+  createGoalMilestones,
+  type GoalNoticeUser,
+  type GoalNoticeUsers,
+} from '../application/shared/goal-milestones.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
 import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
 import {
@@ -214,6 +221,8 @@ export interface Container {
   readonly onboardingService: OnboardingService;
   /** The inbox of `/api/notifications` (plan §4.15.2). */
   readonly notificationsService: NotificationsService;
+  /** The configuration of `/api/notification-preferences` (plan §4.15.2). */
+  readonly notificationPreferencesService: NotificationPreferencesService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -517,6 +526,22 @@ const createScheduledUsers = (prisma: PrismaClient): ScheduledUsers => ({
   },
 });
 
+/**
+ * The users the hourly rates job evaluates goal milestones for: the ones with goal notices turned
+ * on and a goal that is not archived (plan §4.12.3).
+ */
+const createGoalNoticeUsers = (prisma: PrismaClient): GoalNoticeUsers => ({
+  withGoalNotices: () =>
+    prisma.$queryRaw<GoalNoticeUser[]>`
+      SELECT u.id::text AS id, u.timezone
+        FROM auth_user u
+       WHERE EXISTS (SELECT 1 FROM notification_preference p
+                      WHERE p.user_id = u.id AND p.type = 'goal_progress'::notification_type
+                        AND p.enabled)
+         AND EXISTS (SELECT 1 FROM goal g WHERE g.user_id = u.id AND g.archived_at IS NULL)
+       ORDER BY u.id`,
+});
+
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
   async findActivity(sessionId: string): Promise<SessionActivity | null> {
@@ -711,12 +736,24 @@ export const buildContainer = (env: Env): Container => {
   const jobRuns = createJobRuns(prisma);
   const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
   const rateSources = buildRateSources(env);
+  const ratesService = createRatesService({ uow });
+  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
+  const recurringUsers = createRecurringUsers(prisma);
+  const goalMilestones = createGoalMilestones({
+    uow,
+    rates: ratesService,
+    notifications: notificationEmitter,
+    timezones: recurringUsers,
+    users: createGoalNoticeUsers(prisma),
+    clock: systemClock,
+  });
   const fxJobs = createFxJobs({
     rates: rateSources.rates,
     bcb: rateSources.bcb,
     uow,
     jobRuns,
     clock: systemClock,
+    afterParallel: () => goalMilestones.afterRates(),
   });
   jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
   jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
@@ -729,11 +766,11 @@ export const buildContainer = (env: Env): Container => {
     clock: systemClock,
     release: env.RELEASE,
     users: createScheduledUsers(prisma),
+    rates: ratesService,
   });
   jobs.registerJob('notifications.scheduled', () => scheduledNotifications.run(), {
     forUser: (userId) => scheduledNotifications.forUser(userId),
   });
-  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
   const budgetsJobs = createBudgetsJobs({
     uow,
     clock: systemClock,
@@ -757,7 +794,6 @@ export const buildContainer = (env: Env): Container => {
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
   const settingsService = createSettingsService({ uow });
-  const ratesService = createRatesService({ uow });
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
@@ -767,7 +803,7 @@ export const buildContainer = (env: Env): Container => {
       ids: uuidv7Ids,
     }),
   );
-  const recurringUsers = createRecurringUsers(prisma);
+  ledgerHooks.register(goalMilestones.ledgerHook);
   const recurringGenerator = createRecurringGenerator({
     rates: ratesService,
     ledgerHooks,
@@ -854,8 +890,9 @@ export const buildContainer = (env: Env): Container => {
       rates: ratesService,
       notifications: notificationEmitter,
       ids: uuidv7Ids,
+      milestones: goalMilestones,
     }),
-    goalsService: createGoalsService({ uow, rates: ratesService }),
+    goalsService: createGoalsService({ uow, rates: ratesService, milestones: goalMilestones }),
     recurringService: createRecurringService({
       uow,
       generator: recurringGenerator,
@@ -877,6 +914,7 @@ export const buildContainer = (env: Env): Container => {
     notificationsService: createNotificationsService({
       store: createNotificationsStore(prisma),
     }),
+    notificationPreferencesService: createNotificationPreferencesService({ uow }),
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -952,6 +990,10 @@ export const createApp = (container: Container): Express => {
     },
     debts: { debtsService: container.debtsService, clock: container.clock, session },
     notifications: { notificationsService: container.notificationsService, session },
+    notificationPreferences: {
+      notificationPreferencesService: container.notificationPreferencesService,
+      session,
+    },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
     onboarding: {

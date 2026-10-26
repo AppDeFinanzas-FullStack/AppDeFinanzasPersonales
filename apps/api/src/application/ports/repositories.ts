@@ -355,6 +355,25 @@ export interface NotificationRepository {
 export interface NotificationPreferenceRepository {
   /** `true` when the user has that type turned on; `false` when it is off or has no row. */
   isEnabled(userId: string, type: NotificationType): Promise<boolean>;
+  /** Every preference of the user, one per type, in the order of the types. */
+  list(userId: string): Promise<NotificationPreferenceData[]>;
+  /**
+   * Turns the type on or off; `hour`, `leadDays` and `weekdays` change only when present, and the
+   * others stay as they are.
+   */
+  update(userId: string, change: NotificationPreferenceChange): Promise<void>;
+}
+
+/** A stored notification preference (plan §3.7). */
+export type NotificationPreferenceData = NewNotificationPreference;
+
+/** A change of one preference (`PreferenceInput`, plan §4.15.1). */
+export interface NotificationPreferenceChange {
+  type: NotificationType;
+  enabled: boolean;
+  hour?: number | undefined;
+  leadDays?: number | undefined;
+  weekdays?: number[] | undefined;
 }
 
 // ---------- Exportación de datos (M1) ----------

@@ -2,7 +2,11 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
-/** V1.0 sections of Ajustes; Recordatorios arrives with M15 in V1.2 (spec §2.9.1). */
+import { useMe } from '@/features/auth/hooks/use-me';
+
+import { preferencesReleased } from '../hooks/use-notification-preferences';
+
+/** V1.0 sections of Ajustes (spec §2.9.1). */
 const SECTIONS = [
   { key: 'general', path: '/ajustes/general' },
   { key: 'currencies', path: '/ajustes/monedas' },
@@ -10,14 +14,21 @@ const SECTIONS = [
   { key: 'dashboard', path: '/ajustes/inicio' },
 ] as const;
 
+/** Recordatorios arrives with the configuration of M15 in V1.2 (RF-M15-07). */
+const REMINDERS = { key: 'reminders', path: '/ajustes/recordatorios' } as const;
+
 /** `/ajustes`: the list of sections (plan §4.9.4). */
 export function SettingsHub() {
   const { t } = useTranslation('settings');
+  const me = useMe();
+  const release = me.data?.release;
+  const sections =
+    release !== undefined && preferencesReleased(release) ? [...SECTIONS, REMINDERS] : SECTIONS;
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t('title')}</h1>
       <ul className="divide-y divide-border border-y border-border">
-        {SECTIONS.map(({ key, path }) => (
+        {sections.map(({ key, path }) => (
           <li key={key}>
             <Link
               to={path}

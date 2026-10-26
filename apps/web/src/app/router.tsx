@@ -2,6 +2,9 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 
+import { useMe } from '@/features/auth/hooks/use-me';
+import { preferencesReleased } from '@/features/settings/hooks/use-notification-preferences';
+
 import { ReleaseGate, RequireOnboardingDone, RequireSession, warmUpSession } from './guards';
 import { AppShell } from './layout/app-shell';
 import { MoreMenu } from './layout/more-menu';
@@ -144,6 +147,13 @@ const profileRoutes: RouteObject[] = [
   { path: 'perfil/eliminar', ...screen(profile, 'DeleteAccountPage') },
 ];
 
+/** `/ajustes/recordatorios` exists only from the V1.2 on (RF-M15-07, plan §4.15.4). */
+function PreferencesGate() {
+  const me = useMe();
+  if (!me.data) return null;
+  return preferencesReleased(me.data.release) ? <Outlet /> : <NotFoundPage />;
+}
+
 /** Private routes of Ajustes (plan §4.9.4). */
 const settingsRoutes: RouteObject[] = [
   { path: 'ajustes', ...screen(settings, 'SettingsHub') },
@@ -151,6 +161,10 @@ const settingsRoutes: RouteObject[] = [
   { path: 'ajustes/monedas', ...screen(settings, 'CurrencySettings') },
   { path: 'ajustes/registrar', ...screen(settings, 'RegisterSettings') },
   { path: 'ajustes/inicio', ...screen(settings, 'BlocksOrderList') },
+  {
+    element: <PreferencesGate />,
+    children: [{ path: 'ajustes/recordatorios', ...screen(settings, 'PreferencesList') }],
+  },
 ];
 
 export const router = createBrowserRouter([

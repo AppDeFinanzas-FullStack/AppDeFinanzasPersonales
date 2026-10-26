@@ -3818,20 +3818,25 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 24 — M15 Recordatorios y avisos completos (V1.2)
 
-- [ ] **`TASK-237`: Preferencias de avisos**
+- [x] **`TASK-237`: Preferencias de avisos**
   - **Dependencias:** Requiere TASK-177, TASK-226
   - **Trazabilidad SDD:** plan §4.15.2 (`/api/notification-preferences`), plan §4.15.3; RF-M15-03, RF-M15-07
   - **Archivos en Alcance:**
     - `apps/api/src/application/services/notifications.service.ts`
     - `apps/api/src/presentation/routes/notifications.routes.ts`
     - `apps/api/src/presentation/controllers/notifications.controller.ts`
+    - `apps/api/src/presentation/app.ts`
+    - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/ports/repositories.ts`
+    - `apps/api/src/infrastructure/persistence/repositories/notification-preference.repository.ts`
     - `apps/api/test/http/notification-preferences.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
   - **Especificación de Implementación:** `GET` y `PATCH /api/notification-preferences`, disponibles solo con `RELEASE` = 1.2. La hora, la anticipación y los días de la semana se aceptan solo en los tipos que los usan.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M15-07`: con `RELEASE=1.1`, la configuración da `RELEASE_NOT_AVAILABLE`.
     - Escenario "Decisión visible con el aviso desactivado" (`RF-M15-03`): con `recurring_pending` desactivado, un pendiente no crea ningún aviso, pero sí aparece en `/api/recurring`.
 
-- [ ] **`TASK-238`: Avisos programados de pagos próximos (recurrentes y tarjetas)**
+- [x] **`TASK-238`: Avisos programados de pagos próximos (recurrentes y tarjetas)**
   - **Dependencias:** Requiere TASK-215, TASK-237
   - **Trazabilidad SDD:** plan §4.15.1 (valores por defecto), plan §4.15.3 (generación programada); RF-M15-02, RF-M15-09, RF-M15-10, EC-M15-02, RF-M4-08
   - **Archivos en Alcance:**
@@ -3844,7 +3849,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-10`: al reactivar el tipo, no se generan avisos de días pasados.
     - `RF-M4-08`: una tarjeta con corte el 31 en noviembre avisa el 30.
 
-- [ ] **`TASK-239`: Aviso "Registrar el día"**
+- [x] **`TASK-239`: Aviso "Registrar el día"**
   - **Dependencias:** Requiere TASK-237
   - **Trazabilidad SDD:** plan §4.15.3 (`log_day`); RF-M15-02, EC-M15-03
   - **Archivos en Alcance:**
@@ -3855,7 +3860,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M15-03`: el aviso se genera aunque haya movimientos ese día.
     - `RF-M15-02`: en un día no elegido no se genera.
 
-- [ ] **`TASK-240`: Avisos de avance de metas**
+- [x] **`TASK-240`: Avisos de avance de metas**
   - **Dependencias:** Requiere TASK-187, TASK-237
   - **Trazabilidad SDD:** plan §4.12.3 (hitos), plan §4.15.1; RF-M15-02, RF-M15-04, RF-M12-01, RNF-12
   - **Archivos en Alcance:**
@@ -3864,6 +3869,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/jobs/fx.ts`
     - `apps/api/src/application/jobs/notifications.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/test/integration/goal-milestones.test.ts`
   - **Especificación de Implementación:** Después de cada evento de apartado, de cada asiento de una cuenta dedicada (*handler* de `LedgerHooks`) y del job horario de tasas, evalúa los hitos 25, 50, 75 y 100 y emite `goal:{id}:milestone:{n}`. El día 1 de cada mes, a las 08:00, avisa si el aporte del mes anterior (apartados + entradas a la dedicada − retiros, sin el efecto del tipo de cambio) fue menor que el sugerido.
   - **Criterios de Verificación (Tests & DoD):**
@@ -3871,20 +3877,24 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-01`: cambiar la moneda de la meta no repite los hitos ya avisados.
     - `RF-M15-02`: el aviso mensual sale solo si el aporte fue menor que el sugerido.
 
-- [ ] **`TASK-241`: Web: Ajustes de recordatorios**
+- [x] **`TASK-241`: Web: Ajustes de recordatorios**
   - **Dependencias:** Requiere TASK-151, TASK-237
   - **Trazabilidad SDD:** plan §4.15.4 (`/ajustes/recordatorios`); RF-M15-03, RF-M15-07, RNF-06
   - **Archivos en Alcance:**
     - `apps/web/src/features/settings/components/preferences-list.tsx`
     - `apps/web/src/features/settings/routes.tsx`
     - `apps/web/src/locales/es-BO/settings.json`
+    - `apps/web/src/features/settings/components/settings-hub.tsx`
+    - `apps/web/src/features/settings/api.ts`
+    - `apps/web/src/features/settings/hooks/use-notification-preferences.ts`
+    - `apps/web/src/app/router.tsx`
     - `e2e/m15-preferences.spec.ts`
   - **Especificación de Implementación:** `PreferencesList` con un interruptor por tipo y, según el tipo, la hora, la anticipación de 0 a 7 días y los días de la semana. Se guarda al instante. Con `RELEASE` < 1.2, la sección no aparece.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "Decisión visible con el aviso desactivado" (E2E): con el tipo desactivado, el pendiente no llega a la bandeja pero sí aparece en Recurrentes.
     - `RNF-06`: los controles se manejan con el teclado y sin violaciones de axe.
 
-- [ ] **`TASK-242`: Exportadores de V1.2**
+- [x] **`TASK-242`: Exportadores de V1.2**
   - **Dependencias:** Requiere TASK-221, TASK-231
   - **Trazabilidad SDD:** plan §4.1.2 (`GET /api/me/export`); RF-M1-14, RNF-16
   - **Archivos en Alcance:**

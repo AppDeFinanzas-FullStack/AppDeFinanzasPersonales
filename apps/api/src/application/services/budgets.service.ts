@@ -31,6 +31,7 @@ import type {
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { BalanceGuard } from '../shared/balance-guard.js';
 import { assertLimit } from '../shared/limits.js';
+import type { GoalMilestones } from '../shared/goal-milestones.js';
 import type { NotificationEmitter } from '../shared/notification-emitter.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
@@ -98,6 +99,11 @@ export interface BudgetsServiceDeps {
   rates: Pick<RatesService, 'currentRateFor' | 'ratesForMovement' | 'transferRate'>;
   notifications: NotificationEmitter;
   ids: { next: () => string };
+  /**
+   * Evaluates the goal milestones after "Enviar a meta" (plan §4.12.3): its earmark event and its
+   * entry to the dedicated account; absent before the V1.2.
+   */
+  milestones?: Pick<GoalMilestones, 'evaluate'>;
 }
 
 /** How many past periods the detail shows (plan §4.11.4). */
@@ -264,6 +270,7 @@ export function createBudgetsService({
   rates,
   notifications,
   ids,
+  milestones,
 }: BudgetsServiceDeps): BudgetsService {
   /** Budget DTOs from the snapshots; rates are read after the transaction (RN-05). */
   const toDtos = async (
@@ -449,6 +456,7 @@ export function createBudgetsService({
         origin: 'budget',
         relatedTransactionId: null,
       });
+      await milestones?.evaluate(repos, ctx, goal.id);
       return;
     }
 
@@ -519,6 +527,7 @@ export function createBudgetsService({
     if (!inserted) {
       throw new AppError('INTERNAL_ERROR');
     }
+    await milestones?.evaluate(repos, ctx, goal.id);
   };
 
   return {
