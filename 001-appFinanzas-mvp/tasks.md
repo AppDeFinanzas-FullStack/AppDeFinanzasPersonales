@@ -3877,7 +3877,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M12-01`: cambiar la moneda de la meta no repite los hitos ya avisados.
     - `RF-M15-02`: el aviso mensual sale solo si el aporte fue menor que el sugerido.
 
-- [ ] **`TASK-241`: Web: Ajustes de recordatorios**
+- [x] **`TASK-241`: Web: Ajustes de recordatorios**
   - **Dependencias:** Requiere TASK-151, TASK-237
   - **Trazabilidad SDD:** plan §4.15.4 (`/ajustes/recordatorios`); RF-M15-03, RF-M15-07, RNF-06
   - **Archivos en Alcance:**

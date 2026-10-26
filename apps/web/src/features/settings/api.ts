@@ -2,6 +2,7 @@ import {
   DashboardBlock,
   DateFormat,
   NumberFormat,
+  PreferencesInput,
   Theme,
   UpdateSettingsInput,
   WeekStart,
@@ -35,4 +36,20 @@ export const updateSettingsEndpoint: Endpoint<UpdateSettingsInput, SettingsDto> 
   path: '/api/settings',
   input: UpdateSettingsInput,
   output: SettingsOutput,
+};
+
+/** The user's preferences, one per type (plan §4.15.2); an unset setting is absent. */
+export const listPreferencesEndpoint: Endpoint<undefined, PreferencesInput> = {
+  method: 'GET',
+  path: '/api/notification-preferences',
+  input: z.undefined(),
+  output: PreferencesInput,
+};
+
+/** Changes only the given types and answers with all the preferences (plan §4.15.2). */
+export const updatePreferencesEndpoint: Endpoint<PreferencesInput, PreferencesInput> = {
+  method: 'PATCH',
+  path: '/api/notification-preferences',
+  input: PreferencesInput,
+  output: PreferencesInput,
 };
