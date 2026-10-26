@@ -3869,6 +3869,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/application/jobs/fx.ts`
     - `apps/api/src/application/jobs/notifications.ts`
     - `apps/api/src/composition/container.ts`
+    - `apps/api/src/application/services/budgets.service.ts`
     - `apps/api/test/integration/goal-milestones.test.ts`
   - **Especificación de Implementación:** Después de cada evento de apartado, de cada asiento de una cuenta dedicada (*handler* de `LedgerHooks`) y del job horario de tasas, evalúa los hitos 25, 50, 75 y 100 y emite `goal:{id}:milestone:{n}`. El día 1 de cada mes, a las 08:00, avisa si el aporte del mes anterior (apartados + entradas a la dedicada − retiros, sin el efecto del tipo de cambio) fue menor que el sugerido.
   - **Criterios de Verificación (Tests & DoD):**
