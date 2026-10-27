@@ -3907,7 +3907,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 25 — Final: integración E2E y validación de RNF
 
-- [ ] **`TASK-243`: Cobertura de escenarios Gherkin y regresión completa**
+- [x] **`TASK-243`: Cobertura de escenarios Gherkin y regresión completa**
   - **Dependencias:** Requiere TASK-236, TASK-241, TASK-242
   - **Trazabilidad SDD:** plan §5.2 (criterios de aceptación → pruebas), plan §5.4 (definición de terminado, puntos 1 y 3)
   - **Archivos en Alcance:**
