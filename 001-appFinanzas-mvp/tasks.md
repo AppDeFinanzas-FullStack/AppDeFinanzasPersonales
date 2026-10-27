@@ -3907,17 +3907,20 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 25 — Final: integración E2E y validación de RNF
 
-- [ ] **`TASK-243`: Cobertura de escenarios Gherkin y regresión completa**
+- [x] **`TASK-243`: Cobertura de escenarios Gherkin y regresión completa**
   - **Dependencias:** Requiere TASK-236, TASK-241, TASK-242
   - **Trazabilidad SDD:** plan §5.2 (criterios de aceptación → pruebas), plan §5.4 (definición de terminado, puntos 1 y 3)
   - **Archivos en Alcance:**
     - `e2e/gherkin-coverage.spec.ts`
-  - **Especificación de Implementación:** Lee los títulos de todos los escenarios Gherkin de `spec.md` y verifica que cada uno aparece en el nombre de al menos un test (E2E o del API). Además, verifica que cada RF y EC de la spec aparece en el nombre de algún test.
+    - `apps/api/test/integration/gherkin-accounts-categories.test.ts`
+    - `e2e/gherkin-accounts-categories.spec.ts`
+    - `e2e/gherkin-register.spec.ts`
+  - **Especificación de Implementación:** Lee los títulos de todos los escenarios Gherkin de `spec.md` y verifica que cada uno aparece en el nombre de al menos un test (E2E o del API). Además, verifica que cada RF y EC de la spec aparece en el nombre de algún test. Las Fases 7 a 12 se hicieron sin pruebas nuevas, así que quedaron 9 escenarios y 20 RF/EC de V1.0 sin test con su nombre; esta tarea los cubre con pruebas nuevas, sin tocar las existentes. Escenarios sin test: «Bloqueo sin conexión conserva el borrador», «La historia no se reescribe al cambiar la base», «Ajuste de saldo», «Fusionar duplicados», «Categoría del sistema protegida», «Borrador al cambiar de pestaña», «Atajo rellena sin guardar», «El borrador conserva su tipo» y «Deshacer después de guardar». RF/EC sin test: RF-M4-06, RF-M4-09, RF-M4-11, RF-M4-12, EC-M4-04, EC-M4-05, EC-M4-07, EC-M4-08, EC-M5-02, EC-M5-07, EC-M6-06, RF-M7-05, RF-M7-06 y EC-M7-01, EC-M7-02, EC-M7-04 a EC-M7-08. Cada prueba nueva lleva en su nombre el título del escenario o el ID, y verifica el comportamiento que ya existe.
   - **Criterios de Verificación (Tests & DoD):**
     - `TASK-243`: los 53 escenarios Gherkin tienen su test, y la prueba lista los que falten.
     - `TASK-243`: cada RF y EC de `spec.md` aparece en el nombre de algún test.
 
-- [ ] **`TASK-244`: Jobs interrumpidos que se retoman (RNF-13)**
+- [x] **`TASK-244`: Jobs interrumpidos que se retoman (RNF-13)**
   - **Dependencias:** Requiere TASK-229, TASK-240
   - **Trazabilidad SDD:** plan §5.3 (RNF-13), ADR-01; RNF-13, RF-M14-12, RNF-12
   - **Archivos en Alcance:**
@@ -3926,7 +3929,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-13`: después de reintentar, no hay duplicados ni omisiones en los cierres, las ocurrencias ni los avisos.
 
-- [ ] **`TASK-245`: Fechas de negocio en varias zonas horarias (RNF-20)**
+- [x] **`TASK-245`: Fechas de negocio en varias zonas horarias (RNF-20)**
   - **Dependencias:** Requiere TASK-244
   - **Trazabilidad SDD:** plan §5.3 (RNF-20), plan §5.1 (datos de prueba: tres zonas); RNF-20, RF-M14-04, RN-07
   - **Archivos en Alcance:**
@@ -3936,7 +3939,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-20`: cada proceso usa el día local del usuario en las tres zonas.
     - `RF-M14-04`: en el día del cambio de hora, la ocurrencia se ejecuta una vez, en el primer minuto válido.
 
-- [ ] **`TASK-246`: Barrido de concurrencia**
+- [x] **`TASK-246`: Barrido de concurrencia**
   - **Dependencias:** Requiere TASK-244
   - **Trazabilidad SDD:** plan §5.1 (concurrencia), plan §4.3.3; RNF-10, RNF-11, RNF-12
   - **Archivos en Alcance:**
@@ -3947,7 +3950,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-11` / `RNF-12`: cada operación surte efecto una sola vez.
     - La moneda queda activa con la cuenta creada, o inactiva sin ella, nunca las dos cosas.
 
-- [ ] **`TASK-247`: Validación final de V1.2: accesibilidad, rendimiento, aislamiento y entregas**
+- [x] **`TASK-247`: Validación final de V1.2: accesibilidad, rendimiento, aislamiento y entregas**
   - **Dependencias:** Requiere TASK-243, TASK-245, TASK-246
   - **Trazabilidad SDD:** plan §5.3 (RNF-01 a RNF-07, RNF-14), plan §5.4; RNF-01, RNF-02, RNF-03, RNF-05, RNF-06, RNF-07, RNF-14, RF-M2-03
   - **Archivos en Alcance:**
