@@ -3929,7 +3929,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-13`: después de reintentar, no hay duplicados ni omisiones en los cierres, las ocurrencias ni los avisos.
 
-- [ ] **`TASK-245`: Fechas de negocio en varias zonas horarias (RNF-20)**
+- [x] **`TASK-245`: Fechas de negocio en varias zonas horarias (RNF-20)**
   - **Dependencias:** Requiere TASK-244
   - **Trazabilidad SDD:** plan §5.3 (RNF-20), plan §5.1 (datos de prueba: tres zonas); RNF-20, RF-M14-04, RN-07
   - **Archivos en Alcance:**
