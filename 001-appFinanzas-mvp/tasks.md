@@ -3939,7 +3939,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-20`: cada proceso usa el día local del usuario en las tres zonas.
     - `RF-M14-04`: en el día del cambio de hora, la ocurrencia se ejecuta una vez, en el primer minuto válido.
 
-- [ ] **`TASK-246`: Barrido de concurrencia**
+- [x] **`TASK-246`: Barrido de concurrencia**
   - **Dependencias:** Requiere TASK-244
   - **Trazabilidad SDD:** plan §5.1 (concurrencia), plan §4.3.3; RNF-10, RNF-11, RNF-12
   - **Archivos en Alcance:**
