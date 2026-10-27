@@ -3950,7 +3950,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-11` / `RNF-12`: cada operación surte efecto una sola vez.
     - La moneda queda activa con la cuenta creada, o inactiva sin ella, nunca las dos cosas.
 
-- [ ] **`TASK-247`: Validación final de V1.2: accesibilidad, rendimiento, aislamiento y entregas**
+- [x] **`TASK-247`: Validación final de V1.2: accesibilidad, rendimiento, aislamiento y entregas**
   - **Dependencias:** Requiere TASK-243, TASK-245, TASK-246
   - **Trazabilidad SDD:** plan §5.3 (RNF-01 a RNF-07, RNF-14), plan §5.4; RNF-01, RNF-02, RNF-03, RNF-05, RNF-06, RNF-07, RNF-14, RF-M2-03
   - **Archivos en Alcance:**
