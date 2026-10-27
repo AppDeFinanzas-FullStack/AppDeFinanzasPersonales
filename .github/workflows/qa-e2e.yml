@@ -82,7 +82,7 @@ jobs:
         run: pnpm --filter e2e exec playwright install --with-deps ${{ matrix.browser }}
 
       # Playwright starts the API (INTEGRATIONS=fake) and builds and serves the web with `vite preview`.
-      - name: 5. Playwright (${{ matrix.project }}): E2E, axe and performance
+      - name: '5. Playwright (${{ matrix.project }}): E2E, axe and performance'
         run: pnpm --filter e2e exec playwright test --project=${{ matrix.project }}
 
       - name: Publish the report, traces and videos
@@ -147,7 +147,7 @@ jobs:
       - name: 4. Install the Playwright browser (chromium)
         run: pnpm --filter e2e exec playwright install --with-deps chromium
 
-      - name: 5. Playwright (${{ matrix.project }}): subset @release-1.0
+      - name: '5. Playwright (${{ matrix.project }}): subset @release-1.0'
         run: pnpm --filter e2e e2e:release-1.0 --project=${{ matrix.project }}
 
       - name: Publish the report, traces and videos
