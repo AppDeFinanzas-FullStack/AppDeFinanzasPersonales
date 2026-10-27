@@ -3995,7 +3995,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Comando: `pnpm --filter e2e exec playwright test m8-dashboard-blocks.spec.ts --project=chromium-1280`
 
 - [ ] **`TASK-251`: E2E: pruebas con carreras de espera (RF-M2-09, RF-M7-10, RF-M1-05)**
-  - **Dependencias:** Requiere TASK-072, TASK-152, TASK-065, TASK-247
+  - **Dependencias:** Requiere TASK-072, TASK-152, TASK-065, TASK-247, TASK-253
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §5.4; RF-M2-09, RF-M7-10, RF-M1-05, EC-M1-01
   - **Archivos en Alcance:**
     - `e2e/m2-navigation.spec.ts`
@@ -4016,3 +4016,16 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M2-03`: con 1.0, `/metas`, `/presupuestos` y `/deudas` muestran «no existe»; con 1.1, `/recurrentes` también; con 1.2, las cuatro abren su pantalla.
     - Comando: `pnpm --filter e2e exec playwright test release-gating.spec.ts --project=chromium-1280`
+
+- [ ] **`TASK-253`: Web: iniciar sesión desde `/entrar` no muestra «Tu sesión venció» (RF-M2-09, EC-M2-01)**
+  - **Dependencias:** Requiere TASK-070, TASK-247
+  - **Trazabilidad SDD:** plan §4.2.3 (Normal → Sesión vencida), plan §4.9.3; RF-M2-09, EC-M2-01
+  - **Archivos en Alcance:**
+    - `e2e/m1-sign-in.spec.ts`
+    - `apps/web/src/app/providers/theme.tsx`
+    - `apps/web/src/features/settings/hooks/use-settings.ts`
+  - **Especificación de Implementación:** Al abrir `/entrar` sin sesión, `ThemeProvider` pide `GET /api/settings`; el API responde 401 `SESSION_EXPIRED` y `api-client.ts` abre `<SessionExpiredDialog>`. Tras iniciar sesión, la app navega a `/` sin recargar y el diálogo «Tu sesión venció» tapa la pantalla, aunque nunca hubo sesión. `ThemeProvider` solo consulta los ajustes del servidor cuando hay una sesión (`useMe` con datos); sin sesión usa la copia de `localStorage`, como en el primer pintado (plan §4.9.3). El diálogo sigue abriéndose cuando una sesión que existía vence (plan §4.2.3). Se añade a `e2e/m1-sign-in.spec.ts` un caso que, en un contexto nuevo, inicia sesión desde `/entrar` y comprueba que llega a `/` sin el diálogo «Tu sesión venció» y con el tema guardado en el servidor aplicado.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RF-M2-09`: tras iniciar sesión desde `/entrar` en un contexto nuevo, no aparece «Tu sesión venció» y la pantalla se puede usar.
+    - `EC-M2-01`: con sesión iniciada, el tema guardado en el servidor se aplica tras el inicio de sesión.
+    - Comando: `pnpm --filter e2e exec playwright test m1-sign-in.spec.ts m2-offline-session.spec.ts --project=chromium-1280`
