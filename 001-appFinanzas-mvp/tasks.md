@@ -4017,7 +4017,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-03`: con 1.0, `/metas`, `/presupuestos` y `/deudas` muestran «no existe»; con 1.1, `/recurrentes` también; con 1.2, las cuatro abren su pantalla.
     - Comando: `pnpm --filter e2e exec playwright test release-gating.spec.ts --project=chromium-1280`
 
-- [ ] **`TASK-253`: Web: iniciar sesión desde `/entrar` no muestra «Tu sesión venció» (RF-M2-09, EC-M2-01)**
+- [x] **`TASK-253`: Web: iniciar sesión desde `/entrar` no muestra «Tu sesión venció» (RF-M2-09, EC-M2-01)**
   - **Dependencias:** Requiere TASK-070, TASK-247
   - **Trazabilidad SDD:** plan §4.2.3 (Normal → Sesión vencida), plan §4.9.3; RF-M2-09, EC-M2-01
   - **Archivos en Alcance:**
