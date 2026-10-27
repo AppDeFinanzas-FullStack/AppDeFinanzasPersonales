@@ -3920,7 +3920,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `TASK-243`: los 53 escenarios Gherkin tienen su test, y la prueba lista los que falten.
     - `TASK-243`: cada RF y EC de `spec.md` aparece en el nombre de algún test.
 
-- [ ] **`TASK-244`: Jobs interrumpidos que se retoman (RNF-13)**
+- [x] **`TASK-244`: Jobs interrumpidos que se retoman (RNF-13)**
   - **Dependencias:** Requiere TASK-229, TASK-240
   - **Trazabilidad SDD:** plan §5.3 (RNF-13), ADR-01; RNF-13, RF-M14-12, RNF-12
   - **Archivos en Alcance:**
