@@ -84,6 +84,15 @@ describe('env', () => {
     expect(parseEnv({ ...valid(), RELEASE: release }).RELEASE).toBe(release);
   });
 
+  it('EMAIL_FROM es opcional y usa la dirección de prueba de Resend', () => {
+    expect(parseEnv(valid()).EMAIL_FROM).toBe('Finanzas <onboarding@resend.dev>');
+  });
+
+  it('EMAIL_FROM toma el remitente del entorno', () => {
+    const from = 'Finanzas <no-reply@appfinanzas.me>';
+    expect(parseEnv({ ...valid(), EMAIL_FROM: from }).EMAIL_FROM).toBe(from);
+  });
+
   it.each(['0.9', '1.3', '2.0', '1', '', '1.0.0'])(
     'TASK-030 RELEASE rechaza "%s"',
     (release) => {

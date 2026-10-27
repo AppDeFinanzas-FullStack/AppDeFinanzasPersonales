@@ -247,12 +247,9 @@ const uuidv7Ids: IdGenerator = {
   next: () => uuidv7(),
 };
 
-/** Sender of the account emails; the environment has no variable for it yet. */
-const EMAIL_FROM = 'Finanzas <onboarding@resend.dev>';
-
 /** Real Resend gateway, or the in-memory fake when the environment asks for fake integrations. */
 const createEmailGateway = (env: Env, fake: FakeEmailGateway | null): EmailGateway =>
-  fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
+  fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM });
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
 const NO_USER = '00000000-0000-0000-0000-000000000000';
