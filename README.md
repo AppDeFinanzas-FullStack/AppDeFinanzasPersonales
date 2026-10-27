@@ -39,8 +39,6 @@ flowchart LR
 
 El reparto de las Fases 14 a 25 está en [`docs/asignaciones-fases-14-25.md`](docs/asignaciones-fases-14-25.md).
 
-**Docente:** _pendiente: agregarlo como colaborador del repositorio_.
-
 ## Stack
 
 | Capa          | Tecnología                                                           |
@@ -179,16 +177,16 @@ Los agentes no pueden crear cuentas ni cargar secretos, así que estos pasos los
 
 ## Estado del proyecto
 
-Avance real al 2026-10-26 en `develop`: **243 de 248 tareas cerradas (98 %)**. El hook `SessionStart` muestra el valor actualizado en cada sesión.
+Avance real al 2026-10-27 en `develop`: **248 de 248 tareas cerradas (100 %)**. El hook `SessionStart` muestra el valor actualizado en cada sesión.
 
 | Entrega | Fases                                                                                                                                     | Tareas cerradas |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | Base    | 0 a 5: cimientos, esquema, contratos, dominio, API y web                                                                                  | 46 / 46         |
 | V1.0    | 6 a 17: acceso, navegación, monedas, cuentas, categorías, transacciones, registrar, inicio, ajustes, onboarding, exportación y despliegue | 129 / 129       |
 | V1.1    | 18 a 22: avisos, metas, presupuestos y deudas                                                                                             | 48 / 48         |
-| V1.2    | 23 a 25: recurrentes, recordatorios y validación final                                                                                    | 20 / 25         |
+| V1.2    | 23 a 25: recurrentes, recordatorios y validación final                                                                                    | 25 / 25         |
 
-V1.0 y V1.1 están completas, y de V1.2 ya están cerradas las Fases 23 (recurrentes) y 24 (recordatorios y avisos). Falta la Fase 25: la regresión completa con los escenarios Gherkin, los jobs que se retoman tras una interrupción (RNF-13) y el resto de la validación de los RNF.
+Las tres entregas están completas. La Fase 25 cerró la validación final: la regresión con todos los escenarios Gherkin, los jobs que se retoman tras una interrupción sin duplicar (RNF-13), las fechas de negocio en varias zonas horarias, la consistencia ante operaciones concurrentes y la accesibilidad y el control de versión de V1.2.
 
 ## Documentación
 
