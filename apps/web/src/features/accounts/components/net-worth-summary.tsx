@@ -1,9 +1,13 @@
 import { useTranslation } from 'react-i18next';
 
+import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
+import goals from '@/locales/es-BO/goals.json';
 
 import type { AccountsSummary } from '../api';
 import { useCurrencySymbol } from '../hooks/use-accounts';
+
+i18n.addResourceBundle(LANGUAGE, 'goals', goals, true, true);
 
 const BREAKDOWN = ['liquid', 'savings', 'cardDebt'] as const;
 

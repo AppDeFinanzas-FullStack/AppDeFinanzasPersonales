@@ -3968,7 +3968,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 26 — Correcciones de QA
 
-- [ ] **`TASK-249`: Web: textos de metas en Cuentas y en la confirmación de apartados**
+- [x] **`TASK-249`: Web: textos de metas en Cuentas y en la confirmación de apartados**
   - **Dependencias:** Requiere TASK-192, TASK-247
   - **Trazabilidad SDD:** plan §4.12.4 (`<EarmarkConfirmDialog>`), plan §4.4 (Cuentas); RNF-07, RF-M12-05, RF-M12-08, RF-M4-10, EC-M7-03
   - **Archivos en Alcance:**

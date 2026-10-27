@@ -1,9 +1,13 @@
 import type { AccountDto } from '@finanzas/contracts';
 import { useTranslation } from 'react-i18next';
 
+import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
+import goals from '@/locales/es-BO/goals.json';
 
 import { useCurrencySymbol } from '../hooks/use-accounts';
+
+i18n.addResourceBundle(LANGUAGE, 'goals', goals, true, true);
 
 /**
  * Balance of the account and its equivalent in the base currency. A card shows "Debes X" or "A favor
