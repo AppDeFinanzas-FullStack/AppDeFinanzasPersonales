@@ -90,6 +90,38 @@ async function recordExpense(page: Page, accountId: string, amount: string): Pro
   return category;
 }
 
+interface DashboardBody {
+  balances?: { netWorth: { base: string; other: string | null } };
+}
+
+/**
+ * Serves the real `GET /api/dashboard` with no rate for the other currency (EC-M8-04). `seed:e2e`
+ * stores fixed market rates and the API has no way to remove them, so the test sets the situation
+ * itself instead of depending on an empty database.
+ */
+async function serveDashboardWithoutRate(page: Page): Promise<void> {
+  await page.route(/\/api\/dashboard(\?.*)?$/, async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    if (!response.ok()) {
+      await route.fulfill({ response });
+      return;
+    }
+    const body = (await response.json()) as DashboardBody;
+    const json =
+      body.balances === undefined
+        ? body
+        : {
+            ...body,
+            balances: { ...body.balances, netWorth: { ...body.balances.netWorth, other: null } },
+          };
+    await route.fulfill({ response, json });
+  });
+}
+
 test.describe('TASK-148 bloques del Inicio y navegación', () => {
   test('RF-M8-10 tocar la tarjeta Gastos abre Movimientos filtrado por gasto y ese mes', async ({
     authedPage,
@@ -97,7 +129,10 @@ test.describe('TASK-148 bloques del Inicio y navegación', () => {
     const account = await createAccount(authedPage, 'Efectivo', '500');
     await recordExpense(authedPage, account, '40');
     await authedPage.goto('/');
-    await authedPage.getByRole('link', { name: /Gastos/ }).first().click();
+    await authedPage
+      .getByRole('link', { name: /Gastos/ })
+      .first()
+      .click();
     await expect(authedPage).toHaveURL(/\/movimientos\?/);
     const url = new URL(authedPage.url());
     expect(url.searchParams.get('kind')).toBe('expense');
@@ -108,7 +143,10 @@ test.describe('TASK-148 bloques del Inicio y navegación', () => {
     const account = await createAccount(authedPage, 'Efectivo', '500');
     const category = await recordExpense(authedPage, account, '40');
     await authedPage.goto('/');
-    await authedPage.getByRole('link', { name: new RegExp(category.name) }).first().click();
+    await authedPage
+      .getByRole('link', { name: new RegExp(category.name) })
+      .first()
+      .click();
     await expect(authedPage).toHaveURL(/\/movimientos\?/);
     const url = new URL(authedPage.url());
     expect(url.searchParams.get('categoryId')).toBeTruthy();
@@ -142,7 +180,9 @@ test.describe('TASK-148 bloques del Inicio y navegación', () => {
     authedPage,
   }) => {
     await createAccount(authedPage, 'Dólares', '50', 'USD');
+    await serveDashboardWithoutRate(authedPage);
     await authedPage.goto('/');
-    await expect(authedPage.getByText('Sin tipo de cambio').first()).toBeVisible();
+    const balances = authedPage.getByRole('region', { name: 'Saldos por cuenta' });
+    await expect(balances.getByText('Sin tipo de cambio')).toBeVisible();
   });
 });

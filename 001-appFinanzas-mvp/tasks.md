@@ -3984,7 +3984,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Comando: `pnpm --filter e2e exec playwright test i18n-direct-load.spec.ts m12-earmark-confirm.spec.ts --project=chromium-1280`
     - Comando: `pnpm --filter web exec vitest run test/bundle-budget.test.ts`
 
-- [ ] **`TASK-250`: E2E: «sin tasa» no depende de una base sin tipos de cambio (EC-M8-04)**
+- [x] **`TASK-250`: E2E: «sin tasa» no depende de una base sin tipos de cambio (EC-M8-04)**
   - **Dependencias:** Requiere TASK-148, TASK-247
   - **Trazabilidad SDD:** plan §5.1 (datos de prueba: tasas fijas de `seed:e2e`), plan §4.8.4; EC-M8-04
   - **Archivos en Alcance:**
