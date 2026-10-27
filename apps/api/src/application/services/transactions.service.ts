@@ -3,6 +3,7 @@ import {
   type BatchDeleteInput,
   type BatchRecategorizeInput,
   type CreateTransactionInput,
+  type EarmarkWithdrawals,
   type ListQuery,
   type UpdateTransactionInput,
 } from '@finanzas/contracts';
@@ -37,7 +38,7 @@ import type {
   UndoAction,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
-import { BalanceGuard, type BalanceDelta } from '../shared/balance-guard.js';
+import { BalanceGuard, type BalanceDelta, type BalanceGuardOptions } from '../shared/balance-guard.js';
 import type { LedgerChange, LedgerHooks } from '../shared/ledger-hooks.js';
 import type { MovementRates, RatesContext, RatesService } from './rates.service.js';
 
@@ -144,12 +145,16 @@ export interface TransactionsService {
    * Deletes the user's movement with its fee (EC-M6-05); it can be undone with the returned token
    * until it expires (plan §4.6.2, §4.6.3).
    */
-  delete(ctx: RatesContext, id: string): Promise<DeleteTransactionResult>;
+  delete(
+    ctx: RatesContext,
+    id: string,
+    options?: WithdrawalOptions,
+  ): Promise<DeleteTransactionResult>;
   /**
    * Consumes the single-use token and reverts its action: a deletion is restored, a creation is
    * deleted and a recategorization gets its categories back (plan §4.6.2).
    */
-  undo(ctx: RatesContext, undoToken: string): Promise<void>;
+  undo(ctx: RatesContext, undoToken: string, options?: WithdrawalOptions): Promise<void>;
   /**
    * Deletes the selected movements with their fees, leaving out the linked ones and those that
    * would leave an account below zero; one `undo` restores them all (RF-M6-13, plan §4.6.2).
@@ -172,6 +177,11 @@ export interface TransactionsService {
   summary(ctx: RatesContext, query: ListQuery): Promise<LedgerTotals>;
 }
 
+/** The earmarks the user agreed to take money from to cover the operation (RF-M12-05). */
+export interface WithdrawalOptions {
+  earmarkWithdrawals?: EarmarkWithdrawals | undefined;
+}
+
 export interface TransactionsServiceDeps {
   uow: UnitOfWork;
   rates: RatesService;
@@ -181,6 +191,18 @@ export interface TransactionsServiceDeps {
 /** The preset category of the fees (plan §4.6.3). */
 const FEE_PARENT_NAME = 'Servicios';
 const FEE_CATEGORY_NAME = 'Comisiones bancarias';
+
+/** The guard options of an interactive operation with the earmark withdrawals the user confirmed. */
+function interactive(withdrawals: EarmarkWithdrawals | undefined): BalanceGuardOptions {
+  return {
+    mode: 'interactive',
+    earmarkWithdrawals: (withdrawals ?? []).map((w) => ({
+      goalId: w.goalId,
+      accountId: w.accountId,
+      amount: new Decimal(w.amount),
+    })),
+  };
+}
 
 /** The signed amount of the entry: an expense takes money out of the account (ADR-04). */
 function signedAmount(input: SimpleTransactionInput): Decimal {
@@ -515,9 +537,10 @@ async function removeMovements(
   repos: Repositories,
   ctx: RatesContext,
   movements: LedgerTransactionView[],
+  withdrawals?: EarmarkWithdrawals,
 ): Promise<string[]> {
   const deltas = await entryDeltas(repos, movements, 'remove');
-  await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+  await BalanceGuard.apply(repos, ctx.userId, deltas, interactive(withdrawals));
   return repos.ledger.softDelete(movements.map((movement) => movement.id));
 }
 
@@ -526,9 +549,10 @@ async function restoreMovements(
   repos: Repositories,
   ctx: RatesContext,
   movements: LedgerTransactionView[],
+  withdrawals?: EarmarkWithdrawals,
 ): Promise<void> {
   const deltas = await entryDeltas(repos, movements, 'restore');
-  await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+  await BalanceGuard.apply(repos, ctx.userId, deltas, interactive(withdrawals));
   await repos.ledger.restore(movements.map((movement) => movement.id));
 }
 
@@ -918,9 +942,9 @@ export function createTransactionsService({
     );
 
     const amount = signedAmount(input);
-    await BalanceGuard.apply(repos, ctx.userId, deltaFor(account, input.date, amount), {
-      mode: 'interactive',
-    });
+    await BalanceGuard.apply(repos, ctx.userId, deltaFor(account, input.date, amount),
+      interactive(input.earmarkWithdrawals),
+    );
 
     const inserted = await repos.ledger.insertTransaction(
       {
@@ -1006,7 +1030,7 @@ export function createTransactionsService({
       ...deltaFor(to, input.date, amountIn),
       ...(fee === null ? [] : deltaFor(from, input.date, fee.amount)),
     ];
-    await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+    await BalanceGuard.apply(repos, ctx.userId, deltas, interactive(input.earmarkWithdrawals));
 
     const entries: LedgerEntryInput[] = [
       { id: uuidv7(), accountId: from.id, amount: amountOut },
@@ -1198,7 +1222,7 @@ export function createTransactionsService({
         ...deltaFor(previousAccount, existing.date, entry.amount.negated()),
         ...deltaFor(account, date, amount),
       ],
-      { mode: 'interactive' },
+      interactive(input.earmarkWithdrawals),
     );
 
     await rewrite(
@@ -1306,7 +1330,7 @@ export function createTransactionsService({
         ...deltaFor(from, date, feeEntry.amount),
       );
     }
-    await BalanceGuard.apply(repos, ctx.userId, deltas, { mode: 'interactive' });
+    await BalanceGuard.apply(repos, ctx.userId, deltas, interactive(input.earmarkWithdrawals));
 
     await rewrite(
       repos,
@@ -1395,6 +1419,7 @@ export function createTransactionsService({
     repos: Repositories,
     ctx: RatesContext,
     id: string,
+    withdrawals?: EarmarkWithdrawals,
   ): Promise<DeleteTransactionResult> {
     const existing = await repos.ledger.get(id);
     if (existing === null) {
@@ -1407,7 +1432,7 @@ export function createTransactionsService({
     }
 
     const movements = withFee(existing);
-    const deleted = await removeMovements(repos, ctx, movements);
+    const deleted = await removeMovements(repos, ctx, movements, withdrawals);
     await ledgerHooks.afterChange(repos, ctx.userId, changeOf(movements));
     const payload: UndoMovementsPayload = { transactionIds: deleted };
     const undo = await repos.undoActions.create('delete', payload);
@@ -1419,6 +1444,7 @@ export function createTransactionsService({
     repos: Repositories,
     ctx: RatesContext,
     action: UndoAction,
+    withdrawals?: EarmarkWithdrawals,
   ): Promise<LedgerChange | null> {
     switch (action.kind) {
       case 'delete': {
@@ -1426,7 +1452,7 @@ export function createTransactionsService({
         if (movements.length === 0) {
           return null;
         }
-        await restoreMovements(repos, ctx, movements);
+        await restoreMovements(repos, ctx, movements, withdrawals);
         return changeOf(movements);
       }
       case 'create': {
@@ -1435,7 +1461,7 @@ export function createTransactionsService({
         if (movements.length === 0) {
           return null;
         }
-        await removeMovements(repos, ctx, movements);
+        await removeMovements(repos, ctx, movements, withdrawals);
         return changeOf(movements);
       }
       case 'recategorize':
@@ -1447,13 +1473,14 @@ export function createTransactionsService({
     repos: Repositories,
     ctx: RatesContext,
     undoToken: string,
+    withdrawals?: EarmarkWithdrawals,
   ): Promise<void> {
     const action = await repos.undoActions.consume(undoToken);
     if (action === null) {
       // Unknown, already used, expired or another user's: a repeated undo does nothing (RNF-11).
       throw new AppError('UNDO_EXPIRED');
     }
-    const change = await revert(repos, ctx, action);
+    const change = await revert(repos, ctx, action, withdrawals);
     if (change !== null) {
       await ledgerHooks.afterChange(repos, ctx.userId, change);
     }
@@ -1585,12 +1612,16 @@ export function createTransactionsService({
       });
     },
 
-    async delete(ctx, id) {
-      return uow.run((repos) => deleteMovement(repos, ctx, id), { userLock: ctx.userId });
+    async delete(ctx, id, options) {
+      return uow.run((repos) => deleteMovement(repos, ctx, id, options?.earmarkWithdrawals), {
+        userLock: ctx.userId,
+      });
     },
 
-    async undo(ctx, undoToken) {
-      return uow.run((repos) => undoAction(repos, ctx, undoToken), { userLock: ctx.userId });
+    async undo(ctx, undoToken, options) {
+      return uow.run((repos) => undoAction(repos, ctx, undoToken, options?.earmarkWithdrawals), {
+        userLock: ctx.userId,
+      });
     },
 
     async batchDelete(ctx, input) {

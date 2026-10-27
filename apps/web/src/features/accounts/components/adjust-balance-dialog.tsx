@@ -16,8 +16,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { EarmarkConfirmDialog } from '@/features/goals/components/earmark-confirm-dialog';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
+
+import { useCurrencySymbol } from '../hooks/use-accounts';
 
 import { parseSignedAmount } from './account-form';
 
@@ -33,6 +36,15 @@ function adjustEndpoint(id: string): Endpoint<AdjustInput, z.infer<typeof Adjust
 }
 
 const NOTE_MAX = 140;
+
+const EarmarkProposal = z.array(z.object({ goalId: z.string(), amount: z.string() }));
+
+/** The adjustment waiting for the user to choose which earmarks to take (RF-M12-05). */
+interface PendingEarmark {
+  input: AdjustInput;
+  shortfall: string;
+  proposal: { goalId: string; amount: string }[];
+}
 
 /**
  * "Ajustar saldo" (RF-M4-05): the user gives the real balance, or the real debt of a card, and an
@@ -56,12 +68,15 @@ export function AdjustBalanceDialog({
   const [note, setNote] = useState('');
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [matches, setMatches] = useState(false);
+  const [pendingEarmark, setPendingEarmark] = useState<PendingEarmark | null>(null);
+  const symbolOf = useCurrencySymbol();
 
   const close = () => {
     setRaw('');
     setNote('');
     setFieldError(null);
     setMatches(false);
+    setPendingEarmark(null);
     setTransactionId(uuidv7());
     adjust.reset();
     onOpenChange(false);
@@ -70,6 +85,7 @@ export function AdjustBalanceDialog({
   const adjust = useMutation({
     mutationFn: (input: AdjustInput) => call(adjustEndpoint(account.id), input),
     onSuccess: async (result) => {
+      setPendingEarmark(null);
       if (!result.created) {
         setMatches(true);
         return;
@@ -77,6 +93,18 @@ export function AdjustBalanceDialog({
       // The new balance shows in every list, chart and total.
       await queryClient.invalidateQueries();
       close();
+    },
+    onError: (error, input) => {
+      // RF-M12-05: ask which goals to take from and resend with the same id.
+      if (error instanceof ApiError && error.code === 'EARMARK_CONFIRMATION_REQUIRED') {
+        const shortfall = error.data?.['shortfall'];
+        const proposal = EarmarkProposal.safeParse(error.data?.['proposal']);
+        if (typeof shortfall === 'string' && proposal.success) {
+          setPendingEarmark({ input, shortfall, proposal: proposal.data });
+          return;
+        }
+      }
+      setPendingEarmark(null);
     },
   });
 
@@ -175,7 +203,7 @@ export function AdjustBalanceDialog({
               {t('adjust.matches')}
             </p>
           )}
-          {adjust.isError && (
+          {adjust.isError && pendingEarmark === null && (
             <p role="alert" className="text-sm text-destructive">
               {messageForError(adjust.error instanceof ApiError ? adjust.error : { code: '' })}
             </p>
@@ -190,6 +218,22 @@ export function AdjustBalanceDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+      <EarmarkConfirmDialog
+        open={pendingEarmark !== null}
+        shortfall={pendingEarmark?.shortfall ?? '0.00'}
+        accountId={account.id}
+        proposal={pendingEarmark?.proposal ?? []}
+        symbol={symbolOf(account.currencyCode)}
+        pending={adjust.isPending}
+        onConfirm={(earmarkWithdrawals) => {
+          if (pendingEarmark !== null) {
+            adjust.mutate({ ...pendingEarmark.input, earmarkWithdrawals });
+          }
+        }}
+        onCancel={() => {
+          setPendingEarmark(null);
+        }}
+      />
     </Dialog>
   );
 }

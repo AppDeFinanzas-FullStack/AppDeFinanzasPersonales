@@ -1,4 +1,6 @@
+import type { EarmarkWithdrawals } from '@finanzas/contracts';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
@@ -6,19 +8,19 @@ import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
+import { EarmarkConfirmDialog } from '@/features/goals/components/earmark-confirm-dialog';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 
-import { TransactionItem } from '../api';
+import { TransactionDetailData } from '../detail-data';
 import { useDeleteTransaction } from '../hooks/use-delete-transaction';
 import { TRANSACTIONS_KEY } from '../hooks/use-transactions';
 
 import { useSignedMoney } from './transaction-row';
 
-/** A movement with its fee and its origin for "Ir a…" (`GET /api/transactions/:id`). */
-export const TransactionDetailData = TransactionItem.extend({ fee: TransactionItem.optional() });
-export type TransactionDetailData = z.infer<typeof TransactionDetailData>;
+// The schema lives in `detail-data.ts`, free of components; it is re-exported for its importers.
+export { TransactionDetailData };
 
 export const transactionEndpoint = (id: string): Endpoint<undefined, TransactionDetailData> => ({
   method: 'GET',
@@ -26,6 +28,15 @@ export const transactionEndpoint = (id: string): Endpoint<undefined, Transaction
   input: z.undefined(),
   output: TransactionDetailData,
 });
+
+const EarmarkProposal = z.array(z.object({ goalId: z.string(), amount: z.string() }));
+
+/** What the API asked to confirm before deleting (RF-M12-05). */
+interface PendingEarmark {
+  accountId: string;
+  shortfall: string;
+  proposal: z.infer<typeof EarmarkProposal>;
+}
 
 export const isGone = (error: unknown): boolean =>
   error instanceof ApiError && error.code === 'NOT_FOUND';
@@ -65,7 +76,12 @@ interface TransactionDetailProps {
 }
 
 /** `<TransactionDetail>`: the movement with its fee, its marks and "Ir a…" (plan §4.6.4). */
-export function TransactionDetail({ transaction, base, accountNames, onEdit }: TransactionDetailProps) {
+export function TransactionDetail({
+  transaction,
+  base,
+  accountNames,
+  onEdit,
+}: TransactionDetailProps) {
   const { t } = useTranslation('transactions');
   const formatters = useFormatters();
   const symbolOf = useCurrencySymbol();
@@ -73,6 +89,7 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
   const navigate = useNavigate();
   const location = useLocation();
   const remove = useDeleteTransaction();
+  const [pendingEarmark, setPendingEarmark] = useState<PendingEarmark | null>(null);
   const nameOf = (accountId: string) => accountNames.get(accountId) ?? '';
 
   const transfer = transaction.kind === 'transfer';
@@ -81,8 +98,7 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
     : undefined;
   const arrival = transfer ? transaction.entries.find((entry) => entry !== out) : undefined;
   const main = out ?? transaction.entries[0];
-  const title =
-    transaction.category?.name ?? (transfer ? t('row.transfer') : t('row.adjustment'));
+  const title = transaction.category?.name ?? (transfer ? t('row.transfer') : t('row.adjustment'));
   const amount =
     main === undefined
       ? ''
@@ -114,6 +130,44 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
   const linked = isLinkedOrigin(transaction.origin) ? transaction.origin : null;
   const goTo = linked === null ? null : originPath(linked, transaction.originId);
   const feeEntry = transaction.fee?.entries[0];
+  // Deleting a transfer takes its money back from the destination, so that account is the one
+  // left short; deleting anything else takes from its only account (RF-M12-05).
+  const shortEntry = arrival ?? main;
+
+  /** Deletes, optionally with the goals the user confirmed to take from (RF-M12-05). */
+  const deleteWith = (earmarkWithdrawals: EarmarkWithdrawals | undefined) => {
+    remove.mutate(
+      {
+        id: transaction.id,
+        earmarkWithdrawals,
+        // "Deshacer" restores the movement, which takes from its outgoing account again.
+        account:
+          main === undefined ? undefined : { id: main.accountId, currencyCode: main.currencyCode },
+      },
+      {
+        onSuccess: () => {
+          setPendingEarmark(null);
+          if (location.key === 'default') void navigate('/movimientos');
+          else void navigate(-1);
+        },
+        onError: (error) => {
+          if (error instanceof ApiError && error.code === 'EARMARK_CONFIRMATION_REQUIRED') {
+            const shortfall = error.data?.['shortfall'];
+            const proposal = EarmarkProposal.safeParse(error.data?.['proposal']);
+            if (typeof shortfall === 'string' && proposal.success) {
+              setPendingEarmark({
+                accountId: shortEntry?.accountId ?? '',
+                shortfall,
+                proposal: proposal.data,
+              });
+              return;
+            }
+          }
+          setPendingEarmark(null);
+        },
+      },
+    );
+  };
 
   const rows: { label: string; value: string }[] = [
     { label: t('detail.date'), value: formatters.date(transaction.date) },
@@ -147,9 +201,7 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
       <header className="flex flex-col gap-1">
         <p className="text-base font-medium">{title}</p>
         <p className="text-[2rem] font-semibold leading-tight tabular-nums">{amount}</p>
-        {inBase !== null && (
-          <p className="text-sm tabular-nums text-muted-foreground">{inBase}</p>
-        )}
+        {inBase !== null && <p className="text-sm tabular-nums text-muted-foreground">{inBase}</p>}
         {(transaction.beforeInitialBalance ||
           (transaction.recurringLabel !== undefined && transaction.recurringLabel !== null)) && (
           <p className="flex flex-wrap gap-1 pt-1">
@@ -207,18 +259,27 @@ export function TransactionDetail({ transaction, base, accountNames, onEdit }: T
             className="h-11 text-destructive"
             disabled={remove.isPending}
             onClick={() => {
-              remove.mutate(transaction.id, {
-                onSuccess: () => {
-                  if (location.key === 'default') void navigate('/movimientos');
-                  else void navigate(-1);
-                },
-              });
+              deleteWith(undefined);
             }}
           >
             {remove.isPending ? t('detail.deleting') : t('detail.delete')}
           </Button>
         )}
       </div>
+      <EarmarkConfirmDialog
+        open={pendingEarmark !== null}
+        shortfall={pendingEarmark?.shortfall ?? '0.00'}
+        accountId={pendingEarmark?.accountId ?? ''}
+        proposal={pendingEarmark?.proposal ?? []}
+        symbol={symbolOf(shortEntry?.currencyCode ?? base)}
+        pending={remove.isPending}
+        onConfirm={(earmarkWithdrawals) => {
+          deleteWith(earmarkWithdrawals);
+        }}
+        onCancel={() => {
+          setPendingEarmark(null);
+        }}
+      />
     </article>
   );
 }

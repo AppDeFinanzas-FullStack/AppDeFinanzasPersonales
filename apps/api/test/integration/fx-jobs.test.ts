@@ -473,11 +473,15 @@ describe('lease fx_refresh (plan §4.3.3)', () => {
 
   it('RF-M3-04 mientras corre la actualización tiene el lease y al terminar lo libera', async () => {
     const { jobs, rates } = setup();
-    rates.configure({ delayMs: 150 });
+    rates.configure({ delayMs: 600 });
 
     const run = jobs.fetchParallel({ force: true });
-    await sleep(60);
-    const during = await leaseRow('fx_refresh');
+    // Wait for the lease instead of sleeping a fixed time: a slow runner takes longer to acquire it.
+    let during = await leaseRow('fx_refresh');
+    for (let waited = 0; !during?.lockedUntil && waited < 500; waited += 20) {
+      await sleep(20);
+      during = await leaseRow('fx_refresh');
+    }
     await run;
 
     expect(during?.lockedUntil).not.toBeNull();

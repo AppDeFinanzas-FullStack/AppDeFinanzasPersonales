@@ -18,6 +18,8 @@ export interface FxJobsDeps {
   uow: UnitOfWork;
   jobRuns: JobRuns;
   clock: Clock;
+  /** Runs after a new parallel rate is stored, e.g. the goal milestones (plan §4.12.3). */
+  afterParallel?: () => Promise<void>;
 }
 
 export interface FxJobs {
@@ -31,7 +33,14 @@ export interface FxJobs {
 const isValidRate = (value: Decimal): boolean =>
   value.isFinite() && value.gte(MIN_RATE) && value.decimalPlaces() <= 2;
 
-export function createFxJobs({ rates, bcb, uow, jobRuns, clock }: FxJobsDeps): FxJobs {
+export function createFxJobs({
+  rates,
+  bcb,
+  uow,
+  jobRuns,
+  clock,
+  afterParallel,
+}: FxJobsDeps): FxJobs {
   /** One refresh at a time through the `fx_refresh` lease; a source failure never throws. */
   const withLease = async (work: () => Promise<void>): Promise<void> => {
     if (!(await jobRuns.tryAcquire(FX_REFRESH_LEASE, clock.now()))) return;
@@ -86,6 +95,7 @@ export function createFxJobs({ rates, bcb, uow, jobRuns, clock }: FxJobsDeps): F
         });
       }
     });
+    await afterParallel?.();
   };
 
   const refreshOfficial = async (): Promise<void> => {

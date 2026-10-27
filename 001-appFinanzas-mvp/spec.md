@@ -487,7 +487,7 @@ Escenario: Sin ninguna tasa disponible
   - Apartado para metas (V1.1): los apartados más el saldo positivo de las cuentas dedicadas. No altera el total.
 - **RF-M4-11:** Las cuentas DEBEN poder reordenarse. La lista agrupa por tipo y respeta ese orden.
 - **RF-M4-12:** Si se archiva la cuenta por defecto o la última usada en Registrar, Registrar DEBE pasar a la cuenta que indica RF-M7-03.
-- **RF-M4-13:** Al eliminar una cuenta sin movimientos, el sistema DEBE quitarla como cuenta por defecto, eliminar sus atajos y pausar sus reglas recurrentes con un aviso.
+- **RF-M4-13:** Al eliminar una cuenta sin movimientos, el sistema DEBE quitarla como cuenta por defecto y eliminar sus atajos. Si una regla recurrente usa la cuenta, se rechaza la eliminación y se sugiere archivarla (al archivarla, sus reglas se pausan con un aviso, EC-M14-02).
 
 #### 2.4.4 Casos borde y excepciones
 - **EC-M4-01:** Se elimina un ingreso del efectivo y el saldo quedaría en −50. Se rechaza: "El efectivo quedaría en Bs −50,00".
@@ -1437,7 +1437,7 @@ Escenario: Reanudar con ocurrencias saltadas
   | Pago próximo | Sí | Recurrentes de gasto y de transferencia con frecuencia semanal o mayor (no diarias), 1 día antes; sin monto, dicen "monto por definir". Tarjetas, el día del corte y 3 días antes del pago. Deudas en ambas direcciones, 3 días antes, el día y el día siguiente si quedó vencida |
   | Alertas de presupuesto | Sí | Según los umbrales de cada presupuesto (M11) |
   | Cierre de período | Sí | Al cerrar cada período de presupuesto |
-  | Pendiente de recurrente | Sí | Al generarse un pendiente, al omitirse por vencimiento y al pausarse una regla porque se archivó o eliminó su cuenta, o se archivó su categoría (para elegir otra) |
+  | Pendiente de recurrente | Sí | Al generarse un pendiente, al omitirse por vencimiento y al pausarse una regla porque se archivó su cuenta o su categoría (para elegir otra) |
   | Registrar el día | No | Siempre a la hora elegida (21:00 por defecto), en los días de la semana elegidos |
   | Avance de metas | No | Al cruzar el 25 %, 50 %, 75 % y 100 %. Además, el día 1 de cada mes, si el mes anterior se aportó menos que lo sugerido. Aporte del mes = apartados + entradas a la cuenta dedicada − retiros, sin el efecto del tipo de cambio |
 

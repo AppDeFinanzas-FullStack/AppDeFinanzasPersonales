@@ -1,0 +1,64 @@
+{
+  "loadError": "No pudimos cargar el Inicio. Revisa tu conexión e inténtalo de nuevo.",
+  "cards": {
+    "income": "Ingresos",
+    "expense": "Gastos",
+    "balance": "Balance",
+    "savingsRate": "Tasa de ahorro"
+  },
+  "register": "Registrar",
+  "cardLinks": "Ver movimientos del mes",
+  "budget": {
+    "title": "Presupuesto del mes",
+    "empty": "No tienes presupuestos activos este mes.",
+    "general": "Presupuesto general",
+    "spentOf": "{{spent}} de {{limit}}",
+    "seeAll": "Ver presupuestos"
+  },
+  "byCategory": {
+    "title": "Gasto por categoría",
+    "empty": "Aún no tienes gastos este mes.",
+    "others": "Otras"
+  },
+  "pace": {
+    "title": "Ritmo del gasto",
+    "empty": "Aún no hay gastos para comparar.",
+    "current": "Este mes",
+    "previous": "Mes anterior"
+  },
+  "upcoming": {
+    "title": "Próximos pagos y deudas",
+    "empty": "No tienes vencimientos en los próximos 7 días.",
+    "kind": {
+      "debt_i_owe": "Debes pagar",
+      "debt_owed_to_me": "Te deben pagar",
+      "card_cut": "Corte de tarjeta",
+      "card_payment": "Pago de tarjeta"
+    }
+  },
+  "balances": {
+    "title": "Saldos por cuenta",
+    "asOfToday": "Saldos al día de hoy",
+    "noRate": "Sin tipo de cambio",
+    "seeAll": "Ver todas"
+  },
+  "recent": {
+    "title": "Últimos movimientos",
+    "empty": "Aún no tienes movimientos.",
+    "seeAll": "Ver todos",
+    "noRate": "Sin tipo de cambio",
+    "kind": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia",
+      "adjustment": "Ajuste"
+    }
+  },
+  "variation": {
+    "up": "Subió",
+    "down": "Bajó",
+    "same": "Sin cambio",
+    "none": "—",
+    "versus": "frente al mes anterior"
+  }
+}

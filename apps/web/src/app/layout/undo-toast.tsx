@@ -1,4 +1,4 @@
-import { UndoInput } from '@finanzas/contracts';
+import { UndoInput, type EarmarkWithdrawals } from '@finanzas/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,13 @@ import { useLocation } from 'react-router';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
-import { AFFECTED_KEYS, UNDO_MS } from '@/features/transactions/hooks/use-delete-transaction';
+import { useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
+import { EarmarkConfirmDialog } from '@/features/goals/components/earmark-confirm-dialog';
+import {
+  AFFECTED_KEYS,
+  UNDO_MS,
+  undoAccountOf,
+} from '@/features/transactions/hooks/use-delete-transaction';
 import { ApiError, call, type Endpoint } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
 import { uiStore, useUiStore } from '@/lib/ui-store';
@@ -17,6 +23,16 @@ const undoEndpoint: Endpoint<UndoInput, undefined> = {
   input: UndoInput,
   output: z.undefined(),
 };
+
+const EarmarkProposal = z.array(z.object({ goalId: z.string(), amount: z.string() }));
+
+/** What the API asked to confirm before reverting (RF-M12-05). */
+interface PendingEarmark {
+  accountId: string;
+  currencyCode: string;
+  shortfall: string;
+  proposal: z.infer<typeof EarmarkProposal>;
+}
 
 const MOVEMENTS_ROOT = '/movimientos';
 
@@ -42,6 +58,8 @@ export function UndoToast() {
   const [now, setNow] = useState(() => Date.now());
   const [shown, setShown] = useState<Shown | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingEarmark, setPendingEarmark] = useState<PendingEarmark | null>(null);
+  const symbolOf = useCurrencySymbol();
 
   // A new undo: remember where it appeared and forget the previous error.
   if (undo !== null && shown?.token !== undo.token) {
@@ -67,27 +85,48 @@ export function UndoToast() {
   }, [undo]);
 
   useEffect(() => {
-    if (undo !== null && shown?.token === undo.token && shown.fromMovements && !inMovements(pathname)) {
+    if (
+      undo !== null &&
+      shown?.token === undo.token &&
+      shown.fromMovements &&
+      !inMovements(pathname)
+    ) {
       uiStore.clearUndo();
     }
   }, [pathname, undo, shown]);
 
   const revert = useMutation({
-    mutationFn: (undoToken: string) => call(undoEndpoint, { undoToken }),
+    mutationFn: (input: UndoInput) => call(undoEndpoint, input),
     onSuccess: async () => {
+      setPendingEarmark(null);
       uiStore.clearUndo();
-      await Promise.all(AFFECTED_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+      await Promise.all(
+        AFFECTED_KEYS.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      );
     },
-    onError: (failure) => {
+    onError: (failure, input) => {
+      if (failure instanceof ApiError && failure.code === 'EARMARK_CONFIRMATION_REQUIRED') {
+        const shortfall = failure.data?.['shortfall'];
+        const proposal = EarmarkProposal.safeParse(failure.data?.['proposal']);
+        // The API does not name the account; the deletion remembered it for this token.
+        const account = undoAccountOf(input.undoToken);
+        if (typeof shortfall === 'string' && account !== undefined && proposal.success) {
+          setPendingEarmark({
+            accountId: account.id,
+            currencyCode: account.currencyCode,
+            shortfall,
+            proposal: proposal.data,
+          });
+          return;
+        }
+      }
+      setPendingEarmark(null);
       setError(messageForError(failure instanceof ApiError ? failure : { code: '' }));
     },
   });
 
   if (undo === null) return null;
-  const seconds = Math.min(
-    UNDO_MS / 1000,
-    Math.max(0, Math.ceil((undo.expiresAt - now) / 1000)),
-  );
+  const seconds = Math.min(UNDO_MS / 1000, Math.max(0, Math.ceil((undo.expiresAt - now) / 1000)));
 
   return (
     <div
@@ -110,7 +149,7 @@ export function UndoToast() {
             className="h-11 font-medium text-primary"
             disabled={revert.isPending}
             onClick={() => {
-              revert.mutate(undo.token);
+              revert.mutate({ undoToken: undo.token });
             }}
           >
             {revert.isPending ? t('undo.undoing') : t('undo.action')}
@@ -122,6 +161,20 @@ export function UndoToast() {
           {error}
         </p>
       )}
+      <EarmarkConfirmDialog
+        open={pendingEarmark !== null}
+        shortfall={pendingEarmark?.shortfall ?? '0.00'}
+        accountId={pendingEarmark?.accountId ?? ''}
+        proposal={pendingEarmark?.proposal ?? []}
+        symbol={symbolOf(pendingEarmark?.currencyCode ?? 'BOB')}
+        pending={revert.isPending}
+        onConfirm={(earmarkWithdrawals: EarmarkWithdrawals) => {
+          revert.mutate({ undoToken: undo.token, earmarkWithdrawals });
+        }}
+        onCancel={() => {
+          setPendingEarmark(null);
+        }}
+      />
     </div>
   );
 }

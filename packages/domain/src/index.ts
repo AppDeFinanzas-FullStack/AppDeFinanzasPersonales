@@ -53,3 +53,37 @@ export { formatMoney, parseAmountInput } from './format.js';
 export type { NumberFormat } from './format.js';
 export { formatDate, relativeDay, weekDays } from './format.js';
 export type { DateFormat, WeekDay, WeekStart } from './format.js';
+export { comparisonWindow, pctChange, savingsRate, savingsRateDeltaPp } from './dashboard.js';
+export type { ComparisonWindow } from './dashboard.js';
+export { installment, isFinished, nextDates, skippedDates } from './recurrence.js';
+export type { Installment, RecurrenceEnd, RecurrenceFrequency, RecurrenceRule } from './recurrence.js';
+export { accrue, dailyRate, deriveStatus, proposeSplit, validatePayment } from './debts.js';
+export type {
+  DebtState,
+  DebtStatus,
+  InterestPeriod,
+  PaymentCheck,
+  PaymentSplit,
+  PaymentValidation,
+} from './debts.js';
+export {
+  available,
+  nextPeriod,
+  pace,
+  periodFor,
+  periodLabel,
+  result,
+  thresholdsCrossed,
+  todayShouldBe,
+} from './budget.js';
+export type { BudgetPace, BudgetPeriod } from './budget.js';
+export { earmarkProposal, progress, status, suggestedMonthly } from './goals.js';
+export type {
+  EarmarkSource,
+  EarmarkTake,
+  GoalMoney,
+  GoalRates,
+  GoalStatus,
+  GoalStatusInput,
+  SuggestedMonthly,
+} from './goals.js';
