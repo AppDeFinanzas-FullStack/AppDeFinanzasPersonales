@@ -1,0 +1,128 @@
+{
+  "title": "Deudas y préstamos",
+  "empty": "Aún no tienes deudas ni préstamos registrados.",
+  "loadError": "No se pudieron cargar las deudas. Inténtalo de nuevo.",
+  "back": "Volver a deudas",
+  "summary": {
+    "label": "Resumen de deudas",
+    "iOwe": "Debes",
+    "owedToMe": "Te deben"
+  },
+  "view": {
+    "label": "Ver la lista",
+    "debt": "Por deuda",
+    "person": "Por persona"
+  },
+  "direction": {
+    "i_owe": "Le debes",
+    "owed_to_me": "Te debe"
+  },
+  "status": {
+    "active": "Activa",
+    "overdue": "Vencida",
+    "paid": "Pagada",
+    "forgiven": "Condonada"
+  },
+  "net": {
+    "owesYou": "Te debe en total",
+    "youOwe": "Le debes en total",
+    "settled": "Están a mano"
+  },
+  "dueDate": "vence el {{date}}",
+  "header": {
+    "pending": "Saldo pendiente",
+    "capital": "Capital pendiente",
+    "interest": "Interés acumulado",
+    "forgiven": "Monto condonado"
+  },
+  "payments": {
+    "title": "Pagos",
+    "empty": "Aún no hay pagos.",
+    "split": "Capital {{capital}} · Interés {{interest}}",
+    "deleteLast": "Eliminar último pago"
+  },
+  "actions": {
+    "forgive": "Condonar saldo",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "newDebt": "Nueva deuda",
+    "registerPayment": "Registrar pago"
+  },
+  "forgive": {
+    "title": "Condonar saldo",
+    "description": "La deuda con {{person}} se cierra y el saldo pendiente se perdona. No se crea ningún movimiento.",
+    "submit": "Condonar"
+  },
+  "delete": {
+    "title": "Eliminar deuda",
+    "description": "Esta deuda tiene movimientos asociados. Elige qué hacer con ellos.",
+    "withMovements_one": "Eliminar también el movimiento asociado",
+    "withMovements_other": "Eliminar también los {{count}} movimientos asociados",
+    "keepMovements": "Conservarlos como movimientos normales",
+    "submit": "Eliminar"
+  },
+  "form": {
+    "title": "Nueva deuda",
+    "description": "Registra lo que debes o lo que te deben.",
+    "direction": {
+      "label": "Tipo de deuda",
+      "i_owe": "Debo",
+      "owed_to_me": "Me deben"
+    },
+    "person": "Persona",
+    "amount": "Monto",
+    "currency": "Moneda",
+    "startDate": "Fecha de inicio",
+    "dueDate": "Fecha límite",
+    "note": "Nota",
+    "interest": "Interés (%)",
+    "period": "Período",
+    "periods": {
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "account": "Cuenta",
+    "noAccount": "Sin movimiento inicial",
+    "accountHint": "Si eliges una cuenta, se registra el movimiento inicial de la deuda.",
+    "rate": "Tipo de cambio",
+    "rateHint": "Bolivianos por cada dólar.",
+    "inAccount": "En la cuenta: {{amount}}",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "errors": {
+      "person": "Escribe un nombre de 1 a 40 caracteres.",
+      "amount": "Escribe un monto mayor que 0.",
+      "startDate": "Elige una fecha de hoy o anterior.",
+      "interest": "Escribe un interés entre 0,01 y 100.",
+      "rate": "Escribe el tipo de cambio, mayor que 0."
+    }
+  },
+  "payment": {
+    "title": "Registrar pago",
+    "description": "Pago a {{person}}. Saldo pendiente: {{pending}}.",
+    "amount": "Monto",
+    "interest": "Interés",
+    "capital": "Capital",
+    "account": "Cuenta",
+    "noAccount": "Sin cuenta",
+    "accountHint": "Sin cuenta, el pago solo baja el saldo de la deuda.",
+    "date": "Fecha",
+    "rate": "Tipo de cambio",
+    "rateHint": "Bolivianos por cada dólar.",
+    "inAccount": "En la cuenta: {{amount}}",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "errors": {
+      "amount": "Escribe un monto mayor que 0.",
+      "exceeds": "El pago supera lo pendiente: {{pending}}.",
+      "interestInvalid": "Escribe un interés válido, de 0 en adelante.",
+      "interestOver": "El interés no puede superar lo acumulado: {{max}}.",
+      "capitalInvalid": "Escribe un capital válido, de 0 en adelante.",
+      "capitalOver": "El capital no puede superar lo pendiente: {{max}}.",
+      "mismatch": "El interés y el capital deben sumar {{amount}}.",
+      "date": "Elige una fecha de hoy o anterior, desde el inicio de la deuda.",
+      "rate": "Escribe el tipo de cambio, mayor que 0."
+    }
+  }
+}

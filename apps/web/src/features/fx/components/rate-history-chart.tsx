@@ -62,7 +62,13 @@ export function RateHistoryChart({ kind }: { kind: UsdReference }) {
       >
         <TabsList aria-label={t('history.rangesLabel')}>
           {RANGES.map((option) => (
-            <TabsTrigger key={option} value={option} className="min-h-11 px-4">
+            <TabsTrigger
+              key={option}
+              value={option}
+              // The range changes the chart below; there is no tab panel to point at.
+              aria-controls={undefined}
+              className="min-h-11 px-4"
+            >
               {t(`history.ranges.${option}`)}
             </TabsTrigger>
           ))}

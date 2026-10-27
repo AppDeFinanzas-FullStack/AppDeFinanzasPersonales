@@ -5,10 +5,19 @@ import { Decimal } from 'decimal.js';
 import type { Express } from 'express';
 import { uuidv7 } from 'uuidv7';
 
+import { AppError } from '../application/errors.js';
+import { createBudgetsJobs } from '../application/jobs/budgets.js';
 import { createMaintenance } from '../application/jobs/maintenance.js';
+import {
+  createScheduledNotifications,
+  type ScheduledUser,
+  type ScheduledUsers,
+} from '../application/jobs/notifications.js';
 import { createOutboxSend } from '../application/jobs/outbox.js';
+import { createRecurringJobs, type RecurringUsers } from '../application/jobs/recurring.js';
 import type { AuthGateway } from '../application/ports/auth-gateway.js';
 import { createAuthService, type AuthService } from '../application/services/auth.service.js';
+import { createExportService, type ExportService } from '../application/services/export.service.js';
 import {
   createMeService,
   type MeService,
@@ -28,6 +37,16 @@ import {
   createShortcutsService,
   type ShortcutsService,
 } from '../application/services/shortcuts.service.js';
+import { createDebtsService, type DebtsService } from '../application/services/debts.service.js';
+import {
+  createBudgetsService,
+  type BudgetsService,
+} from '../application/services/budgets.service.js';
+import { createGoalsService, type GoalsService } from '../application/services/goals.service.js';
+import {
+  createRecurringService,
+  type RecurringService,
+} from '../application/services/recurring.service.js';
 import {
   createAccountsService,
   type AccountsService,
@@ -37,6 +56,15 @@ import {
   type CategoriesService,
 } from '../application/services/categories.service.js';
 import {
+  createDashboardService,
+  createDashboardViewService,
+  type DashboardViewService,
+} from '../application/services/dashboard.service.js';
+import {
+  createOnboardingService,
+  type OnboardingService,
+} from '../application/services/onboarding.service.js';
+import {
   createSettingsService,
   type SettingsService,
 } from '../application/services/settings.service.js';
@@ -45,6 +73,14 @@ import {
   type RegisterService,
   type RegisterUsageReader,
 } from '../application/services/register.service.js';
+import {
+  createNotificationPreferencesService,
+  createNotificationsService,
+  type NotificationPreferencesService,
+  type NotificationRecord,
+  type NotificationsService,
+  type NotificationsStore,
+} from '../application/services/notifications.service.js';
 import {
   createTransactionsService,
   type TransactionsService,
@@ -56,7 +92,18 @@ import type { IdGenerator } from '../application/ports/id-generator.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
+import { createBudgetLedgerHook } from '../application/shared/budget-ledger-hook.js';
+import {
+  createGoalMilestones,
+  type GoalNoticeUser,
+  type GoalNoticeUsers,
+} from '../application/shared/goal-milestones.js';
 import { createLedgerHooks, type LedgerHooks } from '../application/shared/ledger-hooks.js';
+import { createNotificationEmitter } from '../application/shared/notification-emitter.js';
+import {
+  createRecurringGenerator,
+  type RecurringGenerator,
+} from '../application/shared/recurring-generator.js';
 import { bootstrapUser } from '../application/shared/user-bootstrap.js';
 import { todayFor, type LocalDate } from '../domain/index.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -73,6 +120,7 @@ import {
   type FakeRatesGateway,
 } from '../infrastructure/integrations/paralelo-bo.fake.js';
 import { createParaleloBoGateway } from '../infrastructure/integrations/paralelo-bo.js';
+import { createZipStream } from '../infrastructure/export/csv-zip.js';
 import { createJobRuns } from '../infrastructure/persistence/job-runs.js';
 import { createMaintenanceStore } from '../infrastructure/persistence/maintenance-store.js';
 import {
@@ -93,13 +141,29 @@ import { createAccountRepository } from '../infrastructure/persistence/repositor
 import { createLedgerRepository } from '../infrastructure/persistence/repositories/ledger.repository.js';
 import { createCategoryRepository } from '../infrastructure/persistence/repositories/category.repository.js';
 import { createShortcutRepository } from '../infrastructure/persistence/repositories/shortcut.repository.js';
+import {
+  createDashboardExpenseReader,
+  createDashboardRepository,
+} from '../infrastructure/persistence/repositories/dashboard.repository.js';
+import { createExportRepository } from '../infrastructure/persistence/repositories/export.repository.js';
+import { createNotificationRepository } from '../infrastructure/persistence/repositories/notification.repository.js';
+import { createNotificationPreferenceRepository } from '../infrastructure/persistence/repositories/notification-preference.repository.js';
+import { createRecurringOccurrenceRepository } from '../infrastructure/persistence/repositories/recurring-occurrence.repository.js';
+import { createRecurringRuleRepository } from '../infrastructure/persistence/repositories/recurring-rule.repository.js';
+import { createBudgetPeriodRepository } from '../infrastructure/persistence/repositories/budget-period.repository.js';
+import { createBudgetRepository } from '../infrastructure/persistence/repositories/budget.repository.js';
+import { createGoalAllocationRepository } from '../infrastructure/persistence/repositories/goal-allocation.repository.js';
+import { createGoalRepository } from '../infrastructure/persistence/repositories/goal.repository.js';
 import { createUndoActionRepository } from '../infrastructure/persistence/repositories/undo-action.repository.js';
+import { createDebtRepository } from '../infrastructure/persistence/repositories/debt.repository.js';
+import { createDebtPaymentRepository } from '../infrastructure/persistence/repositories/debt-payment.repository.js';
 import {
   createUnitOfWork,
   type TransactionClient,
 } from '../infrastructure/persistence/unit-of-work.js';
 import { createApp as createExpressApp } from '../presentation/app.js';
 import type {
+  TestNotificationInput,
   TestRatesInput,
   TestSupportControllerDeps,
   TestUserCredentials,
@@ -125,20 +189,40 @@ export interface Container {
   readonly jobs: Jobs;
   /** Reactions to ledger changes; each module registers its handler here (plan §4.0). */
   readonly ledgerHooks: LedgerHooks;
+  /** The occurrences of the recurring rules, generated in the caller's transaction (plan §4.14.3). */
+  readonly recurringGenerator: RecurringGenerator;
   readonly auth: AuthGateway;
   readonly authService: AuthService;
   readonly meService: MeService;
+  /** The ZIP of `GET /api/me/export` (plan §4.1.2). */
+  readonly exportService: ExportService;
   readonly settingsService: SettingsService;
   readonly ratesService: RatesService;
   readonly fxSettingsService: FxSettingsService;
   readonly currenciesService: CurrenciesService;
   readonly accountsService: AccountsService;
+  /** The budgets of `/api/budgets` (plan §4.11.2). */
+  readonly budgetsService: BudgetsService;
+  /** The goals of `/api/goals` (plan §4.12.2). */
+  readonly goalsService: GoalsService;
+  /** The rules and occurrences of `/api/recurring` (plan §4.14.2). */
+  readonly recurringService: RecurringService;
+  /** The debts of `/api/debts` (plan §4.13.2). */
+  readonly debtsService: DebtsService;
   readonly shortcutsService: ShortcutsService;
   readonly categoriesService: CategoriesService;
   /** The category tree of `GET /api/categories` (plan §4.5.2). */
   readonly categoryTree: CategoryTreeReader;
   readonly transactionsService: TransactionsService;
   readonly registerService: RegisterService;
+  /** The blocks of `GET /api/dashboard` (plan §4.8.2). */
+  readonly dashboardService: DashboardViewService;
+  /** The steps of `/api/onboarding` (plan §4.10.2). */
+  readonly onboardingService: OnboardingService;
+  /** The inbox of `/api/notifications` (plan §4.15.2). */
+  readonly notificationsService: NotificationsService;
+  /** The configuration of `/api/notification-preferences` (plan §4.15.2). */
+  readonly notificationPreferencesService: NotificationPreferencesService;
   /** Daily balances of `GET /api/accounts/:id/balance-series` (plan §4.4.2). */
   readonly balanceSeries: BalanceSeriesReader;
   /** Daily rows of `GET /api/rates/history` (plan §4.3.2). */
@@ -163,12 +247,9 @@ const uuidv7Ids: IdGenerator = {
   next: () => uuidv7(),
 };
 
-/** Sender of the account emails; the environment has no variable for it yet. */
-const EMAIL_FROM = 'Finanzas <onboarding@resend.dev>';
-
 /** Real Resend gateway, or the in-memory fake when the environment asks for fake integrations. */
 const createEmailGateway = (env: Env, fake: FakeEmailGateway | null): EmailGateway =>
-  fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: EMAIL_FROM });
+  fake ?? new ResendEmailGateway({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM });
 
 /** Repositories of one transaction; each module adds its own here (plan §1.4). */
 const NO_USER = '00000000-0000-0000-0000-000000000000';
@@ -188,6 +269,18 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   categories: createCategoryRepository(tx, userId ?? NO_USER),
   userSettings: createUserSettingsRepository(tx),
   shortcuts: createShortcutRepository(tx, userId ?? NO_USER),
+  dashboard: createDashboardRepository(tx, userId ?? NO_USER),
+  exports: createExportRepository(tx, userId ?? NO_USER),
+  notifications: createNotificationRepository(tx),
+  notificationPreferences: createNotificationPreferenceRepository(tx),
+  recurringRules: createRecurringRuleRepository(tx, userId ?? NO_USER),
+  recurringOccurrences: createRecurringOccurrenceRepository(tx, userId ?? NO_USER),
+  debts: createDebtRepository(tx, userId ?? NO_USER),
+  debtPayments: createDebtPaymentRepository(tx, userId ?? NO_USER),
+  goals: createGoalRepository(tx, userId ?? NO_USER),
+  goalAllocations: createGoalAllocationRepository(tx, userId ?? NO_USER),
+  budgets: createBudgetRepository(tx, userId ?? NO_USER),
+  budgetPeriods: createBudgetPeriodRepository(tx, userId ?? NO_USER),
 });
 
 const PARALELO_BO_URL = 'https://paralelo.bo/mcp';
@@ -288,7 +381,8 @@ interface RegisterUsageRecord {
 /**
  * The reads of Registrar (plan §4.7.2): one composite query for the grid and the preselected
  * accounts, always bound to the user (RN-09). Uses count the live movements of the last 60 days by
- * exact category; the last account is the one of the last movement created of each kind.
+ * exact category; the last account is the one of the last movement created of each kind. The
+ * preloaded categories come in their order: each main one followed by its own subcategories.
  */
 const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader => ({
   async read(userId, today) {
@@ -303,10 +397,14 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
                     AND t.kind IN ('expense', 'income') AND t.category_id IS NOT NULL
                     AND t.date > ${today}::date - 60
                   GROUP BY t.category_id) u) AS "categoryUses",
-        (SELECT COALESCE(json_agg(c.id::text ORDER BY c.seed_order), '[]'::json)
-           FROM category c
-          WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
-            AND c.status = 'active') AS seeded,
+        (SELECT COALESCE(json_agg(s.id::text ORDER BY s.root_order, s.is_child, s.seed_order),
+                         '[]'::json)
+           FROM (SELECT c.id, c.seed_order, (c.parent_id IS NOT NULL) AS is_child,
+                        COALESCE(p.seed_order, c.seed_order) AS root_order
+                   FROM category c
+                   LEFT JOIN category p ON p.user_id = c.user_id AND p.id = c.parent_id
+                  WHERE c.user_id = ${userId}::uuid AND c.seed_order IS NOT NULL
+                    AND c.status = 'active') s) AS seeded,
         (SELECT e.account_id::text
            FROM ledger_transaction t
            JOIN ledger_entry e ON e.user_id = t.user_id AND e.transaction_id = t.id
@@ -350,7 +448,7 @@ const createRegisterUsageReader = (prisma: PrismaClient): RegisterUsageReader =>
 });
 
 /** The user's category tree of a kind and status. */
-const createCategoryTreeReader =(uow: UnitOfWork): CategoryTreeReader => ({
+const createCategoryTreeReader = (uow: UnitOfWork): CategoryTreeReader => ({
   tree(userId, kind, status) {
     return uow.run((repos) => repos.categories.tree(kind, status), {
       userLock: userId,
@@ -386,6 +484,60 @@ const createParallelRefresher = (fxJobs: FxJobs): (() => void) => {
       });
   };
 };
+
+/** The users the recurring jobs walk and their timezone (plan §4.14.3, RNF-20). */
+const createRecurringUsers = (prisma: PrismaClient): RecurringUsers => ({
+  async withActiveRules() {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_rule
+       WHERE status = 'active'
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async withExpiredPending(before) {
+    const rows = await prisma.$queryRaw<{ userId: string }[]>`
+      SELECT DISTINCT user_id::text AS "userId"
+        FROM recurring_occurrence
+       WHERE status = 'pending' AND pending_since < ${before}::timestamptz
+       ORDER BY "userId"`;
+    return rows.map((row) => row.userId);
+  },
+  async timezoneOf(userId) {
+    const rows = await prisma.$queryRaw<{ timezone: string }[]>`
+      SELECT timezone FROM auth_user WHERE id = ${userId}::uuid`;
+    return rows[0]?.timezone ?? null;
+  },
+});
+
+/** The users the `notifications.scheduled` job walks, with the timezone of their profile. */
+const createScheduledUsers = (prisma: PrismaClient): ScheduledUsers => ({
+  all: () =>
+    prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user WHERE email_verified ORDER BY id`,
+  async find(userId) {
+    const rows = await prisma.$queryRaw<ScheduledUser[]>`
+      SELECT id::text AS id, timezone FROM auth_user
+       WHERE id = ${userId}::uuid AND email_verified`;
+    return rows[0] ?? null;
+  },
+});
+
+/**
+ * The users the hourly rates job evaluates goal milestones for: the ones with goal notices turned
+ * on and a goal that is not archived (plan §4.12.3).
+ */
+const createGoalNoticeUsers = (prisma: PrismaClient): GoalNoticeUsers => ({
+  withGoalNotices: () =>
+    prisma.$queryRaw<GoalNoticeUser[]>`
+      SELECT u.id::text AS id, u.timezone
+        FROM auth_user u
+       WHERE EXISTS (SELECT 1 FROM notification_preference p
+                      WHERE p.user_id = u.id AND p.type = 'goal_progress'::notification_type
+                        AND p.enabled)
+         AND EXISTS (SELECT 1 FROM goal g WHERE g.user_id = u.id AND g.archived_at IS NULL)
+       ORDER BY u.id`,
+});
 
 /** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
@@ -460,6 +612,78 @@ const createMeStore = (prisma: PrismaClient): MeStore => ({
   },
 });
 
+/** The row of a notification of the inbox, before it becomes a `NotificationRecord`. */
+interface NotificationRow {
+  id: string;
+  type: NotificationRecord['type'];
+  params: Record<string, unknown>;
+  targetRoute: string;
+  createdAt: Date;
+  createdAtKey: string;
+  readAt: Date | null;
+  decisionKind: 'budget_period' | 'occurrence' | null;
+  decisionRef: string | null;
+  decisionStatus: 'waiting' | 'resolved' | null;
+}
+
+/** The notifications of the inbox (plan §3.7, §4.15.2), always bound to the user (RN-09). */
+const createNotificationsStore = (prisma: PrismaClient): NotificationsStore => ({
+  async list(userId, after, limit) {
+    const rows = await prisma.$queryRaw<NotificationRow[]>`
+      SELECT n.id::text AS id, n.type::text AS type, n.params AS params,
+             n.target_route AS "targetRoute", n.created_at AS "createdAt",
+             to_char(n.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+               AS "createdAtKey",
+             n.read_at AS "readAt", n.decision_kind AS "decisionKind",
+             n.decision_ref::text AS "decisionRef", n.decision_status::text AS "decisionStatus"
+        FROM notification n
+       WHERE n.user_id = ${userId}::uuid
+         AND (${after === null}::boolean
+              OR (n.created_at, n.id) <
+                 (${after?.createdAt ?? null}::timestamptz, ${after?.id ?? null}::uuid))
+       ORDER BY n.created_at DESC, n.id DESC
+       LIMIT ${limit}::int`;
+    return rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      params: row.params,
+      targetRoute: row.targetRoute,
+      createdAt: row.createdAt,
+      createdAtKey: row.createdAtKey,
+      readAt: row.readAt,
+      decision:
+        row.decisionKind === null || row.decisionRef === null || row.decisionStatus === null
+          ? null
+          : { kind: row.decisionKind, ref: row.decisionRef, status: row.decisionStatus },
+    }));
+  },
+  async countUnread(userId) {
+    const rows = await prisma.$queryRaw<{ count: number }[]>`
+      SELECT count(*)::int AS count
+        FROM notification
+       WHERE user_id = ${userId}::uuid AND read_at IS NULL`;
+    return rows[0]?.count ?? 0;
+  },
+  async markRead(userId, id) {
+    const updated = await prisma.$executeRaw`
+      UPDATE notification
+         SET read_at = COALESCE(read_at, now())
+       WHERE id = ${id}::uuid AND user_id = ${userId}::uuid`;
+    return updated === 1;
+  },
+  async markAllRead(userId) {
+    await prisma.$executeRaw`
+      UPDATE notification
+         SET read_at = now()
+       WHERE user_id = ${userId}::uuid AND read_at IS NULL`;
+  },
+  async remove(userId, id) {
+    const deleted = await prisma.$executeRaw`
+      DELETE FROM notification WHERE id = ${id}::uuid AND user_id = ${userId}::uuid`;
+    return deleted === 1;
+  },
+});
+
 /** Creates a confirmed user with the Onboarding finished and returns its credentials. */
 const createTestUserFactory =
   (deps: { prisma: PrismaClient; uow: UnitOfWork; auth: AuthGateway }) =>
@@ -478,6 +702,30 @@ const createTestUserFactory =
     return { email, password };
   };
 
+/**
+ * `POST /internal/test/notifications` (plan §1.5): creates the notification for the user with that
+ * email, once per `eventKey` (RN-10). An unknown email answers 404.
+ */
+const createTestNotificationFactory =
+  (uow: UnitOfWork) =>
+  async ({ email, ...notification }: TestNotificationInput): Promise<void> => {
+    await uow.run(async (repos) => {
+      const user = await repos.users.findByEmail(email);
+      if (user === null) {
+        throw new AppError('NOT_FOUND');
+      }
+      await repos.notifications.insertIfAbsent({
+        id: uuidv7(),
+        userId: user.id,
+        type: notification.type,
+        eventKey: notification.eventKey,
+        params: notification.params,
+        targetRoute: notification.targetRoute,
+        ...(notification.decision === undefined ? {} : { decision: notification.decision }),
+      });
+    });
+  };
+
 export const buildContainer = (env: Env): Container => {
   const prisma = buildPrismaClient(env);
   const uow = createUnitOfWork(prisma, buildRepositories);
@@ -485,12 +733,24 @@ export const buildContainer = (env: Env): Container => {
   const jobRuns = createJobRuns(prisma);
   const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
   const rateSources = buildRateSources(env);
+  const ratesService = createRatesService({ uow });
+  const notificationEmitter = createNotificationEmitter({ release: env.RELEASE });
+  const recurringUsers = createRecurringUsers(prisma);
+  const goalMilestones = createGoalMilestones({
+    uow,
+    rates: ratesService,
+    notifications: notificationEmitter,
+    timezones: recurringUsers,
+    users: createGoalNoticeUsers(prisma),
+    clock: systemClock,
+  });
   const fxJobs = createFxJobs({
     rates: rateSources.rates,
     bcb: rateSources.bcb,
     uow,
     jobRuns,
     clock: systemClock,
+    afterParallel: () => goalMilestones.afterRates(),
   });
   jobs.registerJob('fx.fetchParallel', () => fxJobs.fetchParallel());
   jobs.registerJob('fx.fetchOfficial', () => fxJobs.fetchOfficial());
@@ -498,6 +758,26 @@ export const buildContainer = (env: Env): Container => {
     'outbox.send',
     createOutboxSend({ uow, emailGateway: createEmailGateway(env, fakeEmail), clock: systemClock }),
   );
+  const scheduledNotifications = createScheduledNotifications({
+    uow,
+    clock: systemClock,
+    release: env.RELEASE,
+    users: createScheduledUsers(prisma),
+    rates: ratesService,
+  });
+  jobs.registerJob('notifications.scheduled', () => scheduledNotifications.run(), {
+    forUser: (userId) => scheduledNotifications.forUser(userId),
+  });
+  const budgetsJobs = createBudgetsJobs({
+    uow,
+    clock: systemClock,
+    notifications: notificationEmitter,
+    ids: uuidv7Ids,
+  });
+  jobs.registerJob('budgets.close', () => budgetsJobs.close(), {
+    forUser: (userId) => budgetsJobs.closeForUser(userId),
+  });
+  jobs.registerJob('budgets.defaultDecision', () => budgetsJobs.defaultDecision());
   jobs.registerJob(
     'maintenance',
     createMaintenance({ store: createMaintenanceStore(prisma), clock: systemClock }),
@@ -511,11 +791,41 @@ export const buildContainer = (env: Env): Container => {
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
   const settingsService = createSettingsService({ uow });
-  const ratesService = createRatesService({ uow });
   const fxSettingsService = createFxSettingsService({ uow, ids: uuidv7Ids });
   const currenciesService = createCurrenciesService({ uow, ids: uuidv7Ids });
   const ledgerHooks = createLedgerHooks();
-  const accountsService = createAccountsService({ uow, rates: ratesService, ledgerHooks });
+  ledgerHooks.register(
+    createBudgetLedgerHook({
+      notifications: notificationEmitter,
+      ids: uuidv7Ids,
+    }),
+  );
+  ledgerHooks.register(goalMilestones.ledgerHook);
+  const recurringGenerator = createRecurringGenerator({
+    rates: ratesService,
+    ledgerHooks,
+    notifications: notificationEmitter,
+    timezones: recurringUsers,
+    clock: systemClock,
+  });
+  const recurringJobs = createRecurringJobs({
+    uow,
+    generator: recurringGenerator,
+    users: recurringUsers,
+    clock: systemClock,
+  });
+  jobs.registerJob('recurring.generate', () => recurringJobs.generate(), {
+    forUser: (userId) => recurringJobs.generateForUser(userId),
+  });
+  jobs.registerJob('recurring.expirePending', () => recurringJobs.expirePending(), {
+    forUser: (userId) => recurringJobs.expirePendingForUser(userId),
+  });
+  const accountsService = createAccountsService({
+    uow,
+    rates: ratesService,
+    ledgerHooks,
+    recurring: { notifications: notificationEmitter },
+  });
   const transactionsService = createTransactionsService({
     uow,
     rates: ratesService,
@@ -528,6 +838,14 @@ export const buildContainer = (env: Env): Container => {
     accounts: accountsService,
     shortcuts: shortcutsService,
     transactions: transactionsService,
+  });
+
+  const dashboardService = createDashboardViewService({
+    uow,
+    dashboard: createDashboardService({ uow }),
+    accounts: accountsService,
+    transactions: transactionsService,
+    expenses: createDashboardExpenseReader(prisma),
   });
 
   const fakeRates = rateSources.fake;
@@ -543,6 +861,7 @@ export const buildContainer = (env: Env): Container => {
           },
           createUser: createTestUserFactory({ prisma, uow, auth }),
           setRates: createTestRatesSetter({ fake: fakeRates, fxJobs, clock: systemClock }),
+          createNotification: createTestNotificationFactory(uow),
         };
   return {
     testSupport,
@@ -553,19 +872,46 @@ export const buildContainer = (env: Env): Container => {
     ids: uuidv7Ids,
     jobs,
     ledgerHooks,
+    recurringGenerator,
     auth,
     authService,
     meService,
+    exportService: createExportService({ uow, release: env.RELEASE, archive: createZipStream }),
     settingsService,
     ratesService,
     fxSettingsService,
     currenciesService,
     accountsService,
+    budgetsService: createBudgetsService({
+      uow,
+      rates: ratesService,
+      notifications: notificationEmitter,
+      ids: uuidv7Ids,
+      milestones: goalMilestones,
+    }),
+    goalsService: createGoalsService({ uow, rates: ratesService, milestones: goalMilestones }),
+    recurringService: createRecurringService({
+      uow,
+      generator: recurringGenerator,
+      rates: ratesService,
+      ledgerHooks,
+      clock: systemClock,
+    }),
+    debtsService: createDebtsService({ uow, rates: ratesService, ledgerHooks }),
     shortcutsService,
-    categoriesService: createCategoriesService({ uow }),
+    categoriesService: createCategoriesService({
+      uow,
+      recurring: { notifications: notificationEmitter, timezones: recurringUsers, clock: systemClock },
+    }),
     categoryTree: createCategoryTreeReader(uow),
     transactionsService,
     registerService,
+    dashboardService,
+    onboardingService: createOnboardingService({ uow, rates: ratesService }),
+    notificationsService: createNotificationsService({
+      store: createNotificationsStore(prisma),
+    }),
+    notificationPreferencesService: createNotificationPreferencesService({ uow }),
     balanceSeries: createBalanceSeriesReader(uow),
     rateHistory: createRateHistoryReader(uow),
     refreshParallel: createParallelRefresher(fxJobs),
@@ -590,7 +936,12 @@ export const createApp = (container: Container): Express => {
       release: container.env.RELEASE,
       session,
     },
-    me: { meService: container.meService, release: container.env.RELEASE, session },
+    me: {
+      meService: container.meService,
+      exportService: container.exportService,
+      release: container.env.RELEASE,
+      session,
+    },
     settings: { settingsService: container.settingsService, session },
     rates: {
       ratesService: container.ratesService,
@@ -622,8 +973,31 @@ export const createApp = (container: Container): Express => {
       clock: container.clock,
       session,
     },
+    dashboard: {
+      dashboardService: container.dashboardService,
+      clock: container.clock,
+      session,
+    },
+    budgets: { budgetsService: container.budgetsService, clock: container.clock, session },
+    goals: { goalsService: container.goalsService, clock: container.clock, session },
+    recurring: {
+      recurringService: container.recurringService,
+      clock: container.clock,
+      session,
+    },
+    debts: { debtsService: container.debtsService, clock: container.clock, session },
+    notifications: { notificationsService: container.notificationsService, session },
+    notificationPreferences: {
+      notificationPreferencesService: container.notificationPreferencesService,
+      session,
+    },
     shortcuts: { shortcutsService: container.shortcutsService, session },
     register: { registerService: container.registerService, clock: container.clock, session },
+    onboarding: {
+      onboardingService: container.onboardingService,
+      clock: container.clock,
+      session,
+    },
     readiness: container.readiness,
   });
 };

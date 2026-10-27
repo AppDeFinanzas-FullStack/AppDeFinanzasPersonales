@@ -11,6 +11,9 @@ const envSchema = z
     HMAC_SECRET: secret,
     JOBS_SECRET: secret,
     RESEND_API_KEY: secret,
+    // Sender of the account emails. Resend's test address only delivers to the account owner, so
+    // production sets one on a verified domain.
+    EMAIL_FROM: z.string().min(1).default('Finanzas <onboarding@resend.dev>'),
     RELEASE: z.enum(['1.0', '1.1', '1.2']),
     WEB_ORIGIN: z.string().url(),
     INTEGRATIONS: z.enum(['real', 'fake']),

@@ -16,6 +16,14 @@
       "name": "Escribe tu nombre, de 1 a 60 caracteres."
     }
   },
+  "export": {
+    "title": "Exportar mis datos",
+    "hint": "Descarga un archivo ZIP con todos tus datos en CSV, incluidos los archivados.",
+    "submit": "Exportar mis datos",
+    "downloading": "Exportando…",
+    "progress": "Descargados {{size}} KB",
+    "done": "Listo. Revisa tus descargas."
+  },
   "password": {
     "title": "Contraseña",
     "intro": "Al cambiarla se cierran tus demás sesiones y te enviamos un correo de aviso.",
@@ -44,6 +52,8 @@
     "itemData": "Todos tus datos: cuentas, movimientos, categorías y ajustes.",
     "itemSessions": "Todas tus sesiones, en este y en tus otros dispositivos.",
     "itemIrreversible": "Te enviamos un correo para confirmar que la cuenta se eliminó.",
+    "exportHint": "Antes de eliminarla, puedes descargar una copia de tus datos.",
+    "exportBefore": "Exportar antes",
     "password": "Tu contraseña",
     "word": "Escribe ELIMINAR para confirmar",
     "submit": "Eliminar mi cuenta",

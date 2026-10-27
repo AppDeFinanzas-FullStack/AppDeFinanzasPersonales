@@ -22,6 +22,36 @@
         "TASK-118..TASK-128",
         "TASK-134..TASK-136"
       ]
+    },
+    {
+      "branch": "feature/20-m11-presupuestos",
+      "summary": "Fase 20: M11 Presupuestos",
+      "tasks": ["TASK-193..TASK-207"]
+    },
+    {
+      "branch": "feature/21-m13-deudas-y-prestamos",
+      "summary": "Fase 21: M13 Deudas y préstamos",
+      "tasks": ["TASK-208..TASK-218"]
+    },
+    {
+      "branch": "feature/22-cierre-de-v1-1",
+      "summary": "Fase 22: cierre de V1.1",
+      "tasks": ["TASK-219..TASK-222"]
+    },
+    {
+      "branch": "feature/23-m14-recurrentes",
+      "summary": "Fase 23: M14 Recurrentes, backend (Alejandro) y web (Sebastián)",
+      "tasks": ["TASK-223..TASK-236"]
+    },
+    {
+      "branch": "feature/24-m15-recordatorios-y-avisos",
+      "summary": "Fase 24: M15 Recordatorios y avisos completos",
+      "tasks": ["TASK-237..TASK-242"]
+    },
+    {
+      "branch": "feature/25-final-integracion-e2e",
+      "summary": "Fase 25: final",
+      "tasks": ["TASK-243..TASK-247"]
     }
   ]
 }

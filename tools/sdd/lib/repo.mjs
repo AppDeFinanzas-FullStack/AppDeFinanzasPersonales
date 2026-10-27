@@ -41,8 +41,11 @@ export function posixShell() {
   return candidates.find((p) => p && existsSync(p)) ?? null;
 }
 
+/** Límite por comando; SDD_CMD_TIMEOUT_MS lo sube en una PC lenta (por defecto, 15 minutos). */
+const DEFAULT_TIMEOUT_MS = Number(process.env.SDD_CMD_TIMEOUT_MS) || 15 * 60_000;
+
 /** Ejecuta un comando con shell en la raíz. Nunca lanza: devuelve { code, output }. */
-export function sh(command, { cwd = ROOT, timeoutMs = 15 * 60_000, input, shell = true } = {}) {
+export function sh(command, { cwd = ROOT, timeoutMs = DEFAULT_TIMEOUT_MS, input, shell = true } = {}) {
   const r = spawnSync(command, {
     cwd,
     shell,

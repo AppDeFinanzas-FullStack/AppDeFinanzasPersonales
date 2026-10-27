@@ -9,6 +9,7 @@ const TABLE: ReadonlyArray<readonly [string, number]> = [
   ['ACCOUNT_HAS_EARMARKS', 409],
   ['ACCOUNT_HAS_MOVEMENTS', 409],
   ['ACCOUNT_HAS_OTHER_EARMARKS', 409],
+  ['ACCOUNT_IN_USE', 409],
   ['ACCOUNT_NOT_DEDICABLE', 422],
   ['ALREADY_DECIDED', 409],
   ['AMOUNT_OUT_OF_RANGE', 422],
@@ -102,8 +103,20 @@ describe('ErrorCode (plan 4.0, ADR-09)', () => {
     expect(codes[code]).toBe(status);
   });
 
-  it('TASK-034 la tabla tiene los 81 códigos del plan', () => {
-    expect(TABLE).toHaveLength(81);
+  it('TASK-232 la tabla tiene los 82 códigos del plan', () => {
+    expect(TABLE).toHaveLength(82);
+  });
+
+  it('RF-M4-13 ACCOUNT_IN_USE es 409, como CATEGORY_IN_USE', () => {
+    expect(codes.ACCOUNT_IN_USE).toBe(409);
+    expect(codes.ACCOUNT_IN_USE).toBe(codes.CATEGORY_IN_USE);
+  });
+
+  it('RF-M4-13 ProblemSchema acepta ACCOUNT_IN_USE con data {recurring}', () => {
+    const p = problem('ACCOUNT_IN_USE', 409, {
+      data: { recurring: [{ id: 'r', name: 'Netflix' }] },
+    });
+    expect(ProblemSchema.safeParse(p).success).toBe(true);
   });
 
   it('TASK-034 UNSUPPORTED_MEDIA_TYPE es 415 y ORIGIN_NOT_ALLOWED es 403', () => {

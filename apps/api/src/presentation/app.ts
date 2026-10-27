@@ -14,6 +14,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
 import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
+import { budgetsRouter, type BudgetsRoutesDeps } from './routes/budgets.routes.js';
 import { categoriesRouter, type CategoriesRoutesDeps } from './routes/categories.routes.js';
 import { currenciesRouter, type CurrenciesRoutesDeps } from './routes/currencies.routes.js';
 import {
@@ -22,9 +23,20 @@ import {
   type FxRoutesDeps,
   type RatesRoutesDeps,
 } from './routes/fx.routes.js';
+import { dashboardRouter, type DashboardRoutesDeps } from './routes/dashboard.routes.js';
+import { debtsRouter, type DebtsRoutesDeps } from './routes/debts.routes.js';
+import { goalsRouter, type GoalsRoutesDeps } from './routes/goals.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { meRouter, type MeRoutesDeps } from './routes/me.routes.js';
+import { onboardingRouter, type OnboardingRoutesDeps } from './routes/onboarding.routes.js';
+import {
+  notificationPreferencesRouter,
+  notificationsRouter,
+  type NotificationPreferencesRoutesDeps,
+  type NotificationsRoutesDeps,
+} from './routes/notifications.routes.js';
 import { settingsRouter, type SettingsRoutesDeps } from './routes/settings.routes.js';
+import { recurringRouter, type RecurringRoutesDeps } from './routes/recurring.routes.js';
 import { registerRouter, type RegisterRoutesDeps } from './routes/register.routes.js';
 import { shortcutsRouter, type ShortcutsRoutesDeps } from './routes/shortcuts.routes.js';
 import { transactionsRouter, type TransactionsRoutesDeps } from './routes/transactions.routes.js';
@@ -49,6 +61,8 @@ export interface AppDeps {
   currencies?: CurrenciesRoutesDeps;
   /** The routes `/api/accounts` (plan §4.4.2). */
   accounts?: AccountsRoutesDeps;
+  /** The routes `/api/dashboard` (plan §4.8.2). */
+  dashboard?: DashboardRoutesDeps;
   /** The routes `/api/shortcuts` (plan §4.7.2). */
   shortcuts?: ShortcutsRoutesDeps;
   /** The routes `/api/register` (plan §4.7.2). */
@@ -57,6 +71,20 @@ export interface AppDeps {
   categories?: CategoriesRoutesDeps;
   /** The routes `/api/transactions` (plan §4.6.2). */
   transactions?: TransactionsRoutesDeps;
+  /** The routes `/api/budgets` (plan §4.11.2). */
+  budgets?: BudgetsRoutesDeps;
+  /** The routes `/api/goals` (plan §4.12.2). */
+  goals?: GoalsRoutesDeps;
+  /** The routes `/api/recurring` (plan §4.14.2). */
+  recurring?: RecurringRoutesDeps;
+  /** The routes `/api/debts` (plan §4.13.2). */
+  debts?: DebtsRoutesDeps;
+  /** The routes `/api/onboarding` (plan §4.10.2). */
+  onboarding?: OnboardingRoutesDeps;
+  /** The routes `/api/notifications` (plan §4.15.2). */
+  notifications?: NotificationsRoutesDeps;
+  /** The routes `/api/notification-preferences` (plan §4.15.2). */
+  notificationPreferences?: NotificationPreferencesRoutesDeps;
 
   /** The test-support routes (plan §1.5); only an app with fake integrations gets them. */
   testSupport?: TestSupportControllerDeps;
@@ -119,6 +147,9 @@ export const createApp = (deps: AppDeps): Express => {
   if (deps.accounts !== undefined) {
     app.use('/api/accounts', accountsRouter(deps.accounts));
   }
+  if (deps.dashboard !== undefined) {
+    app.use('/api/dashboard', dashboardRouter(deps.dashboard));
+  }
   if (deps.shortcuts !== undefined) {
     app.use('/api/shortcuts', shortcutsRouter(deps.shortcuts));
   }
@@ -130,6 +161,30 @@ export const createApp = (deps: AppDeps): Express => {
   }
   if (deps.transactions !== undefined) {
     app.use('/api/transactions', transactionsRouter(deps.transactions));
+  }
+  if (deps.budgets !== undefined) {
+    app.use('/api/budgets', budgetsRouter(deps.budgets));
+  }
+  if (deps.goals !== undefined) {
+    app.use('/api/goals', goalsRouter(deps.goals));
+  }
+  if (deps.recurring !== undefined) {
+    app.use('/api/recurring', recurringRouter(deps.recurring));
+  }
+  if (deps.debts !== undefined) {
+    app.use('/api/debts', debtsRouter(deps.debts));
+  }
+  if (deps.onboarding !== undefined) {
+    app.use('/api/onboarding', onboardingRouter(deps.onboarding));
+  }
+  if (deps.notifications !== undefined) {
+    app.use('/api/notifications', notificationsRouter(deps.notifications));
+  }
+  if (deps.notificationPreferences !== undefined) {
+    app.use(
+      '/api/notification-preferences',
+      notificationPreferencesRouter(deps.notificationPreferences),
+    );
   }
   if (deps.jobs !== undefined) {
     app.use('/internal/jobs', jobsRouter(deps.jobs));

@@ -16,6 +16,8 @@ import { messageForError } from '@/lib/i18n-errors';
 
 import { updateMeEndpoint } from '../api';
 
+import { ExportButton } from './export-button';
+
 const PROFILE_DRAFT_KEY = 'profile';
 
 const ProfileFields = UpdateMeInput.required();
@@ -33,7 +35,10 @@ function zoneLabel(zone: string): string {
   return zone.replaceAll('_', ' ');
 }
 
-/** Name, time zone, fixed language and read-only email of the profile (RF-M1-11, RF-M1-13). */
+/**
+ * Name, time zone, fixed language and read-only email of the profile (RF-M1-11, RF-M1-13), plus
+ * "Exportar mis datos" (RF-M1-14).
+ */
 export function ProfileForm({ me }: { me: MeDto }) {
   const { t } = useTranslation('profile');
   const queryClient = useQueryClient();
@@ -134,6 +139,11 @@ export function ProfileForm({ me }: { me: MeDto }) {
           {update.isPending ? t('details.submitting') : t('details.submit')}
         </Button>
       </form>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-base font-medium">{t('export.title')}</h3>
+        <p className="text-sm text-muted-foreground">{t('export.hint')}</p>
+        <ExportButton label={t('export.submit')} />
+      </div>
     </section>
   );
 }

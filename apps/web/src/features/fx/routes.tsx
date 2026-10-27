@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import type { RouteObject } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Separator } from '@/components/ui/separator';
@@ -46,6 +45,3 @@ export function ExchangeRatePage() {
     </div>
   );
 }
-
-/** Private routes of the exchange rate (plan §4.3.4). */
-export const fxRoutes: RouteObject[] = [{ path: 'tipo-de-cambio', element: <ExchangeRatePage /> }];

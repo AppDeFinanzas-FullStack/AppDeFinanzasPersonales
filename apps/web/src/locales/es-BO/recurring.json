@@ -1,0 +1,135 @@
+{
+  "title": "Recurrentes",
+  "loadError": "No se pudieron cargar los recurrentes. Inténtalo de nuevo.",
+  "amountToDefine": "monto por definir",
+  "rules": {
+    "title": "Reglas",
+    "empty": "Aún no tienes reglas recurrentes.",
+    "next": "Próxima: {{date}}",
+    "noNext": "Sin próximas fechas",
+    "following": "Siguientes: {{dates}}",
+    "installment": "Cuota {{current}} de {{total}}",
+    "mode": {
+      "auto": "Automático",
+      "confirm": "Con confirmación"
+    },
+    "status": {
+      "active": "Activa",
+      "paused": "Pausada",
+      "finished": "Finalizada"
+    }
+  },
+  "pending": {
+    "title": "Pendientes de confirmar",
+    "empty": "No tienes pendientes por confirmar.",
+    "confirm": "Confirmar",
+    "skip": "Omitir"
+  },
+  "upcoming": {
+    "title": "Próximos vencimientos",
+    "empty": "No hay vencimientos en los próximos 30 días."
+  },
+  "confirm": {
+    "title": "Confirmar {{name}}",
+    "description": "Revisa los datos antes de registrar el movimiento. Puedes cambiar el monto, la fecha y el tipo de cambio.",
+    "amount": "Monto",
+    "amountError": "Ingresa un monto mayor a cero, por ejemplo 85,50.",
+    "date": "Fecha",
+    "dateError": "Elige una fecha que no sea futura.",
+    "rate": "Tipo de cambio (opcional)",
+    "rateError": "Ingresa un tipo de cambio válido, por ejemplo 6,96, o déjalo vacío.",
+    "account": "Cuenta",
+    "accountArchived": "La cuenta de esta regla está archivada. Elige otra.",
+    "accountError": "Elige una cuenta.",
+    "category": "Categoría",
+    "categoryArchived": "La categoría de esta regla está archivada. Elige otra.",
+    "categoryError": "Elige una categoría.",
+    "choose": "Elige una opción",
+    "submit": "Confirmar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
+  },
+  "newRule": "Nueva regla",
+  "form": {
+    "title": "Nueva regla recurrente",
+    "description": "Define cada cuánto se repite el movimiento y cómo se registra.",
+    "kind": "Tipo",
+    "kinds": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia"
+    },
+    "name": "Nombre",
+    "nameError": "Escribe un nombre de hasta 40 caracteres.",
+    "draftIssues": "Recuperamos tu borrador, pero algunos datos ya no existen. Revisa los campos.",
+    "amount": "Monto",
+    "amountHint": "Opcional si la regla pide confirmación.",
+    "amountRequired": "Ingresa el monto: es obligatorio en modo automático.",
+    "amountError": "Ingresa un monto mayor a cero, por ejemplo 85,50.",
+    "account": "Cuenta",
+    "destAccount": "Cuenta destino",
+    "accountError": "Elige una cuenta.",
+    "destAccountError": "Elige una cuenta destino distinta de la de origen.",
+    "category": "Categoría",
+    "categoryError": "Elige una categoría.",
+    "note": "Nota",
+    "noteError": "La nota admite hasta 200 caracteres.",
+    "frequency": "Frecuencia",
+    "frequencies": {
+      "daily": "Diaria",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "weekday": "Día de la semana",
+    "weekdays": ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+    "day": "Día del mes",
+    "dayError": "Ingresa un día entre 1 y 31.",
+    "month": "Mes",
+    "months": [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre"
+    ],
+    "start": "Inicio",
+    "startError": "Elige hoy o una fecha futura.",
+    "end": "Final",
+    "ends": {
+      "none": "Sin fin",
+      "until": "Hasta una fecha",
+      "count": "Tras N veces"
+    },
+    "endDate": "Fecha final",
+    "endDateError": "Elige una fecha igual o posterior al inicio.",
+    "endCount": "Número de veces",
+    "endCountError": "Ingresa un número entero entre 1 y 999.",
+    "mode": "Modo",
+    "submit": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "choose": "Elige una opción"
+  },
+  "actions": {
+    "title": "Administrar reglas",
+    "pause": "Pausar",
+    "resume": "Reanudar"
+  },
+  "resume": {
+    "title": "Reanudar {{name}}",
+    "description": "Estas ocurrencias se saltaron mientras la regla estaba pausada. Marca las que quieres registrar.",
+    "question": "¿Registrar las {{count}} ocurrencias saltadas?",
+    "none": "No hay ocurrencias saltadas. La regla seguirá desde la próxima fecha.",
+    "submit": "Reanudar",
+    "cancel": "Cancelar",
+    "close": "Cerrar"
+  }
+}

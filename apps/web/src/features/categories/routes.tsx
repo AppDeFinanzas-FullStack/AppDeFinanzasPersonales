@@ -1,7 +1,7 @@
 import type { CategoryNode } from '@finanzas/contracts';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams, useSearchParams, type RouteObject } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Button } from '@/components/ui/button';
@@ -150,7 +150,7 @@ function KindTree({ kind }: { kind: Kind }) {
   );
 }
 
-function CategoriesPage() {
+export function CategoriesPage() {
   const { t } = useTranslation('categories');
   const [kind, setKind] = useState<Kind>('expense');
 
@@ -181,7 +181,7 @@ function CategoriesPage() {
   );
 }
 
-function CategoryFormPage() {
+export function CategoryFormPage() {
   const { t } = useTranslation('categories');
   const navigate = useNavigate();
   const { id } = useParams();
@@ -246,7 +246,7 @@ function ArchivedList({ kind }: { kind: Kind }) {
   );
 }
 
-function ArchivedCategoriesPage() {
+export function ArchivedCategoriesPage() {
   const { t } = useTranslation('categories');
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6">
@@ -265,10 +265,3 @@ function ArchivedCategoriesPage() {
     </div>
   );
 }
-
-export const categoriesRoutes: RouteObject[] = [
-  { path: 'categorias', element: <CategoriesPage /> },
-  { path: 'categorias/nueva', element: <CategoryFormPage /> },
-  { path: 'categorias/archivadas', element: <ArchivedCategoriesPage /> },
-  { path: 'categorias/:id/editar', element: <CategoryFormPage /> },
-];

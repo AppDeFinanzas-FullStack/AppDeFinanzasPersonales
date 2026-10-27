@@ -7,8 +7,10 @@ import type {
   RestoreCategoryInput,
   UpdateCategoryInput,
 } from '@finanzas/contracts';
+import { BOLIVIA_TIME_ZONE } from '@finanzas/domain';
 
 import { AppError } from '../errors.js';
+import type { Clock } from '../ports/clock.js';
 import type {
   CategoryKind,
   CategoryPatch,
@@ -16,6 +18,9 @@ import type {
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
+import type { NotificationEmitter } from '../shared/notification-emitter.js';
+import type { UserTimezones } from '../shared/recurring-generator.js';
+import { pauseRulesWithNotice } from './accounts.service.js';
 
 /** Maximum categories per user (RNF-28). */
 const CATEGORY_LIMIT = 300;
@@ -33,7 +38,10 @@ export interface CategoriesService {
   reorder(userId: string, input: ReorderCategoriesInput): Promise<void>;
   /** What archiving the category affects (RF-M5-07). */
   archiveImpact(userId: string, id: string): Promise<ArchiveImpactDto>;
-  /** Archives the category and its subcategories; the history stays (RF-M5-06). */
+  /**
+   * Archives the category and its subcategories; the history stays (RF-M5-06). Their active rules
+   * are paused with a notice to choose another category (RF-M5-07).
+   */
   archive(userId: string, id: string): Promise<void>;
   /** Restores the category and the chosen subcategories, optionally renaming it (EC-M5-04). */
   restore(userId: string, id: string, input: RestoreCategoryInput): Promise<void>;
@@ -44,8 +52,46 @@ export interface CategoriesService {
   remove(userId: string, id: string): Promise<void>;
   /** What merging A into B would move (RF-M5-08). */
   mergePreview(userId: string, input: MergeInput): Promise<MergePreviewDto>;
-  /** Moves the movements, rules and shortcuts of A to B and deletes A (RF-M5-08, RF-M5-09). */
-  merge(userId: string, input: MergeInput): Promise<void>;
+  /**
+   * Moves the movements, rules, shortcuts and budget of A to B and deletes A (RF-M5-08, RF-M5-09);
+   * `budgetEffect` is the warning of what happened to the budget of A.
+   */
+  merge(userId: string, input: MergeInput): Promise<{ budgetEffect: BudgetEffect }>;
+}
+
+type BudgetEffect = MergePreviewDto['budgetEffect'];
+
+/**
+ * The budget repositories of the transaction, `null` in a unit of work wired without the budgets
+ * module (M11, V1.1), where no category can have a budget.
+ */
+function budgetReposOf(
+  repos: Repositories,
+): Pick<Repositories, 'budgets' | 'budgetPeriods'> | null {
+  const { budgets, budgetPeriods } = repos as Partial<Repositories>;
+  return budgets === undefined || budgetPeriods === undefined ? null : { budgets, budgetPeriods };
+}
+
+/** What a merge of A into B does to their budgets (RF-M5-08). */
+async function budgetEffectOf(
+  budgetRepos: Pick<Repositories, 'budgets'> | null,
+  { fromId, toId }: MergeInput,
+): Promise<{ effect: BudgetEffect; fromBudgetId: string | null }> {
+  const fromBudgetId = budgetRepos === null ? null : await budgetRepos.budgets.findLive(fromId);
+  if (budgetRepos === null || fromBudgetId === null) {
+    return { effect: 'none', fromBudgetId: null };
+  }
+  const toBudgetId = await budgetRepos.budgets.findLive(toId);
+  return { effect: toBudgetId === null ? 'moved' : 'kept_target', fromBudgetId };
+}
+
+export interface CategoriesServiceDeps {
+  uow: UnitOfWork;
+  /**
+   * The recurring rules (M14): archiving pauses them with a notice dated in the zone of the user.
+   * Without it the service does not touch rules.
+   */
+  recurring?: { notifications: NotificationEmitter; timezones: UserTimezones; clock: Clock };
 }
 
 /** Checks a merge of A into B: same kind, A without children, B active, neither a system one. */
@@ -117,7 +163,10 @@ async function assertNameFree(
   }
 }
 
-export function createCategoriesService({ uow }: { uow: UnitOfWork }): CategoriesService {
+export function createCategoriesService({
+  uow,
+  recurring,
+}: CategoriesServiceDeps): CategoriesService {
   return {
     async create(userId, input) {
       return uow.run(
@@ -258,6 +307,13 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
     },
 
     async archive(userId, id) {
+      // "Today" of the pause is the date in the zone of the user's profile (RN-07).
+      const today =
+        recurring === undefined
+          ? null
+          : recurring.clock.todayFor(
+              (await recurring.timezones.timezoneOf(userId)) ?? BOLIVIA_TIME_ZONE,
+            );
       await uow.run(
         async (repos) => {
           const current = await repos.categories.get(id);
@@ -273,6 +329,19 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
             ids.push(id);
           }
           await repos.categories.setStatus(ids, 'archived');
+          if (recurring !== undefined && today !== null) {
+            const archived = new Set(ids);
+            await pauseRulesWithNotice(repos, recurring.notifications, {
+              userId,
+              uses: (rule) =>
+                rule.status === 'active' && rule.categoryId !== null && archived.has(rule.categoryId),
+              reason: 'category_archived',
+              now: recurring.clock.now(),
+              today,
+            });
+          }
+          // The budget lasts until the end of its period; a pending decision stays (EC-M11-04).
+          await budgetReposOf(repos)?.budgets.finalizeForCategories(ids);
         },
         { userLock: userId },
       );
@@ -347,19 +416,35 @@ export function createCategoriesService({ uow }: { uow: UnitOfWork }): Categorie
       return uow.run(
         async (repos) => {
           await requireMergeable(repos, input);
-          // Budgets are resolved with the merge from TASK-203 on.
-          return { movements: await repos.categories.countMovements(input.fromId), budgetEffect: 'none' };
+          const { effect } = await budgetEffectOf(budgetReposOf(repos), input);
+          return {
+            movements: await repos.categories.countMovements(input.fromId),
+            budgetEffect: effect,
+          };
         },
         { userLock: userId },
       );
     },
 
     async merge(userId, input) {
-      await uow.run(
+      return uow.run(
         async (repos) => {
           await requireMergeable(repos, input);
+          const budgetRepos = budgetReposOf(repos);
+          if (await budgetRepos?.budgetPeriods.hasPendingCloseInCategory(input.fromId)) {
+            throw new AppError('MERGE_PENDING_CLOSE');
+          }
+          const { effect, fromBudgetId } = await budgetEffectOf(budgetRepos, input);
+          if (budgetRepos !== null) {
+            // Both had a budget: B keeps its own and the one of A goes, with its periods.
+            if (effect === 'kept_target' && fromBudgetId !== null) {
+              await budgetRepos.budgets.delete(fromBudgetId);
+            }
+            await budgetRepos.budgets.moveToCategory(input.fromId, input.toId);
+          }
           await repos.categories.moveUsage(input.fromId, input.toId);
           await repos.categories.remove([input.fromId]);
+          return { budgetEffect: effect };
         },
         { userLock: userId },
       );

@@ -21,17 +21,21 @@ import { Decimal } from 'decimal.js';
 import { uuidv7 } from 'uuidv7';
 
 import { AppError } from '../errors.js';
+import type { Instant, LocalDate } from '../ports/clock.js';
 import type {
   AccountPatch,
   AccountRow,
+  GoalEarmark,
   LedgerTransactionDetail,
   LifecycleStatus,
+  RecurringRuleRow,
   Repositories,
 } from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import { BalanceGuard } from '../shared/balance-guard.js';
 import type { LedgerHooks } from '../shared/ledger-hooks.js';
 import { assertLimit } from '../shared/limits.js';
+import type { NotificationEmitter } from '../shared/notification-emitter.js';
 import type { RatesContext, RatesService } from './rates.service.js';
 
 /** Request context built from the session (plan §1.4). */
@@ -72,7 +76,8 @@ export interface AccountsService {
   ): Promise<{ created: boolean; transaction: LedgerTransactionDetail | null }>;
   /**
    * Archives an active account (RF-M4-09); a balance other than 0 needs `confirmNonZero`. It stops
-   * being the default account (RF-M4-12, EC-M7-05). An archived account stays as it is.
+   * being the default account (RF-M4-12, EC-M7-05) and its active rules are paused with a notice to
+   * choose another account (EC-M14-02). An archived account stays as it is.
    */
   archive(ctx: AccountsContext, id: string, input: ArchiveInput): Promise<AccountDto>;
   /**
@@ -82,7 +87,8 @@ export interface AccountsService {
   restore(ctx: AccountsContext, id: string, input: RestoreInput): Promise<AccountDto>;
   /**
    * Deletes an account without entries, counting those of deleted movements still undoable; it
-   * stops being the default account and its shortcuts are deleted (RF-M4-13).
+   * stops being the default account and its shortcuts are deleted (RF-M4-13). An account used by a
+   * recurring rule is not deleted: `ACCOUNT_IN_USE {recurring}`.
    */
   remove(ctx: AccountsContext, id: string): Promise<void>;
 }
@@ -91,16 +97,66 @@ export interface AccountsServiceDeps {
   uow: UnitOfWork;
   rates: RatesService;
   ledgerHooks: LedgerHooks;
+  /**
+   * The recurring rules (M14): archiving pauses them with a notice and deleting is rejected while
+   * one uses the account. Without it the service does not touch rules.
+   */
+  recurring?: { notifications: NotificationEmitter };
 }
 
-/** Set aside for goals: nothing until V1.1 (RF-M4-10). */
-const NO_EARMARK = '0.00';
+/** Where the notice of a rule paused by an archive leads, to choose another account or category. */
+const RECURRING_ROUTE = '/recurrentes';
+
+/** Why an archive paused a rule, for the text of its notice. */
+export type RulePauseReason = 'account_archived' | 'category_archived';
+
+/**
+ * Pauses, inside the caller's transaction, the active rules that `uses` selects, each with a
+ * `recurring_pending` notice of key `rule:{id}:paused:{today}` (plan §4.14.3, EC-M14-02, RF-M5-07).
+ * The caller holds the user's lock.
+ */
+export async function pauseRulesWithNotice(
+  tx: Repositories,
+  notifications: NotificationEmitter,
+  pause: {
+    userId: string;
+    uses: (rule: RecurringRuleRow) => boolean;
+    reason: RulePauseReason;
+    now: Instant;
+    today: LocalDate;
+  },
+): Promise<void> {
+  for (const { id } of (await tx.recurringRules.list()).filter(pause.uses)) {
+    const rule = await tx.recurringRules.lockForUpdate(id);
+    if (rule === null || rule.status !== 'active') continue;
+    await tx.recurringRules.update(rule.id, { status: 'paused', pausedAt: pause.now });
+    await notifications.emit(tx, pause.userId, {
+      type: 'recurring_pending',
+      eventKey: `rule:${rule.id}:paused:${pause.today}`,
+      params: { ruleId: rule.id, ruleName: rule.name, reason: pause.reason },
+      targetRoute: RECURRING_ROUTE,
+    });
+  }
+}
+
+/** Whether the rule moves money of the account, as its origin or as its destination. */
+function ruleUsesAccount(rule: RecurringRuleRow, accountId: string): boolean {
+  return rule.accountId === accountId || rule.destAccountId === accountId;
+}
 
 /** Accounts read in one transaction, with their balances and the user's base currency. */
 interface Snapshot {
   rows: AccountRow[];
   balances: Map<string, Decimal>;
+  /** Positive amount set aside for goals, per account (RF-M12-01). */
+  earmarks: Map<string, GoalEarmark[]>;
+  /** The goal each dedicated account belongs to. */
+  dedicated: Map<string, { id: string; name: string }>;
   baseCurrency: string;
+}
+
+function earmarkTotal(items: readonly GoalEarmark[] | undefined): Decimal {
+  return (items ?? []).reduce((sum, item) => sum.plus(item.amount), new Decimal(0));
 }
 
 /** The other one of BOB and USD; BOB when the base is any other currency (glossary). */
@@ -229,13 +285,27 @@ async function snapshotOf(
   rows: AccountRow[],
 ): Promise<Snapshot> {
   const balances = await repos.ledger.balances(rows.map((row) => row.id));
-  return { rows, balances, baseCurrency: await baseCurrencyOf(repos, userId) };
+  const earmarks = new Map<string, GoalEarmark[]>();
+  for (const row of rows) {
+    const items = (await repos.goalAllocations.earmarkedByAccount(row.id)).filter((item) =>
+      item.amount.greaterThan(0),
+    );
+    earmarks.set(row.id, items);
+  }
+  const dedicated = new Map<string, { id: string; name: string }>();
+  for (const goal of await repos.goals.list()) {
+    if (goal.dedicatedAccountId !== null) {
+      dedicated.set(goal.dedicatedAccountId, { id: goal.id, name: goal.name });
+    }
+  }
+  return { rows, balances, earmarks, dedicated, baseCurrency: await baseCurrencyOf(repos, userId) };
 }
 
 export function createAccountsService({
   uow,
   rates,
   ledgerHooks,
+  recurring,
 }: AccountsServiceDeps): AccountsService {
   /**
    * Bs per unit of each currency with the rate in force (RN-05). It runs after the snapshot's
@@ -271,6 +341,8 @@ export function createAccountsService({
     return snapshot.rows.map((row) => {
       const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
       const text = toMoneyString(balance);
+      const earmarked = earmarkTotal(snapshot.earmarks.get(row.id));
+      const dedicatedGoal = snapshot.dedicated.get(row.id);
       const dto: AccountDto = {
         id: row.id,
         type: row.type,
@@ -285,9 +357,12 @@ export function createAccountsService({
         balance: text,
         balanceInBase: equivalent(balance, row.currencyCode, base),
         balanceInOther: equivalent(balance, row.currencyCode, other),
-        earmarked: NO_EARMARK,
-        free: text,
+        earmarked: toMoneyString(earmarked),
+        free: toMoneyString(balance.minus(earmarked)),
       };
+      if (dedicatedGoal !== undefined) {
+        dto.dedicatedGoal = dedicatedGoal;
+      }
       if (row.type === 'credit_card') {
         const limit = row.cardLimit === null ? null : toMoneyString(row.cardLimit);
         const view = cardView(text, limit);
@@ -379,7 +454,7 @@ export function createAccountsService({
         { userLock: ctx.userId, readOnly: true },
       );
       const perUnit = await bobPerUnit(ctx, snapshot);
-      return netWorth(
+      const result = netWorth(
         snapshot.rows.map((row) => ({
           type: row.type,
           currencyCode: row.currencyCode,
@@ -391,6 +466,29 @@ export function createAccountsService({
           bobPerUnit: perUnit,
         },
       );
+      // RF-M12-08: the earmarks plus the positive balance of dedicated accounts; the total stays.
+      const baseRate = perUnit[snapshot.baseCurrency] ?? null;
+      let earmarked: Decimal | null = new Decimal(0);
+      for (const row of snapshot.rows) {
+        const rate = perUnit[row.currencyCode] ?? null;
+        if (rate === null || baseRate === null) {
+          earmarked = null;
+          break;
+        }
+        let amount = earmarkTotal(snapshot.earmarks.get(row.id));
+        if (snapshot.dedicated.has(row.id)) {
+          const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
+          if (balance.greaterThan(0)) amount = amount.plus(balance);
+        }
+        earmarked = earmarked.plus(convert(amount, rate, baseRate));
+      }
+      return {
+        ...result,
+        breakdown: {
+          ...result.breakdown,
+          earmarked: earmarked === null ? null : toMoneyString(earmarked),
+        },
+      };
     },
 
     async update(ctx, id, input) {
@@ -434,14 +532,17 @@ export function createAccountsService({
           const type = changes.type ?? current.type;
           if (type !== current.type) {
             const balances = await repos.ledger.balances([id]);
-            // Goals arrive in V1.1: no account is dedicated nor has earmarks yet.
+            const dedicated = await repos.goals.findByDedicatedAccount(id);
+            const earmarks = (await repos.goalAllocations.earmarkedByAccount(id)).filter((item) =>
+              item.amount.greaterThan(0),
+            );
             const rule = validateTypeChange({
               from: current.type,
               to: type,
               initialBalance: toMoneyString(current.initialBalance),
               currentBalance: toMoneyString(balances.get(id) ?? current.initialBalance),
-              dedicated: false,
-              hasEarmarks: false,
+              dedicated: dedicated !== null,
+              hasEarmarks: earmarks.length > 0,
             });
             if (!rule.ok) {
               throw new AppError('TYPE_CHANGE_INVALID', { reason: rule.reason });
@@ -529,6 +630,11 @@ export function createAccountsService({
           const today = todayFor(ctx.timezone, ctx.now);
           await BalanceGuard.apply(repos, ctx.userId, [{ accountId: id, amount: delta }], {
             mode: 'interactive',
+            earmarkWithdrawals: (input.earmarkWithdrawals ?? []).map((w) => ({
+              goalId: w.goalId,
+              accountId: w.accountId,
+              amount: new Decimal(w.amount),
+            })),
           });
           // RN-04: the adjustment stores the rates of its day like any movement.
           const { rateCurBob, rateUsdBob } = await rates.ratesForMovement(
@@ -580,6 +686,17 @@ export function createAccountsService({
         async (repos) => {
           const account = await lockedAccount(repos, id);
           if (account.status === 'active') {
+            if ((await repos.goals.findByDedicatedAccount(id)) !== null) {
+              throw new AppError('ACCOUNT_DEDICATED');
+            }
+            const earmarks = (await repos.goalAllocations.earmarkedByAccount(id)).filter((item) =>
+              item.amount.greaterThan(0),
+            );
+            if (earmarks.length > 0) {
+              throw new AppError('ACCOUNT_HAS_EARMARKS', {
+                goals: earmarks.map((item) => item.goalId),
+              });
+            }
             const balances = await repos.ledger.balances([id]);
             const balance = balances.get(id) ?? account.initialBalance;
             if (!balance.isZero() && !input.confirmNonZero) {
@@ -589,6 +706,15 @@ export function createAccountsService({
             }
             await repos.accounts.archive(id);
             await repos.userSettings.clearDefaultAccount(ctx.userId, id);
+            if (recurring !== undefined) {
+              await pauseRulesWithNotice(repos, recurring.notifications, {
+                userId: ctx.userId,
+                uses: (rule) => rule.status === 'active' && ruleUsesAccount(rule, id),
+                reason: 'account_archived',
+                now: ctx.now,
+                today: todayFor(ctx.timezone, ctx.now),
+              });
+            }
           }
           return snapshotOf(repos, ctx.userId, [await readBack(repos, id)]);
         },
@@ -618,9 +744,21 @@ export function createAccountsService({
       await uow.run(
         async (repos) => {
           await lockedAccount(repos, id);
+          if ((await repos.goals.findByDedicatedAccount(id)) !== null) {
+            throw new AppError('ACCOUNT_DEDICATED');
+          }
           // Entries of deleted movements still count: they may be undone (RF-M4-13).
           if (await repos.accounts.hasEntries(id)) {
             throw new AppError('ACCOUNT_HAS_MOVEMENTS');
+          }
+          if (recurring !== undefined) {
+            // `recurring_rule.account_id` is RESTRICT: the account is archived instead (RF-M4-13).
+            const rules = (await repos.recurringRules.list())
+              .filter((rule) => ruleUsesAccount(rule, id))
+              .map((rule) => ({ id: rule.id, name: rule.name }));
+            if (rules.length > 0) {
+              throw new AppError('ACCOUNT_IN_USE', { recurring: rules });
+            }
           }
           await repos.userSettings.clearDefaultAccount(ctx.userId, id);
           await repos.accounts.remove(id);
