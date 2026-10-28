@@ -89,9 +89,14 @@ test.describe('TASK-065 registro, revisa tu correo y confirmación', () => {
     await page.clock.install();
     const email = mailbox.newEmail();
     await fillSignUp(page, email);
+    // The 60 s countdown starts on "Revisa tu correo": move the clock only once the screen shows it.
+    await expect(page).toHaveURL(/\/revisa-tu-correo/);
+    const resend = page.getByRole('button', { name: /reenviar/i });
+    await expect(resend).toBeDisabled();
     const first = await mailbox.confirmationLink(email);
     await page.clock.fastForward(61_000);
-    await page.getByRole('button', { name: /reenviar/i }).click();
+    await expect(resend).toBeEnabled();
+    await resend.click();
     await mailbox.confirmationLink(email, 2);
     await page.goto(first);
     await expect(page.getByText('Este enlace ya no es válido')).toBeVisible();

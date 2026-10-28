@@ -84,3 +84,47 @@ test.describe('TASK-066 inicio de sesión', () => {
     await expect(countdown).not.toHaveText(before);
   });
 });
+
+function sessionExpiredDialog(page: Page) {
+  return page
+    .getByRole('dialog')
+    .or(page.getByRole('alertdialog'))
+    .filter({ hasText: /tu sesión venció/i });
+}
+
+test.describe('TASK-253 iniciar sesión desde /entrar en un contexto nuevo', () => {
+  test.use({ colorScheme: 'light' });
+
+  test('RF-M2-09 EC-M2-01 llega a / sin «Tu sesión venció», usable y con el tema del servidor', async ({
+    browser,
+    page,
+    testUser,
+  }) => {
+    // The server keeps the dark theme, saved from another browser.
+    const setup = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+    const setupPage = await setup.newPage();
+    await signIn(setupPage, testUser.email, testUser.password);
+    await expect(setupPage).not.toHaveURL(/\/entrar/);
+    const saved = await setupPage.request.patch('/api/settings', { data: { theme: 'dark' } });
+    expect(saved.ok()).toBe(true);
+    await setup.close();
+
+    // A new context, with no session and no localStorage copy of the theme.
+    await signIn(page, testUser.email, testUser.password);
+    await expect(page).toHaveURL(/\/$/);
+
+    // EC-M2-01: the theme saved on the server applies after signing in.
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+    // RF-M2-09: no session-expired dialog covers the screen and it can be used.
+    await page.waitForLoadState('networkidle');
+    await expect(sessionExpiredDialog(page)).toHaveCount(0);
+    await page
+      .getByRole('link', { name: /^movimientos$/i })
+      .locator('visible=true')
+      .first()
+      .click({ timeout: 5_000 });
+    await expect(page).toHaveURL(/\/movimientos/);
+    await expect(sessionExpiredDialog(page)).toHaveCount(0);
+  });
+});
