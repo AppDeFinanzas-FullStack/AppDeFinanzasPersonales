@@ -4006,7 +4006,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-09`, `RF-M7-10`, `RF-M1-05`: cada caso pasa 10 de 10 veces seguidas, sin reintentos.
     - Comando: `pnpm --filter e2e exec playwright test m2-navigation.spec.ts m9-settings-register.spec.ts m1-sign-up.spec.ts --project=chromium-1280 --repeat-each=10 --retries=0`
 
-- [ ] **`TASK-252`: Web: las rutas de metas, deudas y recurrentes no existen sin su entrega (RF-M2-03)**
+- [x] **`TASK-252`: Web: las rutas de metas, deudas y recurrentes no existen sin su entrega (RF-M2-03)**
   - **Dependencias:** Requiere TASK-247
   - **Trazabilidad SDD:** plan §4.2 (navegación), plan §4.12.4, plan §4.13.4, plan §4.14.4, ADR-18; RF-M2-03
   - **Archivos en Alcance:**
