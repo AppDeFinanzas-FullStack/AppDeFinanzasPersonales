@@ -1,28 +1,13 @@
 import type { ModuleKey } from '@finanzas/contracts';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 
 import { uiStore, useUiStore } from '@/lib/ui-store';
+import { useIsDesktop } from '@/lib/use-is-desktop';
 import { cn } from '@/lib/utils';
 
 import { ALL_ITEMS, TAB_ITEMS, type NavItem } from './nav-items';
-
-const DESKTOP_QUERY = '(min-width: 1024px)';
-
-function subscribe(listener: () => void): () => void {
-  const media = window.matchMedia(DESKTOP_QUERY);
-  media.addEventListener('change', listener);
-  return () => media.removeEventListener('change', listener);
-}
-
-function useIsDesktop(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  );
-}
 
 const MORE_ROOT = '/mas';
 const MORE_KEY: ModuleKey = 'M2';

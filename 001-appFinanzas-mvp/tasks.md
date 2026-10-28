@@ -4289,7 +4289,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta en el navegador que espera cierra esa sesión y deja la del confirmado.
     - `RF-M1-18`: con un reloj simulado, el sondeo pregunta cada 3 s con la pestaña visible, no pregunta oculta, pregunta de inmediato al volver el foco, pasa a 10 s tras 5 minutos y se detiene al confirmar.
 
-- [ ] **`TASK-267`: Botón "Volver" en la cabecera de las pantallas internas**
+- [x] **`TASK-267`: Botón "Volver" en la cabecera de las pantallas internas**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.2.4 (Volver); RF-M2-13, RF-M2-06, RF-M2-10, EC-M2-04, RNF-06
   - **Archivos en Alcance:**

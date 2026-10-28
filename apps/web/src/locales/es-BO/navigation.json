@@ -1,6 +1,7 @@
 {
   "primaryLabel": "Navegación principal",
   "sidebarLabel": "Navegación lateral",
+  "back": "Volver",
   "collapse": "Contraer barra lateral",
   "expand": "Expandir barra lateral",
   "sections": {
