@@ -3994,7 +3994,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M8-04`: sin tasa, el Inicio indica «Sin tipo de cambio» en la base del CI (migraciones más `seed:e2e`) y en una base vacía.
     - Comando: `pnpm --filter e2e exec playwright test m8-dashboard-blocks.spec.ts --project=chromium-1280`
 
-- [ ] **`TASK-251`: E2E: pruebas con carreras de espera (RF-M2-09, RF-M7-10, RF-M1-05)**
+- [x] **`TASK-251`: E2E: pruebas con carreras de espera (RF-M2-09, RF-M7-10, RF-M1-05)**
   - **Dependencias:** Requiere TASK-072, TASK-152, TASK-065, TASK-247, TASK-253
   - **Trazabilidad SDD:** plan §5.1 (E2E), plan §5.4; RF-M2-09, RF-M7-10, RF-M1-05, EC-M1-01
   - **Archivos en Alcance:**
