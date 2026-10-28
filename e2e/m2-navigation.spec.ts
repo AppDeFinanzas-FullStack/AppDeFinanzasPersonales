@@ -57,8 +57,13 @@ test.describe('TASK-072 AppShell, barra inferior y barra lateral', () => {
   }) => {
     await authedPage.setViewportSize({ width: DESKTOP_WIDTH, height: HEIGHT });
     await authedPage.goto('/');
+    // The collapsed state is saved with PATCH /api/settings: the other context opens once it is saved.
+    const saved = authedPage.waitForResponse(
+      (res) => res.request().method() === 'PATCH' && new URL(res.url()).pathname === '/api/settings',
+    );
     await authedPage.getByRole('button', { name: /contraer/i }).click();
     await expect(authedPage.getByRole('button', { name: /expandir/i })).toBeVisible();
+    expect((await saved).ok()).toBe(true);
 
     const other = await browser.newContext({ viewport: { width: DESKTOP_WIDTH, height: HEIGHT } });
     try {

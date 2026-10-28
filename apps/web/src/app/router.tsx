@@ -1,3 +1,4 @@
+import type { ModuleKey } from '@finanzas/contracts';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
@@ -111,33 +112,42 @@ const categoriesRoutes: RouteObject[] = [
   { path: 'categorias/:id/editar', ...screen(categories, 'CategoryFormPage') },
 ];
 
-/** Private routes of the budgets (plan §4.11.4), only from the release that includes M11. */
-const budgetsRoutes: RouteObject[] = [
-  {
-    element: <ReleaseGate module="M11" notFound={<NotFoundPage />} />,
-    children: [
-      { path: 'presupuestos', ...screen(budgets, 'BudgetsPage') },
-      { path: 'presupuestos/:id', ...screen(budgets, 'BudgetDetailPage') },
-    ],
-  },
-];
+/**
+ * The routes of a module that exists only from the release that includes it (RF-M2-03). The gate
+ * goes above the app shell, so a module the release does not include shows the same not-found page
+ * as an unknown URL, without its title in the header.
+ */
+function releasedModule(module: ModuleKey, children: RouteObject[]): RouteObject[] {
+  return [
+    {
+      element: <ReleaseGate module={module} notFound={<NotFoundPage />} />,
+      children: [{ element: <AppShell />, children }],
+    },
+  ];
+}
 
-/** Private routes of the goals (plan §4.12.4). */
-const goalsRoutes: RouteObject[] = [
+/** Private routes of the budgets (plan §4.11.4), only from the release that includes M11. */
+const budgetsRoutes = releasedModule('M11', [
+  { path: 'presupuestos', ...screen(budgets, 'BudgetsPage') },
+  { path: 'presupuestos/:id', ...screen(budgets, 'BudgetDetailPage') },
+]);
+
+/** Private routes of the goals (plan §4.12.4), only from the release that includes M12. */
+const goalsRoutes = releasedModule('M12', [
   { path: 'metas', ...screen(goals, 'GoalsPage') },
   { path: 'metas/:id', ...screen(goals, 'GoalDetailPage') },
-];
+]);
 
-/** Private route of the recurring rules (plan §4.14.4). */
-const recurringRoutes: RouteObject[] = [
+/** Private route of the recurring rules (plan §4.14.4), only from the release that includes M14. */
+const recurringRoutes = releasedModule('M14', [
   { path: 'recurrentes', ...screen(recurring, 'RecurringPage') },
-];
+]);
 
-/** Private routes of the debts and loans (plan §4.13.4). */
-const debtsRoutes: RouteObject[] = [
+/** Private routes of the debts and loans (plan §4.13.4), only from the release that includes M13. */
+const debtsRoutes = releasedModule('M13', [
   { path: 'deudas', ...screen(debts, 'DebtsPage') },
   { path: 'deudas/:id', ...screen(debts, 'DebtDetailPage') },
-];
+]);
 
 /** Private routes of the exchange rate (plan §4.3.4). */
 const fxRoutes: RouteObject[] = [{ path: 'tipo-de-cambio', ...screen(fx, 'ExchangeRatePage') }];
@@ -198,14 +208,14 @@ export const router = createBrowserRouter([
                   { path: 'mas', element: <MoreMenu /> },
                   ...categoriesRoutes,
                   ...fxRoutes,
-                  ...budgetsRoutes,
-                  ...goalsRoutes,
-                  ...recurringRoutes,
-                  ...debtsRoutes,
                   ...profileRoutes,
                   ...settingsRoutes,
                 ],
               },
+              ...budgetsRoutes,
+              ...goalsRoutes,
+              ...recurringRoutes,
+              ...debtsRoutes,
             ],
           },
         ],
