@@ -15,8 +15,8 @@ import { disconnectTestPrisma, testPrisma } from './setup/db.js';
  * - `createLoginThrottleRepository(tx)`: the repository bound to the transaction of a
  *   `UnitOfWork` run, exposed as `repos.loginThrottle`;
  * - `createLoginThrottle({ uow, hmacSecret })`: the service with `check(email)` (seconds left of
- *   the wait, `0` when there is none), `fail(email)`, `reset(email)` and `shouldAlert(email)`
- *   (`true` at most once per hour).
+ *   the wait, `0` when there is none), `fail(email)` and `reset(email)`. Since spec v1.5 there is
+ *   no alert: the service has no `shouldAlert` (TASK-262).
  * The row key is the lowercase hex HMAC-SHA256 of the lowercased email under `hmacSecret`.
  * Time is the database's: tests move it by editing the rows.
  */
@@ -53,7 +53,7 @@ async function failTimes(email: string, times: number): Promise<void> {
 }
 
 async function backdate(email: string, column: string, interval: string): Promise<void> {
-  const allowed = ['last_failure_at', 'locked_until', 'last_alert_sent_at'];
+  const allowed = ['last_failure_at', 'locked_until'];
   if (!allowed.includes(column)) throw new Error('unexpected column');
   await testPrisma().$executeRawUnsafe(
     `UPDATE login_throttle SET ${column} = now() - interval '${interval}' WHERE email_hmac = $1`,
@@ -198,45 +198,25 @@ describe('login throttle: reset', () => {
   });
 });
 
-describe('login throttle: alert', () => {
-  it('RF-M1-08 the alert goes out once and not again within the hour', async () => {
+describe('login throttle: no alert', () => {
+  it('RF-M1-08 the throttle no longer decides any failed-attempt alert', async () => {
     const email = freshEmail();
     await failTimes(email, 5);
 
-    expect(await throttle.shouldAlert(email)).toBe(true);
-    expect(await throttle.shouldAlert(email)).toBe(false);
+    expect('shouldAlert' in throttle).toBe(false);
+    expect(await throttle.check(email)).toBeGreaterThan(55);
   });
 
-  it('RF-M1-08 the alert can go out again after an hour', async () => {
+  it('RF-M1-08 failures and the waits never mark an alert as sent', async () => {
     const email = freshEmail();
-    await failTimes(email, 5);
-    await throttle.shouldAlert(email);
-    await backdate(email, 'last_alert_sent_at', '61 minutes');
+    await failTimes(email, 10);
+    await backdate(email, 'locked_until', '1 second');
+    await throttle.fail(email);
 
-    expect(await throttle.shouldAlert(email)).toBe(true);
-    expect(await throttle.shouldAlert(email)).toBe(false);
-  });
-
-  it('RF-M1-08 an alert 59 minutes ago still blocks a new one', async () => {
-    const email = freshEmail();
-    await failTimes(email, 5);
-    await throttle.shouldAlert(email);
-    await backdate(email, 'last_alert_sent_at', '59 minutes');
-
-    expect(await throttle.shouldAlert(email)).toBe(false);
-  });
-
-  it('RF-M1-08 simultaneous checks give a single alert', async () => {
-    const email = freshEmail();
-    await failTimes(email, 5);
-
-    const results = await Promise.all([
-      throttle.shouldAlert(email),
-      throttle.shouldAlert(email),
-      throttle.shouldAlert(email),
-    ]);
-
-    expect(results.filter(Boolean)).toHaveLength(1);
+    const rows = await testPrisma().$queryRaw<{ sent: Date | null }[]>`
+      SELECT last_alert_sent_at AS sent FROM login_throttle WHERE email_hmac = ${hmacOf(email)}`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.sent).toBeNull();
   });
 });
 

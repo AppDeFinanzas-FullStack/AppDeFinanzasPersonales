@@ -4185,7 +4185,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el Inicio sigue por debajo de 2 s con 5.000 movimientos.
     - Comando: `pnpm --filter api exec vitest run test/integration/request-cost.test.ts`
 
-- [ ] **`TASK-262`: Quitar el correo de intentos fallidos (código)**
+- [x] **`TASK-262`: Quitar el correo de intentos fallidos (código)**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`), plan §3.2 (enum `email_kind`); RF-M1-08, RF-M1-16, RNF-25
   - **Archivos en Alcance:**

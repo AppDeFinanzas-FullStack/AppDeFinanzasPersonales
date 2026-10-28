@@ -31,14 +31,5 @@ export function createLoginThrottleRepository(tx: TransactionClient): LoginThrot
     async reset(emailHmac) {
       await tx.$executeRaw`DELETE FROM login_throttle WHERE email_hmac = ${emailHmac}`;
     },
-
-    async claimAlert(emailHmac) {
-      const rows = await tx.$queryRaw<{ emailHmac: string }[]>`
-        UPDATE login_throttle SET last_alert_sent_at = now()
-         WHERE email_hmac = ${emailHmac}
-           AND (last_alert_sent_at IS NULL OR last_alert_sent_at < now() - interval '1 hour')
-        RETURNING email_hmac AS "emailHmac"`;
-      return rows.length > 0;
-    },
   };
 }

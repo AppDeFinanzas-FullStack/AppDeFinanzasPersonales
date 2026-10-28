@@ -148,24 +148,6 @@ export function createAuthService({
   let dummyHash: Promise<string> | undefined;
   const dummyHashOnce = () => (dummyHash ??= auth.hashPassword(uuidv7()));
 
-  /** Counts a failed sign-in and warns the owner, at most once per hour (RF-M1-08, RNF-25). */
-  async function recordSignInFailure(
-    repos: Repositories,
-    email: string,
-    emailHmac: string,
-    hasAccount: boolean,
-  ): Promise<void> {
-    await repos.loginThrottle.recordFailure(emailHmac);
-    if (hasAccount && (await repos.loginThrottle.claimAlert(emailHmac))) {
-      await repos.emailOutbox.enqueue({
-        id: uuidv7(),
-        to: email,
-        kind: 'login_alert',
-        payload: {},
-      });
-    }
-  }
-
   /** Issues a new confirmation link and leaves the `confirm` email in the outbox. */
   async function sendConfirmation(repos: Repositories, userId: string, email: string) {
     const { token } = await repos.emailLinks.create(userId, 'confirm_email');
@@ -337,7 +319,7 @@ export function createAuthService({
       const hash = credential?.passwordHash ?? (await dummyHashOnce());
       const valid = await auth.verifyPassword(hash, input.password);
       if (!valid || credential === null) {
-        await uow.run((repos) => recordSignInFailure(repos, email, emailHmac, credential !== null));
+        await uow.run((repos) => repos.loginThrottle.recordFailure(emailHmac));
         throw new AppError('INVALID_CREDENTIALS');
       }
 

@@ -76,8 +76,6 @@ export interface LoginThrottleRepository {
   recordFailure(emailHmac: string): Promise<void>;
   /** Forgets the failures of that email. */
   reset(emailHmac: string): Promise<void>;
-  /** `true` when no alert went out in the last hour, and records this one. Atomic. */
-  claimAlert(emailHmac: string): Promise<boolean>;
 }
 
 export type CategoryKind = 'expense' | 'income';
