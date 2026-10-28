@@ -44,7 +44,8 @@ export function applyStoredTheme(): ThemeMode {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [storedMode] = useState<ThemeMode>(applyStoredTheme);
-  const { data } = useSettings();
+  // Without a session the localStorage copy stays (plan §4.9.3).
+  const { data } = useSettings({ onlyWithSession: true });
   const serverMode = data?.theme;
   const mode = serverMode ?? storedMode;
 

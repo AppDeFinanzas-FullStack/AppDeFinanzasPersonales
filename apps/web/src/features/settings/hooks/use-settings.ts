@@ -1,7 +1,8 @@
-import type { SettingsDto, UpdateSettingsInput } from '@finanzas/contracts';
+import type { MeDto, SettingsDto, UpdateSettingsInput } from '@finanzas/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import { ME_QUERY_KEY } from '@/features/auth/hooks/use-me';
 import { call } from '@/lib/api-client';
 import { buildFormatters, type Formatters } from '@/lib/formatters';
 
@@ -16,11 +17,15 @@ const DEFAULT_FORMATS = {
 } as const;
 
 // Plan §4.9.3: other devices refresh when the window regains focus (EC-M9-01).
-export function useSettings() {
+// `onlyWithSession` waits for the session the guards load, without asking for it: on `/entrar`
+// a 401 would open the session-expired dialog where there never was a session (plan §4.2.3).
+export function useSettings({ onlyWithSession = false }: { onlyWithSession?: boolean } = {}) {
+  const { data: me } = useQuery<MeDto>({ queryKey: ME_QUERY_KEY, enabled: false });
   return useQuery({
     queryKey: SETTINGS_KEY,
     queryFn: ({ signal }) => call(getSettingsEndpoint, undefined, { signal }),
     refetchOnWindowFocus: true,
+    enabled: !onlyWithSession || me !== undefined,
   });
 }
 

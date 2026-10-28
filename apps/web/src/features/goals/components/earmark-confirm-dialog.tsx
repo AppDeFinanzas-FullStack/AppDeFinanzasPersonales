@@ -1,8 +1,9 @@
 import type { EarmarkWithdrawals } from '@finanzas/contracts';
 import { parseAmountInput } from '@finanzas/domain';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +18,25 @@ import { Label } from '@/components/ui/label';
 import { useFormatters } from '@/features/settings/hooks/use-settings';
 
 import { useGoals } from '../hooks/use-goals';
+
+// The dialog is shared with Registrar, Movimientos and Cuentas, so it registers the text of `goals`
+// itself (RNF-07). The bundle loads on its own, so the entry package of /registrar keeps its
+// weight (RNF-01); the dialog rerenders when it arrives.
+void import('@/locales/es-BO/goals.json').then((module) => {
+  i18n.addResourceBundle(LANGUAGE, 'goals', module.default, true, true);
+});
+
+/** Renders again when a bundle is added, so the text that arrives late replaces any key shown. */
+function useRerenderOnBundleAdded(): void {
+  const [, setCount] = useState(0);
+  useEffect(() => {
+    const bump = () => setCount((count) => count + 1);
+    i18n.on('added', bump);
+    return () => {
+      i18n.off('added', bump);
+    };
+  }, []);
+}
 
 export interface EarmarkTakeInput {
   goalId: string;
@@ -74,6 +94,7 @@ function EarmarkConfirmContent({
   onCancel,
 }: EarmarkConfirmDialogProps) {
   const { t } = useTranslation('goals');
+  useRerenderOnBundleAdded();
   const formatters = useFormatters();
   const goals = useGoals();
   const [values, setValues] = useState<Record<string, string>>(() =>

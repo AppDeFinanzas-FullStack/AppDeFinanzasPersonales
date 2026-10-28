@@ -231,3 +231,65 @@ test.describe('TASK-247 entregas: el API responde solo lo que su RELEASE libera'
     }
   });
 });
+
+/**
+ * TASK-252: the URL of a module that the release does not include shows the not-found page, the
+ * same as the menus hide it (RF-M2-03). The release comes from the profile, so the cases make the
+ * session report it; the screen of a released module also needs the API to answer its list.
+ */
+const MODULE_SCREENS = [
+  { path: '/presupuestos', title: 'Presupuestos', since: '1.1' },
+  { path: '/metas', title: 'Metas de ahorro', since: '1.1' },
+  { path: '/deudas', title: 'Deudas y préstamos', since: '1.1' },
+  { path: '/recurrentes', title: 'Recurrentes', since: '1.2' },
+] as const;
+
+const NOT_FOUND = 'Esto ya no existe.';
+
+test.describe('TASK-252 entregas: la URL directa de un módulo no liberado no existe', () => {
+  test('RF-M2-03 con 1.0 /metas, /presupuestos y /deudas muestran «no existe»', async ({
+    authedPage,
+  }) => {
+    await reportRelease(authedPage, '1.0');
+    for (const { path, title } of MODULE_SCREENS.filter((m) => m.since === '1.1')) {
+      await authedPage.goto(path);
+      await expect(
+        authedPage.getByRole('heading', { name: NOT_FOUND }),
+        `${path} con 1.0`,
+      ).toBeVisible();
+      await expect(authedPage.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+    }
+  });
+
+  test('RF-M2-03 con 1.0 /recurrentes muestra «no existe»', async ({ authedPage }) => {
+    await reportRelease(authedPage, '1.0');
+    await authedPage.goto('/recurrentes');
+    await expect(authedPage.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
+    await expect(
+      authedPage.getByRole('heading', { name: 'Recurrentes', exact: true }),
+    ).toHaveCount(0);
+  });
+
+  test('RF-M2-03 con 1.1 /recurrentes muestra «no existe»', async ({ authedPage }) => {
+    await reportRelease(authedPage, '1.1');
+    await authedPage.goto('/recurrentes');
+    await expect(authedPage.getByRole('heading', { name: NOT_FOUND })).toBeVisible();
+    await expect(
+      authedPage.getByRole('heading', { name: 'Recurrentes', exact: true }),
+    ).toHaveCount(0);
+  });
+
+  test('RF-M2-03 con 1.2 las cuatro URLs abren su pantalla', async ({ authedPage }) => {
+    // Untagged cases run with the API at 1.2 (plan §5.1), which answers the four lists.
+    expect(await apiRelease(authedPage)).toBe('1.2');
+    await reportRelease(authedPage, '1.2');
+    for (const { path, title } of MODULE_SCREENS) {
+      await authedPage.goto(path);
+      await expect(
+        authedPage.getByRole('heading', { name: title, exact: true }),
+        `${path} con 1.2`,
+      ).toBeVisible();
+      await expect(authedPage.getByRole('heading', { name: NOT_FOUND })).toHaveCount(0);
+    }
+  });
+});

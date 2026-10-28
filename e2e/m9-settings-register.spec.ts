@@ -109,6 +109,22 @@ async function shortcutNames(page: Page): Promise<string[]> {
   return ((await res.json()) as { items: ShortcutItem[] }).items.map((item) => item.name);
 }
 
+/**
+ * Waits until the shortcut dialog is gone and its history entry popped: closing it calls
+ * `history.back()`, and a `page.goto` started before that ends with `net::ERR_ABORTED`.
+ */
+async function dialogClosed(page: Page): Promise<void> {
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const state: unknown = window.history.state;
+        return typeof state === 'object' && state !== null && 'backToClose' in state;
+      }),
+    )
+    .toBe(false);
+}
+
 /** The names of the shortcut chips of Registrar, in the order they show. */
 async function registerShortcutOrder(page: Page, names: readonly string[]): Promise<string[]> {
   const pattern = new RegExp(`^(${names.join('|')})$`);
@@ -401,6 +417,8 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
     await expect
       .poll(() => shortcutNames(authedPage), { timeout: 10_000 })
       .toEqual(['Comida del día']);
+    await expect(shortcutRow(authedPage, 'Comida del día')).toBeVisible();
+    await dialogClosed(authedPage);
     await authedPage.goto('/registrar');
     await expect(
       authedPage.locator('form').getByRole('button', { name: 'Comida del día', exact: true }),
@@ -426,6 +444,8 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
       .catch(() => undefined);
 
     await expect.poll(() => shortcutNames(authedPage), { timeout: 10_000 }).toEqual(['Pasaje']);
+    await expect(shortcutRow(authedPage, 'Almuerzo')).toHaveCount(0);
+    await dialogClosed(authedPage);
     await authedPage.goto('/registrar');
     await expect(
       authedPage.locator('form').getByRole('button', { name: 'Pasaje', exact: true }),
