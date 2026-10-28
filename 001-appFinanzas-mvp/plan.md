@@ -1,7 +1,7 @@
 # Plan de Diseño Técnico — App de Finanzas Personales
 
-**Versión:** 1.3 · **Fecha:** 2026-10-19 · **Estado:** Aprobado (2026-10-16)
-**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.4
+**Versión:** 1.4 · **Fecha:** 2026-10-28 · **Estado:** Aprobado (2026-10-16)
+**Insumos:** `docs/constitution.md` v1.2.0 · `001-appFinanzas-mvp/spec.md` v1.5
 **Alcance:** V1 completa (V1.0, V1.1, V1.2). Este documento define el **cómo**. Las tareas se definen en `tasks.md`.
 
 Convenciones de este documento:
@@ -241,7 +241,7 @@ flowchart LR
   - `startCommand`: `pnpm --filter api start`;
   - `healthCheckPath`: `/api/health`;
   - variables con valor fijo: `NODE_ENV=production` (`env.ts` lo exige) y `NODE_VERSION=22`, igual que `.nvmrc`, para que Render no elija otra versión por el `engines: >=22`;
-  - variables con `sync: false`, que se cargan en el panel de Render y no en el repo: `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`. `RESEND_API_KEY` es obligatoria desde el primer arranque, porque `env.ts` la valida aunque todavía no se manden correos.
+  - variables con `sync: false`, que se cargan en el panel de Render y no en el repo: `DATABASE_URL` (con pooler), `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM` (remitente con el dominio verificado en Resend), `RELEASE`, `WEB_ORIGIN` e `INTEGRATIONS=real`. `RESEND_API_KEY` es obligatoria desde el primer arranque, porque `env.ts` la valida aunque todavía no se manden correos.
 - **`vercel.json`** (en la raíz del monorepo):
   - `"git": { "deploymentEnabled": false }`, así solo despliega `deploy.yml`;
   - `installCommand: "pnpm install --frozen-lockfile"`, `buildCommand: "pnpm --filter web build"` y `outputDirectory: "apps/web/dist"`;
@@ -276,7 +276,7 @@ flowchart LR
 
 **Puesta en marcha (una sola vez).** Lo que una persona hace a mano: los agentes no pueden crear cuentas ni cargar secretos. El paso a paso está en los «Pasos manuales» de TASK-171, TASK-172, TASK-173 y TASK-174, y reunido en el README.
 1. **Neon:** el proyecto, su rama `main` y las URLs con pooler y directa.
-2. **Resend:** la cuenta y la API key.
+2. **Resend:** la cuenta, el dominio verificado (registros DNS de SPF y DKIM) y la API key restringida a ese dominio. Con el remitente de pruebas `onboarding@resend.dev` solo se puede escribir al correo dueño de la cuenta de Resend.
 3. **Secretos de la app:** `AUTH_SECRET`, `HMAC_SECRET` y `JOBS_SECRET`, aleatorios.
 4. **Vercel:** el proyecto vinculado con `vercel link`, el token y `WEB_URL`.
 5. **Render:** el Blueprint desde `render.yaml` en `main`, sus variables, el Deploy Hook, la API key, el ID del servicio y `API_URL`.
@@ -406,7 +406,7 @@ flowchart LR
 
 ```sql
 CREATE TYPE email_link_purpose     AS ENUM ('confirm_email','reset_password');
-CREATE TYPE email_kind             AS ENUM ('confirm','register_attempt','reset','password_changed','login_alert','account_deleted');
+CREATE TYPE email_kind             AS ENUM ('confirm','register_attempt','reset','password_changed','account_deleted');  -- sin login_alert desde la migración 0012 (TASK-263)
 CREATE TYPE outbox_status          AS ENUM ('pending','sent','failed');
 CREATE TYPE number_format          AS ENUM ('dot_comma','comma_dot');           -- Bs 1.234,56 | Bs 1,234.56
 CREATE TYPE date_format            AS ENUM ('dmy','iso','short_text');
@@ -499,12 +499,19 @@ CREATE TABLE email_link (
 CREATE UNIQUE INDEX email_link_one_active ON email_link (user_id, purpose)
   WHERE used_at IS NULL AND invalidated_at IS NULL;
 
-CREATE TABLE login_throttle (
+CREATE TABLE signup_ticket (                              -- RF-M1-18: la app que espera la confirmación; migración 0013 (TASK-264)
+  token_hash   char(64) PRIMARY KEY,                       -- SHA-256 del valor de la cookie; el valor nunca se guarda
+  user_id      uuid NOT NULL UNIQUE REFERENCES auth_user(id) ON DELETE CASCADE,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,                       -- 24 h, como el enlace de confirmación
+  confirmed_at timestamptz                                 -- solo lo marca el enlace de confirmación, nunca la recuperación
+);
+
+CREATE TABLE login_throttle (                              -- sin last_alert_sent_at desde la migración 0012 (TASK-263)
   email_hmac           char(64) PRIMARY KEY,                -- HMAC-SHA256(email normalizado, secreto)
   consecutive_failures integer NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
   last_failure_at      timestamptz,
-  locked_until         timestamptz,
-  last_alert_sent_at   timestamptz
+  locked_until         timestamptz
 );
 
 CREATE TABLE email_outbox (                                -- transitoria: la fila se borra al enviarse
@@ -1003,12 +1010,12 @@ CREATE TABLE job_run (                                     -- monitoreo y exclus
   - La extensión de Prisma agrega `where: { userId }` a todo `find*`, `update*`, `delete*` y `count`, y valida `data.userId === ctx.userId` en todo `create`.
   - Las claves foráneas compuestas impiden apuntar a un recurso de otro usuario.
   - Un recurso ajeno responde `NOT_FOUND 404`, igual que uno inexistente.
-- **Secretos:** el hash de la contraseña lo calcula Better Auth (scrypt). Los tokens de los enlaces se guardan solo como SHA-256. Los correos de los intentos fallidos se guardan como HMAC-SHA256. Los secretos (`AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `DATABASE_URL`) viven en variables de entorno validadas con Zod.
+- **Secretos:** el hash de la contraseña lo calcula Better Auth (scrypt). Los tokens de los enlaces se guardan solo como SHA-256. Los correos del contador de intentos de inicio de sesión se guardan como HMAC-SHA256. Los secretos (`AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `DATABASE_URL`) viven en variables de entorno validadas con Zod.
 - **En tránsito y en reposo:** TLS en Vercel, Render y Neon. Neon cifra en reposo.
 - **Logs:** se registra `traceId`, la ruta, el código y la duración. Nunca se registran cuerpos con contraseñas ni tokens, ni montos asociados a correos (constitución §4).
 - **CSRF:** cookie `SameSite=Lax` + `requireJson` + verificación de `Origin` contra la URL de Vercel.
 - **Auditoría:** no hay historial de ediciones por movimiento (RNF-24). Los eventos de seguridad se notifican por correo (RNF-25).
-- **Retención (RNF-26):** avisos a 90 días, excepto los que esperan una decisión; registros sin confirmar a 7 días; `email_send_log` a 24 h; `login_throttle` sin actividad a 1 h; la cuenta eliminada se borra de inmediato.
+- **Retención (RNF-26):** avisos a 90 días, excepto los que esperan una decisión; registros sin confirmar a 7 días; `email_send_log` y `signup_ticket` a 24 h; `login_throttle` sin actividad a 1 h; la cuenta eliminada se borra de inmediato.
 
 ---
 
@@ -1082,6 +1089,14 @@ Cada job:
 
 La primera petición autenticada de cada usuario en el día ejecuta `catchUpUser(userId)`, que corre los mismos jobs solo para él (ADR-01).
 
+**Costo de una petición (RNF-03, RNF-29):** el tiempo de una lectura es, sobre todo, el número de viajes secuenciales a la base multiplicado por la latencia entre el API y Neon (50 a 150 ms si las regiones difieren). Reglas:
+- **Medición:** cada respuesta lleva `Server-Timing` (`total`, `db` y `queries`, solo números) y el registro de la petición incluye `durationMs` y `queries`, para ver el costo real en producción.
+- **Sesión en una consulta:** `requireSession` resuelve la sesión, la última actividad y la zona horaria con una sola sentencia (hoy son varias). Sin caché: revocar una sesión surte efecto en la siguiente acción (EC-M1-05, EC-M1-06).
+- **Lecturas sin bloqueo por usuario:** una ejecución `readOnly` del `UnitOfWork` no toma el *advisory lock* (solo lo necesitan las escrituras, RNF-10) y corre en `REPEATABLE READ`: sus sentencias ven una sola foto de la base y no esperan a las escrituras del mismo usuario. Quien escribe sigue tomando el bloqueo.
+- **Un endpoint, pocas transacciones:** un servicio no abre una transacción por cada dato; lo que se pide junto se lee junto, y las lecturas independientes (gráficos, cuentas, recientes) corren en paralelo con `Promise.all`. Presupuesto de sentencias SQL por petición, que verifica TASK-261: `GET /api/me` ≤ 8, `GET /api/dashboard` ≤ 35 y cualquier otra lectura de lista ≤ 12. Como el conteo no muestra cuánto se encadena, las pruebas también repiten estas lecturas con `DB_LATENCY_MS=25` (cada operación de Prisma espera 25 ms, solo fuera de producción) y exigen que el Inicio responda en menos de 700 ms y cada lista en menos de 400 ms.
+- **Web:** la sesión y los datos de la pantalla se piden a la vez que baja su código: el *loader* de la ruta precarga la consulta principal, el enlace de cada pestaña la precarga al apuntar o tocar, y mientras tanto se muestra un esqueleto, nunca una pantalla en blanco.
+- **Despliegue:** el API y la base de datos van en la misma región (`region` en `render.yaml` y la región del proyecto de Neon), con `DATABASE_URL` por el pooler de Neon y un límite de conexiones suficiente para las lecturas en paralelo.
+
 ---
 
 ### 4.1 M1 — Acceso y cuenta de usuario (V1.0)
@@ -1111,12 +1126,13 @@ MeDto = { id, name, email, timezone, locale: 'es-BO', release: '1.0'|'1.1'|'1.2'
 
 | Método y ruta | Sesión | Comportamiento transaccional | Respuestas y errores |
 |---|---|---|---|
-| `POST /api/auth/sign-up` | No | Iguala el tiempo de respuesta. Correo nuevo → crea `auth_user` sin confirmar + `email_link` (24 h) + bandeja de salida. Correo Sin confirmar → reemplaza nombre y contraseña, `registered_at = now()`, invalida el enlace vigente y crea otro. Correo Activo → bandeja de salida `register_attempt` (máximo 1/h, RF-M1-17). | `202 {status:'check_email'}` siempre (RF-M1-03) |
-| `POST /api/auth/sign-in` | No | Si hay espera vigente → `LOGIN_LOCKED`. Verifica la contraseña (hash de prueba si el correo no existe). Fallo → `throttle.fail()` (atómico) → aviso al dueño como máximo 1/h. Éxito → `throttle.reset()`; sin confirmar → sin sesión. | `200 {me, next}` + cookie · `INVALID_CREDENTIALS 401` · `EMAIL_NOT_CONFIRMED 403` · `LOGIN_LOCKED 429 {retryAfterSeconds}` |
+| `POST /api/auth/sign-up` | No | Iguala el tiempo de respuesta. Correo nuevo → crea `auth_user` sin confirmar + `email_link` (24 h) + bandeja de salida. Correo Sin confirmar → reemplaza nombre y contraseña, `registered_at = now()`, invalida el enlace vigente y crea otro. Correo Activo → bandeja de salida `register_attempt` (máximo 1/h, RF-M1-17). En los tres casos fija la cookie `__Secure-signup-ticket` (valor aleatorio; `HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=86400`); solo con una cuenta Sin confirmar (nueva o reemplazada) guarda su SHA-256 en `signup_ticket`, en lugar del anterior (EC-M1-14). | `202 {status:'check_email'}` y la cookie, siempre (RF-M1-03) |
+| `POST /api/auth/sign-in` | No | Si hay espera vigente → `LOGIN_LOCKED`. Verifica la contraseña (hash de prueba si el correo no existe). Fallo → `throttle.fail()` (atómico); no se envía ningún correo. Éxito → `throttle.reset()`; sin confirmar → sin sesión. | `200 {me, next}` + cookie · `INVALID_CREDENTIALS 401` · `EMAIL_NOT_CONFIRMED 403` · `LOGIN_LOCKED 429 {retryAfterSeconds}` |
 | `POST /api/auth/confirmation/resend` | No | Con correo o con token (busca por hash aunque esté vencido). Límites: 60 s y 5/h (`email_send_log`). Invalida el enlace anterior. | `202` siempre |
-| `POST /api/auth/confirm` | No | Consume el enlace (`UPDATE … RETURNING`) + `email_verified = true` + crea la sesión. Si había otra sesión en el dispositivo, la cierra. | `200 {next:'onboarding'}` · `LINK_INVALID 410 {canResend}` · `LINK_ALREADY_USED 409` |
+| `POST /api/auth/confirm` | No | Consume el enlace (`UPDATE … RETURNING`) + `email_verified = true` + marca `signup_ticket.confirmed_at` del usuario. No crea sesión ni toca la que el dispositivo traiga (RF-M1-18). | `200 {status:'confirmed'}` · `LINK_INVALID 410 {canResend}` · `LINK_ALREADY_USED 409` |
+| `POST /api/auth/confirmation/status` | No (cookie del ticket) | Sin cookie, con un valor desconocido o vencido, o sin `confirmed_at` → `pending`. Con `confirmed_at`: `DELETE … RETURNING user_id` (un solo uso) + cierra la sesión que el navegador traiga (EC-M1-11) + crea la sesión + borra la cookie del ticket. Es `POST` porque abre sesión, y `checkOrigin` rechaza otros orígenes. Un ticket inexistente y el de un correo Activo responden igual (RNF-15). | `200 {status:'pending'}` · `200 {status:'confirmed', next:'onboarding'}` + cookie de sesión |
 | `POST /api/auth/password/forgot` | No | Enlace de 1 h, invalida el anterior, bandeja de salida. | `202` siempre |
-| `POST /api/auth/password/reset` | No | Consume el enlace + nuevo hash + borra todas las sesiones + crea una + confirma el correo si no lo estaba (EC-M1-10) + bandeja de salida `password_changed`. | `200 {next}` · `LINK_INVALID 410` |
+| `POST /api/auth/password/reset` | No | Consume el enlace + nuevo hash + borra todas las sesiones + crea una + confirma el correo si no lo estaba (EC-M1-10) + bandeja de salida `password_changed` + borra los `signup_ticket` del usuario (EC-M1-14). | `200 {next}` · `LINK_INVALID 410` |
 | `POST /api/auth/password/change` | Sí | Verifica la actual + nuevo hash + borra las demás sesiones + bandeja de salida. | `204` · `INVALID_CURRENT_PASSWORD 401` |
 | `POST /api/auth/sign-out` · `/sign-out-all` | Sí | Borra la sesión actual o todas. | `204` |
 | `GET /api/me` · `PATCH /api/me` | Sí | El cambio de zona horaria no toca fechas (RF-M1-12). | `MeDto` |
@@ -1144,6 +1160,7 @@ MeDto = { id, name, email, timezone, locale: 'es-BO', release: '1.0'|'1.1'|'1.2'
 - **Rutas privadas:** `/perfil` (ProfileForm: nombre, zona horaria, idioma fijo, correo en solo lectura con su explicación, cambio de contraseña, cerrar sesión, cerrar todas, exportar) y `/perfil/eliminar` (DeleteAccount con la palabra ELIMINAR y la opción de exportar antes).
 - **Servidor:** `useMe()`, con la clave `['me']`.
 - **Cliente:** formularios con react-hook-form y los schemas de `contracts`; la cuenta regresiva vive en el componente.
+- **Confirmación desde otro dispositivo (RF-M1-18, EC-M1-11, EC-M1-13):** `CheckEmail` usa `useConfirmationWatch`, que llama a `POST /api/auth/confirmation/status` cada 3 s mientras la pestaña está visible (cada 10 s pasados 5 minutos), al recuperar el foco y al volverse visible, y se detiene al confirmar, al desmontarse o a las 24 h. Con `confirmed`, invalida `['me']` y navega a `/bienvenida`. `ConfirmLink` solo llama a `confirm` y muestra "Correo confirmado: vuelve a la app donde creaste tu cuenta, que continúa sola; si ya la cerraste, inicia sesión", con un enlace a `/entrar`: no navega ni abre sesión. Los errores de red del sondeo se ignoran.
 - **Exportar:** descarga con `fetch` + `blob`, con un indicador de progreso.
 
 ---
@@ -1191,10 +1208,12 @@ function useDraft<T extends FieldValues>(formKey: string, form: UseFormReturn<T>
 
 #### 4.2.4 UI y estado
 - **Árbol:**
-  - `<AppShell>` contiene `<Header>` (título, `<RateChip>`, `<BellButton>` desde V1.1) y `<Sidebar>` (lg+, contraíble, con tooltips y foco por teclado).
+  - `<AppShell>` contiene `<Header>` (`<BackButton>` en las pantallas internas, `<BrandMark>`, título, `<RateChip>`, `<BellButton>` desde V1.1) y `<Sidebar>` (lg+, contraíble, con tooltips y foco por teclado).
   - Dentro, `<main><Outlet/></main>`, `<BottomTabBar>` (menos de lg) y `<MoreMenu>` en `/mas`, con PLANIFICAR, ORGANIZAR y CUENTA y las secciones vacías ocultas (RF-M2-12).
   - Encima de todo: `<OfflineOverlay>`, `<SessionExpiredDialog>` y `<UndoToast>`.
 - **Guardas:** `RequireSession` → `RequireOnboardingDone` → `ReleaseGate(module)`.
+- **Volver (RF-M2-13, EC-M2-04):** `parentOf(pathname)`, una función pura en `layout/route-parents.ts`, devuelve la pantalla de la que cuelga una ruta, o `null` en las raíces: `/movimientos/:id` → `/movimientos`; `/cuentas/nueva` y `/cuentas/:id` → `/cuentas`; `/cuentas/:id/editar` → `/cuentas/:id`; `/categorias/nueva`, `/categorias/archivadas` y `/categorias/:id/editar` → `/categorias`; `/presupuestos/:id`, `/metas/:id` y `/deudas/:id` → su lista; `/perfil/eliminar` → `/perfil`; `/ajustes/*` → `/ajustes`; y, solo por debajo de 1024 px, las raíces de "Más" (`/categorias`, `/tipo-de-cambio`, `/presupuestos`, `/metas`, `/deudas`, `/recurrentes`, `/perfil`, `/ajustes`) → `/mas`. `<BackButton>` hace `navigate(-1)` cuando la entrada anterior del historial es de la app (`history.state.idx > 0`) y `navigate(padre)` cuando no. Tiene objetivo táctil de 44 px y `aria-label`. Los "Volver a…" propios de cada pantalla se retiran, porque la cabecera los reemplaza.
+- **Marca (RF-M2-14):** `<BrandMark>` (`components/brand-mark.tsx`) muestra el logo de la app con su texto alternativo, en la cabecera (24 px) y centrado sobre el título en las pantallas públicas (48 px). El ícono de la pestaña (`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`) vive en `apps/web/public/` y se enlaza en `index.html`. Los archivos de diseño y la disposición confirmada se registran en `docs/design-direction.md`, sección "Marca".
 - **Estado:** `ui-store` (useSyncExternalStore) con `offline`, `sessionExpired`, `tabMemory` y `undo`. `<RateChip>` y `<BellButton>` se refrescan con `background: true`.
 
 ---
@@ -2031,12 +2050,15 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 |---|---|---|---|
 | M1 | Registro con correo ya existente no revela la cuenta | Integración + E2E | `202` idéntico; `register_attempt` en la bandeja de salida; sigue habiendo 1 `auth_user`; correo normalizado con espacios y mayúsculas |
 | M1 | Usuario sin confirmar no accede | Integración | `EMAIL_NOT_CONFIRMED 403`; ninguna fila en `auth_session` |
-| M1 | Espera progresiva tras intentos fallidos | Integración (reloj) | 5 fallos → `LOGIN_LOCKED` con `retryAfterSeconds` ≈ 60; contraseña correcta rechazada durante la espera (EC-M1-04); un `login_alert` |
+| M1 | Espera progresiva tras intentos fallidos | Integración (reloj) | 5 fallos → `LOGIN_LOCKED` con `retryAfterSeconds` ≈ 60; contraseña correcta rechazada durante la espera (EC-M1-04); ningún correo de aviso en la bandeja de salida |
+| M1 | La pestaña de registro continúa sola al confirmar el correo | Integración + E2E (dos contextos de navegador) | `confirm` no crea sesión; `confirmation/status` pasa de `pending` a `confirmed` con la sesión; la pestaña de `/revisa-tu-correo` llega sola a `/bienvenida` aunque el enlace se abra en otro contexto, que queda sin sesión |
 | M1 | Recuperar la contraseña cierra las demás sesiones | Integración | Quedan 1 sesión nueva y 0 anteriores; `password_changed` en la bandeja de salida |
 | M1 | Eliminar la cuenta | Integración | 0 filas del usuario en todas las tablas; `account_deleted` enviado; las sesiones de B dan `SESSION_EXPIRED` |
 | M2 | Registrar en el centro de la barra en el celular | E2E 360 px | Orden de las 5 pestañas, la tercera es Registrar |
 | M2 | Sin "Más" en escritorio | E2E 1280 px | Barra lateral visible, sin el enlace "Más" |
 | M2 | Bloqueo sin conexión conserva el borrador | E2E (`context.setOffline`) | Overlay visible; al reconectar, "35" sigue en el monto |
+| M2 | Volver desde una pantalla interna | E2E 360 px y 1280 px | "Volver" en el detalle de una cuenta lleva a Cuentas con su posición; con enlace directo lleva a la pantalla padre (EC-M2-04); no aparece en las raíces |
+| M2 | El logo acompaña a la app | E2E + axe | El `<link rel="icon">` apunta a un archivo que responde 200; el logo con texto alternativo está en las pantallas de acceso y en la cabecera |
 | M3 | La historia no se reescribe al cambiar la base | Integración + dominio | El gasto vale Bs 100,00 antes y después de pasar a USD y volver |
 | M3 | Tasa precargada según la dirección | Dominio + E2E | Precarga 10,30 (venta); llega $ 97,09 |
 | M3 | Valor manual con prioridad | Integración | Totales con 10,00 aunque el paralelo esté en 10,40; el panel muestra el aviso |
@@ -2108,10 +2130,11 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 | RNF-21 · fuente caída | Cliente de paralelo.bo simulado con error o valor inválido → se conserva el último válido |
 | RNF-22 · correo caído | Resend simulado con error → reintento en la bandeja de salida; respuesta neutra |
 | RNF-23 · bloqueo sin conexión | E2E de M2 |
-| RNF-24 / RNF-25 · auditoría | Los eventos de seguridad generan correos; no existe historial de ediciones |
+| RNF-24 / RNF-25 · auditoría | Cambiar la contraseña y eliminar la cuenta generan correos; los intentos fallidos no; no existe historial de ediciones |
 | RNF-26 · retención | Jobs de mantenimiento con reloj: avisos a 90 días (sin borrar los que esperan decisión), sin confirmar a 7 días |
 | RNF-27 · atribución de paralelo.bo | E2E: el enlace a la fuente está visible junto a cada tasa del paralelo |
 | RNF-28 · límites | Integración: el elemento 51 de cuentas → `LIMIT_REACHED` (y lo mismo para cada entidad) |
+| RNF-29 · cada pestaña en menos de 2 s | Integración: presupuesto de sentencias SQL por petición (4.0); E2E de cada pestaña en 4G con 5.000 movimientos < 2 s |
 
 ### 5.4 Definición de terminado de cada módulo
 1. Todos los RF y EC del módulo tienen su test unitario o de integración, con el id en el nombre del test (`it('RF-M4-04 …')`).
@@ -2156,6 +2179,7 @@ Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección de
 | RF-M1-15 | 3.1, 4.1 |
 | RF-M1-16 | 3.2 — enum `email_kind` |
 | RF-M1-17 | 4.1 |
+| RF-M1-18 | 4.1.2 confirmation/status, 4.1.4 — confirmación desde otro dispositivo |
 | EC-M1-01 | 4.1 |
 | EC-M1-02 | 4.1 |
 | EC-M1-03 | 4.1.3 — el descarte borra la fila y libera el correo; el nuevo registro se trata como nuevo |
@@ -2166,8 +2190,10 @@ Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección de
 | EC-M1-08 | 4.1.2 — `INVALID_PASSWORD` / `CONFIRMATION_MISMATCH` |
 | EC-M1-09 | 4.1.2 sign-up — reemplaza nombre y contraseña, `registered_at = now()`, enlace nuevo |
 | EC-M1-10 | 4.1 |
-| EC-M1-11 | 4.1.2 confirm — cierra la sesión del otro usuario en el dispositivo |
+| EC-M1-11 | 4.1.2 confirmation/status — cierra la sesión del otro usuario en el navegador |
 | EC-M1-12 | 4.1.3 — espera por HMAC de cualquier correo |
+| EC-M1-13 | 4.1.2, 4.1.4 — confirmation/status y ConfirmLink |
+| EC-M1-14 | 4.1.2 — un `signup_ticket` por usuario; la recuperación lo borra |
 | RF-M2-01 | 4.2.3 / 4.2.4 — BottomTabBar y Sidebar por ancho |
 | RF-M2-02 | 4.2.4 — "Más" solo en BottomTabBar |
 | RF-M2-03 | 1.3, 4.2 |
@@ -2180,9 +2206,12 @@ Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección de
 | RF-M2-10 | 1.3, 4.2 |
 | RF-M2-11 | 4.2 |
 | RF-M2-12 | 4.2 |
+| RF-M2-13 | 4.2.4 — Volver |
+| RF-M2-14 | 4.2.4 — Marca |
 | EC-M2-01 | 4.2 |
 | EC-M2-02 | 1.3, 4.2 |
 | EC-M2-03 | 4.2 |
+| EC-M2-04 | 4.2.4 — Volver |
 | RF-M3-01 | 3.4 |
 | RF-M3-02 | 4.3 |
 | RF-M3-03 | ADR-06 + 4.3.1 `resolveUsdRate` (manual primero) |
@@ -2443,3 +2472,4 @@ Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección de
 | RNF-26 | 3.9, 5.3 |
 | RNF-27 | 1.3, 4.3, 5.3 |
 | RNF-28 | 4.0, 5.3 |
+| RNF-29 | 4.0, 5.3 |
