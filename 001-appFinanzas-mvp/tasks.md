@@ -4033,7 +4033,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 27 — Pulido transversal: rendimiento, correos, navegación y marca
 
-- [ ] **`TASK-254`: Medición de cada petición: `Server-Timing`, conteo de consultas y latencia simulada**
+- [x] **`TASK-254`: Medición de cada petición: `Server-Timing`, conteo de consultas y latencia simulada**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.0 (Costo de una petición), plan §5.3 (RNF-29); RNF-03, RNF-29
   - **Archivos en Alcance:**

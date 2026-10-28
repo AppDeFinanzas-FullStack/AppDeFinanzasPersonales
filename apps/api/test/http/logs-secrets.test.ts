@@ -358,6 +358,7 @@ describe('RNF-17 qué se registra de cada petición', () => {
         'durationMs',
         'method',
         'path',
+        'queries',
         'status',
         'traceId',
       ]);
@@ -365,6 +366,8 @@ describe('RNF-17 qué se registra de cada petición', () => {
       expect(typeof entry['path']).toBe('string');
       expect(typeof entry['status']).toBe('number');
       expect(typeof entry['durationMs']).toBe('number');
+      expect(Number.isInteger(entry['queries'])).toBe(true);
+      expect(entry['queries'] as number).toBeGreaterThanOrEqual(0);
     }
   });
 

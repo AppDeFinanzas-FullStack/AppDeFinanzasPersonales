@@ -89,6 +89,7 @@ import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
+import type { QueryCounter } from '../application/ports/query-counter.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
@@ -127,6 +128,7 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
+import { createQueryCounter } from '../infrastructure/persistence/query-counter.js';
 import { createReadinessProbe } from '../infrastructure/persistence/readiness.js';
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
@@ -183,6 +185,8 @@ export interface Container {
   readonly env: Env;
   readonly prisma: PrismaClient;
   readonly uow: UnitOfWork;
+  /** Operations and database time of each request, for `Server-Timing` (plan §4.0). */
+  readonly queryCounter: QueryCounter;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
@@ -727,8 +731,9 @@ const createTestNotificationFactory =
   };
 
 export const buildContainer = (env: Env): Container => {
-  const prisma = buildPrismaClient(env);
-  const uow = createUnitOfWork(prisma, buildRepositories);
+  const queryCounter = createQueryCounter();
+  const prisma = buildPrismaClient(env, queryCounter);
+  const uow = createUnitOfWork(prisma, buildRepositories, queryCounter);
   const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
   const jobRuns = createJobRuns(prisma);
   const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
@@ -868,6 +873,7 @@ export const buildContainer = (env: Env): Container => {
     env,
     prisma,
     uow,
+    queryCounter,
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
@@ -927,6 +933,7 @@ export const createApp = (container: Container): Express => {
   };
   return createExpressApp({
     webOrigin: container.env.WEB_ORIGIN,
+    queryCounter: container.queryCounter,
     jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
     ...(container.testSupport === null ? {} : { testSupport: container.testSupport }),
     auth: {
