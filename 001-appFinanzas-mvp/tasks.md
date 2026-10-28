@@ -4058,7 +4058,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-17`: la línea de `requestLog` de cada petición lleva exactamente `traceId`, `method`, `path`, `status`, `durationMs` y `queries` (número); la prueba existente de `logs-secrets.test.ts` se actualiza con esa clave.
     - `RNF-29`: con `DB_LATENCY_MS=25`, una petición de 4 operaciones tarda al menos 100 ms en la base; con `NODE_ENV=production`, `parseEnv` rechaza `DB_LATENCY_MS` distinto de 0.
 
-- [ ] **`TASK-255`: Sesión en una sola consulta**
+- [x] **`TASK-255`: Sesión en una sola consulta**
   - **Dependencias:** Requiere TASK-254
   - **Trazabilidad SDD:** plan §4.0 (Sesión en una consulta); RF-M1-07, EC-M1-05, EC-M1-06, RNF-29
   - **Archivos en Alcance:**

@@ -175,7 +175,7 @@ import type { BalanceSeriesReader } from '../presentation/controllers/accounts.c
 import type { CategoryTreeReader } from '../presentation/controllers/categories.controller.js';
 import type { RateHistoryReader } from '../presentation/controllers/fx.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
-import type { SessionActivity } from '../presentation/middlewares/require-session.js';
+import type { SessionRecord } from '../presentation/middlewares/require-session.js';
 
 /**
  * Composition root (plan §1.4, ADR-19): the only place that knows every layer. It builds the
@@ -543,14 +543,16 @@ const createGoalNoticeUsers = (prisma: PrismaClient): GoalNoticeUsers => ({
        ORDER BY u.id`,
 });
 
-/** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
+/** The sessions, resolved by `requireSession` in one statement and renewed by `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
-  async findActivity(sessionId: string): Promise<SessionActivity | null> {
-    const rows = await prisma.$queryRaw<SessionActivity[]>`
-      SELECT s.last_activity_at AS "lastActivityAt", u.timezone AS timezone
+  async findByToken(token: string): Promise<SessionRecord | null> {
+    const rows = await prisma.$queryRaw<SessionRecord[]>`
+      SELECT s.id::text AS "sessionId", s.user_id::text AS "userId",
+             s.expires_at AS "expiresAt", s.last_activity_at AS "lastActivityAt",
+             u.timezone AS timezone
         FROM auth_session s
         JOIN auth_user u ON u.id = s.user_id
-       WHERE s.id = ${sessionId}::uuid`;
+       WHERE s.token = ${token}`;
     return rows[0] ?? null;
   },
   async touch(sessionId: string, at: Date): Promise<void> {
@@ -927,7 +929,6 @@ export const buildContainer = (env: Env): Container => {
 
 export const createApp = (container: Container): Express => {
   const session = {
-    auth: container.auth,
     sessions: createSessionActivity(container.prisma),
     clock: container.clock,
   };
