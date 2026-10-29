@@ -4258,10 +4258,22 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/auth.routes.ts`
     - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
     - `apps/api/test/integration/auth-signup.test.ts`
     - `apps/api/test/integration/auth-confirm.test.ts`
     - `apps/api/test/integration/auth-signup-ticket.test.ts`
     - `apps/api/test/http/auth.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
+    - `apps/api/test/http/dashboard.test.ts`
+    - `apps/api/test/http/logs-secrets.test.ts`
+    - `apps/api/test/http/me.test.ts`
+    - `apps/api/test/http/me-delete.test.ts`
+    - `apps/api/test/http/me-export.test.ts`
+    - `apps/api/test/http/me-export-v1-1.test.ts`
+    - `apps/api/test/http/me-export-v1-2.test.ts`
+    - `apps/api/test/http/onboarding.test.ts`
+    - `apps/api/test/http/settings.test.ts`
+    - `apps/api/test/http/settings-register.test.ts`
   - **Especificación de Implementación:** El repositorio `SignupTickets` ofrece `issue(userId, tokenHash, expiresAt)` (reemplaza el ticket del usuario), `markConfirmed(userId)`, `claim(tokenHash)` (`DELETE … WHERE token_hash = $1 AND confirmed_at IS NOT NULL AND expires_at > now() RETURNING user_id`), `deleteForUser(userId)` y `purgeExpired(now)`. Cambios: (1) `signUp` genera siempre un valor aleatorio de 32 bytes, también cuando el correo ya está activo, y el controlador lo entrega en la cookie `__Secure-signup-ticket` (`HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=86400`); solo cuando el resultado es una cuenta Sin confirmar, nueva o reemplazada, se guarda su SHA-256 con `issue` (RF-M1-03, RNF-15: la respuesta y el tiempo no cambian). (2) `confirm(token)` consume el enlace, marca el correo verificado y llama `markConfirmed`; ya no crea la sesión ni recibe la sesión actual, y responde `{ status: 'confirmed' }`. (3) Nuevo `confirmationStatus(ticket, currentSessionId?)` y `POST /api/auth/confirmation/status`, sin sesión y sin cuerpo: sin cookie o con un ticket que `claim` no devuelve → `{ status: 'pending' }`; con uno devuelto, cierra la sesión que el navegador traiga (EC-M1-11), crea la sesión, borra la cookie del ticket y responde `{ status: 'confirmed', next: 'onboarding' }`. (4) `resetPassword` llama `deleteForUser` (EC-M1-14). (5) `maintenance` agrega `purgeExpired` a sus purgas.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "La pestaña de registro continúa sola al confirmar el correo": con el ticket del registro, `confirmation/status` responde `pending` antes de abrir el enlace y, después, `confirmed` con la cookie de sesión y `next: 'onboarding'` (`RF-M1-18`).
