@@ -89,6 +89,7 @@ import { createJobs, type Jobs } from '../application/jobs/tick.js';
 import type { Clock } from '../application/ports/clock.js';
 import type { EmailGateway } from '../application/ports/email-gateway.js';
 import type { IdGenerator } from '../application/ports/id-generator.js';
+import type { QueryCounter } from '../application/ports/query-counter.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 import type { Repositories } from '../application/ports/repositories.js';
 import type { UnitOfWork } from '../application/ports/unit-of-work.js';
@@ -127,6 +128,7 @@ import {
   buildPrismaClient,
   type PrismaClient,
 } from '../infrastructure/persistence/prisma-client.js';
+import { createQueryCounter } from '../infrastructure/persistence/query-counter.js';
 import { createReadinessProbe } from '../infrastructure/persistence/readiness.js';
 import { createEmailLinkRepository } from '../infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
@@ -173,7 +175,7 @@ import type { BalanceSeriesReader } from '../presentation/controllers/accounts.c
 import type { CategoryTreeReader } from '../presentation/controllers/categories.controller.js';
 import type { RateHistoryReader } from '../presentation/controllers/fx.controller.js';
 import type { MeProfile } from '../presentation/presenters/me.presenter.js';
-import type { SessionActivity } from '../presentation/middlewares/require-session.js';
+import type { SessionRecord } from '../presentation/middlewares/require-session.js';
 
 /**
  * Composition root (plan §1.4, ADR-19): the only place that knows every layer. It builds the
@@ -183,6 +185,8 @@ export interface Container {
   readonly env: Env;
   readonly prisma: PrismaClient;
   readonly uow: UnitOfWork;
+  /** Operations and database time of each request, for `Server-Timing` (plan §4.0). */
+  readonly queryCounter: QueryCounter;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   /** Job registry of the tick; each module registers its jobs here (plan §4.0). */
@@ -539,14 +543,16 @@ const createGoalNoticeUsers = (prisma: PrismaClient): GoalNoticeUsers => ({
        ORDER BY u.id`,
 });
 
-/** Activity of the sessions, read and renewed by `requireSession` and `trackActivity`. */
+/** The sessions, resolved by `requireSession` in one statement and renewed by `trackActivity`. */
 const createSessionActivity = (prisma: PrismaClient) => ({
-  async findActivity(sessionId: string): Promise<SessionActivity | null> {
-    const rows = await prisma.$queryRaw<SessionActivity[]>`
-      SELECT s.last_activity_at AS "lastActivityAt", u.timezone AS timezone
+  async findByToken(token: string): Promise<SessionRecord | null> {
+    const rows = await prisma.$queryRaw<SessionRecord[]>`
+      SELECT s.id::text AS "sessionId", s.user_id::text AS "userId",
+             s.expires_at AS "expiresAt", s.last_activity_at AS "lastActivityAt",
+             u.timezone AS timezone
         FROM auth_session s
         JOIN auth_user u ON u.id = s.user_id
-       WHERE s.id = ${sessionId}::uuid`;
+       WHERE s.token = ${token}`;
     return rows[0] ?? null;
   },
   async touch(sessionId: string, at: Date): Promise<void> {
@@ -727,8 +733,9 @@ const createTestNotificationFactory =
   };
 
 export const buildContainer = (env: Env): Container => {
-  const prisma = buildPrismaClient(env);
-  const uow = createUnitOfWork(prisma, buildRepositories);
+  const queryCounter = createQueryCounter();
+  const prisma = buildPrismaClient(env, queryCounter);
+  const uow = createUnitOfWork(prisma, buildRepositories, queryCounter);
   const fakeEmail = env.INTEGRATIONS === 'fake' ? new FakeEmailGateway() : null;
   const jobRuns = createJobRuns(prisma);
   const jobs = createJobs({ jobRuns, clock: systemClock, release: env.RELEASE });
@@ -868,6 +875,7 @@ export const buildContainer = (env: Env): Container => {
     env,
     prisma,
     uow,
+    queryCounter,
     clock: systemClock,
     ids: uuidv7Ids,
     jobs,
@@ -921,12 +929,12 @@ export const buildContainer = (env: Env): Container => {
 
 export const createApp = (container: Container): Express => {
   const session = {
-    auth: container.auth,
     sessions: createSessionActivity(container.prisma),
     clock: container.clock,
   };
   return createExpressApp({
     webOrigin: container.env.WEB_ORIGIN,
+    queryCounter: container.queryCounter,
     jobs: { secret: container.env.JOBS_SECRET, jobs: container.jobs },
     ...(container.testSupport === null ? {} : { testSupport: container.testSupport }),
     auth: {

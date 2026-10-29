@@ -1,3 +1,4 @@
+import type { QueryCounter } from '../../application/ports/query-counter.js';
 import type { Repositories } from '../../application/ports/repositories.js';
 import type { UnitOfWork, UnitOfWorkOptions } from '../../application/ports/unit-of-work.js';
 import { forUser, type PrismaClient, type ScopedPrismaClient } from './prisma-client.js';
@@ -31,6 +32,7 @@ async function lockUser(tx: TransactionClient, userId: string): Promise<void> {
 export function createUnitOfWork(
   prisma: PrismaClient,
   buildRepositories: BuildRepositories,
+  counter?: QueryCounter,
 ): UnitOfWork {
   // Same client type as `forUser`'s, without any user filter, for runs that lock no user.
   const unscoped = prisma.$extends({ name: 'unscoped' });
@@ -39,6 +41,9 @@ export function createUnitOfWork(
     run<T>(fn: (repos: Repositories) => Promise<T>, opts: UnitOfWorkOptions = {}): Promise<T> {
       const { userLock, readOnly = false } = opts;
       const client = userLock === undefined ? unscoped : forUser(prisma, userLock);
+      // The BEGIN and the COMMIT of the transaction are two trips that no operation reports.
+      counter?.record(0);
+      counter?.record(0);
       return client.$transaction(async (tx) => {
         if (readOnly) {
           await tx.$executeRaw`SET TRANSACTION READ ONLY`;

@@ -1,5 +1,6 @@
 import { createPrismaClient, type PrismaClient } from '@finanzas/db';
 
+import type { QueryCounter } from '../../application/ports/query-counter.js';
 import type { Env } from '../config/env.js';
 
 export { forUser, type PrismaClient, type ScopedPrismaClient } from '@finanzas/db';
@@ -13,8 +14,14 @@ export { forUser, type PrismaClient, type ScopedPrismaClient } from '@finanzas/d
  * Shutting down never depends on the database answering: once that attempt has failed there is no
  * connection left, so a second `$disconnect` just closes the client.
  */
-export const buildPrismaClient = (env: Pick<Env, 'DATABASE_URL'>): PrismaClient => {
-  const prisma = createPrismaClient(env.DATABASE_URL);
+export const buildPrismaClient = (
+  env: Pick<Env, 'DATABASE_URL'> & Partial<Pick<Env, 'DB_LATENCY_MS'>>,
+  counter?: QueryCounter,
+): PrismaClient => {
+  const prisma = createPrismaClient(env.DATABASE_URL, {
+    latencyMs: env.DB_LATENCY_MS ?? 0,
+    ...(counter === undefined ? {} : { onOperation: (ms: number) => counter.record(ms) }),
+  });
   const disconnect = prisma.$disconnect.bind(prisma);
   prisma.$disconnect = async (): Promise<void> => {
     try {

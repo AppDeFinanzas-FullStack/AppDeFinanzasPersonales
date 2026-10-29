@@ -4033,7 +4033,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 
 ### Fase 27 — Pulido transversal: rendimiento, correos, navegación y marca
 
-- [ ] **`TASK-254`: Medición de cada petición: `Server-Timing`, conteo de consultas y latencia simulada**
+- [x] **`TASK-254`: Medición de cada petición: `Server-Timing`, conteo de consultas y latencia simulada**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.0 (Costo de una petición), plan §5.3 (RNF-29); RNF-03, RNF-29
   - **Archivos en Alcance:**
@@ -4048,15 +4048,17 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/composition/container.ts`
     - `apps/api/test/http/server-timing.test.ts`
     - `apps/api/test/unit/env.test.ts`
+    - `apps/api/test/http/logs-secrets.test.ts`
   - **Especificación de Implementación:** Sin medir no se puede arreglar la lentitud ni comprobar que se arregló. El puerto `QueryCounter` (`begin()`, `record(ms)`, `read()`) lo implementa la infraestructura con `AsyncLocalStorage`, por la regla de capas (ADR-19): la presentación no importa la infraestructura. Cuenta las operaciones de Prisma de cada petición (las crudas y las de modelo) y suma 2 por cada transacción interactiva, por su `BEGIN` y su `COMMIT`; el `UnitOfWork` lo hace en `run`. Si el evento `query` de Prisma no conserva el contexto de la petición, se cuenta con una extensión de cliente (`$allOperations`). El *middleware* `serverTiming` abre el contador al empezar y, al responder, agrega `Server-Timing: total;dur=…, db;dur=…, queries;desc="N"` (solo números, ningún detalle interno, RNF-17); `requestLog` agrega `durationMs` y `queries` a su línea. Para que las pruebas reproduzcan la distancia a Neon sin salir de la máquina, `env.ts` agrega `DB_LATENCY_MS` (entero, 0 por defecto): retrasa cada operación de Prisma ese tiempo y se rechaza con un valor distinto de 0 cuando `NODE_ENV=production`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RNF-29`: toda respuesta, también las de error, lleva `Server-Timing` con `total`, `db` y `queries`.
     - `RNF-29`: con un contador simulado que registra 7 operaciones, `queries` vale 7 y `db` suma sus duraciones.
     - `RNF-29`: dos peticiones simultáneas no mezclan sus conteos.
     - `RNF-17`: la cabecera no contiene SQL, nombres de tablas ni rutas internas, y `requestLog` no registra parámetros.
+    - `RNF-17`: la línea de `requestLog` de cada petición lleva exactamente `traceId`, `method`, `path`, `status`, `durationMs` y `queries` (número); la prueba existente de `logs-secrets.test.ts` se actualiza con esa clave.
     - `RNF-29`: con `DB_LATENCY_MS=25`, una petición de 4 operaciones tarda al menos 100 ms en la base; con `NODE_ENV=production`, `parseEnv` rechaza `DB_LATENCY_MS` distinto de 0.
 
-- [ ] **`TASK-255`: Sesión en una sola consulta**
+- [x] **`TASK-255`: Sesión en una sola consulta**
   - **Dependencias:** Requiere TASK-254
   - **Trazabilidad SDD:** plan §4.0 (Sesión en una consulta); RF-M1-07, EC-M1-05, EC-M1-06, RNF-29
   - **Archivos en Alcance:**
