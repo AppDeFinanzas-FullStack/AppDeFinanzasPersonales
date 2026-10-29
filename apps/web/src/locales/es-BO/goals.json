@@ -2,7 +2,6 @@
   "title": "Metas de ahorro",
   "empty": "Aún no tienes metas. Crea una para empezar a apartar dinero.",
   "loadError": "No se pudieron cargar las metas. Inténtalo de nuevo.",
-  "back": "Volver a metas",
   "ring": {
     "label": "Progreso de {{name}}"
   },

@@ -141,3 +141,122 @@ test.describe('TASK-267 botón Volver en la cabecera', () => {
     await expectNoBlockingViolations(authedPage);
   });
 });
+
+function isoToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/La_Paz' }).format(new Date());
+}
+
+async function createExpense(page: Page, accountId: string): Promise<string> {
+  const cats = await page.request.get('/api/categories?kind=expense&status=active');
+  expect(cats.ok()).toBe(true);
+  const tree = (await cats.json()) as { id: string }[];
+  const id = randomUUID();
+  const res = await page.request.post('/api/transactions', {
+    data: {
+      kind: 'expense',
+      id,
+      accountId,
+      categoryId: tree[0]?.id,
+      amount: '10',
+      date: isoToday(),
+    },
+  });
+  expect(res.status()).toBe(201);
+  return id;
+}
+
+async function expectOnlyHeaderBack(page: Page): Promise<void> {
+  await expect(backButton(page)).toHaveCount(1);
+  await expect(page.getByRole('main').getByRole('link', { name: /volver/i })).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('button', { name: /volver/i })).toHaveCount(0);
+}
+
+test.describe('TASK-268 un solo Volver en las pantallas internas', () => {
+  test.beforeEach(async ({ authedPage }) => {
+    await authedPage.setViewportSize({ width: MOBILE_WIDTH, height: HEIGHT });
+  });
+
+  test('RF-M2-13 el detalle de una cuenta tiene un solo Volver', async ({ authedPage }) => {
+    const id = await createAccount(authedPage, 'Unica');
+    await authedPage.goto(`/cuentas/${id}`);
+    await expectOnlyHeaderBack(authedPage);
+  });
+
+  test('RF-M2-13 el detalle de un presupuesto tiene un solo Volver', async ({ authedPage }) => {
+    const id = randomUUID();
+    const res = await authedPage.request.post('/api/budgets', {
+      data: { id, scope: 'general', amount: '100', currencyCode: 'BOB' },
+    });
+    expect(res.status()).toBe(201);
+    await authedPage.goto(`/presupuestos/${id}`);
+    await expectOnlyHeaderBack(authedPage);
+  });
+
+  test('RF-M2-13 el detalle de una meta tiene un solo Volver', async ({ authedPage }) => {
+    const id = randomUUID();
+    const res = await authedPage.request.post('/api/goals', {
+      data: {
+        id,
+        name: 'Viaje',
+        target: '1000',
+        currencyCode: 'BOB',
+        icon: 'plane',
+        color: 'blue',
+      },
+    });
+    expect(res.status()).toBe(201);
+    await authedPage.goto(`/metas/${id}`);
+    await expectOnlyHeaderBack(authedPage);
+  });
+
+  test('RF-M2-13 el detalle de una deuda tiene un solo Volver', async ({ authedPage }) => {
+    const id = randomUUID();
+    const res = await authedPage.request.post('/api/debts', {
+      data: {
+        id,
+        direction: 'i_owe',
+        person: 'Ana',
+        principal: '100',
+        currencyCode: 'BOB',
+        startDate: isoToday(),
+      },
+    });
+    expect(res.status()).toBe(201);
+    await authedPage.goto(`/deudas/${id}`);
+    await expectOnlyHeaderBack(authedPage);
+  });
+
+  test('RF-M2-13 las pantallas de categorías tienen un solo Volver', async ({ authedPage }) => {
+    const cats = await authedPage.request.get('/api/categories?kind=expense&status=active');
+    const tree = (await cats.json()) as { id: string }[];
+    for (const path of [
+      '/categorias/nueva',
+      '/categorias/archivadas',
+      `/categorias/${tree[0]?.id}/editar`,
+    ]) {
+      await authedPage.goto(path);
+      await expectOnlyHeaderBack(authedPage);
+    }
+  });
+
+  test('RF-M2-13 el detalle de un movimiento tiene un solo Volver', async ({ authedPage }) => {
+    const accountId = await createAccount(authedPage, 'Mov');
+    const id = await createExpense(authedPage, accountId);
+    await authedPage.goto(`/movimientos/${id}`);
+    await expectOnlyHeaderBack(authedPage);
+  });
+
+  test('RF-M2-13 un movimiento eliminado desde otro dispositivo sigue ofreciendo Volver a Movimientos', async ({
+    authedPage,
+  }) => {
+    const accountId = await createAccount(authedPage, 'Borrada');
+    const id = await createExpense(authedPage, accountId);
+    const del = await authedPage.request.delete(`/api/transactions/${id}`);
+    expect(del.ok()).toBe(true);
+    await authedPage.goto(`/movimientos/${id}`);
+    const link = authedPage.getByRole('link', { name: 'Volver a Movimientos' });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(authedPage).toHaveURL(/\/movimientos$/);
+  });
+});

@@ -4311,7 +4311,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-06`: el botón Atrás del navegador sigue funcionando en todas las pantallas.
     - `RNF-06`: el botón mide al menos 44 px, tiene nombre accesible y axe no reporta violaciones serias.
 
-- [ ] **`TASK-268`: Retirar los "Volver a…" propios de cada pantalla**
+- [x] **`TASK-268`: Retirar los "Volver a…" propios de cada pantalla**
   - **Dependencias:** Requiere TASK-267
   - **Trazabilidad SDD:** plan §4.2.4 (Volver); RF-M2-13
   - **Archivos en Alcance:**

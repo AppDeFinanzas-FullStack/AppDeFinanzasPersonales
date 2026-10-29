@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ResourceNotFound } from '@/components/resource-not-found';
@@ -112,9 +112,6 @@ export function BudgetDetailPage() {
         </>
       )}
       <PeriodHistory budget={budget} periods={budget.periods} />
-      <Link to="/presupuestos" className="text-sm text-primary underline">
-        {t('back')}
-      </Link>
     </div>
   );
 }
