@@ -4262,6 +4262,9 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/test/integration/auth-signup.test.ts`
     - `apps/api/test/integration/auth-confirm.test.ts`
     - `apps/api/test/integration/auth-signup-ticket.test.ts`
+    - `apps/api/test/integration/auth-signin.test.ts`
+    - `apps/api/test/integration/auth-password.test.ts`
+    - `apps/api/test/integration/maintenance-auth.test.ts`
     - `apps/api/test/http/auth.test.ts`
     - `apps/api/test/http/isolation-sweep.test.ts`
     - `apps/api/test/http/dashboard.test.ts`
