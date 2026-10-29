@@ -1,12 +1,14 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { call } from '@/lib/api-client';
 
 import { resendConfirmationEndpoint } from '../api';
+import { useConfirmationWatch } from '../hooks/use-confirmation-watch';
+import { ME_QUERY_KEY } from '../hooks/use-me';
 
 /** RF-M1-05: one resend every 60 seconds. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -26,6 +28,15 @@ export function CheckEmail() {
   const [endsAt, setEndsAt] = useState(() => Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
   const [remaining, setRemaining] = useState(RESEND_COOLDOWN_SECONDS);
   const [resent, setResent] = useState(false);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // RF-M1-18, EC-M1-11: the server opened the session of the confirmed account; continue alone.
+  const onConfirmed = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+    void navigate('/bienvenida', { replace: true });
+  }, [queryClient, navigate]);
+  useConfirmationWatch({ onConfirmed });
 
   useEffect(() => {
     const update = () => {

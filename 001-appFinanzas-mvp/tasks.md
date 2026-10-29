@@ -4288,7 +4288,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-18`: un ticket vencido (más de 24 h) responde `pending` y `maintenance` lo borra.
     - `RF-M1-04`: una cuenta sin confirmar sigue sin sesión ni acceso a datos, con o sin ticket.
 
-- [ ] **`TASK-266`: Confirmación del correo (3/3): la app que espera continúa sola al Onboarding**
+- [x] **`TASK-266`: Confirmación del correo (3/3): la app que espera continúa sola al Onboarding**
   - **Dependencias:** Requiere TASK-265
   - **Trazabilidad SDD:** plan §4.1.4 (Confirmación desde otro dispositivo); RF-M1-18, EC-M1-11, EC-M1-13, RF-M1-05
   - **Archivos en Alcance:**

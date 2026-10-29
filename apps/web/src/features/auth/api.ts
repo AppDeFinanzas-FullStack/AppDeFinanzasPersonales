@@ -1,4 +1,11 @@
-import { ConfirmInput, MeDto, ResendInput, SignUpInput } from '@finanzas/contracts';
+import {
+  ConfirmDto,
+  ConfirmInput,
+  ConfirmationStatusDto,
+  MeDto,
+  ResendInput,
+  SignUpInput,
+} from '@finanzas/contracts';
 import { z } from 'zod';
 
 import type { Endpoint } from '@/lib/api-client';
@@ -17,11 +24,20 @@ export const resendConfirmationEndpoint: Endpoint<ResendInput, void> = {
   output: z.void(),
 };
 
-export const confirmEndpoint: Endpoint<ConfirmInput, { next: 'onboarding' }> = {
+/** RF-M1-18: the link only confirms the account; it does not open a session. */
+export const confirmEndpoint: Endpoint<ConfirmInput, ConfirmDto> = {
   method: 'POST',
   path: '/api/auth/confirm',
   input: ConfirmInput,
-  output: z.object({ next: z.literal('onboarding') }),
+  output: ConfirmDto,
+};
+
+/** RF-M1-18: the app waiting on "Revisa tu correo" asks whether the account was confirmed. */
+export const confirmationStatusEndpoint: Endpoint<void, ConfirmationStatusDto> = {
+  method: 'POST',
+  path: '/api/auth/confirmation/status',
+  input: z.void(),
+  output: ConfirmationStatusDto,
 };
 
 export const meEndpoint: Endpoint<void, MeDto> = {

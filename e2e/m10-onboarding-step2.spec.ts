@@ -67,15 +67,25 @@ function balanceField(page: Page, index: number) {
   return page.getByLabel(/saldo de hoy/i).nth(index);
 }
 
-/** A user just confirmed (spec §2.10.1): signs up and opens the confirmation link. */
+/**
+ * A user just confirmed (spec §2.10.1): signs up, waits on "Revisa tu correo" and opens the
+ * confirmation link in another tab; the waiting tab continues to the Onboarding (RF-M1-18).
+ */
 async function confirmedNewUser(page: Page, mailbox: Mailbox): Promise<void> {
   const email = mailbox.newEmail();
-  const res = await page.request.post('/api/auth/sign-up', {
-    data: { name: 'Ana Prueba', email, password: PASSWORD, acceptTerms: true, timezone: TIMEZONE },
-  });
-  expect(res.status()).toBe(202);
-  await page.goto(await mailbox.confirmationLink(email));
-  await expect(page).toHaveURL(/\/bienvenida/);
+  await page.goto('/registro');
+  await page.getByLabel(/nombre/i).fill('Ana Prueba');
+  await page.getByLabel(/correo/i).fill(email);
+  await page.getByLabel(/contraseña/i).fill(PASSWORD);
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button', { name: /crear cuenta/i }).click();
+  await expect(page).toHaveURL(/\/revisa-tu-correo/);
+  const linkPage = await page.context().newPage();
+  await linkPage.goto(await mailbox.confirmationLink(email));
+  await expect(linkPage.getByText('Correo confirmado').first()).toBeVisible();
+  await linkPage.close();
+  await page.bringToFront();
+  await expect(page).toHaveURL(/\/bienvenida/, { timeout: 20_000 });
 }
 
 /** Confirms the user and moves on to step 2 with the base currency by default. */

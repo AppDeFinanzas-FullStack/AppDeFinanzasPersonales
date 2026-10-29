@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
@@ -7,21 +7,15 @@ import { Button } from '@/components/ui/button';
 import { ApiError, call } from '@/lib/api-client';
 
 import { confirmEndpoint, resendConfirmationEndpoint } from '../api';
-import { ME_QUERY_KEY } from '../hooks/use-me';
 
 export function ConfirmLink() {
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const token = useSearchParams()[0].get('token');
   const started = useRef(false);
 
   const confirm = useMutation({
     mutationFn: (value: string) => call(confirmEndpoint, { token: value }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
-      void navigate('/bienvenida', { replace: true });
-    },
     onError: (error) => {
       // EC-M1-02: the link was already used and the account is active.
       if (error instanceof ApiError && error.code === 'LINK_ALREADY_USED') {
@@ -43,6 +37,19 @@ export function ConfirmLink() {
 
   if (token === null) {
     return <Navigate to="/registro" replace />;
+  }
+
+  // RF-M1-18, EC-M1-13: the link only confirms; the app that waits continues by itself.
+  if (confirm.isSuccess) {
+    return (
+      <section className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 px-4 py-8">
+        <h1 className="text-2xl font-semibold">{t('confirm.confirmedTitle')}</h1>
+        <p role="status">{t('confirm.confirmedBody')}</p>
+        <Button asChild className="h-11">
+          <Link to="/entrar">{t('confirm.confirmedSignIn')}</Link>
+        </Button>
+      </section>
+    );
   }
 
   const failed =

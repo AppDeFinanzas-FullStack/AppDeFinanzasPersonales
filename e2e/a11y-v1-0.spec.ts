@@ -235,8 +235,14 @@ for (const theme of THEMES) {
       await page.getByLabel(/contraseña/i).fill(PASSWORD);
       await page.getByRole('checkbox').check();
       await page.getByRole('button', { name: /crear cuenta/i }).click();
-      await page.goto(await mailbox.confirmationLink(email));
-      await expect(page).toHaveURL(/\/bienvenida/);
+      await expect(page).toHaveURL(/\/revisa-tu-correo/);
+      // RF-M1-18: the link only confirms; the tab on "Revisa tu correo" continues by itself.
+      const linkPage = await page.context().newPage();
+      await linkPage.goto(await mailbox.confirmationLink(email));
+      await expect(linkPage.getByText('Correo confirmado').first()).toBeVisible();
+      await linkPage.close();
+      await page.bringToFront();
+      await expect(page).toHaveURL(/\/bienvenida/, { timeout: 20_000 });
 
       for (const step of [1, 2, 3]) {
         await expect(page.getByText(new RegExp(`Paso ${String(step)} de 3`)).first()).toBeVisible();
