@@ -167,9 +167,10 @@ export interface TransactionsService {
   batchRecategorize(ctx: RatesContext, input: BatchRecategorizeInput): Promise<BatchResult>;
   /**
    * A page of the user's movements that match the query, the current month by default, with the
-   * net of each of its days in the base currency (RF-M6-11, RF-M6-12, plan §4.6.2).
+   * net of each of its days in the base currency (RF-M6-11, RF-M6-12, plan §4.6.2). A caller that
+   * already read the user's base currency passes it and saves that read.
    */
-  list(ctx: RatesContext, query: ListQuery): Promise<TransactionListPage>;
+  list(ctx: RatesContext, query: ListQuery, base?: string): Promise<TransactionListPage>;
   /**
    * Income, expense and net in the base currency of the movements that match the query, each with
    * its stored rates and without what RN-02 leaves out (RF-M6-12, RN-05).
@@ -735,9 +736,15 @@ interface Describer {
   detail(movement: LedgerTransactionDetail): Promise<DescribedTransactionDetail>;
 }
 
-async function describerFor(repos: Repositories, ctx: RatesContext): Promise<Describer> {
-  const base = await baseCurrency(repos, ctx);
-  const events = await repos.userFxEvents.eventsUntil(ctx.now);
+async function describerFor(
+  repos: Repositories,
+  ctx: RatesContext,
+  knownBase?: string,
+): Promise<Describer> {
+  const base = knownBase ?? (await baseCurrency(repos, ctx));
+  // The events only give the rate of a base other than BOB and USD (`baseRateOf`).
+  const events =
+    base === 'BOB' || base === 'USD' ? [] : await repos.userFxEvents.eventsUntil(ctx.now);
   const accounts = new Map<string, AccountRow>();
   const categoryNames = new Map<string, string>();
 
@@ -784,9 +791,10 @@ async function listMovements(
   repos: Repositories,
   ctx: RatesContext,
   query: ListQuery,
+  base?: string,
 ): Promise<TransactionListPage> {
   const page = await repos.ledger.list(filtersOf(ctx, query), query.cursor ?? null);
-  const describer = await describerFor(repos, ctx);
+  const describer = await describerFor(repos, ctx, base);
   const items: DescribedTransaction[] = [];
   for (const item of page.items) {
     items.push(await describer.movement(item));
@@ -1636,8 +1644,8 @@ export function createTransactionsService({
       });
     },
 
-    async list(ctx, query) {
-      return uow.run((repos) => listMovements(repos, ctx, query), {
+    async list(ctx, query, base) {
+      return uow.run((repos) => listMovements(repos, ctx, query, base), {
         userLock: ctx.userId,
         readOnly: true,
       });

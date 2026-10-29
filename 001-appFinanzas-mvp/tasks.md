@@ -4090,7 +4090,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-14`: una lectura sigue acotada a su usuario y no puede escribir.
     - Comando: `pnpm --filter api exec vitest run test/integration/balance-guard.test.ts test/integration/unit-of-work.test.ts test/integration/concurrency-sweep.test.ts`
 
-- [ ] **`TASK-257`: Inicio con pocas consultas**
+- [x] **`TASK-257`: Inicio con pocas consultas**
   - **Dependencias:** Requiere TASK-220, TASK-255, TASK-256
   - **Trazabilidad SDD:** plan §4.0 (Un endpoint, pocas transacciones), plan §4.8.2; RNF-03, RNF-29, RF-M8-01
   - **Archivos en Alcance:**

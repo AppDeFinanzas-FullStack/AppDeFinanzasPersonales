@@ -419,17 +419,18 @@ export interface PeriodTotals {
 /** Reads of the dashboard for the user bound to the transaction (RN-09). */
 export interface DashboardRepository {
   /**
-   * Totals of two inclusive date ranges in one query: each movement is converted with its stored
-   * rates (RN-05) and what RN-02 leaves out does not count. A movement dated before the initial
-   * balance of its account still counts (RN-12).
+   * Totals of two inclusive date ranges and the month (`YYYY-MM`) of the first movement or the
+   * first initial balance (`null` without any), all in one statement: each movement is converted
+   * with its stored rates (RN-05) and what RN-02 leaves out does not count. A movement dated
+   * before the initial balance of its account still counts (RN-12).
    */
   totals(
     current: { from: LocalDate; to: LocalDate },
     previous: { from: LocalDate; to: LocalDate },
     base: string,
-  ): Promise<{ current: PeriodTotals; previous: PeriodTotals }>;
-  /** Month (`YYYY-MM`) of the first movement or the first initial balance, or `null` without any. */
-  firstMonth(): Promise<string | null>;
+  ): Promise<{ current: PeriodTotals; previous: PeriodTotals; firstMonth: string | null }>;
+  /** Ids of the blocks the user hid and the base currency, in one query; `null` without settings. */
+  settings(): Promise<{ hiddenBlocks: string[]; baseCurrency: string } | null>;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -453,6 +454,8 @@ export interface MarketRateRepository {
   upsertIfNewer(rate: MarketRateRow): Promise<void>;
   /** Row of the most recent day of that kind, or null. */
   latest(kind: MarketRateKind): Promise<MarketRateRow | null>;
+  /** `latest` of every kind in one query; a kind without rows is `null`. */
+  latestAll(): Promise<Record<MarketRateKind, MarketRateRow | null>>;
   /** Days of the range, both ends included, in ascending order. */
   series(kind: MarketRateKind, from: LocalDate, to: LocalDate): Promise<MarketRateRow[]>;
 }
@@ -1139,6 +1142,8 @@ export interface GoalAllocationRepository {
   insert(event: NewAllocationEvent): Promise<void>;
   /** Σ of the events on the account, one item per goal. */
   earmarkedByAccount(accountId: string): Promise<GoalEarmark[]>;
+  /** `earmarkedByAccount` of several accounts in one query; an account without events has `[]`. */
+  earmarkedByAccounts(accountIds: string[]): Promise<Map<string, GoalEarmark[]>>;
   /** Σ of the events of the goal, one item per account. */
   earmarkedByGoal(goalId: string): Promise<AccountEarmark[]>;
   /** The events of the goal plus the ledger entries of its dedicated account (RF-M12-07). */

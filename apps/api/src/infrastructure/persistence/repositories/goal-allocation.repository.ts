@@ -43,6 +43,22 @@ export function createGoalAllocationRepository(
       return rows.map((row) => ({ goalId: row.goalId, amount: new Decimal(row.amount) }));
     },
 
+    async earmarkedByAccounts(accountIds: string[]): Promise<Map<string, GoalEarmark[]>> {
+      const byAccount = new Map<string, GoalEarmark[]>(accountIds.map((id) => [id, []]));
+      if (accountIds.length === 0) {
+        return byAccount;
+      }
+      const rows = await tx.$queryRaw<{ accountId: string; goalId: string; amount: string }[]>`
+        SELECT account_id::text AS "accountId", goal_id::text AS "goalId", sum(amount)::text AS amount
+          FROM goal_allocation_event
+         WHERE user_id = ${userId}::uuid AND account_id = ANY(${accountIds}::uuid[])
+         GROUP BY account_id, goal_id`;
+      for (const row of rows) {
+        byAccount.get(row.accountId)?.push({ goalId: row.goalId, amount: new Decimal(row.amount) });
+      }
+      return byAccount;
+    },
+
     async earmarkedByGoal(goalId: string): Promise<AccountEarmark[]> {
       const rows = await tx.$queryRaw<{ accountId: string; amount: string }[]>`
         SELECT account_id::text AS "accountId", sum(amount)::text AS amount

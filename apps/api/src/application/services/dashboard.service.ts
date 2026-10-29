@@ -25,7 +25,12 @@ import {
 
 import { Decimal } from 'decimal.js';
 
-import type { PeriodTotals, RecurringRuleRow } from '../ports/repositories.js';
+import type {
+  DebtRow,
+  PeriodTotals,
+  RecurringRuleRow,
+  Repositories,
+} from '../ports/repositories.js';
 import type { UnitOfWork } from '../ports/unit-of-work.js';
 import type { AccountsService } from './accounts.service.js';
 import type { DescribedTransaction, TransactionsService } from './transactions.service.js';
@@ -43,9 +48,28 @@ export interface DashboardCards {
   cards: DashboardDto['cards'];
 }
 
+/** The cards plus what the user chose to see and the base currency they were computed in. */
+export interface DashboardOpening extends DashboardCards {
+  /** Keys of the blocks the user hid. */
+  hidden: Set<string>;
+  base: string;
+}
+
 export interface DashboardService {
-  /** Range of months and cards with their variations for the month (RF-M8-01 to RF-M8-04). */
-  readonly cards: (ctx: DashboardContext, month: YearMonth) => Promise<DashboardCards>;
+  /**
+   * The settings of the Inicio and its cards from one transaction: the base currency is read once
+   * and the cards use it.
+   */
+  readonly opening: (ctx: DashboardContext, month: YearMonth) => Promise<DashboardOpening>;
+  /**
+   * Range of months and cards with their variations for the month (RF-M8-01 to RF-M8-04). A caller
+   * that already read the user's base currency passes it and saves that read.
+   */
+  readonly cards: (
+    ctx: DashboardContext,
+    month: YearMonth,
+    base?: string,
+  ) => Promise<DashboardCards>;
 }
 
 export interface DashboardServiceDeps {
@@ -118,7 +142,7 @@ export interface DashboardViewService {
 export interface DashboardViewServiceDeps {
   uow: UnitOfWork;
   dashboard: DashboardService;
-  accounts: Pick<AccountsService, 'list' | 'summary'>;
+  accounts: Pick<AccountsService, 'listWithSummary'>;
   transactions: Pick<TransactionsService, 'list'>;
   expenses: DashboardExpenseSource;
 }
@@ -205,43 +229,37 @@ function cumulativeOf(
  * period that ended inside it (RF-M8-08). A general budget has no category, so its bar carries its
  * own id and an empty name.
  */
-async function budgetBarsOf(
-  uow: UnitOfWork,
-  userId: string,
+async function budgetBarsIn(
+  repos: Repositories,
   month: YearMonth,
   currentMonth: YearMonth,
 ): Promise<BudgetBarDto[]> {
   const { from, to } = monthRange(month);
   const isPast = month < currentMonth;
-  return uow.run(
-    async (repos) => {
-      const bars: BudgetBarDto[] = [];
-      for (const budget of await repos.budgets.list()) {
-        if (!isPast && budget.status !== 'active') continue;
-        const periods = isPast
-          ? (await repos.budgetPeriods.listByBudget(budget.id, PERIODS_LOOKBACK))
-              .filter((p) => p.status !== 'open' && p.endDate >= from && p.endDate <= to)
-              .reverse()
-          : [await repos.budgetPeriods.current(budget.id)];
-        const category =
-          budget.categoryId === null ? null : await repos.categories.get(budget.categoryId);
-        for (const period of periods) {
-          if (period === null || period.startDate > to || period.endDate < from) continue;
-          const spent = await repos.budgetPeriods.spent(budget, period);
-          const limit = period.amount.plus(period.carryoverIn);
-          bars.push({
-            categoryId: budget.categoryId ?? budget.id,
-            name: category?.name ?? '',
-            spent: toMoneyString(spent),
-            limit: toMoneyString(limit),
-            pct: percentOf(spent, limit),
-          });
-        }
-      }
-      return bars;
-    },
-    { userLock: userId, readOnly: true },
-  );
+  const bars: BudgetBarDto[] = [];
+  for (const budget of await repos.budgets.list()) {
+    if (!isPast && budget.status !== 'active') continue;
+    const periods = isPast
+      ? (await repos.budgetPeriods.listByBudget(budget.id, PERIODS_LOOKBACK))
+          .filter((p) => p.status !== 'open' && p.endDate >= from && p.endDate <= to)
+          .reverse()
+      : [await repos.budgetPeriods.current(budget.id)];
+    const category =
+      budget.categoryId === null ? null : await repos.categories.get(budget.categoryId);
+    for (const period of periods) {
+      if (period === null || period.startDate > to || period.endDate < from) continue;
+      const spent = await repos.budgetPeriods.spent(budget, period);
+      const limit = period.amount.plus(period.carryoverIn);
+      bars.push({
+        categoryId: budget.categoryId ?? budget.id,
+        name: category?.name ?? '',
+        spent: toMoneyString(spent),
+        limit: toMoneyString(limit),
+        pct: percentOf(spent, limit),
+      });
+    }
+  }
+  return bars;
 }
 
 /** The date of that day in the month `YYYY-MM`; a missing day falls on the last one (RF-M4-08). */
@@ -292,20 +310,56 @@ function recurringDueDate(rule: RecurringRuleRow, today: string): string | null 
  * cut and payment days of the active cards (RF-M4-08) and, since the V1.2, the next date of the
  * expense and transfer recurring rules, by date.
  */
-async function upcomingOf(
+async function upcomingSourcesIn(
+  repos: Repositories,
+): Promise<{ debts: DebtRow[]; rules: RecurringRuleRow[] }> {
+  return {
+    debts: await repos.debts.list(),
+    rules: released('M14') ? await repos.recurringRules.list() : [],
+  };
+}
+
+interface LedgerBlocks {
+  budgets?: BudgetBarDto[];
+  sources?: { debts: DebtRow[]; rules: RecurringRuleRow[] };
+}
+
+/**
+ * What the budgets and the upcoming payments need from the ledger, read in one transaction: the
+ * two blocks do not depend on the accounts nor on the charts, so they share one trip.
+ */
+async function blocksOf(
   uow: UnitOfWork,
   userId: string,
-  today: string,
-  accounts: AccountDto[],
-): Promise<UpcomingItemDto[]> {
-  const withRecurring = released('M14');
-  const { debts, rules } = await uow.run(
-    async (repos) => ({
-      debts: await repos.debts.list(),
-      rules: withRecurring ? await repos.recurringRules.list() : [],
-    }),
+  wanted: { budgets: { month: YearMonth; currentMonth: YearMonth } | null; upcoming: boolean },
+): Promise<LedgerBlocks> {
+  if (wanted.budgets === null && !wanted.upcoming) {
+    return {};
+  }
+  return uow.run(
+    async (repos) => {
+      const blocks: LedgerBlocks = {};
+      if (wanted.budgets !== null) {
+        blocks.budgets = await budgetBarsIn(
+          repos,
+          wanted.budgets.month,
+          wanted.budgets.currentMonth,
+        );
+      }
+      if (wanted.upcoming) {
+        blocks.sources = await upcomingSourcesIn(repos);
+      }
+      return blocks;
+    },
     { userLock: userId, readOnly: true },
   );
+}
+
+function upcomingOf(
+  { debts, rules }: { debts: DebtRow[]; rules: RecurringRuleRow[] },
+  today: string,
+  accounts: AccountDto[],
+): UpcomingItemDto[] {
   const items: UpcomingItemDto[] = [];
   for (const debt of debts) {
     if (debt.status !== 'active' || debt.dueDate === null) continue;
@@ -346,125 +400,184 @@ async function upcomingOf(
       dueDate,
     });
   }
-  return items.sort(
-    (a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name),
-  );
+  return items.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name));
+}
+
+/**
+ * The expenses of the month and of the one before, read once for "Por categoría" and "Ritmo"
+ * (RF-M5-03): the two charts share this single read.
+ */
+async function expensesOf(
+  source: DashboardExpenseSource,
+  userId: string,
+  base: string,
+  month: YearMonth,
+  today: string,
+): Promise<{
+  rows: DashboardExpenseRow[];
+  current: DashboardExpenseRow[];
+  previousMonth: YearMonth;
+  currentLastDay: number;
+  previousLastDay: number;
+}> {
+  const window = comparisonWindow(month, today);
+  const previousMonth = addMonths(monthRange(month).from, -1).slice(0, 7);
+  const previousFull = monthRange(previousMonth);
+  const rows = await source.expenses(userId, base, {
+    from: previousFull.from,
+    to: window.current.to,
+  });
+  return {
+    rows,
+    current: rows.filter((row) => row.date.startsWith(month)),
+    previousMonth,
+    currentLastDay: Number(window.current.to.slice(8, 10)),
+    previousLastDay: Number(previousFull.to.slice(8, 10)),
+  };
 }
 
 export function createDashboardViewService(deps: DashboardViewServiceDeps): DashboardViewService {
   return {
     async view(ctx, month) {
       const today = todayFor(ctx.timezone, ctx.now);
-      const { range, cards } = await deps.dashboard.cards(ctx, month);
-      const { hidden, base } = await deps.uow.run(
-        async (repos) => {
-          const settings = await repos.userSettings.find(ctx.userId);
-          const fx = await repos.userSettings.fxSettings(ctx.userId);
-          return {
-            hidden: new Set(
-              (settings?.dashboardBlocks ?? []).filter((b) => !b.visible).map((b) => b.key),
-            ),
-            base: fx?.baseCurrency ?? FALLBACK_BASE,
-          };
-        },
-        { userLock: ctx.userId, readOnly: true },
-      );
-      const view: DashboardView = { range, cards };
+      const { hidden, base, range, cards } = await deps.dashboard.opening(ctx, month);
 
       const currentMonth = today.slice(0, 7);
-      if (!hidden.has('budget') && released('M11')) {
-        view.budgets = await budgetBarsOf(deps.uow, ctx.userId, month, currentMonth);
-      }
-
+      const showBudgets = !hidden.has('budget') && released('M11');
       const showUpcoming = !hidden.has('upcoming') && released('M13') && month >= currentMonth;
       const showBalances = !hidden.has('balances');
-      const accounts =
-        showUpcoming || showBalances ? await deps.accounts.list(ctx, 'active') : [];
-      if (showUpcoming) {
-        view.upcoming = await upcomingOf(deps.uow, ctx.userId, today, accounts);
-      }
-
       const showCategories = !hidden.has('byCategory');
       const showPace = !hidden.has('pace');
-      if (showCategories || showPace) {
-        const window = comparisonWindow(month, today);
-        const previousMonth = addMonths(monthRange(month).from, -1).slice(0, 7);
-        const previousFull = monthRange(previousMonth);
-        const rows = await deps.expenses.expenses(ctx.userId, base, {
-          from: previousFull.from,
-          to: window.current.to,
-        });
+      const showRecent = !hidden.has('recent');
+
+      // The rest reads in independent trips, each in one read-only transaction, and none waits
+      // for another (reads do not lock, TASK-256).
+      const blocksRead = blocksOf(deps.uow, ctx.userId, {
+        budgets: showBudgets ? { month, currentMonth } : null,
+        upcoming: showUpcoming,
+      });
+      const accountsRead =
+        showUpcoming || showBalances ? deps.accounts.listWithSummary(ctx) : undefined;
+      const expensesRead =
+        showCategories || showPace
+          ? expensesOf(deps.expenses, ctx.userId, base, month, today)
+          : undefined;
+      const recentRead = showRecent
+        ? deps.transactions.list(
+            ctx,
+            { from: `${range.firstMonth}-01`, to: today, limit: RECENT_MOVEMENTS },
+            base,
+          )
+        : undefined;
+
+      const [blocks, accounts, expenses, recent] = await Promise.all([
+        blocksRead,
+        accountsRead,
+        expensesRead,
+        recentRead,
+      ]);
+      const { budgets, sources } = blocks;
+
+      const view: DashboardView = { range, cards };
+      if (budgets !== undefined) {
+        view.budgets = budgets;
+      }
+      if (sources !== undefined && accounts !== undefined) {
+        view.upcoming = upcomingOf(sources, today, accounts.items);
+      }
+      if (expenses !== undefined) {
         if (showCategories) {
-          view.byCategory = byCategoryOf(rows.filter((row) => row.date.startsWith(month)));
+          view.byCategory = byCategoryOf(expenses.current);
         }
         if (showPace) {
           view.pace = {
-            current: cumulativeOf(rows, month, Number(window.current.to.slice(8, 10))),
-            previous: cumulativeOf(rows, previousMonth, Number(previousFull.to.slice(8, 10))),
+            current: cumulativeOf(expenses.rows, month, expenses.currentLastDay),
+            previous: cumulativeOf(expenses.rows, expenses.previousMonth, expenses.previousLastDay),
           };
         }
       }
-
-      if (showBalances) {
-        const summary = await deps.accounts.summary(ctx);
+      if (showBalances && accounts !== undefined) {
+        const { items, summary } = accounts;
         view.balances = {
           netWorth: { base: summary.netWorth.base ?? '0.00', other: summary.netWorth.other },
-          top: accounts.slice(0, TOP_ACCOUNTS),
+          top: items.slice(0, TOP_ACCOUNTS),
           asOfToday: true,
         };
       }
-
-      if (!hidden.has('recent')) {
-        const page = await deps.transactions.list(ctx, {
-          from: `${range.firstMonth}-01`,
-          to: today,
-          limit: RECENT_MOVEMENTS,
-        });
-        view.recent = page.items.slice(0, RECENT_MOVEMENTS);
+      if (recent !== undefined) {
+        view.recent = recent.items.slice(0, RECENT_MOVEMENTS);
       }
       return view;
     },
   };
 }
 
+async function cardsIn(
+  repos: Repositories,
+  ctx: DashboardContext,
+  month: YearMonth,
+  base: string,
+): Promise<DashboardCards> {
+  const today = todayFor(ctx.timezone, ctx.now);
+  const window = comparisonWindow(month, today);
+  const currentMonth = today.slice(0, 7);
+
+  const { firstMonth: first, ...totals } = await repos.dashboard.totals(
+    window.current,
+    window.previous,
+    base,
+  );
+  const current = summarize(totals.current);
+  const previous = summarize(totals.previous);
+  const firstMonth = first !== null && first < currentMonth ? first : currentMonth;
+
+  return {
+    range: { firstMonth, currentMonth },
+    cards: {
+      income: current.income,
+      expense: current.expense,
+      balance: current.balance,
+      savingsRatePct: current.rate,
+      variations: {
+        income: formatPct(pctChange(current.income, previous.income)),
+        expense: formatPct(pctChange(current.expense, previous.expense)),
+        balance: toMoneyString(parseMoney(current.balance).minus(parseMoney(previous.balance))),
+        savingsRatePp: savingsRateDeltaPp(current.rate, previous.rate),
+      },
+    },
+  };
+}
+
 export function createDashboardService(deps: DashboardServiceDeps): DashboardService {
   return {
-    async cards(ctx, month) {
-      const today = todayFor(ctx.timezone, ctx.now);
-      const window = comparisonWindow(month, today);
-      const currentMonth = today.slice(0, 7);
-
-      const { totals, first } = await deps.uow.run(
+    async opening(ctx, month) {
+      return deps.uow.run(
         async (repos) => {
-          const settings = await repos.userSettings.fxSettings(ctx.userId);
+          const settings = await repos.dashboard.settings();
           const base = settings?.baseCurrency ?? FALLBACK_BASE;
           return {
-            totals: await repos.dashboard.totals(window.current, window.previous, base),
-            first: await repos.dashboard.firstMonth(),
+            hidden: new Set(settings?.hiddenBlocks ?? []),
+            base,
+            ...(await cardsIn(repos, ctx, month, base)),
           };
         },
         { userLock: ctx.userId, readOnly: true },
       );
+    },
 
-      const current = summarize(totals.current);
-      const previous = summarize(totals.previous);
-      const firstMonth = first !== null && first < currentMonth ? first : currentMonth;
-
-      return {
-        range: { firstMonth, currentMonth },
-        cards: {
-          income: current.income,
-          expense: current.expense,
-          balance: current.balance,
-          savingsRatePct: current.rate,
-          variations: {
-            income: formatPct(pctChange(current.income, previous.income)),
-            expense: formatPct(pctChange(current.expense, previous.expense)),
-            balance: toMoneyString(parseMoney(current.balance).minus(parseMoney(previous.balance))),
-            savingsRatePp: savingsRateDeltaPp(current.rate, previous.rate),
-          },
-        },
-      };
+    async cards(ctx, month, knownBase) {
+      return deps.uow.run(
+        async (repos) =>
+          cardsIn(
+            repos,
+            ctx,
+            month,
+            knownBase ??
+              (await repos.userSettings.fxSettings(ctx.userId))?.baseCurrency ??
+              FALLBACK_BASE,
+          ),
+        { userLock: ctx.userId, readOnly: true },
+      );
     },
   };
 }
