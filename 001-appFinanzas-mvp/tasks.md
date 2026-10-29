@@ -4230,7 +4230,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     2. **Respaldo antes de migrar producción:** en Neon → Branches → Create branch desde `main`, para poder volver atrás.
     3. **Comprobar:** en Neon → SQL Editor, `SELECT unnest(enum_range(NULL::email_kind));` debe dar los 5 valores.
 
-- [ ] **`TASK-264`: Confirmación del correo (1/3): tabla `signup_ticket` y contratos**
+- [x] **`TASK-264`: Confirmación del correo (1/3): tabla `signup_ticket` y contratos**
   - **Dependencias:** Requiere TASK-263
   - **Trazabilidad SDD:** plan §3.3 (`signup_ticket`), plan §4.1.1, plan §4.1.2; RF-M1-18, EC-M1-14, RNF-26
   - **Archivos en Alcance:**

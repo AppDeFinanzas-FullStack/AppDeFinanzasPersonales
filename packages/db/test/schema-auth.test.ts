@@ -7,6 +7,7 @@ import { closeSql, sql } from './helpers.js';
 
 const CHECK_VIOLATION = '23514';
 const UNIQUE_VIOLATION = '23505';
+const FOREIGN_KEY_VIOLATION = '23503';
 
 /** Tables of plan §3.3 (M1: user account and security). */
 const AUTH_TABLES = [
@@ -18,6 +19,7 @@ const AUTH_TABLES = [
   'login_throttle',
   'email_outbox',
   'email_send_log',
+  'signup_ticket',
 ] as const;
 
 /** Tables of plan §3.3 that carry an updated_at column. */
@@ -550,5 +552,98 @@ describe('TASK-263 migration 0012 removes login_alert and last_alert_sent_at', (
       `SELECT indexdef AS def FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'email_send_log'`,
     );
     expect(rows.map((r) => r.def).some((d) => /\(email_hmac, kind, sent_at DESC\)/.test(d))).toBe(true);
+  });
+});
+
+const INSERT_TICKET = `INSERT INTO signup_ticket (token_hash, user_id, expires_at)
+                       VALUES ($1, $2, now() + interval '24 hours')`;
+
+describe('RF-M1-18 signup_ticket for the app waiting for the confirmation', () => {
+  it('RF-M1-18 signup_ticket has token_hash char(64) as its primary key', async () => {
+    const { rows } = await sql().query<{ col: string }>(
+      `SELECT a.attname AS col
+         FROM pg_index i
+         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+        WHERE i.indrelid = to_regclass('public.signup_ticket') AND i.indisprimary`,
+    );
+    expect(rows.map((r) => r.col)).toEqual(['token_hash']);
+    const type = await sql().query<{ udt: string; len: number | null }>(
+      `SELECT udt_name AS udt, character_maximum_length AS len FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'signup_ticket' AND column_name = 'token_hash'`,
+    );
+    expect(type.rows).toEqual([{ udt: 'bpchar', len: 64 }]);
+  });
+
+  it('RF-M1-18 signup_ticket has the columns of plan 3.3 and only confirmed_at admits null', async () => {
+    const { rows } = await sql().query<{ col: string; nullable: string }>(
+      `SELECT column_name AS col, is_nullable AS nullable FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'signup_ticket'
+        ORDER BY column_name`,
+    );
+    expect(rows).toEqual([
+      { col: 'confirmed_at', nullable: 'YES' },
+      { col: 'created_at', nullable: 'NO' },
+      { col: 'expires_at', nullable: 'NO' },
+      { col: 'token_hash', nullable: 'NO' },
+      { col: 'user_id', nullable: 'NO' },
+    ]);
+  });
+
+  it('RF-M1-18 a new ticket is stored with confirmed_at null and created_at defaulted, and can be confirmed', async () => {
+    await inTx(async (c) => {
+      const userId = await insertUser(c);
+      const hash = tokenHash();
+      await c.query(INSERT_TICKET, [hash, userId]);
+      const { rows } = await c.query<{ owner: string; confirmed: Date | null; created: boolean }>(
+        `SELECT user_id::text AS owner, confirmed_at AS confirmed, created_at IS NOT NULL AS created
+           FROM signup_ticket WHERE token_hash = $1`,
+        [hash],
+      );
+      expect(rows).toEqual([{ owner: userId, confirmed: null, created: true }]);
+      await c.query(`UPDATE signup_ticket SET confirmed_at = now() WHERE token_hash = $1`, [hash]);
+      const after = await c.query(`SELECT 1 FROM signup_ticket WHERE token_hash = $1 AND confirmed_at IS NOT NULL`, [
+        hash,
+      ]);
+      expect(after.rowCount).toBe(1);
+    });
+  });
+
+  it('RF-M1-18 EC-M1-14 a second ticket for the same user is rejected by the UNIQUE on user_id', async () => {
+    await inTx(async (c) => {
+      const userId = await insertUser(c);
+      await c.query(INSERT_TICKET, [tokenHash(), userId]);
+      expect(await sqlState(c, INSERT_TICKET, [tokenHash(), userId])).toBe(UNIQUE_VIOLATION);
+    });
+  });
+
+  it('RF-M1-18 the same token_hash cannot be stored twice', async () => {
+    await inTx(async (c) => {
+      const a = await insertUser(c);
+      const b = await insertUser(c);
+      const hash = tokenHash();
+      await c.query(INSERT_TICKET, [hash, a]);
+      expect(await sqlState(c, INSERT_TICKET, [hash, b])).toBe(UNIQUE_VIOLATION);
+    });
+  });
+
+  it('RF-M1-18 a ticket must reference an existing user', async () => {
+    await inTx(async (c) => {
+      expect(await sqlState(c, INSERT_TICKET, [tokenHash(), randomUUID()])).toBe(FOREIGN_KEY_VIOLATION);
+    });
+  });
+
+  it('RF-M1-18 RNF-26 deleting the user cascades to its ticket and keeps the tickets of other users', async () => {
+    await inTx(async (c) => {
+      const gone = await insertUser(c);
+      const kept = await insertUser(c);
+      await c.query(INSERT_TICKET, [tokenHash(), gone]);
+      await c.query(INSERT_TICKET, [tokenHash(), kept]);
+      await c.query(`DELETE FROM auth_user WHERE id = $1`, [gone]);
+      const { rows } = await c.query<{ owner: string }>(
+        `SELECT user_id::text AS owner FROM signup_ticket WHERE user_id = ANY($1::uuid[])`,
+        [[gone, kept]],
+      );
+      expect(rows).toEqual([{ owner: kept }]);
+    });
   });
 });
