@@ -4121,6 +4121,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/components/page-skeleton.tsx`
     - `apps/web/src/features/dashboard/routes.tsx`
     - `apps/web/src/locales/es-BO/navigation.json`
+    - `apps/web/src/features/profile/routes.tsx`
     - `apps/web/test/last-session-hint.test.ts`
     - `e2e/m2-startup-parallel.spec.ts`
   - **Especificación de Implementación:** Hoy el Inicio espera a `/api/me` para saber la zona horaria y recién entonces pide el dashboard y las cuentas: son dos viajes en cadena sobre una conexión que ya es lenta, y mientras tanto la pantalla queda en blanco (`return null`). `last-session-hint.ts` guarda en `localStorage`, dentro de `try/catch`, solo `{ timezone, onboardingCompleted }` del último `/api/me` exitoso (nunca el correo, el nombre ni el id), y lo borra al cerrar sesión o ante un `401`. `warmUpSession`, si hay pista con el Onboarding terminado, lanza el prefetch del Inicio y de las cuentas a la vez que `/api/me`, con el mes de la zona de la pista; si `/api/me` responde otra zona, repite el prefetch con la correcta. Sin pista (primer ingreso), el flujo es el de hoy. `PageSkeleton` (`role="status"`, nombre accesible, `motion-safe:animate-pulse`) reemplaza a `null` en `RequireSession`, `RequireOnboardingDone` y `DashboardPage` mientras llegan los datos.
