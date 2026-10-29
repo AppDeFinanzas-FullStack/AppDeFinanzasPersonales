@@ -4177,7 +4177,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     5. **Medir después** con el paso 1 y anotar ambos tiempos en `docs/latencia-despliegue.md`. Meta: `db` por debajo de 10 ms.
     6. **Mantener despiertos los servicios:** en cron-job.org, confirmar que el tick sigue llamando cada minuto a `/internal/jobs/tick`. En el plan gratis, Render duerme el API tras 15 minutos sin tráfico y Neon suspende la base tras 5.
 
-- [ ] **`TASK-261`: Verificación de rendimiento: costo por petición y tiempo de cada pestaña**
+- [x] **`TASK-261`: Verificación de rendimiento: costo por petición y tiempo de cada pestaña**
   - **Dependencias:** Requiere TASK-255, TASK-256, TASK-257, TASK-259
   - **Trazabilidad SDD:** plan §4.0 (Costo de una petición), plan §5.3 (RNF-03, RNF-29); RNF-03, RNF-29
   - **Archivos en Alcance:**
