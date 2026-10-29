@@ -4074,7 +4074,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-06`: tras eliminar la cuenta en A, la petición siguiente de B recibe `SESSION_EXPIRED`.
     - `RF-M1-07`: con 31 días de inactividad, la sesión se rechaza; una petición con `X-Background` no renueva la actividad.
 
-- [ ] **`TASK-256`: Lecturas sin bloqueo exclusivo por usuario**
+- [x] **`TASK-256`: Lecturas sin bloqueo exclusivo por usuario**
   - **Dependencias:** Requiere TASK-254
   - **Trazabilidad SDD:** plan §4.0 (Lecturas sin bloqueo por usuario), plan §1.1; RNF-10, RNF-14, RNF-29
   - **Archivos en Alcance:**

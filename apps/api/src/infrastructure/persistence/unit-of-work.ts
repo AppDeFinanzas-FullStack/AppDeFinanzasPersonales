@@ -25,9 +25,11 @@ async function lockUser(tx: TransactionClient, userId: string): Promise<void> {
 
 /**
  * Prisma implementation of the `UnitOfWork` port (plan §1.4, §4.0). Each `run` opens an
- * interactive transaction: `readOnly` makes it read-only before any other statement, and
- * `userLock` takes that user's advisory lock and scopes the client to the user. An error inside
- * `fn` rolls everything back and reaches the caller unchanged.
+ * interactive transaction. `readOnly` makes it read-only and `REPEATABLE READ` (one snapshot for
+ * all its statements) before any other statement, and takes no advisory lock: reads never queue
+ * behind writes (RNF-10, RNF-29). `userLock` scopes the client to the user (RNF-14) and, when the
+ * run is not `readOnly`, takes that user's advisory lock. An error inside `fn` rolls everything
+ * back and reaches the caller unchanged.
  */
 export function createUnitOfWork(
   prisma: PrismaClient,
@@ -46,9 +48,9 @@ export function createUnitOfWork(
       counter?.record(0);
       return client.$transaction(async (tx) => {
         if (readOnly) {
-          await tx.$executeRaw`SET TRANSACTION READ ONLY`;
-        }
-        if (userLock !== undefined) {
+          // One statement, the first of the transaction: the isolation level cannot change after a query.
+          await tx.$executeRaw`SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY`;
+        } else if (userLock !== undefined) {
           await lockUser(tx, userLock);
         }
         // The composition root builds the full set; callers that build a part never read the rest.

@@ -55,6 +55,10 @@ const BLOCKED_WINDOW_MS = 400;
 /** Upper bound for a `run` that must not wait for another one. */
 const PARALLEL_LIMIT_MS = 2_000;
 
+/** Lets `run` settle against a deadline and reports who won. */
+const settlesWithin = <T>(run: Promise<T>, ms: number, fallback: string): Promise<T | string> =>
+  Promise.race([run, sleep(ms).then(() => fallback)]);
+
 /**
  * Whether the per-user lock is free, asked from another connection without waiting:
  * `pg_try_advisory_xact_lock` takes the lock and releases it at the end of its own statement.
@@ -333,5 +337,120 @@ describe('UnitOfWork.run con readOnly', () => {
 
     expect(readOnly).toBe('off');
     expect(await currencyCodes(user.id)).toEqual(['BOB', 'EUR', 'USD']);
+  });
+});
+
+describe('UnitOfWork.run con readOnly y userLock (TASK-256)', () => {
+  const ISOLATION = `SELECT current_setting('transaction_isolation') AS level,
+                            current_setting('transaction_read_only') AS "readOnly"`;
+
+  it('RNF-10 readOnly con userLock no toma el advisory lock del usuario', async () => {
+    const user = await createUser();
+
+    const freeWhileReading = await uow.run(() => userLockIsFree(user.id), {
+      userLock: user.id,
+      readOnly: true,
+    });
+
+    expect(freeWhileReading).toBe(true);
+  });
+
+  it('RNF-10 una escritura con userLock sigue tomando el advisory lock, también si otra lectura corre a la vez', async () => {
+    const user = await createUser();
+    const writerEntered = deferred();
+    const releaseWriter = deferred();
+
+    // The writer holds the lock until the barrier is released, so the order no longer matters.
+    const writer = uow.run(
+      async () => {
+        writerEntered.resolve();
+        await releaseWriter.promise;
+      },
+      { userLock: user.id },
+    );
+    let reader: Promise<string> | undefined;
+    try {
+      await writerEntered.promise;
+      expect(await userLockIsFree(user.id)).toBe(false);
+
+      // The read must finish while the writer still holds the lock: it neither takes it nor waits.
+      reader = uow.run(() => Promise.resolve('lectura terminó'), {
+        userLock: user.id,
+        readOnly: true,
+      });
+      const winner = await settlesWithin(reader, PARALLEL_LIMIT_MS, 'lectura sigue esperando');
+      expect(winner).toBe('lectura terminó');
+      expect(await userLockIsFree(user.id)).toBe(false);
+    } finally {
+      releaseWriter.resolve();
+      await Promise.allSettled([writer, reader]);
+    }
+
+    expect(await userLockIsFree(user.id)).toBe(true);
+  });
+
+  it('RNF-29 readOnly con userLock corre en REPEATABLE READ y de solo lectura', async () => {
+    const user = await createUser();
+
+    const rows = await uow.run(
+      (repos) => txOf(repos).$queryRawUnsafe<{ level: string; readOnly: string }[]>(ISOLATION),
+      { userLock: user.id, readOnly: true },
+    );
+
+    expect(rows).toEqual([{ level: 'repeatable read', readOnly: 'on' }]);
+  });
+
+  it('RNF-29 readOnly sin userLock corre también en REPEATABLE READ y de solo lectura', async () => {
+    const rows = await uow.run(
+      (repos) => txOf(repos).$queryRawUnsafe<{ level: string; readOnly: string }[]>(ISOLATION),
+      { readOnly: true },
+    );
+
+    expect(rows).toEqual([{ level: 'repeatable read', readOnly: 'on' }]);
+  });
+
+  it('RNF-29 sin readOnly el nivel de aislamiento no cambia: READ COMMITTED y escritura permitida', async () => {
+    const user = await createUser();
+
+    const rows = await uow.run(
+      (repos) => txOf(repos).$queryRawUnsafe<{ level: string; readOnly: string }[]>(ISOLATION),
+      { userLock: user.id },
+    );
+
+    expect(rows).toEqual([{ level: 'read committed', readOnly: 'off' }]);
+  });
+
+  it('RNF-29 una lectura no ve el cambio que otra transacción confirma entre dos de sus sentencias', async () => {
+    const user = await createUser({ name: 'Ana' });
+
+    const [before, after] = await uow.run(
+      async (repos) => {
+        const tx = txOf(repos);
+        const first = await tx.$queryRawUnsafe<{ name: string }[]>(SELECT_NAME, user.id);
+        await testPrisma().$executeRaw`UPDATE auth_user SET name = 'Beto' WHERE id = ${user.id}::uuid`;
+        const second = await tx.$queryRawUnsafe<{ name: string }[]>(SELECT_NAME, user.id);
+        return [first[0]?.name, second[0]?.name];
+      },
+      { userLock: user.id, readOnly: true },
+    );
+
+    expect(before).toBe('Ana');
+    expect(after).toBe('Ana');
+    expect(await nameOf(user.id)).toBe('Beto');
+  });
+
+  it('RNF-14 readOnly con userLock sigue rechazando una escritura', async () => {
+    const user = await createUser({ name: 'Ana' });
+
+    await expect(
+      uow.run(
+        async (repos) => {
+          await txOf(repos).$executeRawUnsafe(RENAME, user.id, 'Beto');
+        },
+        { userLock: user.id, readOnly: true },
+      ),
+    ).rejects.toThrow(/read-only transaction/);
+
+    expect(await nameOf(user.id)).toBe('Ana');
   });
 });
