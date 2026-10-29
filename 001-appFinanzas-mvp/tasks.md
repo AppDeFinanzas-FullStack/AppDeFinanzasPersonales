@@ -4300,6 +4300,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/test/confirmation-watch.test.ts`
     - `e2e/m1-sign-up.spec.ts`
     - `e2e/m1-sign-up-confirm-sync.spec.ts`
+    - `e2e/m10-onboarding-step1.spec.ts`
+    - `e2e/m10-onboarding-step2.spec.ts`
+    - `e2e/m10-onboarding-step3.spec.ts`
+    - `e2e/a11y-v1-0.spec.ts`
   - **Especificación de Implementación:** `api.ts` agrega `confirmationStatusEndpoint` y ajusta la salida de `confirmEndpoint` a `ConfirmDto`. `useConfirmationWatch({ onConfirmed })` llama a `confirmation/status` cada 3 s mientras `document.visibilityState` es `visible` (cada 10 s pasados 5 minutos), también al recuperar el foco y al volverse visible, y se detiene al confirmar, al desmontarse y a las 24 h; ignora los errores de red. Se escribe con un reloj y un `fetch` inyectables, para probarlo sin navegador. `CheckEmail` lo usa: al confirmarse, invalida `['me']` y navega a `/bienvenida` con `replace`. `ConfirmLink` solo llama a `confirm`: al terminar muestra "Correo confirmado" con "Vuelve a la app donde creaste tu cuenta: continúa sola. Si ya la cerraste, inicia sesión" y un enlace a `/entrar` (textos en `auth.json`); ya no navega a `/bienvenida`. `LINK_ALREADY_USED` sigue llevando a `/entrar` (EC-M1-02) y el enlace inválido sigue ofreciendo el reenvío.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "La pestaña de registro continúa sola al confirmar el correo" (E2E, dos contextos de navegador): con el enlace abierto en el segundo contexto, que muestra "Correo confirmado" y no tiene sesión, la pestaña de `/revisa-tu-correo` del primero llega sola a `/bienvenida` con la sesión iniciada (`RF-M1-18`).
