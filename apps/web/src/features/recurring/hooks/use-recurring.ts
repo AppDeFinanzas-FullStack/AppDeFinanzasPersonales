@@ -1,5 +1,5 @@
 import type { ConfirmOccurrenceInput } from '@finanzas/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { call } from '@/lib/api-client';
 
@@ -8,11 +8,15 @@ import { confirmOccurrenceEndpoint, overviewEndpoint, skipOccurrenceEndpoint } f
 export const RECURRING_KEY = ['recurring'] as const;
 
 // Plan §4.14.4: `['recurring']`.
-export function useRecurring() {
-  return useQuery({
+export function recurringQuery() {
+  return queryOptions({
     queryKey: RECURRING_KEY,
     queryFn: ({ signal }) => call(overviewEndpoint, undefined, { signal }),
   });
+}
+
+export function useRecurring() {
+  return useQuery(recurringQuery());
 }
 
 /** Confirming registers a movement, so it also refreshes the movements, accounts and Inicio. */

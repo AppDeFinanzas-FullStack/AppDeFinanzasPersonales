@@ -4132,7 +4132,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - La pista no contiene el correo, el nombre ni el id, y una lectura con `localStorage` bloqueado no rompe la app.
     - `RNF-06`: el esqueleto es anunciado como "Cargando" y axe no reporta violaciones serias en él.
 
-- [ ] **`TASK-259`: Web: precargar los datos de cada pestaña al elegirla**
+- [x] **`TASK-259`: Web: precargar los datos de cada pestaña al elegirla**
   - **Dependencias:** Requiere TASK-258
   - **Trazabilidad SDD:** plan §4.0 (Web), plan §4.2.4; RNF-29, RF-M2-03, RF-M2-04
   - **Archivos en Alcance:**
