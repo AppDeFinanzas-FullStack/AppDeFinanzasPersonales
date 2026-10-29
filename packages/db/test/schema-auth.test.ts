@@ -242,7 +242,7 @@ describe('RF-M1-05 one active email link per user and purpose', () => {
 });
 
 describe('RF-M1-16 the account emails', () => {
-  it('RF-M1-16 email_kind has exactly the 6 account emails', async () => {
+  it('RF-M1-16 email_kind has exactly the 5 account emails', async () => {
     const { rows } = await sql().query<{ label: string }>(
       `SELECT e.enumlabel AS label
          FROM pg_enum e
@@ -256,9 +256,15 @@ describe('RF-M1-16 the account emails', () => {
       'register_attempt',
       'reset',
       'password_changed',
-      'login_alert',
       'account_deleted',
     ]);
+  });
+
+  it('RF-M1-16 the temporary type email_kind_old does not remain', async () => {
+    const { rows } = await sql().query<{ reg: string | null }>(
+      `SELECT to_regtype('public.email_kind_old')::text AS reg`,
+    );
+    expect(rows[0]!.reg).toBeNull();
   });
 
   it.each(['email_outbox', 'email_send_log'])('RF-M1-16 %s.kind is typed as email_kind', async (table) => {
@@ -271,7 +277,32 @@ describe('RF-M1-16 the account emails', () => {
     expect(rows[0]!.udt).toBe('email_kind');
   });
 
-  it('RF-M1-16 email_outbox rejects a kind outside the 6 account emails', async () => {
+  it.each(['email_outbox', 'email_send_log'])('RF-M1-16 %s.kind stays NOT NULL', async (table) => {
+    const { rows } = await sql().query<{ nullable: string }>(
+      `SELECT is_nullable AS nullable FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'kind'`,
+      [table],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.nullable).toBe('NO');
+  });
+
+  it('RF-M1-16 email_outbox and email_send_log reject the kind login_alert', async () => {
+    await inTx(async (c) => {
+      expect(
+        await sqlState(
+          c,
+          `INSERT INTO email_outbox (id, to_address, kind, payload) VALUES ($1, 'a@test.local', 'login_alert', '{}')`,
+          [randomUUID()],
+        ),
+      ).toBe('22P02');
+      expect(
+        await sqlState(c, `INSERT INTO email_send_log (email_hmac, kind) VALUES ($1, 'login_alert')`, [tokenHash()]),
+      ).toBe('22P02');
+    });
+  });
+
+  it('RF-M1-16 email_outbox rejects a kind outside the 5 account emails', async () => {
     await inTx(async (c) => {
       expect(
         await sqlState(
@@ -352,7 +383,7 @@ describe('TASK-012 other constraints of plan §3.3', () => {
   it('TASK-012 email_send_log generates its id and defaults sent_at', async () => {
     await inTx(async (c) => {
       const { rows } = await c.query<{ id: string; has_sent_at: boolean }>(
-        `INSERT INTO email_send_log (email_hmac, kind) VALUES ($1, 'login_alert')
+        `INSERT INTO email_send_log (email_hmac, kind) VALUES ($1, 'confirm')
          RETURNING id::text AS id, sent_at IS NOT NULL AS has_sent_at`,
         [tokenHash()],
       );
@@ -409,5 +440,115 @@ describe('TASK-012 other constraints of plan §3.3', () => {
       );
       expect(rows[0]!.fresh).toBe(true);
     });
+  });
+});
+
+/** The migration 0012 SQL, without explicit transaction control so it runs inside the test transaction. */
+function migration0012(): string {
+  const path = fileURLToPath(new URL('../prisma/migrations/0012_remove_login_alert/migration.sql', import.meta.url));
+  return readFileSync(path, 'utf8').replace(/^\s*(BEGIN|START TRANSACTION|COMMIT)\s*;\s*$/gim, '');
+}
+
+/** Puts back, inside the transaction, the shape migration 0011 left: email_kind with login_alert and last_alert_sent_at. */
+async function restorePre0012(c: pg.PoolClient): Promise<void> {
+  await c.query(`ALTER TYPE email_kind RENAME TO email_kind_pre`);
+  await c.query(
+    `CREATE TYPE email_kind AS ENUM ('confirm','register_attempt','reset','password_changed','login_alert','account_deleted')`,
+  );
+  await c.query(`ALTER TABLE email_outbox ALTER COLUMN kind TYPE email_kind USING kind::text::email_kind`);
+  await c.query(`ALTER TABLE email_send_log ALTER COLUMN kind TYPE email_kind USING kind::text::email_kind`);
+  await c.query(`DROP TYPE email_kind_pre`);
+  await c.query(`ALTER TABLE login_throttle ADD COLUMN IF NOT EXISTS last_alert_sent_at timestamptz`);
+}
+
+describe('TASK-263 migration 0012 removes login_alert and last_alert_sent_at', () => {
+  it('TASK-263 migrating a database with a pending login_alert row in email_outbox deletes it and does not fail', async () => {
+    const migration = migration0012();
+    await inTx(async (c) => {
+      await restorePre0012(c);
+      const alertId = randomUUID();
+      const keptId = randomUUID();
+      const alertHmac = tokenHash();
+      const keptHmac = tokenHash();
+      await c.query(
+        `INSERT INTO email_outbox (id, to_address, kind, payload) VALUES ($1, 'a@test.local', 'login_alert', '{}')`,
+        [alertId],
+      );
+      await c.query(
+        `INSERT INTO email_outbox (id, to_address, kind, payload) VALUES ($1, 'a@test.local', 'confirm', '{}')`,
+        [keptId],
+      );
+      await c.query(`INSERT INTO email_send_log (email_hmac, kind) VALUES ($1, 'login_alert')`, [alertHmac]);
+      await c.query(`INSERT INTO email_send_log (email_hmac, kind) VALUES ($1, 'reset')`, [keptHmac]);
+
+      expect(await sqlState(c, migration)).toBeNull();
+
+      const outbox = await c.query<{ id: string; kind: string }>(
+        `SELECT id::text AS id, kind::text AS kind FROM email_outbox WHERE id = ANY($1::uuid[])`,
+        [[alertId, keptId]],
+      );
+      expect(outbox.rows).toEqual([{ id: keptId, kind: 'confirm' }]);
+      const log = await c.query<{ hmac: string; kind: string }>(
+        `SELECT email_hmac AS hmac, kind::text AS kind FROM email_send_log WHERE email_hmac = ANY($1::text[])`,
+        [[alertHmac, keptHmac]],
+      );
+      expect(log.rows).toEqual([{ hmac: keptHmac, kind: 'reset' }]);
+    });
+  });
+
+  it('RF-M1-16 after migrating a pre-0012 database email_kind has the 5 values and both kind columns use it', async () => {
+    const migration = migration0012();
+    await inTx(async (c) => {
+      await restorePre0012(c);
+      expect(await sqlState(c, migration)).toBeNull();
+      const labels = await c.query<{ label: string }>(`SELECT unnest(enum_range(NULL::email_kind))::text AS label`);
+      expect(labels.rows.map((r) => r.label)).toEqual([
+        'confirm',
+        'register_attempt',
+        'reset',
+        'password_changed',
+        'account_deleted',
+      ]);
+      const columns = await c.query<{ tbl: string; udt: string }>(
+        `SELECT table_name AS tbl, udt_name AS udt FROM information_schema.columns
+          WHERE table_schema = 'public' AND column_name = 'kind'
+            AND table_name IN ('email_outbox', 'email_send_log')
+          ORDER BY table_name`,
+      );
+      expect(columns.rows).toEqual([
+        { tbl: 'email_outbox', udt: 'email_kind' },
+        { tbl: 'email_send_log', udt: 'email_kind' },
+      ]);
+      const old = await c.query<{ reg: string | null }>(`SELECT to_regtype('public.email_kind_old')::text AS reg`);
+      expect(old.rows[0]!.reg).toBeNull();
+      const throttle = await c.query(
+        `SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'login_throttle' AND column_name = 'last_alert_sent_at'`,
+      );
+      expect(throttle.rowCount).toBe(0);
+    });
+  });
+
+  it('TASK-263 login_throttle no longer has last_alert_sent_at', async () => {
+    const { rows } = await sql().query<{ col: string }>(
+      `SELECT column_name AS col FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'login_throttle'
+        ORDER BY ordinal_position`,
+    );
+    expect(rows.map((r) => r.col)).toEqual(['email_hmac', 'consecutive_failures', 'last_failure_at', 'locked_until']);
+  });
+
+  it('TASK-263 schema.prisma no longer declares lastAlertSentAt nor loginAlert', () => {
+    const path = fileURLToPath(new URL('../prisma/schema.prisma', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    expect(source).not.toMatch(/lastAlertSentAt|last_alert_sent_at/);
+    expect(source).not.toMatch(/loginAlert|login_alert/);
+  });
+
+  it('TASK-263 the email_send_log index on (email_hmac, kind, sent_at DESC) is kept', async () => {
+    const { rows } = await sql().query<{ def: string }>(
+      `SELECT indexdef AS def FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'email_send_log'`,
+    );
+    expect(rows.map((r) => r.def).some((d) => /\(email_hmac, kind, sent_at DESC\)/.test(d))).toBe(true);
   });
 });

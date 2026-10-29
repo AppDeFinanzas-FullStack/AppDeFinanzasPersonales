@@ -207,16 +207,23 @@ describe('login throttle: no alert', () => {
     expect(await throttle.check(email)).toBeGreaterThan(55);
   });
 
-  it('RF-M1-08 failures and the waits never mark an alert as sent', async () => {
+  it('RF-M1-16 failures and the waits keep working without any alert column in login_throttle', async () => {
     const email = freshEmail();
     await failTimes(email, 10);
     await backdate(email, 'locked_until', '1 second');
     await throttle.fail(email);
 
-    const rows = await testPrisma().$queryRaw<{ sent: Date | null }[]>`
-      SELECT last_alert_sent_at AS sent FROM login_throttle WHERE email_hmac = ${hmacOf(email)}`;
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.sent).toBeNull();
+    expect((await rowOf(email))?.consecutiveFailures).toBe(11);
+    const columns = await testPrisma().$queryRaw<{ col: string }[]>`
+      SELECT column_name AS col FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'login_throttle'
+       ORDER BY ordinal_position`;
+    expect(columns.map((c) => c.col)).toEqual([
+      'email_hmac',
+      'consecutive_failures',
+      'last_failure_at',
+      'locked_until',
+    ]);
   });
 });
 

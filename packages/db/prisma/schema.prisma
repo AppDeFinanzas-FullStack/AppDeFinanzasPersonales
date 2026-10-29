@@ -22,7 +22,6 @@ enum EmailKind {
   registerAttempt @map("register_attempt")
   reset
   passwordChanged @map("password_changed")
-  loginAlert      @map("login_alert")
   accountDeleted  @map("account_deleted")
 
   @@map("email_kind")
@@ -403,7 +402,6 @@ model LoginThrottle {
   consecutiveFailures Int       @default(0) @map("consecutive_failures")
   lastFailureAt       DateTime? @map("last_failure_at") @db.Timestamptz(6)
   lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
-  lastAlertSentAt     DateTime? @map("last_alert_sent_at") @db.Timestamptz(6)
 
   @@map("login_throttle")
 }

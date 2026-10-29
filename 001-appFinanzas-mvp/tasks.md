@@ -4208,7 +4208,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     1. **Resend: no hay nada que cambiar en el panel.** Las plantillas viven en el código (`email-templates.ts`), y Resend solo recibe `from`, `to`, `subject`, `text` y `html`; el proyecto no usa plantillas, *webhooks* ni audiencias de Resend, y el dominio y el remitente (`EMAIL_FROM`) ya están configurados.
     2. Después de desplegar, en Resend → Emails, el asunto «Intentos fallidos de inicio de sesión» deja de aparecer. Si todavía sale, el despliegue no llegó a Render.
 
-- [ ] **`TASK-263`: Migración: quitar `login_alert` y `last_alert_sent_at` de la base**
+- [x] **`TASK-263`: Migración: quitar `login_alert` y `last_alert_sent_at` de la base**
   - **Dependencias:** Requiere TASK-262
   - **Trazabilidad SDD:** plan §3.2 (enum `email_kind`), plan §3.3 (`login_throttle`); RF-M1-16
   - **Archivos en Alcance:**
