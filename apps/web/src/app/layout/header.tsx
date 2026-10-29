@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
+import { BrandMark } from '@/components/brand-mark';
 import { RateChip } from '@/features/fx/components/rate-chip';
 import { BellButton } from '@/features/notifications/components/bell-button';
 
@@ -25,9 +26,10 @@ export function Header() {
   const parent = parentOf(pathname, { desktop: isDesktop });
   return (
     <header className="flex h-14 items-center justify-between border-b border-border px-4">
-      <div className="flex items-center">
+      <div className="flex min-w-0 items-center gap-2">
         {parent !== null && <BackButton parent={parent} />}
-        <h1 className="text-2xl font-semibold">{key ? t(`items.${key}`) : ''}</h1>
+        <BrandMark size="header" className="shrink-0" />
+        <h1 className="truncate text-2xl font-semibold">{key ? t(`items.${key}`) : ''}</h1>
       </div>
       <div className="flex items-center gap-1">
         <RateChip />

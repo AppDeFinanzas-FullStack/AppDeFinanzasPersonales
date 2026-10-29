@@ -4379,7 +4379,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     3. **Cuando el pipeline pregunte**, indicar dónde están los archivos y confirmar o ajustar la disposición (a a e).
     4. **Registrar la disposición confirmada** en `docs/design-direction.md`, sección "Marca", con un commit `docs:` aparte.
 
-- [ ] **`TASK-270`: Marca (2/2): el logo en las pantallas de acceso, el Onboarding y la cabecera**
+- [x] **`TASK-270`: Marca (2/2): el logo en las pantallas de acceso, el Onboarding y la cabecera**
   - **Dependencias:** Requiere TASK-267, TASK-269
   - **Trazabilidad SDD:** plan §4.2.4 (Marca); RF-M2-14, RNF-06
   - **Archivos en Alcance:**

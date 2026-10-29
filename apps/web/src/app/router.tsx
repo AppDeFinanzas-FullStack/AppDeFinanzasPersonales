@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 
+import { BrandMark } from '@/components/brand-mark';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { preferencesReleased } from '@/features/settings/hooks/use-notification-preferences';
 
@@ -19,9 +20,14 @@ function RootLayout() {
   );
 }
 
+/**
+ * The access screens: the logo of 48 px, centered over the title (RF-M2-14). Each screen centers
+ * itself in the full height, so the layout takes that job and the screen keeps only its width.
+ */
 function PublicLayout() {
   return (
-    <main>
+    <main className="flex min-h-screen flex-col justify-center py-8 [&>section]:min-h-0 [&>section]:py-0">
+      <BrandMark size="public" className="mx-auto mb-6" />
       <Outlet />
     </main>
   );
