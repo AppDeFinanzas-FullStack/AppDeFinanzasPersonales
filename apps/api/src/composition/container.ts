@@ -134,6 +134,7 @@ import { createEmailLinkRepository } from '../infrastructure/persistence/reposit
 import { createEmailOutboxRepository } from '../infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserSettingsRepository } from '../infrastructure/persistence/repositories/user-settings.repository.js';
 import { createUserRepository } from '../infrastructure/persistence/repositories/user.repository.js';
 import { createCurrencyRepository } from '../infrastructure/persistence/repositories/currency.repository.js';
@@ -263,6 +264,7 @@ const buildRepositories = (tx: TransactionClient, userId: string | undefined): R
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
   marketRates: createMarketRateRepository(tx),
   currencies: createCurrencyRepository(tx, userId ?? NO_USER),

@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 
 import { uuidv7 } from 'uuidv7';
 
@@ -19,15 +19,24 @@ export interface SignUpInput {
 
 export interface SignUpResult {
   status: 'check_email';
+  /**
+   * Random value of the registration ticket, for the `__Secure-signup-ticket` cookie (RF-M1-18).
+   * New on every sign-up, whatever the state of the email (RNF-15).
+   */
+  ticket: string;
 }
 
 /** The account to send the confirmation to again: by its email or by the token of a link. */
 export type ResendConfirmationInput = { email: string } | { token: string };
 
 export interface ConfirmResult {
-  next: 'onboarding';
-  session: CreatedSession;
+  status: 'confirmed';
 }
+
+/** What the app waiting on "Revisa tu correo" learns with its ticket (RF-M1-18). */
+export type ConfirmationStatusResult =
+  | { status: 'pending' }
+  | { status: 'confirmed'; next: 'onboarding'; session: CreatedSession };
 
 export interface SignInInput {
   email: string;
@@ -61,7 +70,10 @@ export interface ChangePasswordInput {
 }
 
 export interface AuthService {
-  /** Always answers the neutral `check_email`, whatever the state of the email (RF-M1-03). */
+  /**
+   * Always answers the neutral `check_email` with a new ticket, whatever the state of the email
+   * (RF-M1-03). Keeps the ticket only for an unconfirmed account, new or replaced (EC-M1-14).
+   */
   signUp(input: SignUpInput): Promise<SignUpResult>;
   /**
    * Opens a session with the email and the password. Rejects with `LOGIN_LOCKED` while a wait is
@@ -79,11 +91,20 @@ export interface AuthService {
    */
   resendConfirmation(input: ResendConfirmationInput): Promise<void>;
   /**
-   * Consumes the confirmation link, marks the email as verified and opens a session, closing the
-   * session that was open on the device (EC-M1-11). Rejects with `LINK_INVALID` or
-   * `LINK_ALREADY_USED` (EC-M1-01, EC-M1-02).
+   * Consumes the confirmation link, marks the email as verified and the ticket of the user as
+   * confirmed. Opens no session and leaves the sessions of the device alone (RF-M1-18). Rejects
+   * with `LINK_INVALID` or `LINK_ALREADY_USED` (EC-M1-01, EC-M1-02).
    */
-  confirm(token: string, currentSessionId?: string): Promise<ConfirmResult>;
+  confirm(token: string): Promise<ConfirmResult>;
+  /**
+   * `pending` without a ticket, or with one that is unknown, expired, unconfirmed or already used.
+   * Once confirmed, the ticket is used up: closes `currentSessionId` (EC-M1-11) and opens the
+   * session of its user (RF-M1-18).
+   */
+  confirmationStatus(
+    ticket: string | undefined,
+    currentSessionId?: string,
+  ): Promise<ConfirmationStatusResult>;
   /**
    * Issues a recovery link of 1 hour, invalidating the previous one, and leaves the `reset` email
    * in the outbox (RF-M1-09). Always resolves, whether the email has an account or not.
@@ -91,8 +112,8 @@ export interface AuthService {
   forgotPassword(input: ForgotPasswordInput): Promise<void>;
   /**
    * Consumes the recovery link, sets the new password, confirms the email if it was not
-   * (EC-M1-10), closes every session, opens a new one and sends `password_changed` (RF-M1-10).
-   * Rejects with `LINK_INVALID`.
+   * (EC-M1-10), closes every session, opens a new one, sends `password_changed` (RF-M1-10) and
+   * deletes the registration ticket (EC-M1-14). Rejects with `LINK_INVALID`.
    */
   resetPassword(input: ResetPasswordInput): Promise<ResetPasswordResult>;
   /**
@@ -120,6 +141,10 @@ const RESEND_MIN_INTERVAL_SECONDS = 60;
 const RESEND_WINDOW_SECONDS = 60 * 60;
 const RESEND_MAX_PER_WINDOW = 5;
 
+/** A registration ticket lasts as long as its cookie: 24 h (RF-M1-18, RNF-26). */
+const SIGNUP_TICKET_MILLISECONDS = 24 * 60 * 60 * 1000;
+const SIGNUP_TICKET_BYTES = 32;
+
 const DEFAULT_TIMEZONE = 'America/La_Paz';
 
 function validTimezone(value: string | undefined): string {
@@ -133,6 +158,9 @@ function validTimezone(value: string | undefined): string {
     return DEFAULT_TIMEZONE;
   }
 }
+
+/** Only the SHA-256 of a ticket is stored (plan §3.9). */
+const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -159,26 +187,27 @@ export function createAuthService({
     });
   }
 
+  /** Registers the email; returns the unconfirmed account, new or replaced, or `null`. */
   async function register(
     repos: Repositories,
     name: string,
     email: string,
     passwordHash: string,
     timezone: string,
-  ): Promise<void> {
+  ): Promise<string | null> {
     let existing = await repos.users.findByEmail(email);
     if (existing === null) {
       const id = uuidv7();
       if (await repos.users.createUnconfirmed({ id, name, email, passwordHash, timezone })) {
         await bootstrapUser(repos, id);
         await sendConfirmation(repos, id, email);
-        return;
+        return id;
       }
       // Lost the race on the unique email: go on through the existing user.
       existing = await repos.users.findByEmail(email);
     }
     if (existing === null) {
-      return;
+      return null;
     }
     if (existing.emailVerified) {
       if (await repos.users.claimRegisterAttempt(hmacOf(email))) {
@@ -189,12 +218,13 @@ export function createAuthService({
           payload: {},
         });
       }
-      return;
+      return null;
     }
     const userId = await repos.users.replaceUnconfirmed(email, name, passwordHash);
     if (userId !== null) {
       await sendConfirmation(repos, userId, email);
     }
+    return userId;
   }
 
   /** The unconfirmed account the resend is for, locked until the transaction ends, or `null`. */
@@ -274,6 +304,7 @@ export function createAuthService({
     }
     await repos.users.setPassword(account.id, passwordHash);
     await repos.users.markEmailVerified(account.id);
+    await repos.signupTickets.deleteForUser(account.id);
     await repos.emailOutbox.enqueue({
       id: uuidv7(),
       to: account.email,
@@ -291,14 +322,21 @@ export function createAuthService({
       const passwordHash = await auth.hashPassword(input.password);
 
       const timezone = validTimezone(input.timezone);
+      const ticket = randomBytes(SIGNUP_TICKET_BYTES).toString('base64url');
+      const expiresAt = new Date(Date.now() + SIGNUP_TICKET_MILLISECONDS);
 
-      await uow.run((repos) => register(repos, name, email, passwordHash, timezone));
+      await uow.run(async (repos) => {
+        const userId = await register(repos, name, email, passwordHash, timezone);
+        if (userId !== null) {
+          await repos.signupTickets.issue(userId, sha256(ticket), expiresAt);
+        }
+      });
 
       const remaining = MIN_SIGN_UP_MILLISECONDS - (performance.now() - started);
       if (remaining > 0) {
         await sleep(remaining);
       }
-      return { status: 'check_email' };
+      return { status: 'check_email', ticket };
     },
 
     async signIn(input) {
@@ -343,14 +381,28 @@ export function createAuthService({
       await uow.run((repos) => resend(repos, input));
     },
 
-    async confirm(token, currentSessionId) {
-      const userId = await uow.run((repos) => consumeConfirmation(repos, token));
-      await auth.markEmailVerified(userId);
+    async confirm(token) {
+      await uow.run(async (repos) => {
+        const userId = await consumeConfirmation(repos, token);
+        await repos.users.markEmailVerified(userId);
+        await repos.signupTickets.markConfirmed(userId);
+      });
+      return { status: 'confirmed' };
+    },
+
+    async confirmationStatus(ticket, currentSessionId) {
+      if (ticket === undefined || ticket.length === 0) {
+        return { status: 'pending' };
+      }
+      const userId = await uow.run((repos) => repos.signupTickets.claim(sha256(ticket)));
+      if (userId === null) {
+        return { status: 'pending' };
+      }
       if (currentSessionId !== undefined) {
         await auth.deleteSession(currentSessionId);
       }
       const session = await auth.createSession(userId);
-      return { next: 'onboarding', session };
+      return { status: 'confirmed', next: 'onboarding', session };
     },
 
     async forgotPassword(input) {

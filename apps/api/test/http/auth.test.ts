@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 
-import { MeDto } from '@finanzas/contracts';
+import { ConfirmationStatusDto, ConfirmDto, MeDto } from '@finanzas/contracts';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -15,10 +15,13 @@ import { disconnectTestPrisma, testPrisma } from '../integration/setup/db.js';
  * `createApp(container)`, TASK-036) over the test database (`TEST_DATABASE_URL`) with fake
  * integrations, so nothing leaves the process. Accounts are made through `sign-up`, and their
  * links are read from the `payload.link` of the emails left in `email_outbox`.
- * The session cookie is `__Secure-better-auth.session_token` (TASK-050, TASK-058).
+ * The session cookie is `__Secure-better-auth.session_token` (TASK-050, TASK-058). Since TASK-265
+ * the link of `confirm` only confirms: the session comes from `POST /api/auth/confirmation/status`
+ * with the `__Secure-signup-ticket` cookie the sign-up sets (RF-M1-18).
  */
 const WEB_ORIGIN = 'http://localhost:5173';
 const COOKIE_NAME = '__Secure-better-auth.session_token';
+const TICKET_COOKIE = '__Secure-signup-ticket';
 const HMAC_SECRET = 'hmac-secret-value-0123456789abcdef0123456789';
 const PASSWORD = 'Clave-segura-123';
 const NEW_PASSWORD = 'Clave-nueva-456';
@@ -101,6 +104,27 @@ const setCookiesOf = (res: { headers: Record<string, unknown> }): string[] => {
 const sessionSetCookie = (res: { headers: Record<string, unknown> }): string | undefined =>
   setCookiesOf(res).find((c) => c.startsWith(`${COOKIE_NAME}=`));
 
+const ticketSetCookie = (res: { headers: Record<string, unknown> }): string | undefined =>
+  setCookiesOf(res).find((c) => c.startsWith(`${TICKET_COOKIE}=`));
+
+/** The `name=value` pair of the ticket cookie the sign-up sets, ready for a `Cookie` header. */
+const ticketCookieOf = (res: { headers: Record<string, unknown> }): string => {
+  const header = ticketSetCookie(res);
+  if (header === undefined) throw new Error('the response sets no ticket cookie');
+  return header.split(';')[0] ?? '';
+};
+
+/** The lowercase attributes of a `Set-Cookie` header, without its `name=value`. */
+const attributesOf = (header: string): string[] =>
+  header
+    .split(';')
+    .slice(1)
+    .map((a) => a.trim().toLowerCase());
+
+/** The SHA-256 the server keeps of the ticket in that `name=value` pair. */
+const ticketHashOf = (cookie: string): string =>
+  sha256(decodeURIComponent(cookie.slice(`${TICKET_COOKIE}=`.length)));
+
 /** The `name=value` pair of the session cookie the response sets, ready for a `Cookie` header. */
 const sessionCookieOf = (res: { headers: Record<string, unknown> }): string => {
   const header = sessionSetCookie(res);
@@ -148,20 +172,29 @@ async function outboxCount(email: string, kind: string): Promise<number> {
 const signUp = (email: string, password = PASSWORD) =>
   post('/api/auth/sign-up', { name: 'Ana Pérez', email, password, acceptTerms: true });
 
-/** An account registered with `PASSWORD` that never confirmed its email. */
-async function pendingAccount(): Promise<{ email: string; userId: string }> {
+/** `POST /api/auth/confirmation/status` without a body, with the cookies of the browser. */
+const confirmationStatus = (cookie?: string) => {
+  const req = request(app).post('/api/auth/confirmation/status').set('Origin', WEB_ORIGIN);
+  if (cookie !== undefined) req.set('Cookie', cookie);
+  return req;
+};
+
+/** An account registered with `PASSWORD` that never confirmed its email; `ticket` is its cookie. */
+async function pendingAccount(): Promise<{ email: string; userId: string; ticket: string }> {
   const email = freshEmail();
   const res = await signUp(email);
   expect(res.status).toBe(202);
-  return { email, userId: await userIdOf(email) };
+  return { email, userId: await userIdOf(email), ticket: ticketCookieOf(res) };
 }
 
-/** A confirmed account with `PASSWORD`; `cookie` is the session the confirmation opened. */
+/** A confirmed account with `PASSWORD`; `cookie` is the session its ticket opened. */
 async function activeAccount(): Promise<{ email: string; userId: string; cookie: string }> {
-  const account = await pendingAccount();
-  const res = await post('/api/auth/confirm', { token: await latestLink(account.email, 'confirm') });
+  const { email, userId, ticket } = await pendingAccount();
+  const confirmed = await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+  expect(confirmed.status).toBe(200);
+  const res = await confirmationStatus(ticket);
   expect(res.status).toBe(200);
-  return { ...account, cookie: sessionCookieOf(res) };
+  return { email, userId, cookie: sessionCookieOf(res) };
 }
 
 async function signIn(email: string, password = PASSWORD) {
@@ -221,6 +254,41 @@ describe('POST /api/auth/sign-up', () => {
 
     expect(res.status).toBe(202);
     expect(sessionSetCookie(res)).toBeUndefined();
+  });
+
+  it('RNF-15 sign-up fija la cookie del ticket con los mismos atributos con un correo nuevo, uno Sin confirmar y uno Activo', async () => {
+    const active = await activeAccount();
+    const pending = await pendingAccount();
+
+    const responses = [
+      await signUp(freshEmail()),
+      await signUp(pending.email),
+      await signUp(active.email),
+    ];
+
+    const values = new Set<string>();
+    for (const res of responses) {
+      expect(res.status).toBe(202);
+      expect(res.body).toEqual({ status: 'check_email' });
+      const header = ticketSetCookie(res);
+      expect(header).toBeDefined();
+      const attributes = attributesOf(header ?? '');
+      expect(attributes).toContain('httponly');
+      expect(attributes).toContain('secure');
+      expect(attributes).toContain('samesite=lax');
+      expect(attributes).toContain('path=/api/auth');
+      expect(attributes).toContain('max-age=86400');
+      values.add(ticketCookieOf(res));
+    }
+    expect(values.size).toBe(3);
+  });
+
+  it('RNF-15 el ticket viaja solo en la cookie, nunca en el cuerpo del sign-up', async () => {
+    const res = await signUp(freshEmail());
+
+    const value = decodeURIComponent(ticketCookieOf(res).slice(`${TICKET_COOKIE}=`.length));
+    expect(value.length).toBeGreaterThanOrEqual(43);
+    expect(res.text).not.toContain(value);
   });
 
   it('TASK-059 sign-up sin aceptar los términos responde 400 VALIDATION_ERROR', async () => {
@@ -393,22 +461,16 @@ describe('POST /api/auth/confirmation/resend', () => {
 });
 
 describe('POST /api/auth/confirm', () => {
-  it('TASK-059 un enlace vigente responde 200 {next: onboarding} y la cookie de sesión', async () => {
+  it('RF-M1-18 un enlace vigente responde 200 {status: confirmed} sin cookie de sesión ni fila en auth_session', async () => {
     const { email, userId } = await pendingAccount();
 
     const res = await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
 
     expect(res.status).toBe(200);
-    expect((res.body as { next?: unknown }).next).toBe('onboarding');
-    const header = sessionSetCookie(res) ?? '';
-    const attributes = header
-      .split(';')
-      .slice(1)
-      .map((a) => a.trim().toLowerCase());
-    expect(attributes).toContain('httponly');
-    expect(attributes).toContain('secure');
-    expect(attributes).toContain('samesite=lax');
-    expect(await sessionCount(userId)).toBe(1);
+    expect(ConfirmDto.parse(res.body)).toEqual({ status: 'confirmed' });
+    expect(res.body).toEqual({ status: 'confirmed' });
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(userId)).toBe(0);
   });
 
   it('TASK-059 un enlace ya usado responde 409 LINK_ALREADY_USED', async () => {
@@ -446,7 +508,7 @@ describe('POST /api/auth/confirm', () => {
     expect(problem(res).data?.['canResend']).toBe(true);
   });
 
-  it('TASK-059 confirmar con la cookie de otra sesión del dispositivo cierra esa sesión', async () => {
+  it('RF-M1-18 confirmar con la cookie de otra sesión en el dispositivo no la toca ni abre otra', async () => {
     const other = await activeAccount();
     expect(await sessionCount(other.userId)).toBe(1);
     const { email, userId } = await pendingAccount();
@@ -458,8 +520,10 @@ describe('POST /api/auth/confirm', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(await sessionCount(other.userId)).toBe(0);
-    expect(await sessionCount(userId)).toBe(1);
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(other.userId)).toBe(1);
+    expect(await sessionCount(userId)).toBe(0);
+    expect((await post('/api/auth/sign-out', {}, other.cookie)).status).toBe(204);
   });
 
   it('TASK-059 confirm con un token corto responde 400 VALIDATION_ERROR', async () => {
@@ -467,6 +531,193 @@ describe('POST /api/auth/confirm', () => {
 
     expect(res.status).toBe(400);
     expect(problem(res).code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /api/auth/confirmation/status', () => {
+  it('RF-M1-18 La pestaña de registro continúa sola al confirmar el correo: pending antes del enlace, después confirmed con la cookie de sesión y next onboarding', async () => {
+    const { email, userId, ticket } = await pendingAccount();
+
+    const before = await confirmationStatus(ticket);
+    expect(before.status).toBe(200);
+    expect(ConfirmationStatusDto.parse(before.body)).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(before)).toBeUndefined();
+
+    const link = await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+    expect(link.status).toBe(200);
+
+    const after = await confirmationStatus(ticket);
+    expect(after.status).toBe(200);
+    expect(ConfirmationStatusDto.parse(after.body)).toEqual({
+      status: 'confirmed',
+      next: 'onboarding',
+    });
+    const attributes = attributesOf(sessionSetCookie(after) ?? '');
+    expect(attributes).toContain('httponly');
+    expect(attributes).toContain('secure');
+    expect(attributes).toContain('samesite=lax');
+    expect(await sessionCount(userId)).toBe(1);
+    const me = await request(app).get('/api/me').set('Cookie', sessionCookieOf(after));
+    expect(me.status).toBe(200);
+    expect(MeDto.parse(me.body).id).toBe(userId);
+  });
+
+  it('RF-M1-18 al abrir la sesión borra la cookie del ticket', async () => {
+    const { email, ticket } = await pendingAccount();
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+
+    const res = await confirmationStatus(ticket);
+
+    expect(res.status).toBe(200);
+    const header = ticketSetCookie(res);
+    expect(header).toBeDefined();
+    const attributes = attributesOf(header ?? '');
+    expect(attributes).toContain('path=/api/auth');
+    const expires = attributes.find((a) => a.startsWith('expires='))?.slice('expires='.length);
+    const cleared =
+      attributes.includes('max-age=0') ||
+      (expires !== undefined && new Date(expires).getTime() <= Date.now());
+    expect(cleared).toBe(true);
+  });
+
+  it('RF-M1-18 sin la cookie del ticket responde 200 {status: pending}', async () => {
+    const res = await confirmationStatus();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(res)).toBeUndefined();
+  });
+
+  it('RF-M1-18 el ticket sirve una sola vez: la segunda llamada responde pending', async () => {
+    const { email, userId, ticket } = await pendingAccount();
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+    expect((await confirmationStatus(ticket)).body).toMatchObject({ status: 'confirmed' });
+
+    const res = await confirmationStatus(ticket);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(userId)).toBe(1);
+  });
+
+  it('RF-M1-18 un ticket vencido (más de 24 h) responde pending aunque se abra el enlace', async () => {
+    const { email, userId, ticket } = await pendingAccount();
+    await testPrisma().$executeRaw`
+      UPDATE signup_ticket SET expires_at = now() - interval '1 minute'
+      WHERE token_hash = ${ticketHashOf(ticket)}`;
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+
+    const res = await confirmationStatus(ticket);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(userId)).toBe(0);
+  });
+
+  it('RNF-15 con el ticket de un correo Activo responde pending siempre, igual que un ticket inexistente', async () => {
+    const active = await activeAccount();
+    const ticket = ticketCookieOf(await signUp(active.email));
+
+    const first = await confirmationStatus(ticket);
+    const second = await confirmationStatus(ticket);
+    const unknown = await confirmationStatus(`${TICKET_COOKIE}=${UNKNOWN_TOKEN}`);
+
+    for (const res of [first, second, unknown]) {
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ status: 'pending' });
+      expect(sessionSetCookie(res)).toBeUndefined();
+    }
+    expect(first.text).toBe(unknown.text);
+    expect(await sessionCount(active.userId)).toBe(1);
+  });
+
+  it('EC-M1-14 EC-M1-09 registrarse de nuevo con el correo deja el ticket anterior en pending aunque se abra el enlace nuevo', async () => {
+    const { email, userId, ticket: old } = await pendingAccount();
+    const fresh = ticketCookieOf(await signUp(email));
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+
+    const stale = await confirmationStatus(old);
+    expect(stale.body).toEqual({ status: 'pending' });
+    expect(await sessionCount(userId)).toBe(0);
+
+    const opened = await confirmationStatus(fresh);
+    expect(opened.body).toEqual({ status: 'confirmed', next: 'onboarding' });
+    expect(await sessionCount(userId)).toBe(1);
+  });
+
+  it('EC-M1-14 EC-M1-10 recuperar la contraseña de la cuenta Sin confirmar deja su ticket en pending', async () => {
+    const { email, userId, ticket } = await pendingAccount();
+    expect((await post('/api/auth/password/forgot', { email })).status).toBe(202);
+    const reset = await post('/api/auth/password/reset', {
+      token: await latestLink(email, 'reset'),
+      newPassword: NEW_PASSWORD,
+    });
+    expect(reset.status).toBe(200);
+
+    const res = await confirmationStatus(ticket);
+
+    expect(res.body).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(userId)).toBe(1);
+  });
+
+  it('EC-M1-11 si el navegador del ticket tiene la sesión de otro usuario, la cierra y abre la del usuario confirmado', async () => {
+    const other = await activeAccount();
+    const { email, userId, ticket } = await pendingAccount();
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+
+    const res = await confirmationStatus(`${ticket}; ${other.cookie}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'confirmed', next: 'onboarding' });
+    expect(await sessionCount(other.userId)).toBe(0);
+    expect(await sessionCount(userId)).toBe(1);
+    const me = await request(app).get('/api/me').set('Cookie', sessionCookieOf(res));
+    expect(MeDto.parse(me.body).id).toBe(userId);
+    const stale = await post('/api/auth/sign-out', {}, other.cookie);
+    expect(stale.status).toBe(401);
+  });
+
+  it('EC-M1-11 mientras el ticket esté pendiente la sesión del otro usuario sigue abierta', async () => {
+    const other = await activeAccount();
+    const { ticket } = await pendingAccount();
+
+    const res = await confirmationStatus(`${ticket}; ${other.cookie}`);
+
+    expect(res.body).toEqual({ status: 'pending' });
+    expect(await sessionCount(other.userId)).toBe(1);
+  });
+
+  it('RF-M1-04 una cuenta sin confirmar sigue sin sesión ni acceso a datos, con o sin ticket', async () => {
+    const { userId, ticket } = await pendingAccount();
+
+    const status = await confirmationStatus(ticket);
+    const withTicket = await request(app).get('/api/me').set('Cookie', ticket);
+    const withoutTicket = await request(app).get('/api/me');
+
+    expect(status.body).toEqual({ status: 'pending' });
+    expect(sessionSetCookie(status)).toBeUndefined();
+    expect(withTicket.status).toBe(401);
+    expect(problem(withTicket).code).toBe('SESSION_EXPIRED');
+    expect(withoutTicket.status).toBe(401);
+    expect(await sessionCount(userId)).toBe(0);
+  });
+
+  it('TASK-265 confirmation/status desde otro origen responde 403 y no abre la sesión', async () => {
+    const { email, userId, ticket } = await pendingAccount();
+    await post('/api/auth/confirm', { token: await latestLink(email, 'confirm') });
+
+    const res = await request(app)
+      .post('/api/auth/confirmation/status')
+      .set('Origin', 'https://otro-sitio.example')
+      .set('Cookie', ticket);
+
+    expect(res.status).toBe(403);
+    expect(sessionSetCookie(res)).toBeUndefined();
+    expect(await sessionCount(userId)).toBe(0);
+    expect((await confirmationStatus(ticket)).body).toMatchObject({ status: 'confirmed' });
   });
 });
 

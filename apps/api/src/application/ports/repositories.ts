@@ -68,6 +68,26 @@ export interface EmailSendLogRepository {
   countSince(emailHmac: string, kind: EmailKind, seconds: number): Promise<number>;
 }
 
+/**
+ * Tickets of the app waiting on "Revisa tu correo" (RF-M1-18, plan §4.1.2): one per user, kept
+ * only as the SHA-256 of the cookie value.
+ */
+export interface SignupTicketRepository {
+  /** Keeps the ticket of the user, replacing the previous one (EC-M1-14). */
+  issue(userId: string, tokenHash: string, expiresAt: Instant): Promise<void>;
+  /** Marks the ticket of the user as confirmed, once its link was opened. */
+  markConfirmed(userId: string): Promise<void>;
+  /**
+   * Deletes the confirmed, unexpired ticket with that hash and returns its user, or `null`. Of
+   * simultaneous calls with the same hash, only one gets the user.
+   */
+  claim(tokenHash: string): Promise<string | null>;
+  /** Deletes the ticket of the user (EC-M1-14). */
+  deleteForUser(userId: string): Promise<void>;
+  /** Deletes the tickets that expired before `now` (RNF-26). */
+  purgeExpired(now: Instant): Promise<void>;
+}
+
 /** Failed login attempts per email, keyed by the HMAC-SHA256 of the email (plan §3.9, §4.1.3). */
 export interface LoginThrottleRepository {
   /** Seconds left of the wait, rounded up; `0` when there is none. */
@@ -295,6 +315,7 @@ export interface Repositories {
   emailLinks: EmailLinkRepository;
   emailSendLog: EmailSendLogRepository;
   loginThrottle: LoginThrottleRepository;
+  signupTickets: SignupTicketRepository;
   users: UserRepository;
   marketRates: MarketRateRepository;
   currencies: CurrencyRepository;

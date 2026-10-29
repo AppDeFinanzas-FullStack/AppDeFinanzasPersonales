@@ -13,6 +13,7 @@ import { createEmailLinkRepository } from '../../src/infrastructure/persistence/
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../../src/infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { disconnectTestPrisma, testPrisma } from './setup/db.js';
@@ -44,6 +45,7 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
 /** The sign-in and sign-out operations these tests drive, as described above. */

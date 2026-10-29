@@ -4246,7 +4246,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-18`: `ConfirmationStatusDto` acepta `pending` y `confirmed` con `next: 'onboarding'`, y rechaza `confirmed` sin `next`.
     - Comando: `pnpm --filter @finanzas/db exec vitest run test/schema-auth.test.ts`
 
-- [ ] **`TASK-265`: Confirmación del correo (2/3): el enlace solo confirma y el ticket abre la sesión**
+- [x] **`TASK-265`: Confirmación del correo (2/3): el enlace solo confirma y el ticket abre la sesión**
   - **Dependencias:** Requiere TASK-264
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-up`, `confirm`, `confirmation/status`, `password/reset`), plan §3.9; RF-M1-18, RF-M1-04, EC-M1-09, EC-M1-10, EC-M1-11, EC-M1-14, RNF-15
   - **Archivos en Alcance:**
