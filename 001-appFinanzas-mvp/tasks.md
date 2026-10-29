@@ -4216,6 +4216,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `packages/db/prisma/schema.prisma`
     - `packages/db/test/schema-auth.test.ts`
     - `packages/db/test/schema-base.test.ts`
+    - `packages/db/test/isolation-extension.test.ts`
+    - `apps/api/test/integration/login-throttle.test.ts`
   - **Especificación de Implementación:** Postgres no permite quitar un valor de un enum, así que la migración, en una sola transacción: (1) borra de `email_outbox` y de `email_send_log` las filas con `kind = 'login_alert'`; (2) renombra `email_kind` a `email_kind_old`, crea `email_kind` con los 5 valores, convierte las columnas `kind` de ambas tablas con `USING kind::text::email_kind` y borra el tipo viejo; (3) quita `login_throttle.last_alert_sent_at`. `schema.prisma` pierde `loginAlert` y `lastAlertSentAt`. Se revisan los índices y los CHECK que usen `kind`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-16`: `email_kind` tiene exactamente los 5 correos de la cuenta.
