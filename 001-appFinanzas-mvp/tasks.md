@@ -4357,7 +4357,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un movimiento eliminado desde otro dispositivo sigue ofreciendo "Volver a Movimientos".
     - Comando: `pnpm --filter web typecheck`
 
-- [ ] **`TASK-269`: Marca (1/2): pedir el diseño de los logos, confirmar su disposición y poner el ícono de la pestaña**
+- [x] **`TASK-269`: Marca (1/2): pedir el diseño de los logos, confirmar su disposición y poner el ícono de la pestaña**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.2.4 (Marca); RF-M2-14
   - **Archivos en Alcance:**
