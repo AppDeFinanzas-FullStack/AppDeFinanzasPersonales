@@ -4111,7 +4111,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Con los bloques "Por categoría" y "Ritmo" ocultos, no se lee ningún gasto.
     - Comando: `pnpm --filter api exec vitest run test/http/dashboard.test.ts test/integration/dashboard-cards.test.ts`
 
-- [ ] **`TASK-258`: Web: pedir los datos a la vez que la sesión y mostrar esqueletos**
+- [x] **`TASK-258`: Web: pedir los datos a la vez que la sesión y mostrar esqueletos**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.0 (Web), plan §4.8.4; RNF-03, RNF-29, RF-M1-04
   - **Archivos en Alcance:**

@@ -3,6 +3,7 @@
   "sidebarLabel": "Navegación lateral",
   "collapse": "Contraer barra lateral",
   "expand": "Expandir barra lateral",
+  "loading": "Cargando",
   "sections": {
     "plan": "Planificar",
     "organize": "Organizar",
