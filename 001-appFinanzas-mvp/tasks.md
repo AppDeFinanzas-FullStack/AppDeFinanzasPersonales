@@ -4148,6 +4148,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/src/features/recurring/hooks/use-recurring.ts`
     - `apps/web/src/features/categories/hooks/use-categories.ts`
     - `apps/web/test/prefetch-routes.test.ts`
+    - `apps/web/test/bundle-budget.test.ts`
     - `e2e/m2-tab-prefetch.spec.ts`
   - **Especificación de Implementación:** Al abrir una pestaña por primera vez la web baja primero el código de su pantalla (`lazy`) y solo después, al montarla, pide sus datos: dos esperas seguidas. Cada hook de lista exporta su fábrica `…Query(…)` (como `dashboardQuery`) con la misma clave y parámetros que usa la pantalla. `prefetch-routes.ts` asocia cada ruta principal (Movimientos, Cuentas, Presupuestos, Metas, Deudas, Recurrentes y Categorías) con el prefetch de su consulta principal, con `staleTime` de 10 s, y solo lo lanza si la entrega del usuario incluye su módulo (`isReleased` sobre `['me']`), para no pedir lo que el API responde 404. El `loader` de cada ruta lo ejecuta mientras baja el código (sin bloquear la ruta ni mostrar errores, como `warmUpSession`), y `useTabLink` lo ejecuta además en `onPointerEnter`, `onFocus` y `onTouchStart`, como máximo una vez cada 10 s por ruta.
   - **Criterios de Verificación (Tests & DoD):**
