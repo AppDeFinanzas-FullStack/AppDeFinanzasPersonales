@@ -4450,7 +4450,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-11`: el E2E existente se amplía: B deja un borrador guardado antes de que se confirme el correo de A; después de que la app continúa sola a `/bienvenida`, no queda ninguna clave `draft:{idDeB}:` en el almacenamiento del navegador, y al volver a entrar como B el formulario está vacío.
     - `RF-M1-18`: sin otra sesión abierta, la confirmación sigue llevando a `/bienvenida` sin cambios.
 
-- [ ] **`TASK-274`: RNF-19 citado en las pruebas: la historia no cambia con la tasa ni con la configuración**
+- [x] **`TASK-274`: RNF-19 citado en las pruebas: la historia no cambia con la tasa ni con la configuración**
   - **Dependencias:** Requiere TASK-272
   - **Trazabilidad SDD:** plan §5.3 (RNF-18 / RNF-19), `coherencia.md` D-03; RNF-19, RN-05, RN-11
   - **Archivos en Alcance:**
