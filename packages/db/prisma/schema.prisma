@@ -22,7 +22,6 @@ enum EmailKind {
   registerAttempt @map("register_attempt")
   reset
   passwordChanged @map("password_changed")
-  loginAlert      @map("login_alert")
   accountDeleted  @map("account_deleted")
 
   @@map("email_kind")
@@ -309,6 +308,7 @@ model AuthUser {
   sessions           AuthSession[]
   accounts           AuthAccount[]
   emailLinks         EmailLink[]
+  signupTicket       SignupTicket?
   currencies         Currency[]
   fxEvents           UserFxEvent[]
   settings           UserSettings?
@@ -398,12 +398,23 @@ model EmailLink {
   @@map("email_link")
 }
 
+model SignupTicket {
+  tokenHash   String    @id @map("token_hash") @db.Char(64)
+  userId      String    @unique @map("user_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("signup_ticket")
+}
+
 model LoginThrottle {
   emailHmac           String    @id @map("email_hmac") @db.Char(64)
   consecutiveFailures Int       @default(0) @map("consecutive_failures")
   lastFailureAt       DateTime? @map("last_failure_at") @db.Timestamptz(6)
   lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
-  lastAlertSentAt     DateTime? @map("last_alert_sent_at") @db.Timestamptz(6)
 
   @@map("login_throttle")
 }

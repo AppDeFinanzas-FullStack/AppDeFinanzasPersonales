@@ -1,7 +1,7 @@
 import type { DebtDto } from '@finanzas/contracts';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ResourceNotFound } from '@/components/resource-not-found';
@@ -256,9 +256,6 @@ export function DebtDetailPage() {
           if (!next) setDialog(null);
         }}
       />
-      <Link to="/deudas" className="text-sm text-primary underline">
-        {t('back')}
-      </Link>
     </div>
   );
 }

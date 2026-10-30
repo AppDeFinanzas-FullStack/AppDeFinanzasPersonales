@@ -37,6 +37,15 @@ export interface RatesService {
   /** Current Bs per unit of the currency, for current balances (RN-05); `null` without a rate. */
   currentRateFor(ctx: RatesContext, currencyCode: string): Promise<Decimal | null>;
   /**
+   * `currentRateFor` of several currencies, read inside the caller's transaction so a caller that
+   * already has one does not open another; one entry per code.
+   */
+  currentRatesFor(
+    repos: Repositories,
+    ctx: RatesContext,
+    currencyCodes: readonly string[],
+  ): Promise<Record<string, Decimal | null>>;
+  /**
    * Rates of a movement of that currency and date, inside the caller's transaction (RN-04).
    * Throws `RATE_REQUIRED` when a non-BOB movement has no rate (EC-M3-02).
    */
@@ -71,12 +80,7 @@ const ONE = new Decimal(1);
 type LatestRates = Record<UsdReference, MarketRateRow | null>;
 
 async function latestRates(repos: Repositories): Promise<LatestRates> {
-  return {
-    parallel_bid: await repos.marketRates.latest('parallel_bid'),
-    parallel_ask: await repos.marketRates.latest('parallel_ask'),
-    parallel_median: await repos.marketRates.latest('parallel_median'),
-    official: await repos.marketRates.latest('official'),
-  };
+  return repos.marketRates.latestAll();
 }
 
 /** Rows of one kind that decide its value on `date`: the last one up to it, else the first known. */
@@ -249,6 +253,30 @@ function referencesOf(latest: LatestRates): RatesCurrentDto['references'] {
   };
 }
 
+/** Bs per unit of each currency today (RN-05); the events and the market are read once. */
+async function currentRatesIn(
+  repos: Repositories,
+  ctx: RatesContext,
+  currencyCodes: readonly string[],
+): Promise<Record<string, Decimal | null>> {
+  const rates: Record<string, Decimal | null> = {};
+  const codes = [...new Set(currencyCodes)];
+  if (codes.every((code) => code === 'BOB')) {
+    return Object.fromEntries(codes.map((code) => [code, ONE]));
+  }
+  const events = await repos.userFxEvents.eventsUntil(ctx.now);
+  const today = todayFor(ctx.timezone, ctx.now);
+  let usd: Promise<Decimal | null> | undefined;
+  const usdRate = (): Promise<Decimal | null> => {
+    usd ??= latestRates(repos).then((latest) => usdRateOn(repos, ctx, events, latest, today));
+    return usd;
+  };
+  for (const code of codes) {
+    rates[code] = await rateOn(ctx, events, usdRate, code, today);
+  }
+  return rates;
+}
+
 export function createRatesService({ uow }: { uow: UnitOfWork }): RatesService {
   return {
     async current(ctx) {
@@ -280,16 +308,15 @@ export function createRatesService({ uow }: { uow: UnitOfWork }): RatesService {
         return ONE;
       }
       return uow.run(
-        async (repos) => {
-          const events = await repos.userFxEvents.eventsUntil(ctx.now);
-          const today = todayFor(ctx.timezone, ctx.now);
-          const usdRate = async () =>
-            usdRateOn(repos, ctx, events, await latestRates(repos), today);
-          return rateOn(ctx, events, usdRate, currencyCode, today);
+        async (repos) => (await currentRatesIn(repos, ctx, [currencyCode]))[currencyCode] ?? null,
+        {
+          userLock: ctx.userId,
+          readOnly: true,
         },
-        { userLock: ctx.userId, readOnly: true },
       );
     },
+
+    currentRatesFor: currentRatesIn,
 
     async ratesForMovement(repos, ctx, currencyCode, date) {
       const events = await repos.userFxEvents.eventsUntil(ctx.now);

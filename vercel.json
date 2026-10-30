@@ -5,7 +5,7 @@
   "buildCommand": "pnpm --filter web build",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://finanzas-api-u3vu.onrender.com/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://finanzas-api-va.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

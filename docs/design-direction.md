@@ -29,6 +29,16 @@ Solo para la acción principal, los enlaces y el foco. Los 12 colores de `PALETT
 
 El resto de tokens de shadcn (`--secondary`, `--muted`, `--accent`, `--border`, `--input`) se queda en los neutros actuales. `--destructive` es solo para errores y acciones que borran, nunca para "gasto". Sirve a la vez de color de texto y de fondo de botón, así que cumple AA (≥ 4,5:1) en las dos formas, en claro y en oscuro: sobre blanco 5,8:1 y con texto blanco 5,8:1 (claro); sobre el fondo oscuro 6,2:1 y con texto oscuro 6,2:1 (oscuro). `--muted-foreground` sobre `--muted` queda en 5,2:1 en claro.
 
+## Marca
+
+Isotipo de tres barras que suben, en blanco sobre un cuadrado de esquinas redondeadas en el color de marca (`#186253`, el `--primary` claro). No lleva texto: el nombre "Finanzas" va en el título. Los archivos están en `apps/web/public/`: `logo.svg` y `favicon.svg` (el mismo dibujo), `favicon.ico` (16, 32 y 48 px) y `apple-touch-icon.png` (180×180, sin esquinas, porque iOS las redondea).
+
+- **a) Pestaña:** el ícono y el título "Finanzas"; `theme-color` es el color de marca.
+- **b) Pantallas de acceso y Onboarding:** el logo de 48 px, centrado, sobre el título.
+- **c) Cabecera:** en celular y escritorio, el logo de 24 px a la izquierda del título, después de "Volver" si lo hay.
+- **d) Barra lateral de escritorio:** sin logo propio, para no repetirlo junto al de la cabecera.
+- **e) Tema oscuro:** la misma marca y el mismo archivo. El cuadrado de color lleva su propio fondo, así que se lee igual sobre el fondo claro y sobre el oscuro, sin variantes ni `currentColor`.
+
 ## Tipografía: IBM Plex Sans
 
 Una sola familia, pesos 400, 500 y 600, cargada desde Google Fonts con `font-display: swap`. Pila: `"IBM Plex Sans", system-ui, sans-serif`.

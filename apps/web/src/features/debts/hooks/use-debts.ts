@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError, call } from '@/lib/api-client';
 
@@ -13,11 +13,15 @@ import {
 export const DEBTS_KEY = ['debts'] as const;
 
 // Plan §4.13.4: `['debts', view]`.
-export function useDebts(view: DebtsView) {
-  return useQuery({
+export function debtsQuery(view: DebtsView) {
+  return queryOptions({
     queryKey: [...DEBTS_KEY, view],
     queryFn: ({ signal }) => call(listDebtsEndpoint, { view }, { signal }),
   });
+}
+
+export function useDebts(view: DebtsView) {
+  return useQuery(debtsQuery(view));
 }
 
 // Plan §4.13.4: `['debt', id]`. The API lists the debts; another user's debt is not in the list.

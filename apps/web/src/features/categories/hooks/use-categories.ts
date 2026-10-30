@@ -1,5 +1,5 @@
 import type { ReorderCategoriesInput } from '@finanzas/contracts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { call } from '@/lib/api-client';
 
@@ -13,11 +13,15 @@ import {
 export const CATEGORIES_KEY = ['categories'] as const;
 
 // Plan §4.5.4: `['categories', kind, status]`.
-export function useCategories({ kind, status }: CategoryListQuery) {
-  return useQuery({
+export function categoriesQuery({ kind, status }: CategoryListQuery) {
+  return queryOptions({
     queryKey: [...CATEGORIES_KEY, kind, status],
     queryFn: ({ signal }) => call(listCategoriesEndpoint, { kind, status }, { signal }),
   });
+}
+
+export function useCategories(query: CategoryListQuery) {
+  return useQuery(categoriesQuery(query));
 }
 
 /** Saves the order of the categories of one kind and parent. */

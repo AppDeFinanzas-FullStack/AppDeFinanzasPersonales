@@ -38,6 +38,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
+  // Two workers keep the API, the preview server and the browsers within a small machine's memory.
+  workers: isCI ? 2 : undefined,
   reporter: isCI ? [['html', { open: 'never' }], ['list']] : 'list',
   use: {
     baseURL: WEB_URL,

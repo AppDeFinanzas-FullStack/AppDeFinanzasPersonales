@@ -8,6 +8,8 @@ export interface MaintenanceStore {
   deleteSendLogs(sentBefore: Instant): Promise<void>;
   /** Deletes the login throttle rows whose last failure is before the cutoff (RNF-26). */
   deleteLoginThrottles(lastFailureBefore: Instant): Promise<void>;
+  /** Deletes the registration tickets that expired before the cutoff (RF-M1-18, RNF-26). */
+  deleteExpiredSignupTickets(expiredBefore: Instant): Promise<void>;
   /**
    * Deletes for good the movements deleted before the cutoff; their entries and fees go with them
    * (plan §4.6.3, ADR-07).

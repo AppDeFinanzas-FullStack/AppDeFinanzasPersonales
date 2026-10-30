@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { call } from '@/lib/api-client';
 
@@ -7,11 +7,15 @@ import { celebratedEndpoint, goalEndpoint, listGoalsEndpoint } from '../api';
 export const GOALS_KEY = ['goals'] as const;
 
 // Plan §4.12.4: `['goals']`.
-export function useGoals() {
-  return useQuery({
+export function goalsQuery() {
+  return queryOptions({
     queryKey: GOALS_KEY,
     queryFn: ({ signal }) => call(listGoalsEndpoint, undefined, { signal }),
   });
+}
+
+export function useGoals() {
+  return useQuery(goalsQuery());
 }
 
 // Plan §4.12.4: `['goal', id]`.

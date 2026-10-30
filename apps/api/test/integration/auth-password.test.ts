@@ -7,12 +7,14 @@ import type { CreatedSession } from '../../src/application/ports/auth-gateway.js
 import {
   type AuthService,
   createAuthService,
+  type SignUpInput,
 } from '../../src/application/services/auth.service.js';
 import { createBetterAuthGateway } from '../../src/infrastructure/auth/better-auth.js';
 import { createEmailLinkRepository } from '../../src/infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../../src/infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { disconnectTestPrisma, testPrisma } from './setup/db.js';
@@ -31,6 +33,9 @@ import { disconnectTestPrisma, testPrisma } from './setup/db.js';
  *   `sessionId` come from the session of the request; it resolves (the 204) or rejects with
  *   `INVALID_CURRENT_PASSWORD`.
  * Accounts are made through `signUp` (and `confirm` for the active ones); sessions through `signIn`.
+ * Since TASK-265 `signUp` also resolves the `ticket` of the registration and
+ * `confirmationStatus(ticket)` resolves `{ status: 'pending' }` or `{ status: 'confirmed', next,
+ * session }`; the reset deletes the tickets of the user (EC-M1-14).
  * Time is the database's: tests move it by editing the rows.
  */
 const HMAC_SECRET = 'hmac-secret-for-the-password-test';
@@ -48,6 +53,7 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
 
@@ -66,12 +72,21 @@ interface PasswordOperations {
   }): Promise<void>;
 }
 
+/** The registration ticket (RF-M1-18), as described above. */
+interface TicketOperations {
+  signUp(input: SignUpInput): Promise<{ status: 'check_email'; ticket: string }>;
+  confirmationStatus(
+    ticket: string | undefined,
+    currentSessionId?: string,
+  ): Promise<{ status: 'pending' } | { status: 'confirmed'; next: 'onboarding'; session: CreatedSession }>;
+}
+
 const service = createAuthService({
   uow,
   auth,
   hmacSecret: HMAC_SECRET,
   webOrigin: WEB_ORIGIN,
-}) as AuthService & PasswordOperations;
+}) as TicketOperations & AuthService & PasswordOperations;
 
 const usedEmails = new Set<string>();
 
@@ -108,6 +123,12 @@ async function sessionIdsOf(userId: string): Promise<string[]> {
   const rows = await testPrisma().$queryRaw<{ id: string }[]>`
     SELECT id::text AS id FROM auth_session WHERE user_id = ${userId}::uuid`;
   return rows.map((row) => row.id);
+}
+
+async function ticketCountOf(userId: string): Promise<number> {
+  const rows = await testPrisma().$queryRaw<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM signup_ticket WHERE user_id = ${userId}::uuid`;
+  return rows[0]?.n ?? 0;
 }
 
 async function outboxCount(email: string, kind: string): Promise<number> {
@@ -390,6 +411,56 @@ describe('password reset: sessions and notice', () => {
 
     expect((await userOf(email)).verified).toBe(false);
     expect(await sessionIdsOf(userId)).toEqual([]);
+  });
+});
+
+describe('password reset: the registration ticket', () => {
+  it('EC-M1-14 EC-M1-10 recovering the password of an unconfirmed account invalidates the ticket of its registration', async () => {
+    const email = freshEmail();
+    const { ticket } = await service.signUp({
+      name: 'Ana Pérez',
+      email,
+      password: PASSWORD,
+      termsAccepted: true,
+    });
+    const { id: userId } = await userOf(email);
+    const token = await forgot(email);
+
+    const reset = await service.resetPassword({ token, newPassword: NEW_PASSWORD });
+
+    expect(await ticketCountOf(userId)).toBe(0);
+    expect(await service.confirmationStatus(ticket)).toEqual({ status: 'pending' });
+    expect(await sessionIdsOf(userId)).toEqual([reset.session.sessionId]);
+  });
+
+  it('EC-M1-14 EC-M1-10 a ticket already confirmed no longer opens a session after the reset', async () => {
+    const email = freshEmail();
+    const { ticket } = await service.signUp({
+      name: 'Ana Pérez',
+      email,
+      password: PASSWORD,
+      termsAccepted: true,
+    });
+    const { id: userId } = await userOf(email);
+    await service.confirm(await latestLink(email, 'confirm'));
+    const token = await forgot(email);
+
+    const reset = await service.resetPassword({ token, newPassword: NEW_PASSWORD });
+
+    expect(await service.confirmationStatus(ticket)).toEqual({ status: 'pending' });
+    expect(await sessionIdsOf(userId)).toEqual([reset.session.sessionId]);
+  });
+
+  it('EC-M1-14 a failed reset keeps the ticket of the registration', async () => {
+    const email = freshEmail();
+    await service.signUp({ name: 'Ana Pérez', email, password: PASSWORD, termsAccepted: true });
+    const { id: userId } = await userOf(email);
+    const token = await forgot(email);
+    await setLinkExpiry(token, '-1 second');
+
+    await rejectionOf(service.resetPassword({ token, newPassword: NEW_PASSWORD }));
+
+    expect(await ticketCountOf(userId)).toBe(1);
   });
 });
 

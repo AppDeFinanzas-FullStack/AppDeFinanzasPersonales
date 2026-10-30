@@ -72,6 +72,19 @@ const get = (path: string, cookie?: string) => {
   return req;
 };
 
+const TICKET_COOKIE = '__Secure-signup-ticket';
+
+/** The `name=value` pair of the signup ticket cookie that the sign-up sets (RF-M1-18). */
+const ticketCookieOf = (res: { headers: Record<string, unknown> }): string => {
+  const raw = res.headers['set-cookie'];
+  const list = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? (raw as unknown[]) : [];
+  const header = list.find(
+    (c): c is string => typeof c === 'string' && c.startsWith(`${TICKET_COOKIE}=`),
+  );
+  if (header === undefined) throw new Error('the sign-up sets no ticket cookie');
+  return header.split(';')[0] ?? '';
+};
+
 const sessionCookieOf = (res: { headers: Record<string, unknown> }): string => {
   const raw = res.headers['set-cookie'];
   const list = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? (raw as unknown[]) : [];
@@ -99,7 +112,13 @@ async function activeAccount(): Promise<{ email: string; cookie: string }> {
     ORDER BY created_at DESC, id DESC LIMIT 1`;
   const token = /[A-Za-z0-9_-]{43}/.exec(links[0]?.link ?? '')?.[0];
   if (token === undefined) throw new Error('no confirmation token');
-  const res = await post('/api/auth/confirm', { token });
+  const confirmed = await post('/api/auth/confirm', { token });
+  expect(confirmed.status).toBe(200);
+  // The link only confirms; the session comes from the ticket of the sign-up (RF-M1-18).
+  const res = await request(app)
+    .post('/api/auth/confirmation/status')
+    .set('Origin', WEB_ORIGIN)
+    .set('Cookie', ticketCookieOf(up));
   expect(res.status).toBe(200);
   return { email, cookie: sessionCookieOf(res) };
 }

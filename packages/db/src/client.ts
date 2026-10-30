@@ -108,9 +108,48 @@ function scopeArgs(model: string, operation: string, args: unknown, userId: stri
   return { ...input, where: scopeWhere(input['where'], userId) };
 }
 
-/** Creates a Prisma client over the given database. */
-export const createPrismaClient = (databaseUrl: string): PrismaClient =>
-  new PrismaClient({ datasourceUrl: databaseUrl });
+/** Measurement of every Prisma operation (plan §4.0, RNF-29). */
+export interface OperationOptions {
+  /** Milliseconds each operation waits before it runs; reproduces the distance to the database. */
+  latencyMs?: number;
+  /** Called after each operation, raw or of a model, with the milliseconds it took. */
+  onOperation?: (ms: number) => void;
+}
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/**
+ * Creates a Prisma client over the given database. With `latencyMs` or `onOperation`, every
+ * operation (raw and of a model) is delayed and reported through a client extension, which keeps
+ * the request context that the `query` event of Prisma does not.
+ */
+export const createPrismaClient = (
+  databaseUrl: string,
+  options: OperationOptions = {},
+): PrismaClient => {
+  const client = new PrismaClient({ datasourceUrl: databaseUrl });
+  const { latencyMs = 0, onOperation } = options;
+  if (latencyMs === 0 && onOperation === undefined) return client;
+  // The extension adds no models or methods, so the extended client is used as a plain one.
+  return client.$extends({
+    name: 'measure',
+    query: {
+      async $allOperations({ args, query }) {
+        const start = performance.now();
+        try {
+          if (latencyMs > 0) await wait(latencyMs);
+          const result: unknown = await query(args);
+          return result;
+        } finally {
+          onOperation?.(performance.now() - start);
+        }
+      },
+    },
+  }) as unknown as PrismaClient;
+};
 
 /**
  * Isolation extension (ADR-05, RN-09, RNF-14). Adds `userId` to the filter of every read, update,

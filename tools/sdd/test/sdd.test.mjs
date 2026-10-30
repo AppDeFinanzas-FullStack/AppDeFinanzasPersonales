@@ -63,14 +63,30 @@ test('marca y desmarca una tarea', () => {
   assert.equal(parseTasks(setDone(text, 'TASK-002', false))[1].done, false);
 });
 
-test('el tasks.md real tiene 247 tareas válidas y numeradas en orden', () => {
+test('el tasks.md real tiene tareas válidas, sin IDs repetidos ni huecos de numeración', () => {
   const tasks = allTasks();
-  assert.equal(tasks.length, 247);
-  tasks.forEach((t, i) => assert.equal(t.id, `TASK-${String(i + 1).padStart(3, '0')}`));
+  // El orden del archivo no es el numérico: TASK-248 vive en la Fase 17 (mapa de fases, decisiones de orden).
+  const numbers = tasks.map((t) => Number(t.id.slice('TASK-'.length)));
+  assert.equal(new Set(numbers).size, numbers.length, 'hay IDs de tarea repetidos');
+  const missing = Array.from({ length: Math.max(...numbers) }, (_, i) => i + 1).filter((n) => !numbers.includes(n));
+  assert.deepEqual(missing, [], 'faltan tareas en la numeración');
+  const byId = new Map(tasks.map((t) => [t.id, t]));
   for (const t of tasks) {
     assert.ok(t.scope.length > 0, `${t.id} sin alcance`);
-    for (const d of t.dependencies) assert.ok(d < t.id, `${t.id} depende de una tarea posterior: ${d}`);
+    // Una dependencia puede tener un número mayor o listarse después (TASK-168 requiere TASK-248,
+    // TASK-251 requiere TASK-253): `preflight` solo exige que exista y esté cerrada. Lo que no puede
+    // haber es un ciclo.
+    for (const d of t.dependencies) assert.ok(byId.has(d), `${t.id} depende de una tarea que no existe: ${d}`);
   }
+  const state = new Map();
+  const visit = (id, path) => {
+    assert.notEqual(state.get(id), 'visiting', `ciclo de dependencias: ${[...path, id].join(' → ')}`);
+    if (state.get(id) === 'done') return;
+    state.set(id, 'visiting');
+    for (const d of byId.get(id).dependencies) visit(d, [...path, id]);
+    state.set(id, 'done');
+  };
+  for (const t of tasks) visit(t.id, []);
 });
 
 test('rama de la fase', () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ResourceNotFound } from '@/components/resource-not-found';
@@ -123,9 +123,6 @@ export function GoalDetailPage() {
       <ReleaseDialog goal={goal} open={dialog === 'release'} onOpenChange={onOpenChange} />
       <DedicateDialog goal={goal} open={dialog === 'dedicate'} onOpenChange={onOpenChange} />
       <UseAndCloseDialog goal={goal} open={dialog === 'close'} onOpenChange={onOpenChange} />
-      <Link to="/metas" className="text-sm text-primary underline">
-        {t('back')}
-      </Link>
     </div>
   );
 }

@@ -259,9 +259,6 @@ export function ArchivedCategoriesPage() {
         <h2 className="text-lg font-semibold">{t('tabs.income')}</h2>
         <ArchivedList kind="income" />
       </section>
-      <Link to="/categorias" className={linkClass}>
-        {t('back')}
-      </Link>
     </div>
   );
 }

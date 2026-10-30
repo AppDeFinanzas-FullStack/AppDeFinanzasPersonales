@@ -113,9 +113,6 @@ function ArchivedAccounts() {
       ) : (
         <AccountGroups accounts={archived.data.items} base={rates.data?.base ?? 'BOB'} />
       )}
-      <Link to="/cuentas" className="text-sm text-primary underline">
-        {t('archived.back')}
-      </Link>
     </div>
   );
 }
@@ -198,9 +195,6 @@ export function AccountDetailPage() {
         base={rates.data?.base ?? 'BOB'}
         today={today}
       />
-      <Link to="/cuentas" className="text-sm text-primary underline">
-        {t('archived.back')}
-      </Link>
     </div>
   );
 }
