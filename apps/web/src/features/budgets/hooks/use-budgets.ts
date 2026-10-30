@@ -7,7 +7,7 @@ import {
   todayShouldBe,
   type LocalDate,
 } from '@finanzas/domain';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { ACCOUNTS_KEY } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
@@ -31,11 +31,15 @@ export const BUDGETS_KEY = ['budgets'] as const;
 export const budgetKey = (id: string) => ['budget', id] as const;
 
 // Plan §4.11.4: `['budgets']`.
-export function useBudgets() {
-  return useQuery({
+export function budgetsQuery() {
+  return queryOptions({
     queryKey: BUDGETS_KEY,
     queryFn: ({ signal }) => call(listBudgetsEndpoint, undefined, { signal }),
   });
+}
+
+export function useBudgets() {
+  return useQuery(budgetsQuery());
 }
 
 // Plan §4.11.4: `['budget', id]`.

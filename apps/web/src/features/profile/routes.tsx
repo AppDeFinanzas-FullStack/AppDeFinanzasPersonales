@@ -9,6 +9,7 @@ import { useMe } from '@/features/auth/hooks/use-me';
 import { ApiError, call } from '@/lib/api-client';
 import { clearAllDrafts } from '@/lib/drafts';
 import { messageForError } from '@/lib/i18n-errors';
+import { clearLastSessionHint } from '@/lib/last-session-hint';
 import profile from '@/locales/es-BO/profile.json';
 
 import { signOutAllEndpoint, signOutEndpoint } from './api';
@@ -27,6 +28,7 @@ function SessionActions({ userId }: { userId: string }) {
 
   const leave = async () => {
     clearAllDrafts(userId);
+    clearLastSessionHint();
     await navigate('/entrar', { replace: true });
     queryClient.clear();
   };

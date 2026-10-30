@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
+import { PageSkeleton } from '@/components/page-skeleton';
 import { useAccounts, useCurrencySymbol } from '@/features/accounts/hooks/use-accounts';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
@@ -86,7 +87,7 @@ function DashboardContent() {
 /** `/` (plan §4.8.4): without accounts it invites to create the first one (EC-M8-01). */
 export function DashboardPage() {
   const active = useAccounts('active');
-  if (active.data === undefined) return null;
+  if (active.data === undefined) return <PageSkeleton />;
   if (active.data.items.length === 0) {
     return (
       <Suspense fallback={null}>

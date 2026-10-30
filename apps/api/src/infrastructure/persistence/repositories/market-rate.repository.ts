@@ -51,6 +51,24 @@ export function createMarketRateRepository(tx: TransactionClient): MarketRateRep
       return row === undefined ? null : toRow(row);
     },
 
+    async latestAll(): Promise<Record<MarketRateKind, MarketRateRow | null>> {
+      const rows = await tx.$queryRaw<MarketRateRecord[]>`
+        SELECT DISTINCT ON (kind) kind::text AS kind, to_char(rate_date, 'YYYY-MM-DD') AS "rateDate",
+               value::text AS value, observed_at AS "observedAt", source::text AS source
+          FROM market_rate
+         ORDER BY kind, rate_date DESC`;
+      const latest: Record<MarketRateKind, MarketRateRow | null> = {
+        parallel_bid: null,
+        parallel_ask: null,
+        parallel_median: null,
+        official: null,
+      };
+      for (const record of rows) {
+        latest[record.kind] = toRow(record);
+      }
+      return latest;
+    },
+
     async series(kind: MarketRateKind, from: string, to: string): Promise<MarketRateRow[]> {
       const rows = await tx.$queryRaw<MarketRateRecord[]>`
         SELECT kind::text AS kind, to_char(rate_date, 'YYYY-MM-DD') AS "rateDate",

@@ -41,8 +41,7 @@
   "archived": {
     "link": "Ver cuentas archivadas",
     "title": "Cuentas archivadas",
-    "empty": "No tienes cuentas archivadas.",
-    "back": "Volver a tus cuentas"
+    "empty": "No tienes cuentas archivadas."
   },
   "typeNames": {
     "cash": "Efectivo",

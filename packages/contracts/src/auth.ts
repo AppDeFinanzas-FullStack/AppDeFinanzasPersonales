@@ -66,6 +66,13 @@ export const MeDto = z.object({
   }),
 });
 
+export const ConfirmDto = z.object({ status: z.literal('confirmed') });
+
+export const ConfirmationStatusDto = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('pending') }),
+  z.object({ status: z.literal('confirmed'), next: z.literal('onboarding') }),
+]);
+
 export type SignUpInput = z.infer<typeof SignUpInput>;
 export type SignInInput = z.infer<typeof SignInInput>;
 export type ResendInput = z.infer<typeof ResendInput>;
@@ -76,3 +83,5 @@ export type ChangePwdInput = z.infer<typeof ChangePwdInput>;
 export type UpdateMeInput = z.infer<typeof UpdateMeInput>;
 export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;
 export type MeDto = z.infer<typeof MeDto>;
+export type ConfirmDto = z.infer<typeof ConfirmDto>;
+export type ConfirmationStatusDto = z.infer<typeof ConfirmationStatusDto>;

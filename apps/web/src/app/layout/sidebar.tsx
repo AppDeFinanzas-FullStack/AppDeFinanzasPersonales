@@ -15,13 +15,14 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
   const { t } = useTranslation('navigation');
   const label = t(`items.${item.key}`);
   const Icon = item.icon;
-  const { to, active, onClick } = useTabLink(item);
+  const { to, active, onClick, ...prefetch } = useTabLink(item);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Link
           to={to}
           onClick={onClick}
+          {...prefetch}
           aria-current={active ? 'page' : undefined}
           aria-label={collapsed ? label : undefined}
           className={cn(

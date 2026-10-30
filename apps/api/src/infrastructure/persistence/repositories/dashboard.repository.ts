@@ -1,9 +1,6 @@
 import { Decimal } from 'decimal.js';
 
-import type {
-  DashboardRepository,
-  PeriodTotals,
-} from '../../../application/ports/repositories.js';
+import type { DashboardRepository, PeriodTotals } from '../../../application/ports/repositories.js';
 import type { PrismaClient } from '../prisma-client.js';
 import type { TransactionClient } from '../unit-of-work.js';
 
@@ -12,6 +9,7 @@ interface TotalsRow {
   curExpense: string;
   prevIncome: string;
   prevExpense: string;
+  firstMonth: string | null;
 }
 
 const totalsOf = (income: string | undefined, expense: string | undefined): PeriodTotals => ({
@@ -85,8 +83,30 @@ export function createDashboardExpenseReader(prisma: PrismaClient): DashboardExp
  * Prisma implementation of the dashboard reads, always filtered by the user of the transaction
  * (RN-09).
  */
-export function createDashboardRepository(tx: TransactionClient, userId: string): DashboardRepository {
+export function createDashboardRepository(
+  tx: TransactionClient,
+  userId: string,
+): DashboardRepository {
   return {
+    async settings() {
+      const rows = await tx.$queryRaw<
+        { blocks: { key: string; visible: boolean }[] | null; baseCurrency: string }[]
+      >`
+        SELECT dashboard_blocks AS blocks, base_currency::text AS "baseCurrency"
+          FROM user_settings
+         WHERE user_id = ${userId}::uuid`;
+      const row = rows[0];
+      if (row === undefined) {
+        return null;
+      }
+      return {
+        hiddenBlocks: (row.blocks ?? [])
+          .filter((block) => !block.visible)
+          .map((block) => block.key),
+        baseCurrency: row.baseCurrency.trim(),
+      };
+    },
+
     async totals(current, previous, base) {
       const rows = await tx.$queryRaw<TotalsRow[]>`
         WITH base AS (SELECT ${base}::char(3) AS code),
@@ -123,23 +143,19 @@ export function createDashboardRepository(tx: TransactionClient, userId: string)
                  AS "prevIncome",
                COALESCE(-SUM(amount) FILTER (WHERE kind = 'expense'
                  AND date >= ${previous.from}::date AND date <= ${previous.to}::date), 0)::text
-                 AS "prevExpense"
+                 AS "prevExpense",
+               to_char(LEAST(
+                 (SELECT MIN(date) FROM ledger_transaction
+                   WHERE user_id = ${userId}::uuid AND deleted_at IS NULL),
+                 (SELECT MIN(initial_balance_date) FROM account
+                   WHERE user_id = ${userId}::uuid)), 'YYYY-MM') AS "firstMonth"
           FROM counted`;
       const row = rows[0];
       return {
         current: totalsOf(row?.curIncome, row?.curExpense),
         previous: totalsOf(row?.prevIncome, row?.prevExpense),
+        firstMonth: row?.firstMonth ?? null,
       };
-    },
-
-    async firstMonth() {
-      const rows = await tx.$queryRaw<{ month: string | null }[]>`
-        SELECT to_char(LEAST(
-                 (SELECT MIN(date) FROM ledger_transaction
-                   WHERE user_id = ${userId}::uuid AND deleted_at IS NULL),
-                 (SELECT MIN(initial_balance_date) FROM account
-                   WHERE user_id = ${userId}::uuid)), 'YYYY-MM') AS month`;
-      return rows[0]?.month ?? null;
     },
   };
 }

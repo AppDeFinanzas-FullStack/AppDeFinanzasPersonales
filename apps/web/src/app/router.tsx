@@ -3,12 +3,14 @@ import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 
+import { BrandMark } from '@/components/brand-mark';
 import { useMe } from '@/features/auth/hooks/use-me';
 import { preferencesReleased } from '@/features/settings/hooks/use-notification-preferences';
 
 import { ReleaseGate, RequireOnboardingDone, RequireSession, warmUpSession } from './guards';
 import { AppShell } from './layout/app-shell';
 import { MoreMenu } from './layout/more-menu';
+import { prefetchRoute } from './prefetch-routes';
 import { queryClient } from './providers/query-client';
 
 function RootLayout() {
@@ -19,9 +21,14 @@ function RootLayout() {
   );
 }
 
+/**
+ * The access screens: the logo of 48 px, centered over the title (RF-M2-14). Each screen centers
+ * itself in the full height, so the layout takes that job and the screen keeps only its width.
+ */
 function PublicLayout() {
   return (
-    <main>
+    <main className="flex min-h-screen flex-col justify-center py-8 [&>section]:min-h-0 [&>section]:py-0">
+      <BrandMark size="public" className="mx-auto mb-6" />
       <Outlet />
     </main>
   );
@@ -38,17 +45,27 @@ export function NotFoundPage() {
 
 /**
  * The screen of a route, downloaded only when the user enters it (RNF-01, RNF-03). The chunk of a
- * feature also carries its i18n namespace, which its module registers on load.
+ * feature also carries its i18n namespace, which its module registers on load. With `prefetch`, the
+ * loader of the route starts the request of its main data while the code downloads (RNF-29): it
+ * neither blocks the route nor shows errors, and a change of the search params does not repeat it.
  */
 function screen<Name extends string>(
   load: () => Promise<Record<Name, ComponentType>>,
   name: Name,
-): Pick<RouteObject, 'lazy'> {
+  prefetch?: string,
+): Pick<RouteObject, 'lazy' | 'loader' | 'shouldRevalidate'> {
+  const lazy: RouteObject['lazy'] = async () => {
+    const module = await load();
+    return { Component: module[name] };
+  };
+  if (prefetch === undefined) return { lazy };
   return {
-    lazy: async () => {
-      const module = await load();
-      return { Component: module[name] };
+    lazy,
+    loader: () => {
+      prefetchRoute(queryClient, prefetch);
+      return null;
     },
+    shouldRevalidate: () => false,
   };
 }
 
@@ -90,7 +107,7 @@ const onboardingRoutes: RouteObject[] = [
 const dashboardRoutes: RouteObject[] = [{ index: true, ...screen(dashboard, 'DashboardPage') }];
 
 const transactionsRoutes: RouteObject[] = [
-  { path: 'movimientos', ...screen(transactions, 'TransactionsPage') },
+  { path: 'movimientos', ...screen(transactions, 'TransactionsPage', '/movimientos') },
   { path: 'movimientos/:id', ...screen(transactions, 'TransactionDetailPage') },
 ];
 
@@ -99,14 +116,14 @@ const registerRoutes: RouteObject[] = [{ path: 'registrar', ...screen(register, 
 
 /** Private routes of the accounts (plan §4.4.4). */
 const accountsRoutes: RouteObject[] = [
-  { path: 'cuentas', ...screen(accounts, 'AccountsPage') },
+  { path: 'cuentas', ...screen(accounts, 'AccountsPage', '/cuentas') },
   { path: 'cuentas/nueva', ...screen(accounts, 'NewAccountPage') },
   { path: 'cuentas/:id', ...screen(accounts, 'AccountDetailPage') },
   { path: 'cuentas/:id/editar', ...screen(accounts, 'EditAccountPage') },
 ];
 
 const categoriesRoutes: RouteObject[] = [
-  { path: 'categorias', ...screen(categories, 'CategoriesPage') },
+  { path: 'categorias', ...screen(categories, 'CategoriesPage', '/categorias') },
   { path: 'categorias/nueva', ...screen(categories, 'CategoryFormPage') },
   { path: 'categorias/archivadas', ...screen(categories, 'ArchivedCategoriesPage') },
   { path: 'categorias/:id/editar', ...screen(categories, 'CategoryFormPage') },
@@ -128,24 +145,24 @@ function releasedModule(module: ModuleKey, children: RouteObject[]): RouteObject
 
 /** Private routes of the budgets (plan §4.11.4), only from the release that includes M11. */
 const budgetsRoutes = releasedModule('M11', [
-  { path: 'presupuestos', ...screen(budgets, 'BudgetsPage') },
+  { path: 'presupuestos', ...screen(budgets, 'BudgetsPage', '/presupuestos') },
   { path: 'presupuestos/:id', ...screen(budgets, 'BudgetDetailPage') },
 ]);
 
 /** Private routes of the goals (plan §4.12.4), only from the release that includes M12. */
 const goalsRoutes = releasedModule('M12', [
-  { path: 'metas', ...screen(goals, 'GoalsPage') },
+  { path: 'metas', ...screen(goals, 'GoalsPage', '/metas') },
   { path: 'metas/:id', ...screen(goals, 'GoalDetailPage') },
 ]);
 
 /** Private route of the recurring rules (plan §4.14.4), only from the release that includes M14. */
 const recurringRoutes = releasedModule('M14', [
-  { path: 'recurrentes', ...screen(recurring, 'RecurringPage') },
+  { path: 'recurrentes', ...screen(recurring, 'RecurringPage', '/recurrentes') },
 ]);
 
 /** Private routes of the debts and loans (plan §4.13.4), only from the release that includes M13. */
 const debtsRoutes = releasedModule('M13', [
-  { path: 'deudas', ...screen(debts, 'DebtsPage') },
+  { path: 'deudas', ...screen(debts, 'DebtsPage', '/deudas') },
   { path: 'deudas/:id', ...screen(debts, 'DebtDetailPage') },
 ]);
 

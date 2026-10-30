@@ -58,8 +58,12 @@ test.describe('TASK-065 registro, revisa tu correo y confirmación', () => {
       const email = mailbox.newEmail();
       await fillSignUp(page, email);
       await expect(page).toHaveURL(/\/revisa-tu-correo/);
-      await page.goto(await mailbox.confirmationLink(email));
-      await expect(page).toHaveURL(/\/bienvenida/);
+      // RF-M1-18: the link only confirms; the tab on "Revisa tu correo" continues by itself.
+      const linkPage = await page.context().newPage();
+      await linkPage.goto(await mailbox.confirmationLink(email));
+      await expect(linkPage.getByText('Correo confirmado').first()).toBeVisible();
+      await page.bringToFront();
+      await expect(page).toHaveURL(/\/bienvenida/, { timeout: 20_000 });
       const res = await page.request.post('/api/auth/sign-in', {
         data: { email, password: PASSWORD },
       });
@@ -115,9 +119,40 @@ test.describe('TASK-065 registro, revisa tu correo y confirmación', () => {
     await fillSignUp(page, email);
     const link = await mailbox.confirmationLink(email);
     await page.goto(link);
-    await expect(page).toHaveURL(/\/bienvenida/);
+    await expect(page.getByText('Correo confirmado').first()).toBeVisible();
     await page.context().clearCookies();
     await page.goto(link);
     await expect(page).toHaveURL(/\/entrar/);
+  });
+
+  test('RF-M1-18 el enlace solo confirma: muestra "Correo confirmado", no abre sesión ni va al Onboarding', async ({
+    page,
+    browser,
+    baseURL,
+    mailbox,
+  }) => {
+    const email = mailbox.newEmail();
+    await fillSignUp(page, email);
+    await expect(page).toHaveURL(/\/revisa-tu-correo/);
+    const link = await mailbox.confirmationLink(email);
+
+    const other = await browser.newContext({ baseURL });
+    try {
+      const linkPage = await other.newPage();
+      await linkPage.goto(link);
+      await expect(linkPage.getByText('Correo confirmado').first()).toBeVisible();
+      await expect(
+        linkPage.getByText(/vuelve a la app donde creaste tu cuenta: continúa sola/i),
+      ).toBeVisible();
+      await expect(linkPage.getByText(/si ya la cerraste, inicia sesión/i)).toBeVisible();
+      await expect(linkPage.getByRole('link', { name: /inicia(r)? sesión/i })).toHaveAttribute(
+        'href',
+        /\/entrar/,
+      );
+      await expect(linkPage).not.toHaveURL(/\/bienvenida/);
+      expect((await linkPage.request.get('/api/me')).status()).toBe(401);
+    } finally {
+      await other.close();
+    }
   });
 });

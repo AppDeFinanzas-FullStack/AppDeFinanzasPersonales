@@ -6,7 +6,7 @@ import { closeSql, sql } from './helpers.js';
 /** Enumerated types of plan §3.2, with their values in declaration order. */
 const PLAN_ENUMS: ReadonlyArray<readonly [string, readonly string[]]> = [
   ['email_link_purpose', ['confirm_email', 'reset_password']],
-  ['email_kind', ['confirm', 'register_attempt', 'reset', 'password_changed', 'login_alert', 'account_deleted']],
+  ['email_kind', ['confirm', 'register_attempt', 'reset', 'password_changed', 'account_deleted']],
   ['outbox_status', ['pending', 'sent', 'failed']],
   ['number_format', ['dot_comma', 'comma_dot']],
   ['date_format', ['dmy', 'iso', 'short_text']],
@@ -100,6 +100,25 @@ describe('TASK-011 base migration: enumerated types', () => {
     const matches = prismaEnums().filter((e) => e.sqlName === typeName);
     expect(matches, `exactly one Prisma enum with @@map("${typeName}")`).toHaveLength(1);
     expect(matches[0]!.values).toEqual([...expected]);
+  });
+});
+
+describe('RF-M1-16 email_kind without the failed sign-in alert', () => {
+  it('RF-M1-16 the database type email_kind has exactly the 5 account emails', async () => {
+    expect(await dbEnumLabels('email_kind')).toEqual([
+      'confirm',
+      'register_attempt',
+      'reset',
+      'password_changed',
+      'account_deleted',
+    ]);
+  });
+
+  it('RF-M1-16 schema.prisma maps email_kind without login_alert', () => {
+    const matches = prismaEnums().filter((e) => e.sqlName === 'email_kind');
+    expect(matches).toHaveLength(1);
+    expect(matches[0]!.values).not.toContain('login_alert');
+    expect(matches[0]!.values).not.toContain('loginAlert');
   });
 });
 

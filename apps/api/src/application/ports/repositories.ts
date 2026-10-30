@@ -68,6 +68,26 @@ export interface EmailSendLogRepository {
   countSince(emailHmac: string, kind: EmailKind, seconds: number): Promise<number>;
 }
 
+/**
+ * Tickets of the app waiting on "Revisa tu correo" (RF-M1-18, plan §4.1.2): one per user, kept
+ * only as the SHA-256 of the cookie value.
+ */
+export interface SignupTicketRepository {
+  /** Keeps the ticket of the user, replacing the previous one (EC-M1-14). */
+  issue(userId: string, tokenHash: string, expiresAt: Instant): Promise<void>;
+  /** Marks the ticket of the user as confirmed, once its link was opened. */
+  markConfirmed(userId: string): Promise<void>;
+  /**
+   * Deletes the confirmed, unexpired ticket with that hash and returns its user, or `null`. Of
+   * simultaneous calls with the same hash, only one gets the user.
+   */
+  claim(tokenHash: string): Promise<string | null>;
+  /** Deletes the ticket of the user (EC-M1-14). */
+  deleteForUser(userId: string): Promise<void>;
+  /** Deletes the tickets that expired before `now` (RNF-26). */
+  purgeExpired(now: Instant): Promise<void>;
+}
+
 /** Failed login attempts per email, keyed by the HMAC-SHA256 of the email (plan §3.9, §4.1.3). */
 export interface LoginThrottleRepository {
   /** Seconds left of the wait, rounded up; `0` when there is none. */
@@ -76,8 +96,6 @@ export interface LoginThrottleRepository {
   recordFailure(emailHmac: string): Promise<void>;
   /** Forgets the failures of that email. */
   reset(emailHmac: string): Promise<void>;
-  /** `true` when no alert went out in the last hour, and records this one. Atomic. */
-  claimAlert(emailHmac: string): Promise<boolean>;
 }
 
 export type CategoryKind = 'expense' | 'income';
@@ -297,6 +315,7 @@ export interface Repositories {
   emailLinks: EmailLinkRepository;
   emailSendLog: EmailSendLogRepository;
   loginThrottle: LoginThrottleRepository;
+  signupTickets: SignupTicketRepository;
   users: UserRepository;
   marketRates: MarketRateRepository;
   currencies: CurrencyRepository;
@@ -419,17 +438,18 @@ export interface PeriodTotals {
 /** Reads of the dashboard for the user bound to the transaction (RN-09). */
 export interface DashboardRepository {
   /**
-   * Totals of two inclusive date ranges in one query: each movement is converted with its stored
-   * rates (RN-05) and what RN-02 leaves out does not count. A movement dated before the initial
-   * balance of its account still counts (RN-12).
+   * Totals of two inclusive date ranges and the month (`YYYY-MM`) of the first movement or the
+   * first initial balance (`null` without any), all in one statement: each movement is converted
+   * with its stored rates (RN-05) and what RN-02 leaves out does not count. A movement dated
+   * before the initial balance of its account still counts (RN-12).
    */
   totals(
     current: { from: LocalDate; to: LocalDate },
     previous: { from: LocalDate; to: LocalDate },
     base: string,
-  ): Promise<{ current: PeriodTotals; previous: PeriodTotals }>;
-  /** Month (`YYYY-MM`) of the first movement or the first initial balance, or `null` without any. */
-  firstMonth(): Promise<string | null>;
+  ): Promise<{ current: PeriodTotals; previous: PeriodTotals; firstMonth: string | null }>;
+  /** Ids of the blocks the user hid and the base currency, in one query; `null` without settings. */
+  settings(): Promise<{ hiddenBlocks: string[]; baseCurrency: string } | null>;
 }
 
 // ---------- Monedas y tipo de cambio (M3) ----------
@@ -453,6 +473,8 @@ export interface MarketRateRepository {
   upsertIfNewer(rate: MarketRateRow): Promise<void>;
   /** Row of the most recent day of that kind, or null. */
   latest(kind: MarketRateKind): Promise<MarketRateRow | null>;
+  /** `latest` of every kind in one query; a kind without rows is `null`. */
+  latestAll(): Promise<Record<MarketRateKind, MarketRateRow | null>>;
   /** Days of the range, both ends included, in ascending order. */
   series(kind: MarketRateKind, from: LocalDate, to: LocalDate): Promise<MarketRateRow[]>;
 }
@@ -1139,6 +1161,8 @@ export interface GoalAllocationRepository {
   insert(event: NewAllocationEvent): Promise<void>;
   /** Σ of the events on the account, one item per goal. */
   earmarkedByAccount(accountId: string): Promise<GoalEarmark[]>;
+  /** `earmarkedByAccount` of several accounts in one query; an account without events has `[]`. */
+  earmarkedByAccounts(accountIds: string[]): Promise<Map<string, GoalEarmark[]>>;
   /** Σ of the events of the goal, one item per account. */
   earmarkedByGoal(goalId: string): Promise<AccountEarmark[]>;
   /** The events of the goal plus the ledger entries of its dedicated account (RF-M12-07). */

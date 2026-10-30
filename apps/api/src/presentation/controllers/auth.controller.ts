@@ -7,7 +7,7 @@ import type {
   SignInInput,
   SignUpInput,
 } from '@finanzas/contracts';
-import type { Request, RequestHandler, Response } from 'express';
+import type { CookieOptions, Request, RequestHandler, Response } from 'express';
 
 import { AppError } from '../../application/errors.js';
 import type { AuthGateway, CreatedSession } from '../../application/ports/auth-gateway.js';
@@ -30,6 +30,16 @@ export interface AuthControllerDeps {
 
 const COOKIE_NAME = '__Secure-better-auth.session_token';
 
+/** Cookie of the registration ticket (RF-M1-18, plan §4.1.2). */
+const TICKET_COOKIE_NAME = '__Secure-signup-ticket';
+const TICKET_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax',
+  path: '/api/auth',
+};
+const TICKET_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 const safeDecode = (value: string): string | null => {
   try {
     return decodeURIComponent(value);
@@ -38,23 +48,32 @@ const safeDecode = (value: string): string | null => {
   }
 };
 
-/** The raw token of the session cookie (`<token>.<signature>`), or `null` without one. */
-const sessionTokenOf = (req: Request): string | null => {
+/** The decoded value of the cookie with that name, or `null` without one. */
+const cookieOf = (req: Request, name: string): string | null => {
   const header = req.headers.cookie;
   if (header === undefined) {
     return null;
   }
   for (const part of header.split(';')) {
     const separator = part.indexOf('=');
-    if (separator === -1 || part.slice(0, separator).trim() !== COOKIE_NAME) {
+    if (separator === -1 || part.slice(0, separator).trim() !== name) {
       continue;
     }
-    const signed = safeDecode(part.slice(separator + 1).trim()) ?? '';
-    const dot = signed.indexOf('.');
-    const token = dot === -1 ? signed : signed.slice(0, dot);
-    return token.length > 0 ? token : null;
+    const value = safeDecode(part.slice(separator + 1).trim()) ?? '';
+    return value.length > 0 ? value : null;
   }
   return null;
+};
+
+/** The raw token of the session cookie (`<token>.<signature>`), or `null` without one. */
+const sessionTokenOf = (req: Request): string | null => {
+  const signed = cookieOf(req, COOKIE_NAME);
+  if (signed === null) {
+    return null;
+  }
+  const dot = signed.indexOf('.');
+  const token = dot === -1 ? signed : signed.slice(0, dot);
+  return token.length > 0 ? token : null;
 };
 
 /** The session `requireSession` left in the request. */
@@ -74,6 +93,7 @@ export interface AuthController {
   signIn: RequestHandler;
   resendConfirmation: RequestHandler;
   confirm: RequestHandler;
+  confirmationStatus: RequestHandler;
   forgotPassword: RequestHandler;
   resetPassword: RequestHandler;
   changePassword: RequestHandler;
@@ -91,14 +111,18 @@ export function createAuthController({
   return {
     async signUp(req, res) {
       const body = req.body as SignUpInput;
-      const result = await authService.signUp({
+      const { status, ticket } = await authService.signUp({
         name: body.name,
         email: body.email,
         password: body.password,
         termsAccepted: body.acceptTerms,
         timezone: body.timezone,
       });
-      res.status(202).json(result);
+      res.cookie(TICKET_COOKIE_NAME, ticket, {
+        ...TICKET_COOKIE_OPTIONS,
+        maxAge: TICKET_COOKIE_MAX_AGE_MS,
+      });
+      res.status(202).json({ status });
     },
 
     async signIn(req, res) {
@@ -122,11 +146,26 @@ export function createAuthController({
 
     async confirm(req, res) {
       const { token } = req.body as ConfirmInput;
+      const result = await authService.confirm(token);
+      res.status(200).json(result);
+    },
+
+    async confirmationStatus(req, res) {
+      const ticket = cookieOf(req, TICKET_COOKIE_NAME);
+      if (ticket === null) {
+        res.status(200).json({ status: 'pending' });
+        return;
+      }
       const current = sessionTokenOf(req);
       const open = current === null ? null : await sessions.getSession(current);
-      const result = await authService.confirm(token, open?.sessionId);
+      const result = await authService.confirmationStatus(ticket, open?.sessionId);
+      if (result.status === 'pending') {
+        res.status(200).json({ status: 'pending' });
+        return;
+      }
       setSessionCookie(res, result.session);
-      res.status(200).json({ next: result.next });
+      res.clearCookie(TICKET_COOKIE_NAME, TICKET_COOKIE_OPTIONS);
+      res.status(200).json({ status: result.status, next: result.next });
     },
 
     async forgotPassword(req, res) {

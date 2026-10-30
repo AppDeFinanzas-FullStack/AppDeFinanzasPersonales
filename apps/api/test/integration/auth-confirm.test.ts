@@ -3,12 +3,16 @@ import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { AppError } from '../../src/application/errors.js';
-import { createAuthService } from '../../src/application/services/auth.service.js';
+import {
+  type AuthService,
+  createAuthService,
+} from '../../src/application/services/auth.service.js';
 import { createBetterAuthGateway } from '../../src/infrastructure/auth/better-auth.js';
 import { createEmailLinkRepository } from '../../src/infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../../src/infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { createUser, deleteCreatedUsers } from '../factories/user.factory.js';
@@ -20,11 +24,12 @@ import { disconnectTestPrisma, testPrisma } from './setup/db.js';
  * - `createAuthService({ uow, auth, hmacSecret, webOrigin })` (TASK-054) with:
  *   - `resendConfirmation({ email } | { token })`, which always resolves (the neutral 202), and
  *     sends a new `confirm` email only within the limits of 60 s and 5 per hour;
- *   - `confirm(token, currentSessionId?)`, which resolves `{ next: 'onboarding', session }` with the
- *     new session `{ sessionId, token, cookie }` of the gateway, or rejects with an `AppError`
- *     `LINK_INVALID` (data `{ canResend }`) or `LINK_ALREADY_USED`;
+ *   - `confirm(token)`, which consumes the link, marks the email as verified and resolves
+ *     `{ status: 'confirmed' }` without opening any session (RF-M1-18, TASK-265), or rejects with an
+ *     `AppError` `LINK_INVALID` (data `{ canResend }`) or `LINK_ALREADY_USED`;
  * - the repository of `email_send_log`, `createEmailSendLogRepository(tx)`, exposed as
- *   `repos.emailSendLog` next to the others over one `UnitOfWork`;
+ *   `repos.emailSendLog` next to the others over one `UnitOfWork`
+ *   (`signupTickets` among them);
  * - the real Better Auth gateway over the test database.
  * As in the sign-up, the key of `email_send_log` is the lowercase hex HMAC-SHA256 of the normalized
  * email under `hmacSecret`. Time is the database's: tests move it by editing the rows.
@@ -42,14 +47,21 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
+
+/** The confirmation these tests drive, as described above. */
+interface ConfirmOperations {
+  confirm(token: string): Promise<{ status: 'confirmed' }>;
+}
+
 const service = createAuthService({
   uow,
   auth,
   hmacSecret: HMAC_SECRET,
   webOrigin: WEB_ORIGIN,
-});
+}) as ConfirmOperations & AuthService;
 
 const usedEmails = new Set<string>();
 
@@ -278,7 +290,7 @@ describe('confirmation resend: by token', () => {
     const fresh = tokens[1] as string;
     expect(await activeLinkHashes(userId)).toEqual([sha256(fresh)]);
     const result = await service.confirm(fresh);
-    expect(result.next).toBe('onboarding');
+    expect(result).toEqual({ status: 'confirmed' });
   });
 
   it('RF-M1-05 a resend by token respects the 60 second limit of the account', async () => {
@@ -310,18 +322,27 @@ describe('confirm', () => {
     expect(await sessionIdsOf(userId)).toEqual([]);
   });
 
-  it('RF-M1-04 confirming marks the email as verified and opens a session', async () => {
+  it('RF-M1-18 confirming marks the email as verified, answers confirmed and opens no session', async () => {
     const { email, userId } = await pendingAccount();
     const token = await latestToken(email);
 
     const result = await service.confirm(token);
 
-    expect(result.next).toBe('onboarding');
+    expect(result).toEqual({ status: 'confirmed' });
     expect((await userOf(email)).verified).toBe(true);
-    expect(await sessionIdsOf(userId)).toEqual([result.session.sessionId]);
-    const resolved = await auth.getSession(result.session.token);
-    expect(resolved?.userId).toBe(userId);
-    expect(result.session.cookie).toMatch(/HttpOnly/i);
+    expect(await sessionIdsOf(userId)).toEqual([]);
+  });
+
+  it('RF-M1-18 confirming does not touch the sessions other users have open', async () => {
+    const { email } = await pendingAccount();
+    const token = await latestToken(email);
+    const other = await createUser();
+    const elsewhere = await auth.createSession(other.id);
+
+    await service.confirm(token);
+
+    expect(await sessionIdsOf(other.id)).toEqual([elsewhere.sessionId]);
+    expect((await auth.getSession(elsewhere.token))?.userId).toBe(other.id);
   });
 
   it('RF-M1-04 a failed confirmation leaves the account unconfirmed and without a session', async () => {
@@ -366,60 +387,20 @@ describe('confirm', () => {
 
     const result = await service.confirm(fresh);
 
-    expect(result.next).toBe('onboarding');
+    expect(result).toEqual({ status: 'confirmed' });
     expect((await userOf(email)).verified).toBe(true);
   });
 
   it('EC-M1-02 a link already used with the account active gives LINK_ALREADY_USED and opens no session', async () => {
     const { email, userId } = await pendingAccount();
     const token = await latestToken(email);
-    const first = await service.confirm(token);
+    await service.confirm(token);
 
     const error = await rejectionOf(service.confirm(token));
 
     expect(error.code).toBe('LINK_ALREADY_USED');
     expect(error.status).toBe(409);
     expect((await userOf(email)).verified).toBe(true);
-    expect(await sessionIdsOf(userId)).toEqual([first.session.sessionId]);
-  });
-
-  it('EC-M1-11 confirming A on a device with the session of B closes B and opens A', async () => {
-    const { email, userId } = await pendingAccount();
-    const token = await latestToken(email);
-    const other = await createUser();
-    const deviceSession = await auth.createSession(other.id);
-
-    const result = await service.confirm(token, deviceSession.sessionId);
-
-    expect(await auth.getSession(deviceSession.token)).toBeNull();
-    expect(await sessionIdsOf(other.id)).not.toContain(deviceSession.sessionId);
-    expect(await sessionIdsOf(userId)).toEqual([result.session.sessionId]);
-    expect((await auth.getSession(result.session.token))?.userId).toBe(userId);
-    expect((await userOf(email)).verified).toBe(true);
-  });
-
-  it('EC-M1-11 only the session of B on that device is closed, not its other devices', async () => {
-    const { email } = await pendingAccount();
-    const token = await latestToken(email);
-    const other = await createUser();
-    const deviceSession = await auth.createSession(other.id);
-    const elsewhere = await auth.createSession(other.id);
-
-    await service.confirm(token, deviceSession.sessionId);
-
-    expect(await sessionIdsOf(other.id)).toEqual([elsewhere.sessionId]);
-    expect((await auth.getSession(elsewhere.token))?.userId).toBe(other.id);
-  });
-
-  it('EC-M1-11 a failed confirmation keeps the session of B on the device', async () => {
-    const { email } = await pendingAccount();
-    const token = await latestToken(email);
-    await expireLink(token);
-    const other = await createUser();
-    const deviceSession = await auth.createSession(other.id);
-
-    await rejectionOf(service.confirm(token, deviceSession.sessionId));
-
-    expect((await auth.getSession(deviceSession.token))?.userId).toBe(other.id);
+    expect(await sessionIdsOf(userId)).toEqual([]);
   });
 });

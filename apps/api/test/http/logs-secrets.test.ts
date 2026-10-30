@@ -116,6 +116,25 @@ const sessionCookieOf = (res: { headers: Record<string, unknown> }): string => {
   return header.split(';')[0] ?? '';
 };
 
+const TICKET_COOKIE = '__Secure-signup-ticket';
+
+/** The `name=value` pair of the signup ticket cookie that the sign-up sets (RF-M1-18). */
+const ticketCookieOf = (res: { headers: Record<string, unknown> }): string => {
+  const raw = res.headers['set-cookie'];
+  const list = typeof raw === 'string' ? [raw] : Array.isArray(raw) ? (raw as unknown[]) : [];
+  const header = list.find(
+    (c): c is string => typeof c === 'string' && c.startsWith(`${TICKET_COOKIE}=`),
+  );
+  if (header === undefined) throw new Error('the sign-up sets no ticket cookie');
+  return header.split(';')[0] ?? '';
+};
+
+/** Every form in which the signup ticket can show up: the pair, its value and the decoded value. */
+const ticketSecrets = (ticket: string): string[] => {
+  const encoded = ticket.slice(`${TICKET_COOKIE}=`.length);
+  return [ticket, encoded, decodeURIComponent(encoded)].filter((value) => value.length >= 8);
+};
+
 /** Every form in which a session cookie can show up: the pair, the value, its token and signature. */
 const cookieSecrets = (cookie: string): string[] => {
   const encoded = cookie.slice(`${COOKIE_NAME}=`.length);
@@ -180,7 +199,14 @@ async function register(email: string) {
   const token = await latestToken(email, 'confirm');
   const confirmed = await post('/api/auth/confirm', { token });
   expect(confirmed.status).toBe(200);
-  return { token, cookie: sessionCookieOf(confirmed) };
+  // The link only confirms; the session comes from the ticket of the sign-up (RF-M1-18).
+  const ticket = ticketCookieOf(up);
+  const opened = await request(app)
+    .post('/api/auth/confirmation/status')
+    .set('Origin', WEB_ORIGIN)
+    .set('Cookie', ticket);
+  expect(opened.status).toBe(200);
+  return { token, ticket, cookie: sessionCookieOf(opened) };
 }
 
 /** The structured request lines the API writes: one JSON object per finished request. */
@@ -204,13 +230,14 @@ describe('RNF-17 los logs no contienen contraseñas, tokens de enlaces ni cookie
   it('RNF-17 el registro (sign-up y confirmación) no deja la contraseña, el token del enlace ni la cookie en los logs', async () => {
     const email = freshEmail();
 
-    const { token, cookie } = await register(email);
+    const { token, ticket, cookie } = await register(email);
 
     const logs = await settled();
-    expectNoSecrets(logs, [PASSWORD, token, ...cookieSecrets(cookie)]);
+    expectNoSecrets(logs, [PASSWORD, token, ...ticketSecrets(ticket), ...cookieSecrets(cookie)]);
     const paths = requestLines(logs).map((line) => line['path']);
     expect(paths).toContain('/api/auth/sign-up');
     expect(paths).toContain('/api/auth/confirm');
+    expect(paths).toContain('/api/auth/confirmation/status');
   });
 
   it('RNF-17 el registro de un correo que ya existe tampoco deja la contraseña en los logs', async () => {
@@ -358,6 +385,7 @@ describe('RNF-17 qué se registra de cada petición', () => {
         'durationMs',
         'method',
         'path',
+        'queries',
         'status',
         'traceId',
       ]);
@@ -365,6 +393,8 @@ describe('RNF-17 qué se registra de cada petición', () => {
       expect(typeof entry['path']).toBe('string');
       expect(typeof entry['status']).toBe('number');
       expect(typeof entry['durationMs']).toBe('number');
+      expect(Number.isInteger(entry['queries'])).toBe(true);
+      expect(entry['queries'] as number).toBeGreaterThanOrEqual(0);
     }
   });
 

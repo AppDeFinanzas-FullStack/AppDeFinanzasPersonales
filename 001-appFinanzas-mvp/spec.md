@@ -1,6 +1,6 @@
 # Especificación Funcional — App de Finanzas Personales
 
-**Versión:** 1.4 · **Fecha:** 2026-10-16 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
+**Versión:** 1.5 · **Fecha:** 2026-10-28 · **Alcance:** V1 completa (V1.0, V1.1, V1.2)
 **Estado:** V1.0 Aprobada · V1.1 Aprobada · V1.2 Aprobada (2026-10-16)
 **Documentos relacionados:** `docs/constitution.md` (principios innegociables) · `plan.md` y `tasks.md` (en esta misma carpeta)
 
@@ -117,7 +117,7 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 3. Al enviar, ve siempre el mismo mensaje: "Si el correo es válido, te enviamos un enlace para confirmar tu cuenta".
 4. Si el correo es nuevo, recibe un enlace de confirmación válido por 24 h. Si el correo tenía un registro Sin confirmar, se reemplazan el nombre y la contraseña, se invalida el enlace anterior y se envía uno nuevo. Si el correo ya tenía una cuenta Activa, el dueño recibe un aviso: "Alguien intentó registrarse con tu correo. ¿Querías iniciar sesión?".
 5. Registrarse NUNCA abre sesión. En todos los casos ve "Revisa tu correo", con la opción de reenviar.
-6. Al abrir el enlace, la cuenta queda Activa, se inicia la sesión y comienza el Onboarding (M10). Si en ese dispositivo había una sesión de otro usuario, esa se cierra y su borrador se descarta.
+6. Al abrir el enlace, la cuenta queda Activa. El enlace solo confirma la cuenta: no abre sesión. La app donde el usuario se registró, si sigue abierta en "Revisa tu correo", detecta la confirmación, inicia la sesión y comienza sola el Onboarding (M10), aunque el enlace se haya abierto en otro dispositivo. Si en ese navegador había una sesión de otro usuario, esa se cierra y su borrador se descarta. Si ya no hay una app esperando, el usuario inicia sesión con su correo y su contraseña.
 
 **Inicio de sesión**
 1. El visitante ingresa su correo y su contraseña.
@@ -179,7 +179,7 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 - **RF-M1-05:** El sistema DEBE permitir reenviar la confirmación una vez cada 60 segundos y como máximo 5 veces por hora. Cada reenvío invalida el enlace anterior.
 - **RF-M1-06:** El sistema DEBE descartar los registros sin confirmar a los 7 días del último registro con ese correo. Un nuevo registro reinicia el plazo.
 - **RF-M1-07:** El sistema DEBE mantener la sesión durante 30 días desde la última acción del usuario (las peticiones en segundo plano no cuentan) y permitir sesiones simultáneas en varios dispositivos.
-- **RF-M1-08:** El sistema DEBE contar los intentos fallidos por correo, exista o no una cuenta con ese correo. Tras 5 fallos seguidos exige 1 minuto de espera; tras 10, 15 minutos, y desde ahí cada nuevo fallo vuelve a exigir 15 minutos. El contador se reinicia con un inicio de sesión exitoso o tras 1 hora sin intentos. Debe mostrar el tiempo restante. Si el correo tiene cuenta, envía un correo de aviso al dueño, como máximo uno por hora. El sistema NUNCA bloquea la cuenta de forma permanente.
+- **RF-M1-08:** El sistema DEBE contar los intentos fallidos por correo, exista o no una cuenta con ese correo. Tras 5 fallos seguidos exige 1 minuto de espera; tras 10, 15 minutos, y desde ahí cada nuevo fallo vuelve a exigir 15 minutos. El contador se reinicia con un inicio de sesión exitoso o tras 1 hora sin intentos. Debe mostrar el tiempo restante. No envía ningún correo por los intentos fallidos. El sistema NUNCA bloquea la cuenta de forma permanente.
 - **RF-M1-09:** El enlace de recuperación DEBE vencer en 1 hora y servir una sola vez. Pedir uno nuevo invalida el anterior.
 - **RF-M1-10:** Al cambiar o recuperar la contraseña, el sistema DEBE revocar todas las demás sesiones y enviar un correo de confirmación.
 - **RF-M1-11:** El sistema DEBE detectar la zona horaria del dispositivo al registrarse (Bolivia, si no puede detectarla) y permitir cambiarla en el perfil.
@@ -187,8 +187,9 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 - **RF-M1-13:** El sistema NO DEBE permitir cambiar el correo de la cuenta.
 - **RF-M1-14:** La exportación DEBE incluir todos los datos del usuario, archivados incluidos, y generarse en el momento, sin pasar por el correo. Los CSV DEBEN estar en UTF-8, con coma como separador y números con punto decimal y sin separador de miles (1234.56). Toda celda que empiece con `=`, `+`, `-` o `@` DEBE neutralizarse para que no se ejecute como fórmula.
 - **RF-M1-15:** La eliminación de la cuenta DEBE exigir la contraseña y la palabra ELIMINAR. Debe borrar todos los datos del usuario de inmediato, revocar todas las sesiones y enviar un correo de confirmación. Si hay un proceso automático del usuario en curso (recurrente, cierre de período), se cancela y nada se crea después de la eliminación.
-- **RF-M1-16:** Los únicos correos que envía el sistema son: confirmación, intento de registro con un correo existente, recuperación, cambio de contraseña, intentos fallidos y eliminación de la cuenta.
+- **RF-M1-16:** Los únicos correos que envía el sistema son: confirmación, intento de registro con un correo existente, recuperación, cambio de contraseña y eliminación de la cuenta.
 - **RF-M1-17:** El aviso de intento de registro con un correo existente DEBE enviarse como máximo una vez por hora por cuenta.
+- **RF-M1-18:** El enlace de confirmación DEBE servir solo para confirmar la cuenta: no abre sesión ni lleva al Onboarding. La app donde el usuario se registró, mientras siga abierta en "Revisa tu correo" (en la misma pestaña, en otra del navegador o tras recuperar el foco), DEBE detectar la confirmación, abrir la sesión y continuar sola al Onboarding, aunque el enlace se haya abierto en otro dispositivo u otro navegador. Si ya no hay una app esperando, la página del enlace DEBE indicar que la cuenta quedó confirmada y ofrecer iniciar sesión.
 
 #### 2.1.4 Casos borde y excepciones
 - **EC-M1-01:** Se abre un enlace de confirmación vencido o invalidado. El sistema muestra "Este enlace ya no es válido" y ofrece reenviar.
@@ -201,8 +202,10 @@ Estas reglas aplican a todos los módulos y prevalecen sobre cualquier regla de 
 - **EC-M1-08:** La contraseña de la eliminación es incorrecta, o la palabra no es exactamente ELIMINAR. No se elimina nada y se explica el motivo.
 - **EC-M1-09:** Alguien se registra con un correo que tiene un registro Sin confirmar (aún no descartado). Se reemplazan el nombre y la contraseña, se invalida el enlace anterior, se envía uno nuevo y el plazo de 7 días vuelve a empezar.
 - **EC-M1-10:** Se recupera la contraseña de una cuenta Sin confirmar. Al definir la contraseña nueva, la cuenta queda Activa.
-- **EC-M1-11:** Se abre el enlace de confirmación de A en un dispositivo con la sesión de B. Se cierra la sesión de B, su borrador se descarta y se inicia la de A.
+- **EC-M1-11:** Se confirma el correo de A mientras la app que lo espera está en un navegador con la sesión de B abierta. Se cierra la sesión de B, su borrador se descarta y se inicia la de A.
 - **EC-M1-12:** Hay intentos fallidos con un correo sin cuenta. Se aplica la misma espera que a uno con cuenta, para no revelar si existe.
+- **EC-M1-13:** El usuario cierra la app donde se registró antes de confirmar. Al abrir el enlace, nada continúa solo: la página del enlace dice que la cuenta quedó confirmada y el usuario inicia sesión con su correo y su contraseña.
+- **EC-M1-14:** Una cuenta Sin confirmar recupera su contraseña (EC-M1-10), o alguien se registra de nuevo con su correo (EC-M1-09). La app que esperaba desde el registro anterior deja de continuar sola: solo el enlace de ese mismo registro puede abrirle la sesión.
 
 #### 2.1.5 Criterios de aceptación
 ```gherkin
@@ -224,7 +227,13 @@ Escenario: Espera progresiva tras intentos fallidos
   Dado que hubo 5 intentos fallidos seguidos para "ana@mail.com"
   Cuando se intenta de nuevo antes de 1 minuto
   Entonces el intento se rechaza mostrando el tiempo restante
-  Y la dueña recibe un correo de aviso
+  Y no se envía ningún correo de aviso
+
+Escenario: La pestaña de registro continúa sola al confirmar el correo
+  Dado que Ana se registró y espera en "Revisa tu correo"
+  Cuando abre el enlace de confirmación desde su correo, en otra pestaña o en otro dispositivo
+  Entonces la página del enlace solo le dice que la cuenta quedó confirmada
+  Y la pestaña donde se registró continúa sola al Onboarding con la sesión iniciada
 
 Escenario: Recuperar la contraseña cierra las demás sesiones
   Dado que Ana tiene sesión en su celular y en su computadora
@@ -260,6 +269,8 @@ Escenario: Eliminar la cuenta
 3. La barra lateral se puede contraer a solo íconos. Con el puntero encima o con el foco del teclado se ve el nombre.
 
 **Cabecera (todos los tamaños)**
+- En las pantallas internas (las que no son la raíz de una pestaña), un botón "Volver" antes del título.
+- El logo de la app, antes del título.
 - El título de la pantalla.
 - Una ficha con el dólar en Bs de la referencia en uso (por ejemplo "$ 10,25"), con un distintivo si es el valor manual, o "$ —" si no hay ninguna tasa. Lleva al panel de Tipo de cambio.
 - Desde la V1.1, la campana con el número de avisos sin leer.
@@ -285,11 +296,14 @@ Escenario: Eliminar la cuenta
 - **RF-M2-10:** Todo formulario con datos sin guardar DEBE conservarlos como borrador en el mismo dispositivo al cambiar de pestaña, al vencer la sesión o al quedar bloqueado sin conexión. El borrador se descarta con "Limpiar" o "Cancelar", al cerrar la app o la sesión, o si entra otro usuario.
 - **RF-M2-11:** Al restaurar un borrador, o al aplicar un atajo, cuya cuenta o categoría ya no está activa, ese campo DEBE vaciarse y marcarse para elegir otra.
 - **RF-M2-12:** Las secciones de "Más" y de la barra lateral sin módulos liberados DEBEN ocultarse.
+- **RF-M2-13:** Toda pantalla que no sea la raíz de una pestaña DEBE mostrar en la cabecera un botón "Volver", antes del título. Lleva a la pantalla anterior de la app; si el usuario llegó directo por un enlace, a la pantalla de la que cuelga. En el formato de barra inferior, las pantallas de "Más" (Presupuestos, Metas, Deudas, Recurrentes, Categorías, Tipo de cambio, Perfil y Ajustes) cuelgan de "Más" y también lo llevan; en la barra lateral son raíces y no lo llevan. Volver NO descarta los borradores (RF-M2-10).
+- **RF-M2-14:** La app DEBE mostrar su logo como ícono de la pestaña del navegador, en las pantallas de acceso y registro, y en la cabecera de cada pantalla, antes del título. El diseño y la disposición exacta se registran en `docs/design-direction.md` al incorporar el logo.
 
 #### 2.2.4 Casos borde y excepciones
 - **EC-M2-01:** Otra persona inicia sesión tras el vencimiento de la sesión en el mismo dispositivo. El borrador del usuario anterior se descarta.
 - **EC-M2-02:** La conexión se pierde a mitad de un guardado. Aparece el bloqueo. Al reconectar, el usuario ve si el movimiento se guardó o no, y nunca se guarda dos veces (RN-10).
 - **EC-M2-03:** El ancho de la pantalla cambia al girar la tablet. La navegación cambia de formato sin perder el estado.
+- **EC-M2-04:** Se abre una pantalla interna desde un enlace directo, sin pantallas previas en la app. "Volver" lleva a la pantalla de la que cuelga y no saca al usuario de la app.
 
 #### 2.2.5 Criterios de aceptación
 ```gherkin
@@ -310,6 +324,17 @@ Escenario: Bloqueo sin conexión conserva el borrador
   Cuando pierde la conexión
   Entonces una pantalla de bloqueo tapa la app
   Y al volver la conexión encuentra "35" en Registrar
+
+Escenario: Volver desde una pantalla interna
+  Dado un usuario en el detalle de una cuenta, a la que llegó desde la lista de Cuentas
+  Cuando toca "Volver" en la cabecera
+  Entonces regresa a la lista de Cuentas
+  Y la lista conserva su posición
+
+Escenario: El logo acompaña a la app
+  Dado un usuario con la app abierta
+  Entonces la pestaña del navegador muestra el logo de la app
+  Y la cabecera de cada pantalla muestra el logo antes del título
 ```
 
 ---
@@ -1522,7 +1547,7 @@ Escenario: Sin duplicados
 
 ### 3.9 Auditoría y retención
 - **RNF-24:** En la V1 no existe un historial de ediciones por movimiento.
-- **RNF-25:** Los eventos de seguridad (intentos fallidos, cambio de contraseña, eliminación de la cuenta) DEBEN notificarse al dueño por correo.
+- **RNF-25:** Los eventos de seguridad (cambio de contraseña y eliminación de la cuenta) DEBEN notificarse al dueño por correo.
 - **RNF-26:** Retención:
   - avisos: 90 días (salvo los que esperan decisión);
   - registros sin confirmar: 7 días;
@@ -1531,6 +1556,9 @@ Escenario: Sin duplicados
 
 ### 3.10 Límites por usuario
 - **RNF-28:** Cada usuario tiene como máximo 50 cuentas, 300 categorías, 50 metas, 200 deudas, 100 presupuestos, 100 reglas recurrentes y 12 atajos. Al llegar a un límite, se informa y no se crea el elemento.
+
+### 3.11 Rendimiento de cada pestaña
+- **RNF-29:** Cambiar de pestaña DEBE mostrar sus datos principales en menos de 2 segundos en una conexión 4G, con el servicio ya activo y 5.000 movimientos. Amplía RNF-03 (Inicio) a todas las pestañas.
 
 ---
 
@@ -1543,3 +1571,4 @@ Escenario: Sin duplicados
 | 1.2 | 2026-10-16 | Ajustes por las fuentes reales de tasas (revisión técnica del plan): el oficial del BCB es un solo valor (TCO); en el paralelo, "venta" es el mayor de los dos valores publicados y "compra" el menor; los días sin compra o venta usan la mediana de ese día; la tasa mínima de una moneda agregada es Bs 0,01. |
 | 1.3 | 2026-10-16 | Un nuevo registro con un correo Sin confirmar reinicia el plazo de 7 días para descartarlo. Un movimiento con fecha pasada guarda la tasa de la referencia y del valor manual que el usuario tenía en uso ese día (el historial guarda también los cambios de referencia). El día de una tasa de mercado es el día calendario de Bolivia. El aviso del valor manual se muestra en el panel de Tipo de cambio y como distintivo en la ficha del dólar. Una transferencia con fecha pasada precarga los valores de ese día. Cuentas: el gráfico de saldo usa el filtro de fechas del detalle; el saldo inicial tiene los límites de RF-M6-01; un saldo a favor de tarjeta reduce la deuda en tarjetas; reglas para cambiar el tipo de una cuenta. Una categoría usada por un presupuesto o una regla no se elimina (se archiva). Nombre de atajo de 1 a 30 caracteres. Eliminar el último pago de una deuda restablece también su interés. Las reglas recurrentes tienen nombre (1 a 40). |
 | 1.4 | 2026-10-16 | El aviso que acompaña a una regla recurrente pausada automáticamente (al archivar o eliminar su cuenta, o al archivar su categoría) es del tipo "Pendiente de recurrente", y respeta su configuración. |
+| 1.5 | 2026-10-28 | Se elimina el correo de aviso por intentos fallidos (RF-M1-08, RF-M1-16, RNF-25); la espera progresiva se mantiene. El enlace del correo solo confirma la cuenta y la app que espera continúa sola al Onboarding, también si el enlace se abre en otro dispositivo (RF-M1-18, EC-M1-11, EC-M1-13, EC-M1-14). Botón "Volver" en la cabecera de las pantallas internas (RF-M2-13, EC-M2-04) y logo de la app (RF-M2-14). Rendimiento de cada pestaña (RNF-29). 3 escenarios Gherkin nuevos (56 en total). |

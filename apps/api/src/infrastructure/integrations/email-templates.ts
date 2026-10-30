@@ -13,7 +13,6 @@ export const EMAIL_KINDS = [
   'register_attempt',
   'reset',
   'password_changed',
-  'login_alert',
   'account_deleted',
 ] as const satisfies readonly EmailKind[];
 
@@ -60,10 +59,6 @@ export const emailTemplates: Record<EmailKind, (payload: EmailPayload) => Render
   password_changed: () =>
     build('Cambió la contraseña de tu cuenta', [
       'La contraseña de tu cuenta fue cambiada. Si no fuiste tú, recupera tu contraseña de inmediato.',
-    ]),
-  login_alert: () =>
-    build('Intentos fallidos de inicio de sesión', [
-      'Detectamos varios intentos fallidos de inicio de sesión en tu cuenta. Si no fuiste tú, cambia tu contraseña.',
     ]),
   account_deleted: () =>
     build('Tu cuenta fue eliminada', [
