@@ -3,7 +3,6 @@ export type EmailKind =
   | 'register_attempt'
   | 'reset'
   | 'password_changed'
-  | 'login_alert'
   | 'account_deleted';
 
 export interface EmailPayload {

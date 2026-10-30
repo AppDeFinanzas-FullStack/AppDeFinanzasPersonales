@@ -10,6 +10,7 @@ import { createMaintenanceStore } from '../../src/infrastructure/persistence/mai
 import { createEmailLinkRepository } from '../../src/infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { disconnectTestPrisma, testPrisma } from './setup/db.js';
@@ -21,7 +22,8 @@ import { disconnectTestPrisma, testPrisma } from './setup/db.js';
  * - `createMaintenance({ store, clock })`: the `maintenance` job, a `JobHandler`
  *   (`() => Promise<void>`). It deletes the unconfirmed `auth_user` rows whose `registered_at` is
  *   more than 7 days before `clock.now()`, the `email_send_log` rows older than 24 h and the
- *   `login_throttle` rows whose last activity (`last_failure_at`) is more than 1 h old.
+ *   `login_throttle` rows whose last activity (`last_failure_at`) is more than 1 h old, and the
+ *   `signup_ticket` rows whose `expires_at` has passed (24 h after the sign-up, RF-M1-18).
  * Rows are placed in the past relative to the real time, which is also the job's clock.
  */
 const MINUTE = 60_000;
@@ -47,6 +49,7 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
 const service = createAuthService({
@@ -110,6 +113,29 @@ async function insertThrottle(lastFailureAgo: number): Promise<string> {
 async function throttleExists(hmac: string): Promise<boolean> {
   const rows = await db().$queryRaw<{ n: number }[]>`
     SELECT count(*)::int AS n FROM login_throttle WHERE email_hmac = ${hmac}`;
+  return rows[0]?.n === 1;
+}
+
+/**
+ * A `signup_ticket` of a new unconfirmed user, expiring `expiresIn` ms from now (negative: already
+ * expired). Returns its hash.
+ */
+async function insertTicket(
+  expiresIn: number,
+  options: { confirmed?: boolean } = {},
+): Promise<string> {
+  const user = await insertUser({ verified: false, registeredAgo: HOUR });
+  const hash = newHmac();
+  const confirmedAt = options.confirmed === true ? ago(MINUTE) : null;
+  await db().$executeRaw`
+    INSERT INTO signup_ticket (token_hash, user_id, created_at, expires_at, confirmed_at)
+    VALUES (${hash}, ${user.id}::uuid, ${ago(DAY)}, ${ago(-expiresIn)}, ${confirmedAt})`;
+  return hash;
+}
+
+async function ticketExists(hash: string): Promise<boolean> {
+  const rows = await db().$queryRaw<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM signup_ticket WHERE token_hash = ${hash}`;
   return rows[0]?.n === 1;
 }
 
@@ -183,6 +209,20 @@ describe('maintenance: purgas de seguridad', () => {
     await runMaintenance();
     expect(await throttleExists(old)).toBe(false);
     expect(await throttleExists(recent)).toBe(true);
+  });
+
+  it('RF-M1-18 un ticket de registro vencido se borra y uno vigente no', async () => {
+    const expired = await insertTicket(-MINUTE);
+    const current = await insertTicket(HOUR);
+    await runMaintenance();
+    expect(await ticketExists(expired)).toBe(false);
+    expect(await ticketExists(current)).toBe(true);
+  });
+
+  it('RF-M1-18 un ticket vencido y ya confirmado también se borra', async () => {
+    const expired = await insertTicket(-MINUTE, { confirmed: true });
+    await runMaintenance();
+    expect(await ticketExists(expired)).toBe(false);
   });
 
   it('RNF-26 el job se puede correr dos veces seguidas sin error', async () => {

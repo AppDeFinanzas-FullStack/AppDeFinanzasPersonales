@@ -2,11 +2,16 @@ import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { createAuthService } from '../../src/application/services/auth.service.js';
+import {
+  type AuthService,
+  createAuthService,
+  type SignUpInput,
+} from '../../src/application/services/auth.service.js';
 import { createBetterAuthGateway } from '../../src/infrastructure/auth/better-auth.js';
 import { createEmailLinkRepository } from '../../src/infrastructure/persistence/repositories/email-link.repository.js';
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { createUser, deleteCreatedUsers } from '../factories/user.factory.js';
@@ -16,9 +21,11 @@ import { disconnectTestPrisma, testPrisma } from './setup/db.js';
  * The plan fixes `POST /api/auth/sign-up` (§4.1.2) and its concurrency rules (§4.1.3), but not the
  * names of the pieces. These tests use:
  * - `createAuthService({ uow, auth, hmacSecret, webOrigin })` with `signUp({ name, email, password,
- *   termsAccepted })`, which always resolves `{ status: 'check_email' }`;
- * - the repositories `emailOutbox`, `emailLinks`, `loginThrottle` and `users` over one `UnitOfWork`
- *   (`users` also holds `findByEmail`, `createUnconfirmed`, `replaceUnconfirmed` and
+ *   termsAccepted })`, which always resolves `{ status: 'check_email', ticket }`: `ticket` is the
+ *   random value of 32 bytes the controller puts in the `__Secure-signup-ticket` cookie (RF-M1-18,
+ *   TASK-265), new on every call whatever the state of the email;
+ * - the repositories `emailOutbox`, `emailLinks`, `loginThrottle`, `signupTickets` and `users` over
+ *   one `UnitOfWork` (`users` also holds `findByEmail`, `createUnconfirmed`, `replaceUnconfirmed` and
  *   `claimRegisterAttempt`);
  * - the real Better Auth gateway over the test database.
  * The service normalizes the email (trim + lowercase). The key of `email_send_log` is the lowercase
@@ -37,14 +44,31 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailOutbox: createEmailOutboxRepository(tx),
   emailLinks: createEmailLinkRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
+
+/** The sign-up these tests drive, as described above. */
+interface SignUpOperations {
+  signUp(input: SignUpInput): Promise<{ status: 'check_email'; ticket: string }>;
+}
+
 const service = createAuthService({
   uow,
   auth,
   hmacSecret: HMAC_SECRET,
   webOrigin: WEB_ORIGIN,
-});
+}) as SignUpOperations & AuthService;
+
+/** 32 random bytes, in base64url or in hex. */
+const TICKET = /^(?:[A-Za-z0-9_-]{43}|[0-9a-f]{64})$/;
+
+/** The neutral answer of the sign-up (RF-M1-03): `check_email` and a ticket, nothing else. */
+const expectNeutral = (result: { status: string; ticket: string }) => {
+  expect(Object.keys(result).sort()).toEqual(['status', 'ticket']);
+  expect(result.status).toBe('check_email');
+  expect(result.ticket).toMatch(TICKET);
+};
 
 const usedEmails = new Set<string>();
 
@@ -208,7 +232,7 @@ describe('sign-up: new email', () => {
   it('RF-M1-03 a new email gets the neutral response', async () => {
     const result = await signUp(freshEmail());
 
-    expect(result).toEqual({ status: 'check_email' });
+    expectNeutral(result);
   });
 
   it('RF-M1-01 a new user gets the initial data of any user', async () => {
@@ -258,7 +282,7 @@ describe('sign-up: existing active account', () => {
       termsAccepted: true,
     });
 
-    expect(result).toEqual({ status: 'check_email' });
+    expectNeutral(result);
     const after = await onlyUser(owner.email);
     expect(after).toMatchObject({ id: before.id, name: before.name, verified: true });
     expect(await passwordHashOf(owner.id)).toBeNull();
@@ -288,8 +312,8 @@ describe('sign-up: existing active account', () => {
     const first = await signUp(owner.email);
     const second = await signUp(owner.email.toUpperCase());
 
-    expect(first).toEqual({ status: 'check_email' });
-    expect(second).toEqual({ status: 'check_email' });
+    expectNeutral(first);
+    expectNeutral(second);
     expect(await outboxOf(owner.email, 'register_attempt')).toHaveLength(1);
     expect(await sendLogCount(owner.email)).toBe(1);
   });
@@ -395,7 +419,7 @@ describe('sign-up: unconfirmed registration', () => {
     const email = freshEmail();
     await signUp(email);
 
-    expect(await signUp(email)).toEqual({ status: 'check_email' });
+    expectNeutral(await signUp(email));
   });
 
   it('EC-M1-03 a registration discarded after 7 days is treated as a new registration', async () => {
@@ -410,7 +434,7 @@ describe('sign-up: unconfirmed registration', () => {
 
     const result = await signUp(email, { name: 'Segundo' });
 
-    expect(result).toEqual({ status: 'check_email' });
+    expectNeutral(result);
     const second = await onlyUser(email);
     expect(second.id).not.toBe(first.id);
     expect(second).toMatchObject({ name: 'Segundo', verified: false });
@@ -423,7 +447,7 @@ describe('sign-up: unconfirmed registration', () => {
 
     const results = await Promise.all([signUp(email), signUp(email)]);
 
-    expect(results).toEqual([{ status: 'check_email' }, { status: 'check_email' }]);
+    results.forEach(expectNeutral);
     const user = await onlyUser(email);
     const links = await linksOf(user.id);
     expect(links.filter((link) => !link.invalidated && !link.used)).toHaveLength(1);
@@ -441,10 +465,13 @@ describe('sign-up: neutral response', () => {
     const forPending = await signUp(pending);
     const forActive = await signUp(owner.email);
 
-    expect(forNew).toEqual({ status: 'check_email' });
-    expect(forPending).toEqual(forNew);
-    expect(forActive).toEqual(forNew);
-    expect(JSON.stringify(forActive)).toBe(JSON.stringify(forNew));
+    for (const result of [forNew, forPending, forActive]) {
+      expectNeutral(result);
+    }
+    const withoutTicket = ({ status }: { status: string }) => ({ status });
+    expect(withoutTicket(forPending)).toEqual(withoutTicket(forNew));
+    expect(withoutTicket(forActive)).toEqual(withoutTicket(forNew));
+    expect(new Set([forNew.ticket, forPending.ticket, forActive.ticket]).size).toBe(3);
   });
 
   // Ten sign-ups at the 900 ms floor take over 9 s, past the 5 s default.

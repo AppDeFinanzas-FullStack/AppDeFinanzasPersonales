@@ -6,25 +6,26 @@ import {
   type EmailKind,
 } from '../../src/infrastructure/integrations/email-templates.js';
 
-const SIX_KINDS = ['confirm', 'register_attempt', 'reset', 'password_changed', 'login_alert', 'account_deleted'];
+const FIVE_KINDS = ['confirm', 'register_attempt', 'reset', 'password_changed', 'account_deleted'];
 const LINK = 'https://app.example.com/auth/confirm?t=LINKTOKEN123';
 const LINK_KINDS: EmailKind[] = ['confirm', 'reset'];
-const NO_LINK_KINDS: EmailKind[] = ['register_attempt', 'password_changed', 'login_alert', 'account_deleted'];
+const NO_LINK_KINDS: EmailKind[] = ['register_attempt', 'password_changed', 'account_deleted'];
 
 describe('email templates', () => {
-  it('RF-M1-16 EMAIL_KINDS lists exactly the 6 email_kind values', () => {
-    expect([...EMAIL_KINDS].sort()).toEqual([...SIX_KINDS].sort());
-    expect(new Set(EMAIL_KINDS).size).toBe(6);
+  it('RF-M1-16 EMAIL_KINDS lists exactly the 5 email kinds', () => {
+    expect([...EMAIL_KINDS].sort()).toEqual([...FIVE_KINDS].sort());
+    expect(new Set(EMAIL_KINDS).size).toBe(5);
+    expect(EMAIL_KINDS).not.toContain('login_alert');
   });
 
   it('RF-M1-16 there is exactly one template per email_kind', () => {
-    expect(Object.keys(emailTemplates).sort()).toEqual([...SIX_KINDS].sort());
+    expect(Object.keys(emailTemplates).sort()).toEqual([...FIVE_KINDS].sort());
     for (const kind of EMAIL_KINDS) {
       expect(typeof emailTemplates[kind]).toBe('function');
     }
   });
 
-  it.each(SIX_KINDS)('RF-M1-16 %s renders subject, text and html in Spanish', (kind) => {
+  it.each(FIVE_KINDS)('RF-M1-16 %s renders subject, text and html in Spanish', (kind) => {
     const out = renderEmail(kind as EmailKind, { link: LINK });
     expect(out.subject.trim().length).toBeGreaterThan(0);
     expect(out.text.trim().length).toBeGreaterThan(0);
@@ -39,8 +40,9 @@ describe('email templates', () => {
     }
   });
 
-  it('RNF-25 templates exist for failed attempts, password change and account deletion', () => {
-    for (const kind of ['login_alert', 'password_changed', 'account_deleted'] as const) {
+  it('RNF-25 templates exist for password change and account deletion, and none for failed attempts', () => {
+    expect(Object.keys(emailTemplates)).not.toContain('login_alert');
+    for (const kind of ['password_changed', 'account_deleted'] as const) {
       expect(typeof emailTemplates[kind]).toBe('function');
       const out = renderEmail(kind, {});
       expect(out.subject.length).toBeGreaterThan(0);

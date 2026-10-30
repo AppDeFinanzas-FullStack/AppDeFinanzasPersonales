@@ -2,7 +2,6 @@
   "title": "Presupuestos",
   "empty": "Aún no tienes presupuestos. Crea uno para controlar cuánto gastas cada período.",
   "loadError": "No se pudieron cargar los presupuestos. Inténtalo de nuevo.",
-  "back": "Volver a presupuestos",
   "general": "Presupuesto general",
   "period": "Período del {{start}} al {{end}}",
   "noPeriod": "Sin período en curso.",

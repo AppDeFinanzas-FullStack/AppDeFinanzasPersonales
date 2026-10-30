@@ -114,6 +114,7 @@ const COVERAGE: Record<string, Coverage> = {
   'POST /api/auth/sign-in': 'public',
   'POST /api/auth/confirmation/resend': 'public',
   'POST /api/auth/confirm': 'public',
+  'POST /api/auth/confirmation/status': 'public',
   'POST /api/auth/password/forgot': 'public',
   'POST /api/auth/password/reset': 'public',
 

@@ -28,6 +28,7 @@ export const authRouter = (deps: AuthRoutesDeps): Router => {
   router.post('/sign-in', validate(SignInInput), controller.signIn);
   router.post('/confirmation/resend', validate(ResendInput), controller.resendConfirmation);
   router.post('/confirm', validate(ConfirmInput), controller.confirm);
+  router.post('/confirmation/status', controller.confirmationStatus);
   router.post('/password/forgot', validate(ForgotInput), controller.forgotPassword);
   router.post('/password/reset', validate(ResetInput), controller.resetPassword);
   router.post(

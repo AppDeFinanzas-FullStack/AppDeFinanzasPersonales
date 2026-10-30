@@ -9,8 +9,6 @@ export interface LoginThrottle {
   fail(email: string): Promise<void>;
   /** A successful login forgets the failures. */
   reset(email: string): Promise<void>;
-  /** `true` at most once per hour per email. */
-  shouldAlert(email: string): Promise<boolean>;
 }
 
 export interface LoginThrottleDeps {
@@ -28,6 +26,5 @@ export function createLoginThrottle({ uow, hmacSecret }: LoginThrottleDeps): Log
       uow.run((repos) => repos.loginThrottle.remainingSeconds(keyOf(email)), { readOnly: true }),
     fail: (email) => uow.run((repos) => repos.loginThrottle.recordFailure(keyOf(email))),
     reset: (email) => uow.run((repos) => repos.loginThrottle.reset(keyOf(email))),
-    shouldAlert: (email) => uow.run((repos) => repos.loginThrottle.claimAlert(keyOf(email))),
   };
 }

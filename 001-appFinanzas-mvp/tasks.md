@@ -4194,7 +4194,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-03`: el Inicio sigue por debajo de 2 s con 5.000 movimientos.
     - Comando: `pnpm --filter api exec vitest run test/integration/request-cost.test.ts`
 
-- [ ] **`TASK-262`: Quitar el correo de intentos fallidos (código)**
+- [x] **`TASK-262`: Quitar el correo de intentos fallidos (código)**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`), plan §3.2 (enum `email_kind`); RF-M1-08, RF-M1-16, RNF-25
   - **Archivos en Alcance:**
@@ -4217,7 +4217,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     1. **Resend: no hay nada que cambiar en el panel.** Las plantillas viven en el código (`email-templates.ts`), y Resend solo recibe `from`, `to`, `subject`, `text` y `html`; el proyecto no usa plantillas, *webhooks* ni audiencias de Resend, y el dominio y el remitente (`EMAIL_FROM`) ya están configurados.
     2. Después de desplegar, en Resend → Emails, el asunto «Intentos fallidos de inicio de sesión» deja de aparecer. Si todavía sale, el despliegue no llegó a Render.
 
-- [ ] **`TASK-263`: Migración: quitar `login_alert` y `last_alert_sent_at` de la base**
+- [x] **`TASK-263`: Migración: quitar `login_alert` y `last_alert_sent_at` de la base**
   - **Dependencias:** Requiere TASK-262
   - **Trazabilidad SDD:** plan §3.2 (enum `email_kind`), plan §3.3 (`login_throttle`); RF-M1-16
   - **Archivos en Alcance:**
@@ -4225,6 +4225,8 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `packages/db/prisma/schema.prisma`
     - `packages/db/test/schema-auth.test.ts`
     - `packages/db/test/schema-base.test.ts`
+    - `packages/db/test/isolation-extension.test.ts`
+    - `apps/api/test/integration/login-throttle.test.ts`
   - **Especificación de Implementación:** Postgres no permite quitar un valor de un enum, así que la migración, en una sola transacción: (1) borra de `email_outbox` y de `email_send_log` las filas con `kind = 'login_alert'`; (2) renombra `email_kind` a `email_kind_old`, crea `email_kind` con los 5 valores, convierte las columnas `kind` de ambas tablas con `USING kind::text::email_kind` y borra el tipo viejo; (3) quita `login_throttle.last_alert_sent_at`. `schema.prisma` pierde `loginAlert` y `lastAlertSentAt`. Se revisan los índices y los CHECK que usen `kind`.
   - **Criterios de Verificación (Tests & DoD):**
     - `RF-M1-16`: `email_kind` tiene exactamente los 5 correos de la cuenta.
@@ -4237,7 +4239,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     2. **Respaldo antes de migrar producción:** en Neon → Branches → Create branch desde `main`, para poder volver atrás.
     3. **Comprobar:** en Neon → SQL Editor, `SELECT unnest(enum_range(NULL::email_kind));` debe dar los 5 valores.
 
-- [ ] **`TASK-264`: Confirmación del correo (1/3): tabla `signup_ticket` y contratos**
+- [x] **`TASK-264`: Confirmación del correo (1/3): tabla `signup_ticket` y contratos**
   - **Dependencias:** Requiere TASK-263
   - **Trazabilidad SDD:** plan §3.3 (`signup_ticket`), plan §4.1.1, plan §4.1.2; RF-M1-18, EC-M1-14, RNF-26
   - **Archivos en Alcance:**
@@ -4253,7 +4255,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-18`: `ConfirmationStatusDto` acepta `pending` y `confirmed` con `next: 'onboarding'`, y rechaza `confirmed` sin `next`.
     - Comando: `pnpm --filter @finanzas/db exec vitest run test/schema-auth.test.ts`
 
-- [ ] **`TASK-265`: Confirmación del correo (2/3): el enlace solo confirma y el ticket abre la sesión**
+- [x] **`TASK-265`: Confirmación del correo (2/3): el enlace solo confirma y el ticket abre la sesión**
   - **Dependencias:** Requiere TASK-264
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-up`, `confirm`, `confirmation/status`, `password/reset`), plan §3.9; RF-M1-18, RF-M1-04, EC-M1-09, EC-M1-10, EC-M1-11, EC-M1-14, RNF-15
   - **Archivos en Alcance:**
@@ -4265,10 +4267,25 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/api/src/presentation/routes/auth.routes.ts`
     - `apps/api/src/infrastructure/persistence/maintenance-store.ts`
     - `apps/api/src/application/jobs/maintenance.ts`
+    - `apps/api/src/application/ports/maintenance-store.ts`
     - `apps/api/test/integration/auth-signup.test.ts`
     - `apps/api/test/integration/auth-confirm.test.ts`
     - `apps/api/test/integration/auth-signup-ticket.test.ts`
+    - `apps/api/test/integration/auth-signin.test.ts`
+    - `apps/api/test/integration/auth-password.test.ts`
+    - `apps/api/test/integration/maintenance-auth.test.ts`
     - `apps/api/test/http/auth.test.ts`
+    - `apps/api/test/http/isolation-sweep.test.ts`
+    - `apps/api/test/http/dashboard.test.ts`
+    - `apps/api/test/http/logs-secrets.test.ts`
+    - `apps/api/test/http/me.test.ts`
+    - `apps/api/test/http/me-delete.test.ts`
+    - `apps/api/test/http/me-export.test.ts`
+    - `apps/api/test/http/me-export-v1-1.test.ts`
+    - `apps/api/test/http/me-export-v1-2.test.ts`
+    - `apps/api/test/http/onboarding.test.ts`
+    - `apps/api/test/http/settings.test.ts`
+    - `apps/api/test/http/settings-register.test.ts`
   - **Especificación de Implementación:** El repositorio `SignupTickets` ofrece `issue(userId, tokenHash, expiresAt)` (reemplaza el ticket del usuario), `markConfirmed(userId)`, `claim(tokenHash)` (`DELETE … WHERE token_hash = $1 AND confirmed_at IS NOT NULL AND expires_at > now() RETURNING user_id`), `deleteForUser(userId)` y `purgeExpired(now)`. Cambios: (1) `signUp` genera siempre un valor aleatorio de 32 bytes, también cuando el correo ya está activo, y el controlador lo entrega en la cookie `__Secure-signup-ticket` (`HttpOnly; Secure; SameSite=Lax; Path=/api/auth; Max-Age=86400`); solo cuando el resultado es una cuenta Sin confirmar, nueva o reemplazada, se guarda su SHA-256 con `issue` (RF-M1-03, RNF-15: la respuesta y el tiempo no cambian). (2) `confirm(token)` consume el enlace, marca el correo verificado y llama `markConfirmed`; ya no crea la sesión ni recibe la sesión actual, y responde `{ status: 'confirmed' }`. (3) Nuevo `confirmationStatus(ticket, currentSessionId?)` y `POST /api/auth/confirmation/status`, sin sesión y sin cuerpo: sin cookie o con un ticket que `claim` no devuelve → `{ status: 'pending' }`; con uno devuelto, cierra la sesión que el navegador traiga (EC-M1-11), crea la sesión, borra la cookie del ticket y responde `{ status: 'confirmed', next: 'onboarding' }`. (4) `resetPassword` llama `deleteForUser` (EC-M1-14). (5) `maintenance` agrega `purgeExpired` a sus purgas.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "La pestaña de registro continúa sola al confirmar el correo": con el ticket del registro, `confirmation/status` responde `pending` antes de abrir el enlace y, después, `confirmed` con la cookie de sesión y `next: 'onboarding'` (`RF-M1-18`).
@@ -4280,7 +4297,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-18`: un ticket vencido (más de 24 h) responde `pending` y `maintenance` lo borra.
     - `RF-M1-04`: una cuenta sin confirmar sigue sin sesión ni acceso a datos, con o sin ticket.
 
-- [ ] **`TASK-266`: Confirmación del correo (3/3): la app que espera continúa sola al Onboarding**
+- [x] **`TASK-266`: Confirmación del correo (3/3): la app que espera continúa sola al Onboarding**
   - **Dependencias:** Requiere TASK-265
   - **Trazabilidad SDD:** plan §4.1.4 (Confirmación desde otro dispositivo); RF-M1-18, EC-M1-11, EC-M1-13, RF-M1-05
   - **Archivos en Alcance:**
@@ -4292,6 +4309,10 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `apps/web/test/confirmation-watch.test.ts`
     - `e2e/m1-sign-up.spec.ts`
     - `e2e/m1-sign-up-confirm-sync.spec.ts`
+    - `e2e/m10-onboarding-step1.spec.ts`
+    - `e2e/m10-onboarding-step2.spec.ts`
+    - `e2e/m10-onboarding-step3.spec.ts`
+    - `e2e/a11y-v1-0.spec.ts`
   - **Especificación de Implementación:** `api.ts` agrega `confirmationStatusEndpoint` y ajusta la salida de `confirmEndpoint` a `ConfirmDto`. `useConfirmationWatch({ onConfirmed })` llama a `confirmation/status` cada 3 s mientras `document.visibilityState` es `visible` (cada 10 s pasados 5 minutos), también al recuperar el foco y al volverse visible, y se detiene al confirmar, al desmontarse y a las 24 h; ignora los errores de red. Se escribe con un reloj y un `fetch` inyectables, para probarlo sin navegador. `CheckEmail` lo usa: al confirmarse, invalida `['me']` y navega a `/bienvenida` con `replace`. `ConfirmLink` solo llama a `confirm`: al terminar muestra "Correo confirmado" con "Vuelve a la app donde creaste tu cuenta: continúa sola. Si ya la cerraste, inicia sesión" y un enlace a `/entrar` (textos en `auth.json`); ya no navega a `/bienvenida`. `LINK_ALREADY_USED` sigue llevando a `/entrar` (EC-M1-02) y el enlace inválido sigue ofreciendo el reenvío.
   - **Criterios de Verificación (Tests & DoD):**
     - Escenario "La pestaña de registro continúa sola al confirmar el correo" (E2E, dos contextos de navegador): con el enlace abierto en el segundo contexto, que muestra "Correo confirmado" y no tiene sesión, la pestaña de `/revisa-tu-correo` del primero llega sola a `/bienvenida` con la sesión iniciada (`RF-M1-18`).
@@ -4300,7 +4321,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta en el navegador que espera cierra esa sesión y deja la del confirmado.
     - `RF-M1-18`: con un reloj simulado, el sondeo pregunta cada 3 s con la pestaña visible, no pregunta oculta, pregunta de inmediato al volver el foco, pasa a 10 s tras 5 minutos y se detiene al confirmar.
 
-- [ ] **`TASK-267`: Botón "Volver" en la cabecera de las pantallas internas**
+- [x] **`TASK-267`: Botón "Volver" en la cabecera de las pantallas internas**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.2.4 (Volver); RF-M2-13, RF-M2-06, RF-M2-10, EC-M2-04, RNF-06
   - **Archivos en Alcance:**
@@ -4322,7 +4343,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-06`: el botón Atrás del navegador sigue funcionando en todas las pantallas.
     - `RNF-06`: el botón mide al menos 44 px, tiene nombre accesible y axe no reporta violaciones serias.
 
-- [ ] **`TASK-268`: Retirar los "Volver a…" propios de cada pantalla**
+- [x] **`TASK-268`: Retirar los "Volver a…" propios de cada pantalla**
   - **Dependencias:** Requiere TASK-267
   - **Trazabilidad SDD:** plan §4.2.4 (Volver); RF-M2-13
   - **Archivos en Alcance:**
@@ -4345,7 +4366,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un movimiento eliminado desde otro dispositivo sigue ofreciendo "Volver a Movimientos".
     - Comando: `pnpm --filter web typecheck`
 
-- [ ] **`TASK-269`: Marca (1/2): pedir el diseño de los logos, confirmar su disposición y poner el ícono de la pestaña**
+- [x] **`TASK-269`: Marca (1/2): pedir el diseño de los logos, confirmar su disposición y poner el ícono de la pestaña**
   - **Dependencias:** Ninguna
   - **Trazabilidad SDD:** plan §4.2.4 (Marca); RF-M2-14
   - **Archivos en Alcance:**
@@ -4367,7 +4388,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     3. **Cuando el pipeline pregunte**, indicar dónde están los archivos y confirmar o ajustar la disposición (a a e).
     4. **Registrar la disposición confirmada** en `docs/design-direction.md`, sección "Marca", con un commit `docs:` aparte.
 
-- [ ] **`TASK-270`: Marca (2/2): el logo en las pantallas de acceso, el Onboarding y la cabecera**
+- [x] **`TASK-270`: Marca (2/2): el logo en las pantallas de acceso, el Onboarding y la cabecera**
   - **Dependencias:** Requiere TASK-267, TASK-269
   - **Trazabilidad SDD:** plan §4.2.4 (Marca); RF-M2-14, RNF-06
   - **Archivos en Alcance:**

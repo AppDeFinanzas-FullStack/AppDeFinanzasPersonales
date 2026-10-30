@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ChangePwdInput,
+  ConfirmationStatusDto,
+  ConfirmDto,
   ConfirmInput,
   DeleteAccountInput,
   ForgotInput,
@@ -161,5 +163,34 @@ describe('otros contratos de M1 (plan 4.1.1)', () => {
     expect(ok(ChangePwdInput, { currentPassword: 'x', newPassword: 'a'.repeat(8) })).toBe(true);
     expect(ok(ChangePwdInput, { currentPassword: '', newPassword: 'a'.repeat(8) })).toBe(false);
     expect(ok(ChangePwdInput, { currentPassword: 'x', newPassword: 'a'.repeat(7) })).toBe(false);
+  });
+});
+
+describe('ConfirmDto y ConfirmationStatusDto (RF-M1-18)', () => {
+  it('RF-M1-18 ConfirmDto es { status: "confirmed" }', () => {
+    expect(ok(ConfirmDto, { status: 'confirmed' })).toBe(true);
+    expect(ok(ConfirmDto, { status: 'pending' })).toBe(false);
+    expect(ok(ConfirmDto, { next: 'onboarding' })).toBe(false);
+    expect(ok(ConfirmDto, {})).toBe(false);
+  });
+
+  it('RF-M1-18 ConfirmationStatusDto acepta pending', () => {
+    expect(ok(ConfirmationStatusDto, { status: 'pending' })).toBe(true);
+  });
+
+  it('RF-M1-18 ConfirmationStatusDto acepta confirmed con next onboarding', () => {
+    const parsed = ConfirmationStatusDto.safeParse({ status: 'confirmed', next: 'onboarding' });
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).toEqual({ status: 'confirmed', next: 'onboarding' });
+  });
+
+  it('RF-M1-18 ConfirmationStatusDto rechaza confirmed sin next', () => {
+    expect(ok(ConfirmationStatusDto, { status: 'confirmed' })).toBe(false);
+  });
+
+  it('RF-M1-18 ConfirmationStatusDto rechaza un next distinto de onboarding y un status desconocido', () => {
+    expect(ok(ConfirmationStatusDto, { status: 'confirmed', next: 'dashboard' })).toBe(false);
+    expect(ok(ConfirmationStatusDto, { status: 'check_email' })).toBe(false);
+    expect(ok(ConfirmationStatusDto, {})).toBe(false);
   });
 });
