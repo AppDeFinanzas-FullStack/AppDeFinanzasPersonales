@@ -106,6 +106,10 @@ La web queda en <http://localhost:5173>, y el proxy de Vite manda `/api` al API,
 
 Cada regla de negocio tiene su prueba, y el nombre de cada caso lleva el ID que verifica (`RF-M4-04 …`, `TASK-038 …`).
 
+Dentro de `pnpm test:unit`, [`sdd-coherence.test.ts`](apps/api/test/unit/sdd-coherence.test.ts) compara la spec, el plan y `tasks.md` con el código: tipos de correo, endpoints, códigos de error, tablas, matriz de trazabilidad, variables de entorno, IDs citados, versiones y mapa de fases. Si un documento y el código se separan, la prueba falla y lista cada diferencia. La revisión manual de cada requisito está en [`coherencia.md`](001-appFinanzas-mvp/coherencia.md).
+
+Cada respuesta de la API trae `Server-Timing` (tiempo total, tiempo en la base y número de consultas). Para reproducir en local la distancia a Neon, `DB_LATENCY_MS` agrega esa latencia a cada consulta (solo fuera de producción).
+
 ## Integración y despliegue continuos
 
 ```mermaid
@@ -161,6 +165,7 @@ Ningún secreto se versiona. `.gitignore` excluye todo `.env*` salvo [`.env.exam
 | `DATABASE_URL`, `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `RELEASE`, `WEB_ORIGIN`, `INTEGRATIONS`         | `.env` | Variables del servicio en Render                              |
 | `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | —      | Secretos del Environment `production` de GitHub (solo `main`) |
 | `WEB_URL`, `API_URL`                                                                                                                         | —      | Variables del Environment `production`                        |
+| `TEST_DATABASE_URL` y, opcionales, `TEST_TIMEOUT_MS` (PC lenta) y `DB_LATENCY_MS` (latencia simulada)                                        | `.env` | —                                                             |
 
 ## Puesta en marcha del despliegue (una sola vez)
 
@@ -177,7 +182,7 @@ Los agentes no pueden crear cuentas ni cargar secretos, así que estos pasos los
 
 ## Estado del proyecto
 
-Avance real al 2026-10-27 en `develop`: **248 de 248 tareas cerradas (100 %)**. El hook `SessionStart` muestra el valor actualizado en cada sesión.
+Avance real al 2026-10-30: **274 de 274 tareas cerradas (100 %)**. La Fase 27 está en la rama `feature/27-pulido-transversal-rendimiento-correos`, pendiente de su PR a `develop`. El hook `SessionStart` muestra el valor actualizado en cada sesión.
 
 | Entrega | Fases                                                                                                                                     | Tareas cerradas |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
@@ -185,8 +190,16 @@ Avance real al 2026-10-27 en `develop`: **248 de 248 tareas cerradas (100 %)**. 
 | V1.0    | 6 a 17: acceso, navegación, monedas, cuentas, categorías, transacciones, registrar, inicio, ajustes, onboarding, exportación y despliegue | 129 / 129       |
 | V1.1    | 18 a 22: avisos, metas, presupuestos y deudas                                                                                             | 48 / 48         |
 | V1.2    | 23 a 25: recurrentes, recordatorios y validación final                                                                                    | 25 / 25         |
+| Pulido  | 26 y 27: correcciones de QA, rendimiento, correos de la cuenta, botón "Volver", marca y coherencia de la documentación                    | 26 / 26         |
 
-Las tres entregas están completas. La Fase 25 cerró la validación final: la regresión con todos los escenarios Gherkin, los jobs que se retoman tras una interrupción sin duplicar (RNF-13), las fechas de negocio en varias zonas horarias, la consistencia ante operaciones concurrentes y la accesibilidad y el control de versión de V1.2.
+Las tres entregas y el pulido están completos. La Fase 25 cerró la validación final: la regresión con todos los escenarios Gherkin, los jobs que se retoman tras una interrupción sin duplicar (RNF-13), las fechas de negocio en varias zonas horarias, la consistencia ante operaciones concurrentes y la accesibilidad y el control de versión de V1.2.
+
+La Fase 27 pulió la app de punta a punta:
+
+- **Rendimiento:** la sesión se resuelve en una consulta, las lecturas ya no bloquean por usuario, Inicio pide pocas consultas, la web pide los datos junto con la sesión, muestra esqueletos y precarga cada pestaña al elegirla. La API corre en Virginia, junto a Neon.
+- **Correos de la cuenta:** ya no existe el correo de intentos fallidos (`login_alert`); quedan 5 tipos. El enlace de confirmación solo confirma, y la app que espera en "Revisa tu correo" continúa sola al Onboarding con un ticket de registro. Si en ese navegador había otra sesión abierta, se cierra y sus borradores se descartan.
+- **Navegación y marca:** botón "Volver" en la cabecera de las pantallas internas, y el logo en la pestaña, las pantallas de acceso, el Onboarding y la cabecera.
+- **Coherencia de la documentación:** la prueba automática y el informe descritos en [Pruebas y calidad](#pruebas-y-calidad); las 5 diferencias encontradas quedaron resueltas.
 
 ## Documentación
 
@@ -194,5 +207,6 @@ Las tres entregas están completas. La Fase 25 cerró la validación final: la r
 - [Especificación](001-appFinanzas-mvp/spec.md): el qué y el porqué.
 - [Plan técnico](001-appFinanzas-mvp/plan.md): el cómo, con las decisiones de arquitectura (ADR).
 - [Tareas](001-appFinanzas-mvp/tasks.md): el backlog atómico.
+- [Coherencia](001-appFinanzas-mvp/coherencia.md): cada requisito de la spec frente al código y sus pruebas.
 - [Protocolo de ejecución con agentes](docs/execution-protocol.md): el pipeline, sus hooks y sus gates.
 - [Dirección de diseño](docs/design-direction.md): la guía visual de la interfaz.
