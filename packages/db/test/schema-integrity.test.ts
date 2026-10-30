@@ -373,6 +373,11 @@ async function fullDataset(c: pg.PoolClient, userId: string): Promise<{ periodId
     [randomUUID(), userId, hex64()],
   );
   await c.query(
+    `INSERT INTO signup_ticket (token_hash, user_id, expires_at)
+     VALUES ($1, $2, now() + interval '1 day')`,
+    [hex64(), userId],
+  );
+  await c.query(
     `INSERT INTO user_fx_event (id, user_id, kind, currency_code, value)
      VALUES ($1, $2, 'manual_usd_on', 'USD', '6.96')`,
     [randomUUID(), userId],
