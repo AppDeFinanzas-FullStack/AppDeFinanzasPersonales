@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import express, { type Express, type RequestHandler } from 'express';
 
+import type { QueryCounter } from '../application/ports/query-counter.js';
 import type { ReadinessProbe } from '../application/ports/readiness.js';
 
 import { jobsRouter, type JobsControllerDeps } from './internal/jobs.controller.js';
@@ -12,6 +13,7 @@ import {
 import { checkOrigin } from './middlewares/check-origin.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requireJson } from './middlewares/require-json.js';
+import { serverTiming } from './middlewares/server-timing.js';
 import { accountsRouter, type AccountsRoutesDeps } from './routes/accounts.routes.js';
 import { authRouter, type AuthRoutesDeps } from './routes/auth.routes.js';
 import { budgetsRouter, type BudgetsRoutesDeps } from './routes/budgets.routes.js';
@@ -43,6 +45,8 @@ import { transactionsRouter, type TransactionsRoutesDeps } from './routes/transa
 
 export interface AppDeps {
   webOrigin: string;
+  /** The per-request query count behind `Server-Timing` (plan §4.0); without it the header is absent. */
+  queryCounter?: QueryCounter;
   /** The internal tick endpoint (ADR-01); an app built without it does not expose it. */
   jobs?: JobsControllerDeps;
   /** Per-user catch-up (ADR-01); it runs after the session is resolved. */
@@ -108,6 +112,7 @@ const requestLog: RequestHandler = (req, res, next) => {
         path: req.originalUrl.split('?')[0],
         status: res.statusCode,
         durationMs: Math.round(durationMs * 100) / 100,
+        queries: (res.locals['queries'] as number | undefined) ?? 0,
       }),
     );
   });
@@ -118,6 +123,9 @@ export const createApp = (deps: AppDeps): Express => {
   const app = express();
   app.disable('x-powered-by');
   app.use(traceId);
+  if (deps.queryCounter !== undefined) {
+    app.use(serverTiming(deps.queryCounter));
+  }
   app.use(requestLog);
   app.use(checkOrigin(deps.webOrigin));
   app.use(requireJson);

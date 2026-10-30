@@ -32,6 +32,7 @@ export function createMaintenance({ store, clock }: MaintenanceDeps): JobHandler
     await store.deleteUnconfirmedUsers(new Date(now - UNCONFIRMED_RETENTION_MS));
     await store.deleteSendLogs(new Date(now - SEND_LOG_RETENTION_MS));
     await store.deleteLoginThrottles(new Date(now - THROTTLE_RETENTION_MS));
+    await store.deleteExpiredSignupTickets(new Date(now));
     await store.deleteRemovedTransactions(new Date(now - DELETED_RETENTION_MS));
     await store.deleteExpiredUndoActions(new Date(now));
     await store.deleteOldNotifications(new Date(now - NOTIFICATION_RETENTION_MS));

@@ -58,6 +58,11 @@ export interface AccountsService {
    */
   summary(ctx: AccountsContext): Promise<NetWorthResult>;
   /**
+   * The active accounts and the net worth of those same accounts, from one read of the ledger and
+   * one reading of the rates: the same answer as `list` plus `summary`, without doing them twice.
+   */
+  listWithSummary(ctx: AccountsContext): Promise<{ items: AccountDto[]; summary: NetWorthResult }>;
+  /**
    * Edits the name, color, icon, card fields, type and currency (RF-M4-07); the initial balance
    * and its date are not editable (EC-M4-02). The last write wins (RNF-08).
    */
@@ -284,13 +289,14 @@ async function snapshotOf(
   userId: string,
   rows: AccountRow[],
 ): Promise<Snapshot> {
-  const balances = await repos.ledger.balances(rows.map((row) => row.id));
+  const ids = rows.map((row) => row.id);
+  const balances = await repos.ledger.balances(ids);
   const earmarks = new Map<string, GoalEarmark[]>();
-  for (const row of rows) {
-    const items = (await repos.goalAllocations.earmarkedByAccount(row.id)).filter((item) =>
-      item.amount.greaterThan(0),
+  for (const [id, items] of await repos.goalAllocations.earmarkedByAccounts(ids)) {
+    earmarks.set(
+      id,
+      items.filter((item) => item.amount.greaterThan(0)),
     );
-    earmarks.set(row.id, items);
   }
   const dedicated = new Map<string, { id: string; name: string }>();
   for (const goal of await repos.goals.list()) {
@@ -307,28 +313,44 @@ export function createAccountsService({
   ledgerHooks,
   recurring,
 }: AccountsServiceDeps): AccountsService {
+  /** The currencies that need a rate: the base, the other one and those of the accounts. */
+  const codesOf = (snapshot: Snapshot): Set<string> =>
+    new Set([
+      snapshot.baseCurrency,
+      otherCurrency(snapshot.baseCurrency),
+      ...snapshot.rows.map((row) => row.currencyCode),
+    ]);
+
   /**
-   * Bs per unit of each currency with the rate in force (RN-05). It runs after the snapshot's
-   * transaction, since each rate takes the user lock in its own one.
+   * Bs per unit of each currency with the rate in force (RN-05), after the snapshot's transaction:
+   * for the answers of a write, whose transaction holds the user's lock.
    */
   const bobPerUnit = async (
     ctx: AccountsContext,
     snapshot: Snapshot,
   ): Promise<Record<string, Decimal | null>> => {
-    const codes = new Set([
-      snapshot.baseCurrency,
-      otherCurrency(snapshot.baseCurrency),
-      ...snapshot.rows.map((row) => row.currencyCode),
-    ]);
-    const result: Record<string, Decimal | null> = {};
-    for (const code of codes) {
-      result[code] = await rates.currentRateFor(ctx, code);
-    }
-    return result;
+    const codes = codesOf(snapshot);
+    const entries = await Promise.all(
+      [...codes].map(async (code) => [code, await rates.currentRateFor(ctx, code)] as const),
+    );
+    return Object.fromEntries(entries);
   };
 
-  const toDtos = async (ctx: AccountsContext, snapshot: Snapshot): Promise<AccountDto[]> => {
-    const perUnit = await bobPerUnit(ctx, snapshot);
+  /** The accounts of that status and the current rates, read in a single transaction. */
+  const readAccounts = (
+    ctx: AccountsContext,
+    status: LifecycleStatus,
+  ): Promise<{ snapshot: Snapshot; perUnit: Record<string, Decimal | null> }> =>
+    uow.run(
+      async (repos) => {
+        const snapshot = await snapshotOf(repos, ctx.userId, await repos.accounts.list(status));
+        const perUnit = await rates.currentRatesFor(repos, ctx, [...codesOf(snapshot)]);
+        return { snapshot, perUnit };
+      },
+      { userLock: ctx.userId, readOnly: true },
+    );
+
+  const dtosOf = (snapshot: Snapshot, perUnit: Record<string, Decimal | null>): AccountDto[] => {
     const base = snapshot.baseCurrency;
     const other = otherCurrency(base);
     const equivalent = (balance: Decimal, from: string, to: string): string | null => {
@@ -376,6 +398,51 @@ export function createAccountsService({
       }
       return dto;
     });
+  };
+
+  const toDtos = async (ctx: AccountsContext, snapshot: Snapshot): Promise<AccountDto[]> =>
+    dtosOf(snapshot, await bobPerUnit(ctx, snapshot));
+
+  /** Net worth and the amount set aside for goals of the snapshot's accounts (RF-M12-08). */
+  const summaryOf = (
+    snapshot: Snapshot,
+    perUnit: Record<string, Decimal | null>,
+  ): NetWorthResult => {
+    const result = netWorth(
+      snapshot.rows.map((row) => ({
+        type: row.type,
+        currencyCode: row.currencyCode,
+        balance: toMoneyString(snapshot.balances.get(row.id) ?? row.initialBalance),
+      })),
+      {
+        baseCurrency: snapshot.baseCurrency,
+        otherCurrency: otherCurrency(snapshot.baseCurrency),
+        bobPerUnit: perUnit,
+      },
+    );
+    // RF-M12-08: the earmarks plus the positive balance of dedicated accounts; the total stays.
+    const baseRate = perUnit[snapshot.baseCurrency] ?? null;
+    let earmarked: Decimal | null = new Decimal(0);
+    for (const row of snapshot.rows) {
+      const rate = perUnit[row.currencyCode] ?? null;
+      if (rate === null || baseRate === null) {
+        earmarked = null;
+        break;
+      }
+      let amount = earmarkTotal(snapshot.earmarks.get(row.id));
+      if (snapshot.dedicated.has(row.id)) {
+        const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
+        if (balance.greaterThan(0)) amount = amount.plus(balance);
+      }
+      earmarked = earmarked.plus(convert(amount, rate, baseRate));
+    }
+    return {
+      ...result,
+      breakdown: {
+        ...result.breakdown,
+        earmarked: earmarked === null ? null : toMoneyString(earmarked),
+      },
+    };
   };
 
   const single = async (ctx: AccountsContext, snapshot: Snapshot): Promise<AccountDto> => {
@@ -440,55 +507,19 @@ export function createAccountsService({
     },
 
     async list(ctx, status) {
-      const snapshot = await uow.run(
-        async (repos) => snapshotOf(repos, ctx.userId, await repos.accounts.list(status)),
-        { userLock: ctx.userId, readOnly: true },
-      );
-      return toDtos(ctx, snapshot);
+      const { snapshot, perUnit } = await readAccounts(ctx, status);
+      return dtosOf(snapshot, perUnit);
     },
 
     async summary(ctx) {
       // Archived accounts never add up in the current totals (RF-M4-09).
-      const snapshot = await uow.run(
-        async (repos) => snapshotOf(repos, ctx.userId, await repos.accounts.list('active')),
-        { userLock: ctx.userId, readOnly: true },
-      );
-      const perUnit = await bobPerUnit(ctx, snapshot);
-      const result = netWorth(
-        snapshot.rows.map((row) => ({
-          type: row.type,
-          currencyCode: row.currencyCode,
-          balance: toMoneyString(snapshot.balances.get(row.id) ?? row.initialBalance),
-        })),
-        {
-          baseCurrency: snapshot.baseCurrency,
-          otherCurrency: otherCurrency(snapshot.baseCurrency),
-          bobPerUnit: perUnit,
-        },
-      );
-      // RF-M12-08: the earmarks plus the positive balance of dedicated accounts; the total stays.
-      const baseRate = perUnit[snapshot.baseCurrency] ?? null;
-      let earmarked: Decimal | null = new Decimal(0);
-      for (const row of snapshot.rows) {
-        const rate = perUnit[row.currencyCode] ?? null;
-        if (rate === null || baseRate === null) {
-          earmarked = null;
-          break;
-        }
-        let amount = earmarkTotal(snapshot.earmarks.get(row.id));
-        if (snapshot.dedicated.has(row.id)) {
-          const balance = snapshot.balances.get(row.id) ?? row.initialBalance;
-          if (balance.greaterThan(0)) amount = amount.plus(balance);
-        }
-        earmarked = earmarked.plus(convert(amount, rate, baseRate));
-      }
-      return {
-        ...result,
-        breakdown: {
-          ...result.breakdown,
-          earmarked: earmarked === null ? null : toMoneyString(earmarked),
-        },
-      };
+      const { snapshot, perUnit } = await readAccounts(ctx, 'active');
+      return summaryOf(snapshot, perUnit);
+    },
+
+    async listWithSummary(ctx) {
+      const { snapshot, perUnit } = await readAccounts(ctx, 'active');
+      return { items: dtosOf(snapshot, perUnit), summary: summaryOf(snapshot, perUnit) };
     },
 
     async update(ctx, id, input) {

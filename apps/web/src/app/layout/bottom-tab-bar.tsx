@@ -1,28 +1,16 @@
 import type { ModuleKey } from '@finanzas/contracts';
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 
 import { uiStore, useUiStore } from '@/lib/ui-store';
+import { useIsDesktop } from '@/lib/use-is-desktop';
 import { cn } from '@/lib/utils';
 
+import { prefetchRoute, PREFETCH_FRESH_MS } from '../prefetch-routes';
+
 import { ALL_ITEMS, TAB_ITEMS, type NavItem } from './nav-items';
-
-const DESKTOP_QUERY = '(min-width: 1024px)';
-
-function subscribe(listener: () => void): () => void {
-  const media = window.matchMedia(DESKTOP_QUERY);
-  media.addEventListener('change', listener);
-  return () => media.removeEventListener('change', listener);
-}
-
-function useIsDesktop(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => false,
-  );
-}
 
 const MORE_ROOT = '/mas';
 const MORE_KEY: ModuleKey = 'M2';
@@ -74,9 +62,32 @@ function useTabMemoryTracker(): void {
   }, [pathname, search]);
 }
 
+/** When the data of each route was last asked for by pointing at its link. */
+const lastPrefetch = new Map<string, number>();
+
+/** Asks for the data of a route at most once every `PREFETCH_FRESH_MS`, even if the ask failed. */
+function prefetchOnce(queryClient: QueryClient, path: string): void {
+  const now = Date.now();
+  const last = lastPrefetch.get(path);
+  if (last !== undefined && now - last < PREFETCH_FRESH_MS) return;
+  lastPrefetch.set(path, now);
+  prefetchRoute(queryClient, path);
+}
+
+interface TabLink {
+  to: string;
+  active: boolean;
+  onClick: () => void;
+  /** Handlers that start the request of the data of the tab before it is opened (RNF-29). */
+  onPointerEnter: () => void;
+  onFocus: () => void;
+  onTouchStart: () => void;
+}
+
 /** Destination and state of a navigation entry: the active one goes to its root (RF-M2-05). */
-export function useTabLink(item: NavItem): { to: string; active: boolean; onClick: () => void } {
+export function useTabLink(item: NavItem): TabLink {
   const { pathname, search } = useLocation();
+  const queryClient = useQueryClient();
   const memory = useUiStore((state) => state.tabMemory);
   const isMore = item.key === 'more';
   const active = isMore
@@ -86,9 +97,15 @@ export function useTabLink(item: NavItem): { to: string; active: boolean; onClic
   const entry = memory[item.moduleKey];
   const to = active ? root : (entry?.url ?? item.path);
   const scrollTarget = active ? 0 : (entry?.scrollY ?? 0);
+  const prefetch = () => {
+    prefetchOnce(queryClient, item.path);
+  };
   return {
     to,
     active,
+    onPointerEnter: prefetch,
+    onFocus: prefetch,
+    onTouchStart: prefetch,
     onClick: () => {
       if (to === `${pathname}${search}`) {
         pendingScroll = null;
@@ -102,12 +119,13 @@ export function useTabLink(item: NavItem): { to: string; active: boolean; onClic
 
 function TabLink({ item }: { item: NavItem }) {
   const { t } = useTranslation('navigation');
-  const { to, active, onClick } = useTabLink(item);
+  const { to, active, onClick, ...prefetch } = useTabLink(item);
   const Icon = item.icon;
   return (
     <Link
       to={to}
       onClick={onClick}
+      {...prefetch}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex min-h-14 flex-col items-center justify-center gap-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

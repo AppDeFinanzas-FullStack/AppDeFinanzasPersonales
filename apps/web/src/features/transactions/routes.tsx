@@ -1,6 +1,5 @@
 import { LocalDate, TransactionKind, Uuid } from '@finanzas/contracts';
 import { BOLIVIA_TIME_ZONE, todayFor } from '@finanzas/domain';
-import { ChevronLeft } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -253,19 +252,6 @@ export function TransactionDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-11 self-start px-2"
-        onClick={() => {
-          back(() => {
-            void navigate('/movimientos');
-          });
-        }}
-      >
-        <ChevronLeft aria-hidden="true" />
-        {t('detail.back')}
-      </Button>
       {search.editar === '1' ? (
         <TransactionEditForm
           key={detail.data.id}

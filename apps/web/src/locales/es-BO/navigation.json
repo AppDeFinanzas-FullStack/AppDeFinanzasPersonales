@@ -1,8 +1,11 @@
 {
+  "brand": "Finanzas",
   "primaryLabel": "Navegación principal",
   "sidebarLabel": "Navegación lateral",
+  "back": "Volver",
   "collapse": "Contraer barra lateral",
   "expand": "Expandir barra lateral",
+  "loading": "Cargando",
   "sections": {
     "plan": "Planificar",
     "organize": "Organizar",

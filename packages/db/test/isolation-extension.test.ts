@@ -449,7 +449,7 @@ describe('forUser: modelos globales exentos', () => {
     const emailHmac = hmac();
     created.sendLogHmacs.push(emailHmac);
 
-    await scoped.emailSendLog.create({ data: { emailHmac, kind: 'loginAlert' } });
+    await scoped.emailSendLog.create({ data: { emailHmac, kind: 'confirm' } });
 
     expect(await scoped.emailSendLog.findMany({ where: { emailHmac } })).toHaveLength(1);
     expect(await scoped.emailSendLog.count()).toBe(await prisma.emailSendLog.count());

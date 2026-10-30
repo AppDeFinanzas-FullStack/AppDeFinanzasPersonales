@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
 import { call } from '@/lib/api-client';
@@ -16,11 +16,15 @@ export const ACCOUNTS_KEY = ['accounts'] as const;
 const SYSTEM_SYMBOLS: Record<string, string> = { BOB: 'Bs', USD: '$' };
 
 // Plan §4.4.4: `['accounts', status]`.
-export function useAccounts(status: AccountStatus) {
-  return useQuery({
+export function accountsQuery(status: AccountStatus) {
+  return queryOptions({
     queryKey: [...ACCOUNTS_KEY, status],
     queryFn: ({ signal }) => call(listAccountsEndpoint, { status }, { signal }),
   });
+}
+
+export function useAccounts(status: AccountStatus) {
+  return useQuery(accountsQuery(status));
 }
 
 /** Saves the order of every account of the user, archived ones included (RF-M4-11). */

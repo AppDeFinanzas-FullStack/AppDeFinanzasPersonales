@@ -1,6 +1,5 @@
 import type { RequestHandler } from 'express';
 
-import type { AuthGateway } from '../../application/ports/auth-gateway.js';
 import type { Clock } from '../../application/ports/clock.js';
 import { sendProblem } from './error-handler.js';
 
@@ -8,6 +7,8 @@ export interface SessionContext {
   userId: string;
   sessionId: string;
   timezone: string;
+  /** Always set by `requireSession`; other suites that stub `req.auth` may leave it out. */
+  lastActivityAt?: Date;
 }
 
 declare global {
@@ -19,18 +20,23 @@ declare global {
   }
 }
 
-export interface SessionActivity {
+export interface SessionRecord {
+  sessionId: string;
+  userId: string;
+  expiresAt: Date;
   lastActivityAt: Date;
   timezone: string;
 }
 
 export interface SessionActivityReader {
-  /** Returns the activity of the session, or null when it no longer exists. */
-  findActivity(sessionId: string): Promise<SessionActivity | null>;
+  /**
+   * Resolves a session by its token with a single statement (session joined with its user), or
+   * null when no session has that token any more.
+   */
+  findByToken(token: string): Promise<SessionRecord | null>;
 }
 
 export interface RequireSessionDeps {
-  auth: Pick<AuthGateway, 'getSession'>;
   sessions: SessionActivityReader;
   clock: Pick<Clock, 'now'>;
 }
@@ -65,7 +71,7 @@ const tokenFromCookie = (header: string | undefined): string | null => {
 };
 
 export const requireSession =
-  ({ auth, sessions, clock }: RequireSessionDeps): RequestHandler =>
+  ({ sessions, clock }: RequireSessionDeps): RequestHandler =>
   (req, res, next) => {
     const reject = (): void => {
       sendProblem(res, 401, 'SESSION_EXPIRED');
@@ -76,15 +82,12 @@ export const requireSession =
       return;
     }
     void (async () => {
-      const session = await auth.getSession(token);
-      if (session === null) {
-        reject();
-        return;
-      }
-      const activity = await sessions.findActivity(session.sessionId);
+      const session = await sessions.findByToken(token);
+      const now = clock.now().getTime();
       if (
-        activity === null ||
-        activity.lastActivityAt.getTime() < clock.now().getTime() - MAX_INACTIVITY_MS
+        session === null ||
+        session.expiresAt.getTime() <= now ||
+        session.lastActivityAt.getTime() < now - MAX_INACTIVITY_MS
       ) {
         reject();
         return;
@@ -92,7 +95,8 @@ export const requireSession =
       req.auth = {
         userId: session.userId,
         sessionId: session.sessionId,
-        timezone: activity.timezone,
+        timezone: session.timezone,
+        lastActivityAt: session.lastActivityAt,
       };
       next();
     })().catch(next);

@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
+import { BrandMark } from '@/components/brand-mark';
 import { ME_QUERY_KEY, useMe } from '@/features/auth/hooks/use-me';
 import { ApiError, call } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
@@ -184,6 +185,7 @@ export function OnboardingPage() {
   if (me.data.onboarding.completed) return <Navigate to="/" replace />;
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-8">
+      <BrandMark size="public" className="mx-auto mb-6" />
       <OnboardingFlow />
     </main>
   );

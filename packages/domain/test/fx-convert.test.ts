@@ -35,7 +35,7 @@ describe('convert (RN-06, RN-05)', () => {
     expect(convert(d('-0.05'), d('0.10'), d('1')).toFixed(2)).toBe('-0.01');
   });
 
-  it('RN-05 convierte entre dos monedas a través de BOB', () => {
+  it('RN-05 RNF-19 convierte entre dos monedas a través de BOB con las tasas que recibe', () => {
     // 10 EUR a 7.50 Bs, base USD a 10.30 Bs -> 75 / 10.30 = 7.28
     expect(convert(d('10'), d('7.50'), d('10.30')).toFixed(2)).toBe('7.28');
   });

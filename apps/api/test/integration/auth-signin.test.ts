@@ -13,6 +13,7 @@ import { createEmailLinkRepository } from '../../src/infrastructure/persistence/
 import { createEmailOutboxRepository } from '../../src/infrastructure/persistence/repositories/email-outbox.repository.js';
 import { createEmailSendLogRepository } from '../../src/infrastructure/persistence/repositories/email-send-log.repository.js';
 import { createLoginThrottleRepository } from '../../src/infrastructure/persistence/repositories/login-throttle.repository.js';
+import { createSignupTicketRepository } from '../../src/infrastructure/persistence/repositories/signup-ticket.repository.js';
 import { createUserRepository } from '../../src/infrastructure/persistence/repositories/user.repository.js';
 import { createUnitOfWork } from '../../src/infrastructure/persistence/unit-of-work.js';
 import { disconnectTestPrisma, testPrisma } from './setup/db.js';
@@ -44,6 +45,7 @@ const uow = createUnitOfWork(testPrisma(), (tx) => ({
   emailLinks: createEmailLinkRepository(tx),
   emailSendLog: createEmailSendLogRepository(tx),
   loginThrottle: createLoginThrottleRepository(tx),
+  signupTickets: createSignupTicketRepository(tx),
   users: createUserRepository(tx),
 }));
 /** The sign-in and sign-out operations these tests drive, as described above. */
@@ -84,10 +86,10 @@ async function sessionIdsOf(userId: string): Promise<string[]> {
   return rows.map((row) => row.id);
 }
 
-async function loginAlertsOf(email: string): Promise<number> {
+/** Every outbox row addressed to that email, of any kind. */
+async function outboxRowsOf(email: string): Promise<number> {
   const rows = await testPrisma().$queryRaw<{ n: number }[]>`
-    SELECT count(*)::int AS n FROM email_outbox
-    WHERE to_address = ${email} AND kind = 'login_alert'::email_kind`;
+    SELECT count(*)::int AS n FROM email_outbox WHERE to_address = ${email}`;
   return rows[0]?.n ?? 0;
 }
 
@@ -99,7 +101,7 @@ async function throttleFailuresOf(email: string): Promise<number> {
 
 /** Moves a time column of the throttle row of that email to `now() - interval`. */
 async function backdateThrottle(email: string, column: string, interval: string): Promise<void> {
-  const allowed = ['last_failure_at', 'locked_until', 'last_alert_sent_at'];
+  const allowed = ['last_failure_at', 'locked_until'];
   if (!allowed.includes(column)) throw new Error('unexpected column');
   await testPrisma().$executeRawUnsafe(
     `UPDATE login_throttle SET ${column} = now() - interval '${interval}' WHERE email_hmac = $1`,
@@ -243,34 +245,52 @@ describe('sign-in: failures and waits', () => {
     expect(await sessionIdsOf(userId)).toEqual([]);
   });
 
-  it('RNF-25 Espera progresiva tras intentos fallidos: the owner gets a single login_alert for the 5 failures', async () => {
+  it('RF-M1-08 Espera progresiva tras intentos fallidos: after 5 failures LOGIN_LOCKED with about 60 s and no outbox row', async () => {
     const { email } = await activeAccount();
+    const before = await outboxRowsOf(email);
+    await failTimes(email, 5);
+
+    const error = await rejectionOf(service.signIn({ email, password: WRONG_PASSWORD }));
+
+    expect(error.code).toBe('LOGIN_LOCKED');
+    const seconds = error.data?.['retryAfterSeconds'] as number;
+    expect(seconds).toBeGreaterThanOrEqual(50);
+    expect(seconds).toBeLessThanOrEqual(60);
+    expect(await outboxRowsOf(email)).toBe(before);
+  });
+
+  it('RF-M1-08 a single failed attempt on an active account enqueues no email', async () => {
+    const { email } = await activeAccount();
+    const before = await outboxRowsOf(email);
+
+    await failTimes(email, 1);
+
+    expect(await outboxRowsOf(email)).toBe(before);
+  });
+
+  it('RF-M1-16 ten failures and the 15 minute wait never enqueue an email', async () => {
+    const { email } = await activeAccount();
+    const before = await outboxRowsOf(email);
+    await failTimes(email, 5);
+    await backdateThrottle(email, 'locked_until', '1 second');
     await failTimes(email, 5);
     await rejectionOf(service.signIn({ email, password: WRONG_PASSWORD }));
 
-    expect(await loginAlertsOf(email)).toBe(1);
+    expect(await outboxRowsOf(email)).toBe(before);
   });
 
-  it('RF-M1-08 a new login_alert goes out once the previous one is more than an hour old', async () => {
-    const { email } = await activeAccount();
-    await failTimes(email, 1);
-    expect(await loginAlertsOf(email)).toBe(1);
-    await backdateThrottle(email, 'last_alert_sent_at', '61 minutes');
-
-    await failTimes(email, 1);
-
-    expect(await loginAlertsOf(email)).toBe(2);
-  });
-
-  it('RF-M1-08 failures for an email without an account are counted and locked, with no alert', async () => {
+  it('EC-M1-12 failures for an email without an account are counted and locked the same way, with no email', async () => {
     const email = freshEmail();
     await failTimes(email, 5);
 
     const error = await rejectionOf(service.signIn({ email, password: WRONG_PASSWORD }));
 
     expect(error.code).toBe('LOGIN_LOCKED');
-    expect(error.data?.['retryAfterSeconds']).toBeGreaterThan(0);
-    expect(await loginAlertsOf(email)).toBe(0);
+    expect(error.status).toBe(429);
+    const seconds = error.data?.['retryAfterSeconds'] as number;
+    expect(seconds).toBeGreaterThanOrEqual(50);
+    expect(seconds).toBeLessThanOrEqual(60);
+    expect(await outboxRowsOf(email)).toBe(0);
   });
 
   it('RF-M1-08 after 10 failures the wait is about 15 minutes', async () => {

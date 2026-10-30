@@ -168,7 +168,7 @@ describe('TASK-145 DashboardService: tarjetas', () => {
     expect(notCounted).toBe('0.00');
   });
 
-  it('RF-M8-02 convierte con la tasa guardada en cada movimiento (RN-05)', async () => {
+  it('RF-M8-02 RNF-19 convierte con la tasa guardada en cada movimiento (RN-05)', async () => {
     const user = await newUser();
     const usd = await createAccount(user.id, { currencyCode: 'USD' });
     await move(user.id, usd.id, 'expense', '2090-05-10', '10.00', {
@@ -294,5 +294,63 @@ describe('TASK-145 DashboardService: tarjetas', () => {
     expect(cards.income).toBe('300.00');
     expect(cards.variations.income).toMatch(/200/);
     expect(cards.variations.balance).toBe('200.00');
+  });
+
+  it('RNF-19 RN-11 una tasa nueva, otra moneda base u otra zona horaria no cambian un mes pasado', async () => {
+    const user = await newUser();
+    const usd = await createAccount(user.id, { currencyCode: 'USD' });
+    const first = await move(user.id, usd.id, 'expense', '2090-05-10', '10.00', {
+      rates: { curBob: '6.96', usdBob: '6.96' },
+    });
+    const second = await move(user.id, usd.id, 'expense', '2090-05-20', '10.00', {
+      rates: { curBob: '9.00', usdBob: '9.00' },
+    });
+    await move(user.id, usd.id, 'income', '2090-05-21', '30.00', {
+      rates: { curBob: '9.00', usdBob: '9.00' },
+    });
+
+    const before = await cardsOf(user.id, '2090-05');
+    expect(before.cards.expense).toBe('159.60');
+    expect(before.cards.income).toBe('270.00');
+    expect(before.cards.balance).toBe('110.40');
+
+    // Nueva tasa personalizada del dólar, registrada después de los movimientos.
+    await testPrisma().$executeRaw`
+      INSERT INTO user_fx_event (id, user_id, kind, currency_code, value)
+      VALUES (${uuidv7()}::uuid, ${user.id}::uuid, 'manual_usd_on', 'USD', 12.34)`;
+    await testPrisma().$executeRaw`
+      UPDATE user_settings SET manual_usd_value = 12.34, manual_usd_since = now()
+       WHERE user_id = ${user.id}::uuid`;
+
+    const afterRate = await cardsOf(user.id, '2090-05');
+    expect(afterRate.cards).toEqual(before.cards);
+
+    // Otra zona horaria: el mes pasado da lo mismo.
+    const otherZone = await service.cards(
+      { userId: user.id, timezone: 'America/New_York', now: NOW, traceId: uuidv7() },
+      '2090-05',
+    );
+    expect(otherZone.cards).toEqual(before.cards);
+
+    // Moneda base USD: cada movimiento se expresa con su tasa guardada (10 USD siguen siendo 10).
+    await testPrisma().$executeRaw`
+      UPDATE user_settings SET base_currency = 'USD' WHERE user_id = ${user.id}::uuid`;
+    const inUsd = await cardsOf(user.id, '2090-05');
+    expect(inUsd.cards.expense).toBe('20.00');
+    expect(inUsd.cards.income).toBe('30.00');
+
+    // De vuelta a BOB: el resultado del período es el mismo que antes.
+    await testPrisma().$executeRaw`
+      UPDATE user_settings SET base_currency = 'BOB' WHERE user_id = ${user.id}::uuid`;
+    const back = await cardsOf(user.id, '2090-05');
+    expect(back.cards).toEqual(before.cards);
+
+    const stored = await testPrisma().$queryRaw<{ id: string; cur: string; usd: string }[]>`
+      SELECT id::text AS id, rate_cur_bob::text AS cur, rate_usd_bob::text AS usd
+        FROM ledger_transaction WHERE id IN (${first}::uuid, ${second}::uuid) ORDER BY date`;
+    expect(stored.map((r) => [Number(r.cur), Number(r.usd)])).toEqual([
+      [6.96, 6.96],
+      [9, 9],
+    ]);
   });
 });

@@ -84,11 +84,11 @@ describe('env', () => {
     expect(parseEnv({ ...valid(), RELEASE: release }).RELEASE).toBe(release);
   });
 
-  it('EMAIL_FROM es opcional y usa la dirección de prueba de Resend', () => {
+  it('TASK-254 EMAIL_FROM es opcional y usa la dirección de prueba de Resend', () => {
     expect(parseEnv(valid()).EMAIL_FROM).toBe('Finanzas <onboarding@resend.dev>');
   });
 
-  it('EMAIL_FROM toma el remitente del entorno', () => {
+  it('TASK-254 EMAIL_FROM toma el remitente del entorno', () => {
     const from = 'Finanzas <no-reply@appfinanzas.me>';
     expect(parseEnv({ ...valid(), EMAIL_FROM: from }).EMAIL_FROM).toBe(from);
   });
@@ -99,4 +99,44 @@ describe('env', () => {
       expect(() => parseEnv({ ...valid(), RELEASE: release })).toThrow();
     },
   );
+
+  it('RNF-29 DB_LATENCY_MS es opcional y vale 0 por defecto', () => {
+    expect(parseEnv(valid()).DB_LATENCY_MS).toBe(0);
+  });
+
+  it('RNF-29 DB_LATENCY_MS se convierte a número entero', () => {
+    expect(parseEnv({ ...valid(), DB_LATENCY_MS: '25' }).DB_LATENCY_MS).toBe(25);
+  });
+
+  it.each(['2.5', '-1', 'abc'])('RNF-29 DB_LATENCY_MS rechaza "%s"', (latency) => {
+    const message = messageOf(() => parseEnv({ ...valid(), DB_LATENCY_MS: latency }));
+    expect(message).toContain('DB_LATENCY_MS');
+    expect(message).not.toContain(latency);
+  });
+
+  it.each(['development', 'test'])(
+    'RNF-29 DB_LATENCY_MS=25 es válido con NODE_ENV=%s',
+    (nodeEnv) => {
+      const env = parseEnv({ ...valid(), NODE_ENV: nodeEnv, DB_LATENCY_MS: '25' });
+      expect(env.DB_LATENCY_MS).toBe(25);
+    },
+  );
+
+  it('RNF-29 con NODE_ENV=production, parseEnv rechaza DB_LATENCY_MS distinto de 0', () => {
+    const message = messageOf(() =>
+      parseEnv({
+        ...valid(),
+        NODE_ENV: 'production',
+        INTEGRATIONS: 'real',
+        DB_LATENCY_MS: '25',
+      }),
+    );
+    expect(message).toContain('DB_LATENCY_MS');
+  });
+
+  it('RNF-29 con NODE_ENV=production, DB_LATENCY_MS=0 y la variable ausente son válidos', () => {
+    const production = { ...valid(), NODE_ENV: 'production', INTEGRATIONS: 'real' };
+    expect(parseEnv({ ...production, DB_LATENCY_MS: '0' }).DB_LATENCY_MS).toBe(0);
+    expect(parseEnv(production).DB_LATENCY_MS).toBe(0);
+  });
 });
