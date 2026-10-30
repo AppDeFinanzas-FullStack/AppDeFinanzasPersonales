@@ -36,7 +36,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
 | **24** | M15 Recordatorios y avisos completos | V1.2 | TASK-237 a TASK-242 |
 | **25** | **Final:** cobertura de escenarios Gherkin, jobs interrumpidos, zonas horarias, concurrencia y validación de RNF | V1.2 | TASK-243 a TASK-247 |
 | **26** | Correcciones de QA: textos de metas, pruebas E2E frágiles, rutas por entrega y diálogo de sesión | V1.2 | TASK-249 a TASK-253 |
-| **27** | Pulido transversal: rendimiento de cada pestaña, correos de la cuenta, botón "Volver", logo y coherencia de la documentación | Transversal | TASK-254 a TASK-272 |
+| **27** | Pulido transversal: rendimiento de cada pestaña, correos de la cuenta, botón "Volver", logo y coherencia de la documentación | Transversal | TASK-254 a TASK-274 |
 
 **Orden dentro de cada fase de módulo:** contratos → dominio → repositorios → servicios y jobs → rutas HTTP con su test de aislamiento → interfaz y estado → E2E de sus escenarios.
 
@@ -4438,3 +4438,25 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Lista los IDs de tareas cerradas con texto obsoleto por la Fase 27.
   - **Pasos manuales:**
     1. Revisar el informe y marcar qué diferencias se corrigen. Los cambios de documento van en commits `docs:` aparte, y los cambios de código, en tareas nuevas.
+
+- [ ] **`TASK-273`: Confirmación del correo con otra sesión abierta: descartar los borradores de esa sesión**
+  - **Dependencias:** Requiere TASK-266, TASK-272
+  - **Trazabilidad SDD:** plan §4.1.4 (Confirmación desde otro dispositivo), `coherencia.md` D-01; EC-M1-11, EC-M2-01
+  - **Archivos en Alcance:**
+    - `apps/web/src/features/auth/components/check-email.tsx`
+    - `e2e/m1-sign-up-confirm-sync.spec.ts`
+  - **Especificación de Implementación:** EC-M1-11 dice que al confirmar el correo de A en un navegador con la sesión de B abierta "se cierra la sesión de B, su borrador se descarta y se inicia la de A". El servidor ya cierra la sesión de B y abre la de A, pero `CheckEmail.onConfirmed` solo invalida `['me']` y navega a `/bienvenida`, así que los borradores de B (`draft:{idDeB}:…`) siguen guardados y reaparecen cuando B vuelve a entrar. En `onConfirmed`, antes de invalidar, se lee el `MeDto` anterior de la caché (`ME_QUERY_KEY`); si existe y su `id` no es el de la persona que acaba de confirmar, se llama a `clearAllDrafts(previous.id)` y se limpia la caché (`queryClient.clear()`), igual que el diálogo de sesión vencida (EC-M2-01, `session-expired-dialog.tsx`). Si no había sesión o es la misma persona, el comportamiento no cambia.
+  - **Criterios de Verificación (Tests & DoD):**
+    - `EC-M1-11`: el E2E existente se amplía: B deja un borrador guardado antes de que se confirme el correo de A; después de que la app continúa sola a `/bienvenida`, no queda ninguna clave `draft:{idDeB}:` en el almacenamiento del navegador, y al volver a entrar como B el formulario está vacío.
+    - `RF-M1-18`: sin otra sesión abierta, la confirmación sigue llevando a `/bienvenida` sin cambios.
+
+- [ ] **`TASK-274`: RNF-19 citado en las pruebas: la historia no cambia con la tasa ni con la configuración**
+  - **Dependencias:** Requiere TASK-272
+  - **Trazabilidad SDD:** plan §5.3 (RNF-18 / RNF-19), `coherencia.md` D-03; RNF-19, RN-05, RN-11
+  - **Archivos en Alcance:**
+    - `packages/domain/test/fx-convert.test.ts`
+    - `apps/api/test/integration/dashboard-cards.test.ts`
+  - **Especificación de Implementación:** Tarea de verificación. RNF-19 es el único RF, EC o RNF que ninguna prueba cita, aunque el comportamiento se cumple (cada asiento guarda su tasa; ingresos y gastos se convierten con la tasa guardada). Se cita `RNF-19` en los nombres de las pruebas de RN-05 que ya lo demuestran, sin cambiar lo que comprueban, y se agrega un caso de integración en `dashboard-cards.test.ts`: con movimientos en USD de un mes ya pasado, registrar una tasa personalizada nueva y cambiar la moneda base o la zona horaria no altera los montos convertidos de esos movimientos ni el resultado del período (plan §5.3).
+  - **Criterios de Verificación (Tests & DoD):**
+    - `RNF-19`: al menos una prueba unitaria y una de integración lo citan y pasan.
+    - `RNF-19`: cambiar la tasa de referencia después de registrar un movimiento no altera su monto convertido ni el total del período.
