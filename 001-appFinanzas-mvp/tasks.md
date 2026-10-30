@@ -4439,7 +4439,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Pasos manuales:**
     1. Revisar el informe y marcar qué diferencias se corrigen. Los cambios de documento van en commits `docs:` aparte, y los cambios de código, en tareas nuevas.
 
-- [ ] **`TASK-273`: Confirmación del correo con otra sesión abierta: descartar los borradores de esa sesión**
+- [x] **`TASK-273`: Confirmación del correo con otra sesión abierta: descartar los borradores de esa sesión**
   - **Dependencias:** Requiere TASK-266, TASK-272
   - **Trazabilidad SDD:** plan §4.1.4 (Confirmación desde otro dispositivo), `coherencia.md` D-01; EC-M1-11, EC-M2-01
   - **Archivos en Alcance:**

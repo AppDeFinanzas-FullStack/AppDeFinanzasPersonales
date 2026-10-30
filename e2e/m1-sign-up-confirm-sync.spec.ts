@@ -166,3 +166,119 @@ test.describe('TASK-266 la app que espera continúa sola al Onboarding', () => {
     expect(oldSession.status()).toBe(401);
   });
 });
+
+/**
+ * TASK-273 (EC-M1-11, EC-M2-01; plan §4.1.4): when the waiting app continues as A, the drafts the
+ * previous user (B) left in that browser are discarded.
+ */
+
+const DRAFT_NAME = 'Borrador de B sin guardar';
+
+interface MeWithId {
+  id: string;
+  name: string;
+  email: string;
+}
+
+async function readMe(page: Page): Promise<MeWithId> {
+  const res = await page.request.get('/api/me');
+  expect(res.status()).toBe(200);
+  return (await res.json()) as MeWithId;
+}
+
+/** Keys of the drafts kept for a user (plan §4.2.3: `draft:{userId}:{formKey}`). */
+async function draftKeysOf(page: Page, userId: string): Promise<string[]> {
+  return page.evaluate((prefix) => {
+    const keys: string[] = [];
+    for (let index = 0; index < sessionStorage.length; index += 1) {
+      const key = sessionStorage.key(index);
+      if (key?.startsWith(prefix) === true) keys.push(key);
+    }
+    return keys;
+  }, `draft:${userId}:`);
+}
+
+/** Leaves an unsaved profile name of `userId` as a draft in this tab (plan §4.2.3). */
+async function leaveProfileDraft(page: Page, userId: string): Promise<void> {
+  await page.evaluate(
+    ([key, value]) => {
+      sessionStorage.setItem(key, value);
+    },
+    [`draft:${userId}:profile`, JSON.stringify({ name: DRAFT_NAME })] as const,
+  );
+  expect(await draftKeysOf(page, userId)).toEqual([`draft:${userId}:profile`]);
+}
+
+async function confirmFromPhone(
+  page: Page,
+  browser: Browser,
+  baseURL: string | undefined,
+  link: string,
+): Promise<void> {
+  const phone = await otherContext(page, browser, baseURL);
+  try {
+    await openLink(await phone.newPage(), link);
+  } finally {
+    await phone.close();
+  }
+}
+
+test.describe('TASK-273 la confirmación descarta los borradores de la sesión anterior', () => {
+  test('EC-M1-11 EC-M2-01 el borrador de B se descarta al continuar como A y B vuelve a un formulario sin él', async ({
+    page,
+    browser,
+    baseURL,
+    mailbox,
+    testUser,
+  }) => {
+    const email = mailbox.newEmail();
+    await signUpAndWait(page, email);
+
+    // B signs in on the same browser while the tab waits for A, and leaves a draft there.
+    const signIn = await page.request.post('/api/auth/sign-in', {
+      data: { email: testUser.email, password: testUser.password },
+    });
+    expect(signIn.status()).toBe(200);
+    const userB = await readMe(page);
+    expect(userB.email).toBe(testUser.email);
+    await leaveProfileDraft(page, userB.id);
+    await expect(page).toHaveURL(/\/revisa-tu-correo/);
+
+    await confirmFromPhone(page, browser, baseURL, await mailbox.confirmationLink(email));
+
+    await expect(page).toHaveURL(/\/bienvenida/, { timeout: WATCH_TIMEOUT });
+    const userA = await readMe(page);
+    expect(userA.email).toBe(email);
+    expect(userA.id).not.toBe(userB.id);
+    await expect.poll(async () => draftKeysOf(page, userB.id)).toEqual([]);
+
+    // B signs in again on this browser: the profile form shows no trace of the old draft.
+    const again = await page.request.post('/api/auth/sign-in', {
+      data: { email: testUser.email, password: testUser.password },
+    });
+    expect(again.status()).toBe(200);
+    expect((await readMe(page)).id).toBe(userB.id);
+    await page.goto('/perfil');
+    await expect(page).toHaveURL(/\/perfil/);
+    const nameField = page.getByLabel(/^nombre/i).first();
+    await expect(nameField).toHaveValue(userB.name);
+    await expect(nameField).not.toHaveValue(DRAFT_NAME);
+  });
+
+  test('RF-M1-18 sin otra sesión abierta la confirmación sigue llevando a /bienvenida', async ({
+    page,
+    browser,
+    baseURL,
+    mailbox,
+  }) => {
+    const email = mailbox.newEmail();
+    await signUpAndWait(page, email);
+    expect((await page.request.get('/api/me')).status()).toBe(401);
+
+    await confirmFromPhone(page, browser, baseURL, await mailbox.confirmationLink(email));
+
+    await expect(page).toHaveURL(/\/bienvenida/, { timeout: WATCH_TIMEOUT });
+    await expect(page.getByText(/Paso 1 de 3/).first()).toBeVisible();
+    expect((await readMe(page)).email).toBe(email);
+  });
+});

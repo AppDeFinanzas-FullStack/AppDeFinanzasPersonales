@@ -1,3 +1,4 @@
+import type { MeDto } from '@finanzas/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -5,14 +6,29 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button';
 import { call } from '@/lib/api-client';
+import { clearAllDrafts } from '@/lib/drafts';
 
 import { resendConfirmationEndpoint } from '../api';
 import { useConfirmationWatch } from '../hooks/use-confirmation-watch';
-import { ME_QUERY_KEY } from '../hooks/use-me';
+import { ME_QUERY_KEY, meQuery } from '../hooks/use-me';
 
 /** RF-M1-05: one resend every 60 seconds. */
 const RESEND_COOLDOWN_SECONDS = 60;
 const TICK_MILLISECONDS = 1000;
+/** Plan §4.2.3: drafts live under `draft:{userId}:{formKey}`. */
+const DRAFT_PREFIX = 'draft:';
+
+/** Users other than `currentId` that left drafts in this tab: earlier sessions of the browser. */
+function otherDraftOwners(currentId: string): string[] {
+  const owners = new Set<string>();
+  for (let index = 0; index < sessionStorage.length; index += 1) {
+    const key = sessionStorage.key(index);
+    if (key?.startsWith(DRAFT_PREFIX) !== true) continue;
+    const owner = key.slice(DRAFT_PREFIX.length).split(':')[0];
+    if (owner !== undefined && owner !== '' && owner !== currentId) owners.add(owner);
+  }
+  return [...owners];
+}
 
 function emailFrom(state: unknown): string | null {
   if (typeof state === 'object' && state !== null && 'email' in state) {
@@ -32,9 +48,22 @@ export function CheckEmail() {
   const queryClient = useQueryClient();
 
   // RF-M1-18, EC-M1-11: the server opened the session of the confirmed account; continue alone.
+  // EC-M2-01: when another user's session was open in this browser, its drafts and data go away.
   const onConfirmed = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
-    void navigate('/bienvenida', { replace: true });
+    const previous = queryClient.getQueryData<MeDto>(ME_QUERY_KEY);
+    const continueAs = async () => {
+      const confirmed = await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+      const previousIds = new Set(otherDraftOwners(confirmed.id));
+      if (previous !== undefined && previous.id !== confirmed.id) previousIds.add(previous.id);
+      if (previousIds.size > 0) {
+        for (const id of previousIds) clearAllDrafts(id);
+        queryClient.clear();
+        queryClient.setQueryData(ME_QUERY_KEY, confirmed);
+      }
+    };
+    void continueAs()
+      .catch(() => queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY }))
+      .finally(() => navigate('/bienvenida', { replace: true }));
   }, [queryClient, navigate]);
   useConfirmationWatch({ onConfirmed });
 
