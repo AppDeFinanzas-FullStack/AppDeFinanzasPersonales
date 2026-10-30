@@ -4418,7 +4418,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Pasos manuales:**
     1. Si la prueba lista diferencias, decidir en cada una si cambia el documento (en un commit `docs:` aparte, constitución §6) o el código (en una tarea nueva), y volver a correr la tarea.
 
-- [ ] **`TASK-272`: Coherencia de la documentación SDD con el código: informe de revisión**
+- [x] **`TASK-272`: Coherencia de la documentación SDD con el código: informe de revisión**
   - **Dependencias:** Requiere TASK-271
   - **Trazabilidad SDD:** constitución §6, plan §5.5 (matriz de trazabilidad)
   - **Archivos en Alcance:**
