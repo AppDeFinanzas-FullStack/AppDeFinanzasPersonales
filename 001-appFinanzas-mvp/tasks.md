@@ -4405,7 +4405,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RNF-06`: axe no reporta violaciones serias en la pantalla de acceso ni en la cabecera, en los dos temas.
     - Cargar la pantalla no desplaza el título (el logo reserva su espacio).
 
-- [ ] **`TASK-271`: Coherencia de la documentación SDD con el código: comprobaciones automáticas**
+- [x] **`TASK-271`: Coherencia de la documentación SDD con el código: comprobaciones automáticas**
   - **Dependencias:** Requiere TASK-261, TASK-263, TASK-266, TASK-268, TASK-270
   - **Trazabilidad SDD:** plan §5.5 (matriz de trazabilidad), constitución §6; RF-M1-08, RF-M1-16
   - **Archivos en Alcance:**
