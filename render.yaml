@@ -2,9 +2,10 @@
 # deploy.yml calls the Deploy Hook after CI and the migrations pass.
 services:
   - type: web
-    name: finanzas-api
+    name: finanzas-api-va
     runtime: node
     plan: free
+    region: virginia
     branch: main
     autoDeploy: false
     buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @finanzas/db generate && pnpm --filter api build

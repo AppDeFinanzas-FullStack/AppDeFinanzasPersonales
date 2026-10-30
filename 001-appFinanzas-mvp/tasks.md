@@ -4158,7 +4158,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M2-04`: la pestaña sigue restaurando su URL y su posición al volver a ella.
     - Un error del prefetch no muestra nada y la pantalla repite la petición al montarse.
 
-- [ ] **`TASK-260`: Cercanía de la base de datos: regiones y *pooler***
+- [x] **`TASK-260`: Cercanía de la base de datos: regiones y *pooler***
   - **Dependencias:** Requiere TASK-254
   - **Trazabilidad SDD:** plan §4.0 (Despliegue), plan §1.5; RNF-03, RNF-29
   - **Archivos en Alcance:**

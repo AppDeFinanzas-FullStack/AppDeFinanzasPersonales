@@ -8,11 +8,11 @@ Aplicación web para que una persona en Bolivia lleve sus finanzas personales en
 
 Son tres despliegues separados, cada uno en su servicio, y se actualizan solos desde `main` con [`deploy.yml`](#integración-y-despliegue-continuos):
 
-| Parte                          | Servicio | URL                                      | Se verifica con                    |
-| ------------------------------ | -------- | ---------------------------------------- | ---------------------------------- |
-| **Frontend** (React + Vite)    | Vercel   | <https://finanzas-web-orpin.vercel.app>  | `GET <web>/` → 200                 |
-| **Backend** (Express API)      | Render   | <https://finanzas-api-u3vu.onrender.com> | `GET <api>/api/health` → 204       |
-| **Base de datos** (PostgreSQL) | Neon     | sin URL pública: solo la usa el API      | `GET <api>/api/health/ready` → 204 |
+| Parte                          | Servicio | URL                                     | Se verifica con                    |
+| ------------------------------ | -------- | --------------------------------------- | ---------------------------------- |
+| **Frontend** (React + Vite)    | Vercel   | <https://finanzas-web-orpin.vercel.app> | `GET <web>/` → 200                 |
+| **Backend** (Express API)      | Render   | <https://finanzas-api-va.onrender.com>  | `GET <api>/api/health` → 204       |
+| **Base de datos** (PostgreSQL) | Neon     | sin URL pública: solo la usa el API     | `GET <api>/api/health/ready` → 204 |
 
 ### Cómo se conectan
 
