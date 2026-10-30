@@ -1,6 +1,6 @@
 # Coherencia de la documentación SDD con el código — Informe de revisión
 
-**Tarea:** TASK-272 · **Fecha:** 2026-10-30 · **Rama:** `feature/27-pulido-transversal-rendimiento-correos`
+**Tarea:** TASK-272 · **Fecha:** 2026-10-30 · **Actualizado:** 2026-10-30, con las correcciones de §6 · **Rama:** `feature/27-pulido-transversal-rendimiento-correos`
 **Documentos revisados:** `spec.md` v1.5 · `plan.md` v1.4 · `tasks.md` (Fase 27) · `docs/constitution.md` v1.2.0
 **Complementa a:** `apps/api/test/unit/sdd-coherence.test.ts` (TASK-271), que ya compara de forma automática los tipos de correo, los endpoints, los códigos de error, las tablas, la matriz de trazabilidad, las variables de entorno, los IDs citados, las versiones y el mapa de fases.
 
@@ -50,7 +50,7 @@ Este informe no modifica la spec, el plan ni `tasks.md`. Las correcciones se apl
 | EC-M1-08 | La contraseña de la eliminación es incorrecta, o la palabra no es exactamente ELIMINAR. No se elimina nada y… | coincide | `apps/api/test/http/me-delete.test.ts`, `packages/contracts/test/auth.test.ts` (+1) |  |
 | EC-M1-09 | Alguien se registra con un correo que tiene un registro Sin confirmar (aún no descartado). Se reemplazan el… | coincide | `apps/api/test/http/auth.test.ts`, `apps/api/test/integration/auth-signup-ticket.test.ts` (+1) |  |
 | EC-M1-10 | Se recupera la contraseña de una cuenta Sin confirmar. Al definir la contraseña nueva, la cuenta queda Activa. | coincide | `apps/api/test/http/auth.test.ts`, `apps/api/test/integration/auth-password.test.ts` (+1) |  |
-| EC-M1-11 | Se confirma el correo de A mientras la app que lo espera está en un navegador con la sesión de B abierta. Se… | difiere | `apps/api/test/http/auth.test.ts`, `apps/api/test/integration/auth-signup-ticket.test.ts` (+1) | Ver D-01: el borrador de B no se descarta al confirmar. |
+| EC-M1-11 | Se confirma el correo de A mientras la app que lo espera está en un navegador con la sesión de B abierta. Se… | coincide | `e2e/m1-sign-up-confirm-sync.spec.ts`, `apps/api/test/http/auth.test.ts` (+1) | D-01 resuelta en TASK-273: al confirmar se descartan los borradores de B. |
 | EC-M1-12 | Hay intentos fallidos con un correo sin cuenta. Se aplica la misma espera que a uno con cuenta, para no… | coincide | `apps/api/test/integration/auth-signin.test.ts`, `apps/api/test/integration/login-throttle.test.ts` |  |
 | EC-M1-13 | El usuario cierra la app donde se registró antes de confirmar. Al abrir el enlace, nada continúa solo: la… | coincide | `e2e/m1-sign-up-confirm-sync.spec.ts` |  |
 | EC-M1-14 | Una cuenta Sin confirmar recupera su contraseña (EC-M1-10), o alguien se registra de nuevo con su correo… | coincide | `apps/api/test/http/auth.test.ts`, `apps/api/test/integration/auth-password.test.ts` (+2) |  |
@@ -397,7 +397,7 @@ Este informe no modifica la spec, el plan ni `tasks.md`. Las correcciones se apl
 | RNF-16 | El usuario DEBE poder exportar todos sus datos y eliminarlos por completo y de inmediato. | coincide | `apps/api/test/http/me-delete.test.ts`, `apps/api/test/http/me-export-v1-1.test.ts` (+2) |  |
 | RNF-17 | La app NUNCA DEBE mostrar al usuario detalles internos en los mensajes de error. | coincide | `apps/api/test/http/app.test.ts`, `apps/api/test/http/logs-secrets.test.ts` (+3) |  |
 | RNF-18 | Los cálculos DEBEN ser exactos al centavo, con el redondeo de RN-06. No deben acumularse diferencias por… | coincide | `packages/domain/test/debts.test.ts`, `packages/domain/test/money.test.ts` |  |
-| RNF-19 | Los valores históricos (movimientos, períodos cerrados, interés acumulado) NUNCA DEBEN cambiar por… | coincide | `packages/domain/test/fx-convert.test.ts`, `apps/api/test/integration/dashboard-cards.test.ts` | Ninguna prueba cita RNF-19; lo cubren las de RN-05 y RN-11 (ver D-03). |
+| RNF-19 | Los valores históricos (movimientos, períodos cerrados, interés acumulado) NUNCA DEBEN cambiar por… | coincide | `packages/domain/test/fx-convert.test.ts`, `apps/api/test/integration/dashboard-cards.test.ts` | D-03 resuelta en TASK-274: las dos pruebas citan RNF-19. |
 | RNF-20 | Todas las fechas de negocio (día de un movimiento, períodos, vencimientos, ejecución de recurrentes y avisos)… | coincide | `apps/api/test/integration/budgets-close-job.test.ts`, `apps/api/test/integration/notifications-debts-job.test.ts` (+3) |  |
 | RNF-21 | Si fallan las fuentes del tipo de cambio, la app DEBE seguir funcionando con el último valor guardado (M3). | coincide | `apps/api/test/integration/fx-jobs.test.ts` |  |
 | RNF-22 | Si falla el servicio de correo, el usuario DEBE poder reenviar los correos de la cuenta respetando los… | coincide | `apps/api/test/integration/outbox.test.ts` |  |
@@ -413,7 +413,7 @@ Este informe no modifica la spec, el plan ni `tasks.md`. Las correcciones se apl
 
 | Filas | coincide | difiere | no verificable |
 |---|---|---|---|
-| 311 | 305 | 1 | 5 |
+| 311 | 306 | 0 | 5 |
 
 ## 3. Diferencias
 
@@ -447,3 +447,15 @@ Su código ya fue reemplazado; el texto de la tarea describe el comportamiento a
 1. Revisar este informe y marcar qué diferencias se corrigen.
 2. Los cambios de documento (D-02, D-04, D-05) van en commits `docs:` aparte.
 3. Los cambios de código (D-01, D-03) van en tareas nuevas de `tasks.md`.
+
+## 6. Seguimiento de las diferencias
+
+Todas las diferencias de §3 quedaron resueltas en la Fase 27. La tabla de §3 se conserva como estaba al revisar.
+
+| # | Resuelta en | Commit |
+|---|---|---|
+| D-01 | TASK-273: `CheckEmail` descarta los borradores de la sesión anterior al confirmar (EC-M1-11, EC-M2-01) | `40a08a7` |
+| D-02 | `plan.md` §5.5 cita `spec.md` v1.5 | `e3c8aab` |
+| D-03 | TASK-274: RNF-19 citado en una prueba unitaria y una de integración, con un caso nuevo de tasa, moneda base y zona horaria | `b3268c3` |
+| D-04 | Matriz de `plan.md` §5.5: EC-M3-06 antes de EC-M3-07 | `e3c8aab` |
+| D-05 | Nota "Reemplazada por…" en las 8 tareas cerradas de §4 | `e3c8aab` |
