@@ -4163,12 +4163,15 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
   - **Trazabilidad SDD:** plan §4.0 (Despliegue), plan §1.5; RNF-03, RNF-29
   - **Archivos en Alcance:**
     - `render.yaml`
+    - `vercel.json`
+    - `README.md`
     - `docs/latencia-despliegue.md`
-  - **Especificación de Implementación:** Lo que más pesa en la lentitud es el viaje entre el API (Render) y la base (Neon): con regiones distintas, cada una de las decenas de consultas de una petición paga 50 a 150 ms. Esta tarea solo se puede cerrar con los pasos manuales 1 a 3: el implementer pregunta (`NEEDS_CLARIFICATION`) la región elegida y los tiempos medidos. `render.yaml` fija `region` en la elegida. `docs/latencia-despliegue.md` registra la región de Neon y la de Render, el tiempo `db` de `GET /api/health/ready` (cabecera `Server-Timing` de TASK-254) antes y después, y los parámetros de `DATABASE_URL` (host `-pooler`, `pgbouncer=true`, `connection_limit`).
+  - **Especificación de Implementación:** Lo que más pesa en la lentitud es el viaje entre el API (Render) y la base (Neon): con regiones distintas, cada una de las decenas de consultas de una petición paga 50 a 150 ms. Neon está en `aws-us-east-1` (Virginia) y Render estaba en Oregón; el servicio nuevo `finanzas-api-va` (`https://finanzas-api-va.onrender.com`) se creó a mano en Virginia, y el viejo `finanzas-api-u3vu` queda para apagar. `render.yaml` fija `region: virginia` y `name: finanzas-api-va`, sin tocar otra clave. `vercel.json` apunta el *rewrite* de `/api/:path*` a la URL nueva y la tabla de despliegue del `README.md` la cita. `docs/latencia-despliegue.md` registra la región de Neon y la de Render, el motivo, la URL nueva, los parámetros de `DATABASE_URL` (host `-pooler`, `pgbouncer=true`, `connection_limit=5`) y que los tiempos `db` de `GET /api/health/ready` no se midieron antes ni después, por decisión de la persona responsable; cómo medirlos queda explicado.
   - **Criterios de Verificación (Tests & DoD):**
-    - `render.yaml` define `region` y no cambia ninguna otra clave.
-    - `docs/latencia-despliegue.md` tiene las dos regiones y los tiempos `db` de antes y después.
-    - Comando: `grep -q "region:" render.yaml`
+    - `render.yaml` define `region: virginia` y `name: finanzas-api-va`, y no cambia ninguna otra clave.
+    - `vercel.json` y `README.md` ya no citan `finanzas-api-u3vu` y sí `finanzas-api-va`.
+    - `docs/latencia-despliegue.md` tiene las dos regiones, los parámetros de `DATABASE_URL` y dice que los tiempos `db` no se midieron.
+    - Comando: `grep -q "region: virginia" render.yaml && grep -q "finanzas-api-va" vercel.json && ! grep -q "u3vu" vercel.json README.md`
   - **Pasos manuales:**
     1. **Medir antes:** abrir la web en producción con las herramientas del navegador (Network), ir a `https://<WEB_URL>/api/health/ready` y anotar `db` de la cabecera `Server-Timing`, tres veces. En la misma región debería ser de unos pocos milisegundos; decenas de ms o más indican regiones distintas.
     2. **Ver las regiones:** Neon → el proyecto → Settings (región, por ejemplo `aws-us-east-2`) y Render → `finanzas-api` → Settings → Region.
