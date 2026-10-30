@@ -164,8 +164,19 @@ Ningún secreto se versiona. `.gitignore` excluye todo `.env*` salvo [`.env.exam
 | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
 | `DATABASE_URL`, `AUTH_SECRET`, `HMAC_SECRET`, `JOBS_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `RELEASE`, `WEB_ORIGIN`, `INTEGRATIONS`         | `.env` | Variables del servicio en Render                              |
 | `DATABASE_URL_DIRECT`, `RENDER_DEPLOY_HOOK_URL`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | —      | Secretos del Environment `production` de GitHub (solo `main`) |
+| `NEON_API_KEY` y, opcional, `NEON_MCP_READONLY` (solo el [MCP de Neon](#mcp-de-neon-claude-code))                                            | `.env` | —                                                             |
 | `WEB_URL`, `API_URL`                                                                                                                         | —      | Variables del Environment `production`                        |
 | `TEST_DATABASE_URL` y, opcionales, `TEST_TIMEOUT_MS` (PC lenta) y `DB_LATENCY_MS` (latencia simulada)                                        | `.env` | —                                                             |
+
+## MCP de Neon (Claude Code)
+
+[`.mcp.json`](.mcp.json) conecta Claude Code con el servidor MCP de Neon para listar tablas, ver el esquema y consultar la base durante el desarrollo. Es solo para desarrollo local: la aplicación no lo lee y no se despliega.
+
+1. Consigue una API key de Neon (**Settings → API keys**, en la consola). Si el proyecto de Neon es de otra persona, esa persona crea la clave, o te invita al proyecto para que crees la tuya. Pásala por un canal privado, nunca por el repositorio ni por un chat grupal.
+2. Pégala en tu `.env` local como `NEON_API_KEY=…`. El archivo está en `.gitignore`: la clave no se versiona. En el repositorio solo está el nombre de la variable.
+3. Reinicia Claude Code en la carpeta del proyecto, aprueba el servidor `neon` y comprueba que aparece conectado con `/mcp`.
+
+Por defecto queda en **solo lectura**. Para permitir escrituras, agrega `NEON_MCP_READONLY=false` a tu `.env`. Cuidado con la base a la que apunta la clave: con escrituras habilitadas, el MCP puede modificarla.
 
 ## Puesta en marcha del despliegue (una sola vez)
 
