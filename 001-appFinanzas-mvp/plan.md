@@ -1567,7 +1567,7 @@ parseAmountInput(raw: string): Decimal | null   // domain: solo dígitos; "." o 
 |---|---|---|
 | `GET /api/register/context` | Una sola consulta compuesta. Grilla: favoritas en su orden → más usadas en 60 días por categoría exacta (con empate por el uso más reciente) → precargadas por `seed_order`; nunca archivadas. "Última cuenta usada": la del último movimiento creado de ese tipo, si sigue activa. Si no hay, la primera cuenta activa por `sort_order` (RF-M7-03). | — |
 | `POST /api/transactions` | Igual que en M6. La respuesta incluye `undoToken` y `todayRecent`. | Igual que en M6 |
-| `POST /api/shortcuts` · `PATCH` · `PUT /api/shortcuts/order` · `DELETE /api/shortcuts/:id` | Tope de 12, contando los ocultos (RF-M7-09). | `LIMIT_REACHED 409` (EC-M7-06) |
+| `GET /api/shortcuts` · `POST /api/shortcuts` · `PATCH` · `PUT /api/shortcuts/order` · `DELETE /api/shortcuts/:id` | Tope de 12, contando los ocultos (RF-M7-09). | `LIMIT_REACHED 409` (EC-M7-06) |
 
 #### 4.7.3 Ciclo de vida y concurrencia
 - **Formulario Vacío → Con borrador → Listo → Guardado:**
