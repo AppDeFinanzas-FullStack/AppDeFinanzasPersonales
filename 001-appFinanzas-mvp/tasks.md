@@ -746,6 +746,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-08`: `DeleteAccountInput` solo acepta exactamente "ELIMINAR".
 
 - [x] **`TASK-048`: Correo de la cuenta: adaptador Resend, *fake* y plantillas**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-262 y TASK-263: hoy son 5 tipos de `email_kind`, sin `login_alert` ni su plantilla. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-031
   - **Trazabilidad SDD:** plan §1.4 (*fakes* de integraciones), plan §1.5 (buzón de prueba), ADR-08; RF-M1-16, RNF-25
   - **Archivos en Alcance:**
@@ -805,6 +806,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-02`: un enlace ya usado da `LINK_ALREADY_USED`.
 
 - [x] **`TASK-052`: Espera progresiva tras intentos fallidos (`login-throttle`)**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-262: `createLoginThrottle` ya no devuelve `shouldAlert` ni hay alerta por intentos fallidos. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-033
   - **Trazabilidad SDD:** plan §4.1.3 (espera tras intentos fallidos), plan §3.9 (HMAC); RF-M1-08, EC-M1-04, EC-M1-12
   - **Archivos en Alcance:**
@@ -837,6 +839,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M15-02`: las preferencias quedan activas salvo `log_day` (21:00) y `goal_progress`.
 
 - [x] **`TASK-054`: Registro de usuario (`signUp`)**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-265: `signUp` entrega el ticket de registro (`__Secure-signup-ticket`) y lo guarda en `signup_ticket`. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-047, TASK-049, TASK-050, TASK-051, TASK-053
   - **Trazabilidad SDD:** plan §4.1.2 (`POST /api/auth/sign-up`), plan §4.1.3; RF-M1-01, RF-M1-03, RF-M1-06, RF-M1-17, EC-M1-03, EC-M1-09, RNF-15
   - **Archivos en Alcance:**
@@ -853,6 +856,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-03`: la respuesta es idéntica en los tres casos.
 
 - [x] **`TASK-055`: Reenvío y confirmación del correo**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-265: `confirm` solo confirma (`{ status: 'confirmed' }`) y la sesión la abre `confirmation/status`. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-054
   - **Trazabilidad SDD:** plan §4.1.2 (`confirmation/resend`, `confirm`); RF-M1-04, RF-M1-05, EC-M1-01, EC-M1-02, EC-M1-11
   - **Archivos en Alcance:**
@@ -870,6 +874,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `EC-M1-11`: confirmar con la sesión de otro usuario abierta la cierra y abre la nueva.
 
 - [x] **`TASK-056`: Inicio y cierre de sesión**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-262: un fallo de inicio de sesión ya no encola `login_alert`. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-052, TASK-055
   - **Trazabilidad SDD:** plan §4.1.2 (`sign-in`, `sign-out`, `sign-out-all`); RF-M1-04, RF-M1-07, RF-M1-08, EC-M1-04, RNF-15, RNF-25
   - **Archivos en Alcance:**
@@ -886,6 +891,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-07`: `signOutAll` deja 0 sesiones.
 
 - [x] **`TASK-057`: Recuperar y cambiar la contraseña**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-265: `reset` invalida el ticket del registro anterior (EC-M1-14). Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-056
   - **Trazabilidad SDD:** plan §4.1.2 (`password/forgot`, `reset`, `change`); RF-M1-09, RF-M1-10, EC-M1-05, EC-M1-10, RNF-25
   - **Archivos en Alcance:**
@@ -978,6 +984,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - `RF-M1-15`: un job que toma el bloqueo del usuario no crea datos después de la eliminación.
 
 - [x] **`TASK-063`: Job `maintenance`: descarte de registros sin confirmar y purgas de seguridad**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-265: las purgas de `maintenance` incluyen los `signup_ticket` vencidos. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-055
   - **Trazabilidad SDD:** plan §4.1.3 (descarte), plan §3.9 (retención); RF-M1-06, EC-M1-03, RNF-26
   - **Archivos en Alcance:**
@@ -1006,6 +1013,7 @@ Las tareas se ejecutan en orden numérico, salvo lo que indican las **Decisiones
     - Un error en la puesta al día no cambia la respuesta de la petición.
 
 - [x] **`TASK-065`: Web: registro, "Revisa tu correo" y confirmación**
+  - **Nota (Fase 27, texto obsoleto):** Reemplazada por TASK-266: el enlace solo muestra "Correo confirmado" y la app que espera en "Revisa tu correo" continúa sola. Ver `coherencia.md` §4.
   - **Dependencias:** Requiere TASK-046, TASK-060
   - **Trazabilidad SDD:** plan §4.1.4 (rutas públicas), plan §4.2.4 (guardas); RF-M1-01, RF-M1-03, RF-M1-05, RF-M1-11, EC-M1-01, EC-M1-02
   - **Archivos en Alcance:**

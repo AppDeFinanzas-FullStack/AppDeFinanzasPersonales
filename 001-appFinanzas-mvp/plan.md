@@ -2146,7 +2146,7 @@ PreferencesInput = z.array(z.object({ type: NotificationType, enabled: z.boolean
 
 ### 5.5 Matriz de trazabilidad (spec → plan)
 
-Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección del plan que lo resuelve.
+Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.5 con la sección del plan que lo resuelve.
 
 | ID | Dónde se resuelve |
 |---|---|
@@ -2231,8 +2231,8 @@ Cada regla, requerimiento, caso borde y RNF de `spec.md` v1.3 con la sección de
 | EC-M3-03 | 4.3.1 — cadena de respaldo de `resolveUsdRate` |
 | EC-M3-04 | 4.3 |
 | EC-M3-05 | 4.3.2 — `CURRENCY_IN_USE {usedBy}` |
-| EC-M3-07 | 4.3.2 — `RATE_BELOW_MINIMUM` |
 | EC-M3-06 | 4.3.1 — `transferPrefill` prioriza el valor manual |
+| EC-M3-07 | 4.3.2 — `RATE_BELOW_MINIMUM` |
 | RF-M4-01 | 4.10 |
 | RF-M4-02 | 4.4, 4.10 |
 | RF-M4-03 | 4.4 |
