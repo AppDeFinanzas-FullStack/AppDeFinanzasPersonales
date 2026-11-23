@@ -1,7 +1,7 @@
 import type { DebtDto } from '@finanzas/contracts';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { i18n, LANGUAGE } from '@/app/providers/i18n';
 import { ResourceNotFound } from '@/components/resource-not-found';
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentRate } from '@/features/fx/hooks/use-current-rate';
 import { ApiError } from '@/lib/api-client';
 import { messageForError } from '@/lib/i18n-errors';
@@ -29,17 +30,26 @@ import { DebtsSummary } from './components/debts-summary';
 import { DeleteDebtDialog } from './components/delete-debt-dialog';
 import { PaymentForm } from './components/payment-form';
 import { PaymentsList } from './components/payments-list';
+import { SettledDebtList } from './components/settled-debt-list';
 import { ViewToggle } from './components/view-toggle';
 import { useDebt, useDebts, useDeleteDebt, useForgiveDebt } from './hooks/use-debts';
+import { isSettled, settledDebts } from './settled';
 
 // The feature registers its own namespace (RNF-07).
 i18n.addResourceBundle(LANGUAGE, 'debts', debts, true, true);
 // The confirmation of the earmarks of a payment (EC-M13-04) reads the texts of the goals.
 i18n.addResourceBundle(LANGUAGE, 'goals', goals, true, true);
 
-/** `/deudas` (plan §4.13.4). */
+type DebtsTab = 'active' | 'settled';
+
+/** The tab lives in the URL (`?pestana=saldadas`), so coming back from a debt keeps it. */
+const SETTLED_PARAM = 'saldadas';
+
+/** `/deudas` (plan §4.13.4). Open debts on one tab, the history of the settled ones on another. */
 export function DebtsPage() {
   const { t } = useTranslation('debts');
+  const [params, setParams] = useSearchParams();
+  const tab: DebtsTab = params.get('pestana') === SETTLED_PARAM ? 'settled' : 'active';
   const [view, setView] = useState<DebtsView>('debt');
   const [formOpen, setFormOpen] = useState(false);
   const query = useDebts(view);
@@ -55,6 +65,20 @@ export function DebtsPage() {
   }
   if (query.data === undefined) return null;
   const { debts: items, summary } = query.data;
+  const open = items.filter((debt) => !isSettled(debt));
+  const settled = settledDebts(items);
+
+  const changeTab = (next: string) => {
+    setParams(
+      (current) => {
+        const copy = new URLSearchParams(current);
+        if (next === 'settled') copy.set('pestana', SETTLED_PARAM);
+        else copy.delete('pestana');
+        return copy;
+      },
+      { replace: true },
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,14 +95,35 @@ export function DebtsPage() {
       </div>
       <DebtForm open={formOpen} onOpenChange={setFormOpen} />
       <DebtsSummary summary={summary} base={base} />
-      <ViewToggle value={view} onChange={setView} />
-      {items.length === 0 ? (
-        <p className="text-muted-foreground">{t('empty')}</p>
-      ) : view === 'person' ? (
-        <PersonList people={summary.byPerson ?? []} base={base} />
-      ) : (
-        <DebtList debts={items} />
-      )}
+      <Tabs value={tab} onValueChange={changeTab} className="flex flex-col gap-4">
+        <TabsList className="h-11 self-start">
+          <TabsTrigger value="active" className="h-9">
+            {t('tabs.active')}
+          </TabsTrigger>
+          <TabsTrigger value="settled" className="h-9">
+            {t('tabs.settled')}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="active" className="mt-0 flex flex-col gap-6">
+          <ViewToggle value={view} onChange={setView} />
+          {open.length === 0 ? (
+            <p className="text-muted-foreground">
+              {items.length === 0 ? t('empty') : t('emptyActive')}
+            </p>
+          ) : view === 'person' ? (
+            <PersonList people={summary.byPerson ?? []} base={base} />
+          ) : (
+            <DebtList debts={open} />
+          )}
+        </TabsContent>
+        <TabsContent value="settled" className="mt-0">
+          {settled.length === 0 ? (
+            <p className="text-muted-foreground">{t('emptySettled')}</p>
+          ) : (
+            <SettledDebtList debts={settled} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

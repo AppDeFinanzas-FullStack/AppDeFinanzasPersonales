@@ -168,6 +168,37 @@ test.describe('TASK-217 lista y detalle de deudas', () => {
     await expect(row).toContainText('550,00');
   });
 
+  test('las deudas saldadas salen de la lista y quedan en la pestaña "Saldadas"', async ({
+    authedPage,
+  }) => {
+    const openId = await createDebt(authedPage, 'i_owe', 'Juan', '800.00');
+    await pay(authedPage, openId, '250.00', daysAgo(2));
+    const paidId = await createDebt(authedPage, 'i_owe', 'Marta', '200.00');
+    await pay(authedPage, paidId, '200.00', daysAgo(2));
+    const forgivenId = await createDebt(authedPage, 'owed_to_me', 'Pedro', '300.00');
+    const forgiven = await authedPage.request.post(`/api/debts/${forgivenId}/forgive`);
+    expect(forgiven.ok()).toBe(true);
+
+    await authedPage.goto('/deudas');
+    await expect(authedPage.getByRole('link', { name: /Juan/ })).toBeVisible();
+    await expect(authedPage.getByRole('link', { name: /Marta/ })).toHaveCount(0);
+    await expect(authedPage.getByRole('link', { name: /Pedro/ })).toHaveCount(0);
+
+    await authedPage.getByRole('tab', { name: 'Saldadas' }).click();
+    await expect(authedPage).toHaveURL(/pestana=saldadas/);
+    await expect(authedPage.getByRole('link', { name: /Marta/ })).toBeVisible();
+    await expect(authedPage.getByRole('link', { name: /Pedro/ })).toBeVisible();
+    await expect(authedPage.getByRole('link', { name: /Juan/ })).toHaveCount(0);
+
+    // The tab survives going into a debt and coming back.
+    await authedPage.getByRole('link', { name: /Marta/ }).click();
+    await authedPage.goBack();
+    await expect(authedPage.getByRole('tab', { name: 'Saldadas' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
   test('RF-M13-13 la vista por persona muestra el neto agrupando los nombres', async ({
     authedPage,
   }) => {
