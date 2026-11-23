@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.js';
+import { accountOptions, accountSelect, expectAccountChosen } from './support/register-account.js';
 
 /**
  * TASK-243: the scenarios and rules of M2, M6 and M7 that the phases without new tests left
@@ -259,9 +260,7 @@ test.describe('TASK-243 M7 borrador, atajos y deshacer', () => {
 
     // The form is complete: amount, account and category; "Guardar" is ready.
     await expect(amountField(authedPage)).toHaveValue(/^35([.,]00)?$/);
-    await expect(
-      authedPage.locator('form').getByText('Efectivo', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Efectivo');
     await expect(saveButton(authedPage)).toBeEnabled();
     expect(creations.count()).toBe(0);
     expect(await movementsOf(authedPage)).toEqual([]);
@@ -420,9 +419,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
     await expect(authedPage.getByRole('heading', { name: 'Crea tu primera cuenta' })).toHaveCount(
       0,
     );
-    await expect(
-      authedPage.locator('form').getByText('Mi efectivo', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Mi efectivo');
   });
 
   test('EC-M7-02 un gasto que deja el efectivo en negativo muestra el error y el formulario no se limpia', async ({
@@ -515,9 +512,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
     });
     expect(set.status()).toBe(200);
     await openRegister(authedPage);
-    await expect(
-      authedPage.locator('form').getByText('Preferida', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Preferida');
 
     await archiveAccount(authedPage, preferred);
 
@@ -526,9 +521,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
       ((await settings.json()) as { defaultAccountId: string | null }).defaultAccountId,
     ).toBeNull();
     await openRegister(authedPage);
-    await expect(
-      authedPage.locator('form').getByText('Otra', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Otra');
     await expect(authedPage.getByText('Preferida')).toHaveCount(0);
   });
 
@@ -597,7 +590,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
     await createAccount(authedPage, { name: 'Efectivo' });
     const savings = await createAccount(authedPage, { name: 'Ahorro viejo', type: 'savings' });
     await openRegister(authedPage);
-    await authedPage.getByLabel('Cuenta', { exact: true }).selectOption(savings);
+    await accountSelect(authedPage).selectOption(savings);
     await amountField(authedPage).fill('15');
     await expectDraftWith(authedPage, `"accountId":"${savings}"`);
 
@@ -612,8 +605,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
       ),
     ).toBeVisible();
     await expect(amountField(authedPage)).toHaveValue('15');
-    const options = authedPage.getByLabel('Cuenta', { exact: true }).locator('option');
-    await expect(options).toHaveCount(1);
-    await expect(options.first()).toHaveText(/Efectivo/);
+    await expect(accountOptions(authedPage)).toHaveCount(1);
+    await expect(accountOptions(authedPage).first()).toHaveText(/Efectivo/);
   });
 });

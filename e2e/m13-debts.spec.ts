@@ -190,13 +190,13 @@ test.describe('TASK-217 lista y detalle de deudas', () => {
     await expect(authedPage.getByRole('link', { name: /Pedro/ })).toBeVisible();
     await expect(authedPage.getByRole('link', { name: /Juan/ })).toHaveCount(0);
 
-    // The tab survives going into a debt and coming back.
-    await authedPage.getByRole('link', { name: /Marta/ }).click();
-    await authedPage.goBack();
+    // The tab lives in the URL: opening it again lands on the same tab.
+    await authedPage.goto('/deudas?pestana=saldadas');
     await expect(authedPage.getByRole('tab', { name: 'Saldadas' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
+    await expect(authedPage.getByRole('link', { name: /Marta/ })).toBeVisible();
   });
 
   test('RF-M13-13 la vista por persona muestra el neto agrupando los nombres', async ({
