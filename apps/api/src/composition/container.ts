@@ -798,10 +798,15 @@ export const buildContainer = (env: Env): Container => {
     hmacSecret: env.HMAC_SECRET,
     webOrigin: env.WEB_ORIGIN,
     // The confirmation and recovery emails go out as soon as they are queued, under the lease of
-    // `outbox.send`; the tick stays as the retry path (ADR-01).
-    flushOutbox: () => {
-      jobs.runNow('outbox.send').catch(() => undefined);
-    },
+    // `outbox.send`; the tick stays as the retry path (ADR-01). With the fake gateway (tests and
+    // end-to-end) they stay in the outbox: the tests read the links there, and reading the mailbox
+    // is what sends them.
+    flushOutbox:
+      fakeEmail === null
+        ? () => {
+            jobs.runNow('outbox.send').catch(() => undefined);
+          }
+        : undefined,
   });
   const meService = createMeService({ store: createMeStore(prisma), auth });
   const settingsService = createSettingsService({ uow });
