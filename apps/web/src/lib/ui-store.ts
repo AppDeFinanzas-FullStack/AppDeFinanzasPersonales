@@ -16,6 +16,7 @@ export interface UndoState {
 
 export interface UiState {
   offline: boolean;
+  serviceDown: boolean;
   sessionExpired: boolean;
   tabMemory: TabMemory;
   undo: UndoState | null;
@@ -26,6 +27,7 @@ export interface UiStore {
   subscribe: (listener: () => void) => () => void;
   setTabMemory: (moduleKey: ModuleKey, entry: TabMemoryEntry) => void;
   setOffline: (value: boolean) => void;
+  setServiceDown: (value: boolean) => void;
   openSessionExpired: () => void;
   closeSessionExpired: () => void;
   showUndo: (undo: UndoState) => void;
@@ -90,6 +92,7 @@ function readTabMemory(storage: Storage): TabMemory {
 export function createUiStore({ storage }: { storage: Storage }): UiStore {
   let state: UiState = {
     offline: false,
+    serviceDown: false,
     sessionExpired: false,
     tabMemory: readTabMemory(storage),
     undo: null,
@@ -119,6 +122,9 @@ export function createUiStore({ storage }: { storage: Storage }): UiStore {
     },
     setOffline(value) {
       setState({ offline: value });
+    },
+    setServiceDown(value) {
+      if (state.serviceDown !== value) setState({ serviceDown: value });
     },
     openSessionExpired() {
       setState({ sessionExpired: true });

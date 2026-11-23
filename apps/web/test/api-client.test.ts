@@ -394,3 +394,56 @@ describe('call: network failure', () => {
     expect(uiStore.getState().offline).toBe(false);
   });
 });
+
+describe('call: database unavailable', () => {
+  const route = (readyStatus: number, apiResponse: () => Response) =>
+    vi.fn<typeof fetch>((input) =>
+      Promise.resolve(
+        urlOf(input).includes('/api/health/ready')
+          ? new Response(null, { status: readyStatus })
+          : apiResponse(),
+      ),
+    );
+
+  afterEach(() => {
+    uiStore.setServiceDown(false);
+  });
+
+  it('a server error with /api/health/ready answering 503 raises the service-down notice', async () => {
+    const fetchMock = route(503, () => problemResponse('INTERNAL_ERROR', 500));
+    fetchState.impl = fetchMock;
+
+    const outcome = await settle(call(listAccounts, {}));
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.ok === false && outcome.error).toMatchObject({ code: 'INTERNAL_ERROR' });
+    expect(uiStore.getState().serviceDown).toBe(true);
+  });
+
+  it('a server error with a ready database does not raise the notice', async () => {
+    fetchState.impl = route(204, () => problemResponse('INTERNAL_ERROR', 500));
+
+    await settle(call(listAccounts, {}));
+
+    expect(uiStore.getState().serviceDown).toBe(false);
+  });
+
+  it('a client error does not probe the readiness endpoint', async () => {
+    const fetchMock = route(503, () => problemResponse('NAME_TAKEN', 409));
+    fetchState.impl = fetchMock;
+
+    await settle(call(createAccount, NEW_ACCOUNT));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(uiStore.getState().serviceDown).toBe(false);
+  });
+
+  it('a successful response clears the notice', async () => {
+    uiStore.setServiceDown(true);
+    fetchState.impl = () => Promise.resolve(jsonResponse({ items: [ACCOUNT] }));
+
+    await call(listAccounts, {});
+
+    expect(uiStore.getState().serviceDown).toBe(false);
+  });
+});

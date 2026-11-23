@@ -1,3 +1,7 @@
 {
-  "genericError": "Algo salió mal. Inténtalo de nuevo en unos minutos."
+  "genericError": "Algo salió mal. Inténtalo de nuevo en unos minutos.",
+  "serviceDown": {
+    "title": "Servicio no disponible por ahora",
+    "description": "No podemos leer ni guardar tus datos en este momento. No es algo que hayas hecho tú: la app vuelve sola en cuanto el servicio responda."
+  }
 }

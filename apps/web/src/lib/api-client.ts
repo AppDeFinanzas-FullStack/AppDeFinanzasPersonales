@@ -53,6 +53,9 @@ export type Call = <I, O>(endpoint: Endpoint<I, O>, input: I, opts?: CallOptions
 const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 const SESSION_EXPIRED = 'SESSION_EXPIRED';
 const INTERNAL_ERROR = 'INTERNAL_ERROR';
+const READY_PATH = '/api/health/ready';
+const SERVER_ERROR = 500;
+const SERVICE_UNAVAILABLE = 503;
 
 function hasBody(method: HttpMethod): boolean {
   return method !== 'GET' && method !== 'DELETE';
@@ -103,6 +106,24 @@ async function toApiError(response: Response): Promise<ApiError> {
 // Plan §4.0: typed fetch client. RF-M1-07 background header, ADR-09 problem+json,
 // RF-M2-08 session expired without navigating, RF-M2-07 network failure → offline.
 export function createApiClient({ fetch: send, store, online }: CreateApiClientOptions): Call {
+  // A server error may be the API itself or the database behind it (for example a Neon quota that
+  // is used up). `/api/health/ready` tells them apart: 503 means the database is unreachable, and
+  // the app then says so instead of showing a generic error on every screen. One probe at a time.
+  let probing: Promise<void> | null = null;
+  function probeReadiness(): Promise<void> {
+    probing ??= send(READY_PATH, { method: 'GET' })
+      .then(
+        (response) => {
+          if (response.status === SERVICE_UNAVAILABLE) store.setServiceDown(true);
+        },
+        () => undefined,
+      )
+      .finally(() => {
+        probing = null;
+      });
+    return probing;
+  }
+
   return async function call<I, O>(
     endpoint: Endpoint<I, O>,
     input: I,
@@ -131,8 +152,11 @@ export function createApiClient({ fetch: send, store, online }: CreateApiClientO
     if (!response.ok) {
       const apiError = await toApiError(response);
       if (apiError.code === SESSION_EXPIRED) store.openSessionExpired();
+      if (response.status >= SERVER_ERROR) await probeReadiness();
       throw apiError;
     }
+
+    store.setServiceDown(false);
 
     const body = response.status === 204 ? undefined : await readJson(response);
     return endpoint.output.parse(body);
