@@ -52,7 +52,6 @@
     "show": "Más opciones",
     "hide": "Menos opciones",
     "note": "Nota",
-    "account": "Otra cuenta",
     "fee": "Comisión",
     "feeCategory": "Categoría de la comisión",
     "feeCategoryHint": "No tienes la categoría «Comisiones bancarias». Elige otra para la comisión.",

@@ -597,8 +597,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
     await createAccount(authedPage, { name: 'Efectivo' });
     const savings = await createAccount(authedPage, { name: 'Ahorro viejo', type: 'savings' });
     await openRegister(authedPage);
-    await authedPage.getByRole('button', { name: 'Más opciones' }).click();
-    await authedPage.getByLabel('Otra cuenta').selectOption(savings);
+    await authedPage.getByLabel('Cuenta', { exact: true }).selectOption(savings);
     await amountField(authedPage).fill('15');
     await expectDraftWith(authedPage, `"accountId":"${savings}"`);
 
@@ -613,8 +612,7 @@ test.describe('TASK-243 M7 formulario de Registrar', () => {
       ),
     ).toBeVisible();
     await expect(amountField(authedPage)).toHaveValue('15');
-    await authedPage.getByRole('button', { name: 'Más opciones' }).click();
-    const options = authedPage.getByLabel('Otra cuenta').locator('option');
+    const options = authedPage.getByLabel('Cuenta', { exact: true }).locator('option');
     await expect(options).toHaveCount(1);
     await expect(options.first()).toHaveText(/Efectivo/);
   });
