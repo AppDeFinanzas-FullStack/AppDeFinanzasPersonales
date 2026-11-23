@@ -49,6 +49,13 @@ export interface Jobs {
    */
   tick(): Promise<void>;
   /**
+   * Runs one registered job right now, under the same lease as the tick, so it never overlaps a
+   * tick run of that job. It does nothing if the job is not registered, its module is not
+   * released, or another run holds the lease. It is how a request asks for work that would
+   * otherwise wait for the next tick, such as sending the emails it has just queued.
+   */
+  runNow(name: JobName): Promise<void>;
+  /**
    * Runs, for one user only, the per-user scope of the registered jobs of the released modules, in
    * the order of plan §4.0. A job that fails does not stop the next ones (RNF-13).
    */
@@ -94,6 +101,14 @@ export function createJobs({ jobRuns, clock, release }: JobsDeps): Jobs {
           // A failed job does not stop the next ones; the next catch-up or tick completes it.
         }
       }
+    },
+
+    async runNow(name) {
+      const run = handlers.get(name);
+      const owner = JOBS.find((job) => job.name === name);
+      if (run === undefined || owner === undefined) return;
+      if (owner.module !== null && !isReleased(owner.module, release)) return;
+      await runJob(name, run);
     },
 
     async tick() {

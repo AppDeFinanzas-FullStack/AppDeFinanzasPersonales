@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import {
   type AuthService,
@@ -503,4 +503,64 @@ describe('sign-up: neutral response', () => {
       expect(Math.max(...all) - Math.min(...all)).toBeLessThan(300);
     },
   );
+});
+
+describe('sign-up: emails go out without waiting for the tick', () => {
+  const buildWith = (flushOutbox: () => void) =>
+    createAuthService({
+      uow,
+      auth,
+      hmacSecret: HMAC_SECRET,
+      webOrigin: WEB_ORIGIN,
+      flushOutbox,
+    });
+
+  it('asks for the outbox to be sent once the email is queued', async () => {
+    const email = freshEmail();
+    let queuedWhenFlushed = 0;
+    const flushOutbox = () => {
+      // The flush runs after the transaction: the queued email is already visible.
+      void outboxOf(email, 'confirm').then((rows) => {
+        queuedWhenFlushed = rows.length;
+      });
+    };
+    const flush = vi.fn(flushOutbox);
+
+    await buildWith(flush).signUp({
+      name: 'Ana Pérez',
+      email,
+      password: PASSWORD,
+      termsAccepted: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(flush).toHaveBeenCalledTimes(1);
+    expect(queuedWhenFlushed).toBe(1);
+  });
+
+  it('a failing flush does not fail the sign-up and leaves the email queued', async () => {
+    const email = freshEmail();
+    const flush = vi.fn(() => {
+      throw new Error('flush exploded');
+    });
+
+    const result = await buildWith(flush).signUp({
+      name: 'Ana Pérez',
+      email,
+      password: PASSWORD,
+      termsAccepted: true,
+    });
+
+    expect(result.status).toBe('check_email');
+    expect(await outboxOf(email, 'confirm')).toHaveLength(1);
+  });
+
+  it('works without a flush (the tick sends it)', async () => {
+    const email = freshEmail();
+
+    const result = await signUp(email);
+
+    expect(result.status).toBe('check_email');
+    expect(await outboxOf(email, 'confirm')).toHaveLength(1);
+  });
 });
