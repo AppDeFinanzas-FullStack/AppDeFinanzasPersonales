@@ -128,6 +128,12 @@ export interface AuthServiceDeps {
   auth: AuthGateway;
   hmacSecret: string;
   webOrigin: string;
+  /**
+   * Asks for the queued emails to be sent now instead of at the next tick. It runs after the
+   * transaction that queued them, never waits for the send, and a failure of the send leaves the
+   * emails in the outbox for the tick and its retries.
+   */
+  flushOutbox?: () => void;
 }
 
 /**
@@ -169,7 +175,19 @@ export function createAuthService({
   auth,
   hmacSecret,
   webOrigin,
+  flushOutbox,
 }: AuthServiceDeps): AuthService {
+  /** Runs the transaction that may queue an email, then asks for it to go out at once. */
+  async function queuingMail<T>(work: Promise<T>): Promise<T> {
+    const result = await work;
+    try {
+      flushOutbox?.();
+    } catch {
+      // The tick sends what the flush could not.
+    }
+    return result;
+  }
+
   const hmacOf = (email: string) => createHmac('sha256', hmacSecret).update(email).digest('hex');
 
   /** Hash checked when the email has no account, so the time does not reveal it (RNF-15). */
@@ -325,12 +343,14 @@ export function createAuthService({
       const ticket = randomBytes(SIGNUP_TICKET_BYTES).toString('base64url');
       const expiresAt = new Date(Date.now() + SIGNUP_TICKET_MILLISECONDS);
 
-      await uow.run(async (repos) => {
-        const userId = await register(repos, name, email, passwordHash, timezone);
-        if (userId !== null) {
-          await repos.signupTickets.issue(userId, sha256(ticket), expiresAt);
-        }
-      });
+      await queuingMail(
+        uow.run(async (repos) => {
+          const userId = await register(repos, name, email, passwordHash, timezone);
+          if (userId !== null) {
+            await repos.signupTickets.issue(userId, sha256(ticket), expiresAt);
+          }
+        }),
+      );
 
       const remaining = MIN_SIGN_UP_MILLISECONDS - (performance.now() - started);
       if (remaining > 0) {
@@ -378,7 +398,7 @@ export function createAuthService({
     },
 
     async resendConfirmation(input) {
-      await uow.run((repos) => resend(repos, input));
+      await queuingMail(uow.run((repos) => resend(repos, input)));
     },
 
     async confirm(token) {
@@ -407,13 +427,13 @@ export function createAuthService({
 
     async forgotPassword(input) {
       const email = input.email.trim().toLowerCase();
-      await uow.run((repos) => sendRecovery(repos, email));
+      await queuingMail(uow.run((repos) => sendRecovery(repos, email)));
     },
 
     async resetPassword(input) {
       const passwordHash = await auth.hashPassword(input.newPassword);
-      const { userId, onboardingCompleted } = await uow.run((repos) =>
-        applyRecovery(repos, input.token, passwordHash),
+      const { userId, onboardingCompleted } = await queuingMail(
+        uow.run((repos) => applyRecovery(repos, input.token, passwordHash)),
       );
       await auth.revokeSessions(userId);
       const session = await auth.createSession(userId);
@@ -431,15 +451,17 @@ export function createAuthService({
         throw new AppError('INVALID_CURRENT_PASSWORD');
       }
       const passwordHash = await auth.hashPassword(input.newPassword);
-      await uow.run(async (repos) => {
-        await repos.users.setPassword(account.id, passwordHash);
-        await repos.emailOutbox.enqueue({
-          id: uuidv7(),
-          to: account.email,
-          kind: 'password_changed',
-          payload: {},
-        });
-      });
+      await queuingMail(
+        uow.run(async (repos) => {
+          await repos.users.setPassword(account.id, passwordHash);
+          await repos.emailOutbox.enqueue({
+            id: uuidv7(),
+            to: account.email,
+            kind: 'password_changed',
+            payload: {},
+          });
+        }),
+      );
       await auth.revokeSessions(account.id, input.sessionId);
     },
   };

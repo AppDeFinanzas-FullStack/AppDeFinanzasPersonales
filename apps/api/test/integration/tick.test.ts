@@ -518,6 +518,62 @@ describe('tick: jobs de módulos no liberados (ADR-18)', () => {
   });
 });
 
+describe('jobs.runNow', () => {
+  it('runs one registered job under its lease and releases it', async () => {
+    const jobs = jobsFor('1.0');
+    const probe = recorder();
+    registerAll(jobs, probe);
+
+    await jobs.runNow('outbox.send');
+
+    expect(probe.calls).toEqual(['outbox.send']);
+    const row = await jobRunRow('outbox.send');
+    expect(row?.lastStartedAt).toEqual(t0);
+    expect(row?.lastFinishedAt).toEqual(t0);
+    expect(row?.lockedUntil).toBeNull();
+  });
+
+  it('does nothing while another run holds the lease of that job', async () => {
+    await seedJobRun('outbox.send', { lastStartedAt: at(-60_000), lockedUntil: at(4 * 60_000) });
+    const jobs = jobsFor('1.0');
+    const probe = recorder();
+    registerAll(jobs, probe);
+
+    await jobs.runNow('outbox.send');
+
+    expect(probe.calls).toEqual([]);
+    expect((await jobRunRow('outbox.send'))?.lockedUntil).toEqual(at(4 * 60_000));
+  });
+
+  it('does nothing for a job whose module is not released (ADR-18)', async () => {
+    const jobs = jobsFor('1.0');
+    const probe = recorder();
+    registerAll(jobs, probe);
+
+    await jobs.runNow('budgets.close');
+
+    expect(probe.calls).toEqual([]);
+  });
+
+  it('does nothing for a job nobody registered', async () => {
+    const jobs = jobsFor('1.0');
+
+    await expect(jobs.runNow('outbox.send')).resolves.toBeUndefined();
+    expect(await jobRunRow('outbox.send')).toBeUndefined();
+  });
+
+  it('records the failure of the job and does not throw', async () => {
+    const jobs = jobsFor('1.0');
+    jobs.registerJob('outbox.send', () => Promise.reject(new Error('mail provider down')));
+
+    await expect(jobs.runNow('outbox.send')).resolves.toBeUndefined();
+
+    const row = await jobRunRow('outbox.send');
+    expect(row?.lastError).toContain('mail provider down');
+    expect(row?.lockedUntil).toBeNull();
+  });
+});
+
 // ---------- POST /internal/jobs/tick ----------
 
 const TICK_PATH = '/internal/jobs/tick';
