@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.js';
 import { expectNoBlockingViolations } from './support/axe.js';
-import { expectAccountChosen, accountOptions } from './support/register-account.js';
+import { accountSelect, expectAccountChosen } from './support/register-account.js';
 
 interface Settings {
   defaultAccountId: string | null;
@@ -322,7 +322,8 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
 
     await authedPage.goto('/registrar');
     await expectAccountChosen(authedPage, 'Cuenta Carla');
-    await expect(accountOptions(authedPage).filter({ hasText: 'Cuenta Ana' })).toHaveCount(0);
+    // Ana is still active and is in the selector, but the chosen one is the last used.
+    await expect(accountSelect(authedPage).locator('option:checked')).not.toHaveText(/Cuenta Ana/);
   });
 
   test('RF-M7-03 la cuenta por defecto elegida en Ajustes es la preseleccionada en Registrar', async ({
