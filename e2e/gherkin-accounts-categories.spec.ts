@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.js';
+import { accountOptions, accountSelect } from './support/register-account.js';
 
 /**
  * TASK-243: the scenarios and rules of M4 and M5 that the phases without new tests left unnamed
@@ -220,10 +221,9 @@ test.describe('TASK-243 M4 ciclo de vida de las cuentas', () => {
 
     // Out of the selectors of Registrar: the second account of a movement and of a transfer.
     await authedPage.goto('/registrar');
-    await authedPage.getByRole('button', { name: 'Más opciones' }).click();
-    await expect(authedPage.getByLabel('Otra cuenta').locator('option')).toHaveCount(1);
-    await expect(authedPage.getByLabel('Otra cuenta')).toContainText('Efectivo');
-    await expect(authedPage.getByLabel('Otra cuenta')).not.toContainText('Banco viejo');
+    await expect(accountOptions(authedPage)).toHaveCount(1);
+    await expect(accountSelect(authedPage)).toContainText('Efectivo');
+    await expect(accountSelect(authedPage)).not.toContainText('Banco viejo');
 
     // The expense of the archived account still counts in the month.
     expect((await kindTotals(authedPage)).expense).toBe('1.00');

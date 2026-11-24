@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures/auth.js';
 import { expectNoBlockingViolations } from './support/axe.js';
+import { accountSelect, expectAccountChosen } from './support/register-account.js';
 
 interface Settings {
   defaultAccountId: string | null;
@@ -272,9 +273,7 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
 
     // With the default account, Registrar opens on it (RF-M7-03).
     await authedPage.goto('/registrar');
-    await expect(
-      authedPage.locator('form').getByText('Cuenta Beto', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Cuenta Beto');
 
     await archiveAccount(authedPage, beto);
 
@@ -283,9 +282,7 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
       .poll(async () => (await getSettings(authedPage)).defaultAccountId, { timeout: 10_000 })
       .toBeNull();
     await authedPage.goto('/registrar');
-    await expect(
-      authedPage.locator('form').getByText('Cuenta Ana', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Cuenta Ana');
     await expect(authedPage.getByText('Cuenta Beto')).toHaveCount(0);
 
     // Ajustes shows no default account and does not offer the archived one.
@@ -324,12 +321,9 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
       .toBeNull();
 
     await authedPage.goto('/registrar');
-    await expect(
-      authedPage.locator('form').getByText('Cuenta Carla', { exact: true }).first(),
-    ).toBeVisible();
-    await expect(authedPage.locator('form').getByText('Cuenta Ana', { exact: true })).toHaveCount(
-      0,
-    );
+    await expectAccountChosen(authedPage, 'Cuenta Carla');
+    // Ana is still active and is in the selector, but the chosen one is the last used.
+    await expect(accountSelect(authedPage).locator('option:checked')).not.toHaveText(/Cuenta Ana/);
   });
 
   test('RF-M7-03 la cuenta por defecto elegida en Ajustes es la preseleccionada en Registrar', async ({
@@ -345,9 +339,7 @@ test.describe('TASK-152 Ajustes de Registrar', () => {
       .toBe(carla);
 
     await authedPage.goto('/registrar');
-    await expect(
-      authedPage.locator('form').getByText('Cuenta Carla', { exact: true }).first(),
-    ).toBeVisible();
+    await expectAccountChosen(authedPage, 'Cuenta Carla');
   });
 
   test('RF-M7-10 reordenar los atajos con el teclado se refleja en Registrar', async ({

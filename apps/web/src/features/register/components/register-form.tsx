@@ -567,7 +567,16 @@ export function RegisterForm() {
         />
         <AmountInput id="register-amount" value={amount} onChange={onAmount} inputRef={amountRef} />
         {kind !== 'transfer' && (
-          <AccountChip account={account} kind={kind} loading={context.isPending} />
+          <AccountChip
+            account={account}
+            accounts={accounts}
+            kind={kind}
+            loading={context.isPending}
+            onChange={(id) => {
+              form.setValue('accountId', id, { shouldDirty: true });
+              form.clearErrors('accountId');
+            }}
+          />
         )}
         {kind === 'transfer' && (
           <TransferFields
@@ -628,17 +637,6 @@ export function RegisterForm() {
         {alwaysShowNote && <NoteField value={note} onChange={setNote} />}
         <SecondLevel
           note={alwaysShowNote ? null : { value: note, onChange: setNote }}
-          account={
-            kind === 'transfer' || account === undefined
-              ? null
-              : {
-                  accounts,
-                  value: account.id,
-                  onChange: (id) => {
-                    form.setValue('accountId', id, { shouldDirty: true });
-                  },
-                }
-          }
           fee={
             kind === 'transfer' ? (
               <FeeField

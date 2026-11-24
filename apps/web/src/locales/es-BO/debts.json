@@ -1,6 +1,12 @@
 {
   "title": "Deudas y préstamos",
   "empty": "Aún no tienes deudas ni préstamos registrados.",
+  "emptyActive": "No tienes deudas abiertas. Las que ya saldaste están en «Saldadas».",
+  "emptySettled": "Aún no hay deudas saldadas. Aquí aparecerán las que pagues por completo o condones.",
+  "tabs": {
+    "active": "Activas",
+    "settled": "Saldadas"
+  },
   "loadError": "No se pudieron cargar las deudas. Inténtalo de nuevo.",
   "summary": {
     "label": "Resumen de deudas",
